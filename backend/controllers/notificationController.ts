@@ -39,7 +39,7 @@ export const getNotifications = async (req: Request, res: Response): Promise<voi
       .lean();
     res.json({ notifications });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -51,7 +51,7 @@ export const getUnreadCount = async (req: Request, res: Response): Promise<void>
     const count = await Notification.countDocuments({ recipient: userId, read: false });
     res.json({ count });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -71,7 +71,7 @@ export const markAsRead = async (req: Request, res: Response): Promise<void> => 
     }
     res.json({ notification });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -83,7 +83,7 @@ export const markAllAsRead = async (req: Request, res: Response): Promise<void> 
     await Notification.updateMany({ recipient: userId, read: false }, { read: true });
     res.json({ message: 'All notifications marked as read.' });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -99,7 +99,7 @@ export const deleteNotification = async (req: Request, res: Response): Promise<v
     }
     res.json({ message: 'Notification deleted.' });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -116,7 +116,7 @@ export const getSettings = async (req: Request, res: Response): Promise<void> =>
     }
     res.json({ settings });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -135,6 +135,6 @@ export const updateSettings = async (req: Request, res: Response): Promise<void>
     );
     res.json({ settings });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };

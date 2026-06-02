@@ -27,7 +27,7 @@ export const adminOnly = async (req: Request, res: Response, next: NextFunction)
       return;
     }
 
-    const allowed: UserRole[] = ['admin', 'moderator'];
+    const allowed: UserRole[] = ['admin', 'moderator', 'ai_moderator'];
     if (!allowed.includes(user.role)) {
       res.status(403).json({ message: 'Access denied. Admin role required.' });
       return;

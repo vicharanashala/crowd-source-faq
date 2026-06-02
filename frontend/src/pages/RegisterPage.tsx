@@ -61,7 +61,7 @@ export default function RegisterPage() {
             </svg>
           </div>
           <h1 className="text-xl font-serif text-ink">Yaksha FAQ Portal</h1>
-          <p className="text-xs text-ink-soft mt-1.5">Create your account</p>
+          <p className="text-xs text-ink-soft mt-1.5">Join to search doubts from your team's Zoom sessions</p>
         </div>
 
         <div className="bg-card rounded-2xl border border-border shadow-card p-6">

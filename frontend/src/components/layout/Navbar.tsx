@@ -7,6 +7,7 @@ const navItems = [
   { label: 'Home', to: '/' },
   { label: 'FAQ', to: '/faq' },
   { label: 'Community', to: '/community' },
+  { label: 'Leaderboard', to: '/leaderboard' },
 ];
 
 function getAvatarColor(name?: string): string {

@@ -45,7 +45,7 @@ export default function CTA() {
           onClick={() => navigate('/community')}
           className="flex-shrink-0 w-full sm:w-auto px-7 py-3 sm:py-3.5 bg-ink text-white text-sm font-semibold rounded-xl hover:bg-ink/85 hover:shadow-lg transition-all cursor-pointer text-center"
         >
-          Ask a New Question
+          Ask the Community 
         </button>
       </div>
     </section>

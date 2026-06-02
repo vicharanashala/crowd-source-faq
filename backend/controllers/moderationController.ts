@@ -54,7 +54,7 @@ export const banUser = async (req: Request, res: Response): Promise<void> => {
 
     res.json({ userId, isBanned: true, banReason: reason, bannedAt: user.bannedAt });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -85,7 +85,7 @@ export const unbanUser = async (req: Request, res: Response): Promise<void> => {
 
     res.json({ userId, isBanned: false });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -115,7 +115,7 @@ export const suspendUser = async (req: Request, res: Response): Promise<void> =>
 
     res.json({ userId, suspendedUntil: until });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -142,7 +142,7 @@ export const unsuspendUser = async (req: Request, res: Response): Promise<void> 
 
     res.json({ userId, suspendedUntil: null });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -166,7 +166,7 @@ export const warnUser = async (req: Request, res: Response): Promise<void> => {
 
     res.json({ userId, warned: true, reason });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -196,7 +196,7 @@ export const softDeleteUser = async (req: Request, res: Response): Promise<void>
 
     res.json({ userId, isDeleted: true });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -226,7 +226,7 @@ export const getModerationLogs = async (req: Request, res: Response): Promise<vo
 
     res.json({ logs, total, page, pages: Math.ceil(total / limit) });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -245,6 +245,6 @@ export const getModerationQueue = async (req: Request, res: Response): Promise<v
     ]);
     res.json({ banned, suspended });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };

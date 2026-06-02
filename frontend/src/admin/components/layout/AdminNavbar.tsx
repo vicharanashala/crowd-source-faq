@@ -1,15 +1,21 @@
 import React from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, Link } from 'react-router-dom';
 import { useAdminAuth } from '../../hooks/useAdminAuth';
+import { getPublicUrl } from '../../../utils/publicUrl';
 
 const PAGE_LABELS: Record<string, string> = {
   '/admin':          'Dashboard',
   '/admin/faqs':     'FAQs',
+  '/admin/faqs/review': 'FAQ Review',
   '/admin/community': 'Community',
   '/admin/users':     'Users',
   '/admin/moderation': 'Moderation',
   '/admin/leaderboard': 'Leaderboard',
   '/admin/unresolved-search': 'FAQ Gaps',
+  '/admin/zoom-meetings': 'Zoom Meetings',
+  '/admin/zoom-insights': 'Zoom Insights',
+  '/admin/settings': 'Settings',
+  '/admin/settings/ai': 'AI Settings',
 };
 
 interface AdminNavbarProps { onMobileMenuToggle: () => void; }
@@ -18,6 +24,7 @@ export default function AdminNavbar({ onMobileMenuToggle }: AdminNavbarProps) {
   const location = useLocation();
   const { user } = useAdminAuth();
   const label = PAGE_LABELS[location.pathname] ?? 'Admin';
+  const publicUrl = getPublicUrl();
 
   return (
     <header className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-5 shrink-0 sticky top-0 z-20">
@@ -31,6 +38,12 @@ export default function AdminNavbar({ onMobileMenuToggle }: AdminNavbarProps) {
         <h1 className="text-sm font-light text-gray-500 tracking-wide">{label}</h1>
       </div>
       <div className="flex items-center gap-2.5">
+        <Link
+          to="/"
+          className="text-xs text-gray-400 hover:text-gray-700 transition-colors border border-gray-200 rounded-md px-2.5 py-1 hover:bg-gray-50"
+        >
+          ← Website
+        </Link>
         <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-xs font-semibold text-gray-600">
           {user?.name?.[0]?.toUpperCase() ?? 'A'}
         </div>

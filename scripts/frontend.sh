@@ -10,6 +10,10 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$SCRIPT_DIR/.."
 FRONTEND="$ROOT/frontend"
 
+# Resolve node_modules/.bin paths once
+VITE="$FRONTEND/node_modules/.bin/vite"
+NPM="$FRONTEND/node_modules/.bin/npm"
+
 FONT="\033[94m"
 OK="\033[92m"
 WARN="\033[93m"
@@ -44,8 +48,12 @@ else
 
   log "Checking Node.js..."
   node --version > /dev/null || die "Node.js not found"
+  [ ! -x "$VITE" ] && die "vite not found at $VITE — run: cd frontend && npm install"
 
   log "Starting frontend (vite)..."
   echo ""
-  npm run dev
+  # Kill orphaned vite on port 5173 before starting
+  pkill -f "vite" 2>/dev/null || true
+  sleep 1
+  "$VITE" --port 5173 > /tmp/yaksha-frontend.log 2>&1 &
 fi

@@ -1,35 +1,61 @@
 import { Request, Response } from 'express';
-import TeaNotification from '../models/TeaNotification.js';
-import FAQ from '../models/FAQ.js';
+import { Types } from 'mongoose';
+import TeaNotification, { type TeaEventType } from '../models/TeaNotification.js';
 
-/** Internal: create a tea drop for all non-admin users when a new FAQ is published */
-export async function createTeaDropsForFAQ(faqId: string, faqQuestion: string): Promise<void> {
+// ─── Reusable tea-drop creator ────────────────────────────────────────────────
+// eventType drives the icon/message shown in the SpillTheTea UI.
+// Uses upsert to prevent duplicates if called multiple times.
+export async function createTeaDrop(params: {
+  userId: Types.ObjectId;
+  eventType: TeaEventType;
+  postId?: Types.ObjectId;
+  postTitle?: string;
+  faqId?: Types.ObjectId;
+  faqQuestion?: string;
+  triggeredBy?: Types.ObjectId;
+  triggeredByName?: string;
+  content?: string;
+}): Promise<void> {
   try {
-    const User = (await import('../models/User.js')).default;
-
-    // Fan out to every logged-in user except admins/moderators
-    const users = await User.find({ role: { $nin: ['admin', 'moderator'] } }).select('_id');
-    const drops = users.map((u) => ({
-      userId: u._id,
-      faqId: new (require('mongoose').Types.ObjectId)(faqId),
-      faqQuestion,
-      read: false,
-    }));
-
-    // Upsert avoids duplicates even on retry
-    for (const drop of drops) {
-      await TeaNotification.findOneAndUpdate(
-        { userId: drop.userId, faqId: drop.faqId },
-        { $setOnInsert: drop },
-        { upsert: true }
-      );
-    }
+    await TeaNotification.findOneAndUpdate(
+      {
+        userId: params.userId,
+        postId: params.postId ?? null,
+        faqId: params.faqId ?? null,
+        eventType: params.eventType,
+      },
+      { $setOnInsert: params },
+      { upsert: true, setDefaultsOnInsert: true }
+    );
   } catch (err) {
-    console.warn('createTeaDropsForFAQ failed:', (err as Error).message);
+    console.warn('[tea] createTeaDrop failed:', (err as Error).message);
   }
 }
 
-// GET /api/tea/notifications — Get tea feed for the current user
+// ─── Backwards-compatible fan-out for FAQ publications ───────────────────────
+// Called by faqController.approveFAQ. Fans out one drop per non-admin user.
+export async function createTeaDropsForFAQ(faqId: string, faqQuestion: string): Promise<void> {
+  try {
+    const User = (await import('../models/User.js')).default;
+    const users = await User.find({ role: { $nin: ['admin', 'moderator'] } }).select('_id');
+    await Promise.all(
+      users.map((u) =>
+        createTeaDrop({
+          userId: u._id,
+          eventType: 'faq_published',
+          faqId: new Types.ObjectId(faqId),
+          faqQuestion,
+        })
+      )
+    );
+  } catch (err) {
+    console.warn('[tea] createTeaDropsForFAQ failed:', (err as Error).message);
+  }
+}
+
+// ─── API endpoints ────────────────────────────────────────────────────────────
+
+// GET /api/notifications/tea — Paginated tea feed
 export const getTeaNotifications = async (req: Request, res: Response): Promise<void> => {
   try {
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
@@ -56,11 +82,11 @@ export const getTeaNotifications = async (req: Request, res: Response): Promise<
       hasMore: skip + drops.length < total,
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
-// GET /api/tea/unread-count — Get unread tea count
+// GET /api/notifications/tea/unread-count
 export const getTeaUnreadCount = async (req: Request, res: Response): Promise<void> => {
   try {
     const count = await TeaNotification.countDocuments({
@@ -69,24 +95,21 @@ export const getTeaUnreadCount = async (req: Request, res: Response): Promise<vo
     });
     res.json({ count });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
-// PATCH /api/tea/notifications/read-all — Mark all tea as read
+// PATCH /api/notifications/tea/read-all
 export const markAllTeaAsRead = async (req: Request, res: Response): Promise<void> => {
   try {
-    await TeaNotification.updateMany(
-      { userId: req.user!._id, read: false },
-      { read: true }
-    );
+    await TeaNotification.updateMany({ userId: req.user!._id, read: false }, { read: true });
     res.json({ message: 'All tea marked as read.' });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
-// PATCH /api/tea/notifications/:id/read — Mark one drop as read
+// PATCH /api/notifications/tea/:id/read
 export const markTeaAsRead = async (req: Request, res: Response): Promise<void> => {
   try {
     const drop = await TeaNotification.findOneAndUpdate(
@@ -100,6 +123,6 @@ export const markTeaAsRead = async (req: Request, res: Response): Promise<void> 
     }
     res.json({ drop });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };

@@ -73,7 +73,7 @@ export default function TrendingIssues() {
         {issues.map((issue) => (
           <div
             key={issue._id}
-            onClick={() => navigate('/community')}
+            onClick={() => navigate(`/community?post=${issue._id}`)}
             className="flex items-center justify-between px-3 py-3 rounded-xl hover:bg-bg transition-colors cursor-pointer group"
           >
             <span className="text-sm text-ink group-hover:text-accent transition-colors line-clamp-1">

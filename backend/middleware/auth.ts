@@ -26,8 +26,12 @@ export const protect = async (req: Request, res: Response, next: NextFunction): 
 
     req.user = user as IUser;
     next();
-  } catch {
-    res.status(401).json({ message: 'Not authorized. Token invalid.' });
+  } catch (err) {
+    if (err instanceof jwt.TokenExpiredError) {
+      res.status(401).json({ message: 'Session expired. Please log in again.' });
+    } else {
+      res.status(401).json({ message: 'Not authorized. Token invalid.' });
+    }
   }
 };
 

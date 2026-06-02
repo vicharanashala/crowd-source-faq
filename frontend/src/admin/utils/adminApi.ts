@@ -1,7 +1,7 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
 
 const adminApi = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'https://yaksha-faq-backend.vercel.app/api',
+  baseURL: import.meta.env.VITE_API_URL || '/api',
   headers: { 'Content-Type': 'application/json' },
 });
 

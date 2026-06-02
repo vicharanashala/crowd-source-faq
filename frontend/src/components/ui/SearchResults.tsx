@@ -49,6 +49,7 @@ const ResultCard = ({ result }: ResultCardProps) => {
     <div
       className={`bg-card rounded-2xl border shadow-subtle card-hover transition-all duration-300 overflow-hidden
         ${expanded ? 'border-accent/25 shadow-card-hover' : 'border-border hover:border-accent/15'}`}
+      onClick={handleCardClick}
     >
       <button
         onClick={handleCardClick}

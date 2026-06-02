@@ -85,8 +85,10 @@ async function seed({ count, days, failRate }: { count: number; days: number; fa
 }
 
 const argv = process.argv.slice(2);
-const getArg = (flag: string, fallback: string) =>
-  argv.find((a, i) => a === flag && argv[i + 1])?.[1] ?? fallback;
+const getArg = (flag: string, fallback: string): string => {
+  const i = argv.indexOf(flag);
+  return i >= 0 && i + 1 < argv.length ? argv[i + 1] : fallback;
+};
 
 const count = parseInt(getArg('--count', '200'));
 const days = parseInt(getArg('--days', '14'));

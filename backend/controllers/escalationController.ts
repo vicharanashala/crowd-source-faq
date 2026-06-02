@@ -22,12 +22,16 @@ import CommunityPost from '../models/CommunityPost.js';
 import User from '../models/User.js';
 import Notification from '../models/Notification.js';
 import { logAction } from './adminController.js';
+import { escalationsTotal } from '../utils/metrics.js';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 // Threshold in days after which an unanswered post is auto-escalated.
 const UNANSWERED_ESCALATION_DAYS = parseInt(
   process.env['UNANSWERED_ESCALATION_DAYS'] || '7'
 );
+
+// Time-Trial: threshold in hours after which an unanswered post enters the challenge window.
+const TIME_TRIAL_HOURS = parseInt(process.env['TIME_TRIAL_HOURS'] || '16');
 
 // ─── Scheduler ───────────────────────────────────────────────────────────────
 // Interval handle stored so server.ts can clear it on shutdown.
@@ -49,9 +53,12 @@ export function startEscalationScheduler(): void {
   }
 
   escalationIntervalHandle = setInterval(() => {
-    // Run fire-and-forget — errors are logged inside the function.
+    // Run fire-and-forget — errors are logged inside the functions.
     runUnansweredEscalationCheck().catch((err) => {
       console.error('[escalation] Scheduler error:', err);
+    });
+    runTimeTrialCheck().catch((err) => {
+      console.error('[time-trial] Scheduler error:', err);
     });
   }, ms);
 
@@ -121,8 +128,50 @@ export async function runUnansweredEscalationCheck(): Promise<void> {
     ...notifications,
   ]);
 
+  escalationsTotal.inc({ count: eligible.length });
+
   console.log(
     `[escalation] Auto-escalated ${eligible.length} unanswered post${eligible.length === 1 ? '' : 's'}.`
+  );
+}
+
+// ─── Time-Trial scheduler ─────────────────────────────────────────────────────
+
+/**
+ * runTimeTrialCheck — activates the 16-hour challenge window for unanswered posts.
+ *
+ * Finds all posts where:
+ *   - status === 'unanswered'
+ *   - timeTrialStatus === 'none'
+ *   - createdAt is older than TIME_TRIAL_HOURS
+ *
+ * Activates them by setting timeTrialStatus = 'pending' and recording timeTrialStartedAt.
+ * This marks them as live Time-Trial challenges.
+ *
+ * Idempotent: already 'pending' or 'awarded' posts have timeTrialStatus !== 'none'
+ * so they are skipped.
+ */
+export async function runTimeTrialCheck(): Promise<void> {
+  const cutoff = new Date(Date.now() - TIME_TRIAL_HOURS * 60 * 60 * 1000);
+
+  const eligible = await CommunityPost.find({
+    status: 'unanswered',
+    timeTrialStatus: 'none',
+    createdAt: { $lt: cutoff },
+  }).select('_id title');
+
+  if (eligible.length === 0) return;
+
+  await CommunityPost.updateMany(
+    { _id: { $in: eligible.map((p) => p._id) } },
+    {
+      timeTrialStatus: 'pending',
+      timeTrialStartedAt: new Date(),
+    }
+  );
+
+  console.log(
+    `[time-trial] Activated ${eligible.length} Time-Trial post${eligible.length === 1 ? '' : 's'}.`
   );
 }
 
@@ -161,7 +210,7 @@ export const getEscalatedPosts = async (
 
     res.json({ posts: result, total: result.length });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -180,7 +229,7 @@ export const resolveEscalatedPost = async (
   try {
     const { id } = req.params as { id: string };
     const { outcome } = req.body as { outcome?: string };
-    const adminId = (req as any).user?.id as string | undefined;
+    const adminId = req.user!._id.toString();
 
     const post = await CommunityPost.findById(id);
     if (!post) { res.status(404).json({ message: 'Post not found' }); return; }
@@ -202,7 +251,7 @@ export const resolveEscalatedPost = async (
       message: 'Escalation resolved.',
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -221,7 +270,7 @@ export const dismissEscalatedPost = async (
   try {
     const { id } = req.params as { id: string };
     const { reason } = req.body as { reason?: string };
-    const adminId = (req as any).user?.id as string | undefined;
+    const adminId = req.user!._id.toString();
 
     const post = await CommunityPost.findById(id);
     if (!post) { res.status(404).json({ message: 'Post not found' }); return; }
@@ -243,7 +292,7 @@ export const dismissEscalatedPost = async (
       message: 'Escalation dismissed.',
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -288,6 +337,6 @@ export const getEscalationHistory = async (
 
     res.json({ items, total, page, pages: Math.ceil(total / limit) });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };

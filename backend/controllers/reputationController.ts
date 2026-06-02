@@ -3,6 +3,34 @@ import User, { calculateTier } from '../models/User.js';
 import ReputationLog from '../models/ReputationLog.js';
 import Badge from '../models/Badge.js';
 
+// ─── Auto Badge Awarder ─────────────────────────────────────────────────────
+
+export const autoAwardBadges = async (userId: string): Promise<void> => {
+  try {
+    const user = await User.findById(userId);
+    if (!user) return;
+
+    const allBadges = await Badge.find({ active: true, actionTrigger: 'auto' });
+
+    for (const badge of allBadges) {
+      // Points-based badges
+      if (badge.pointsRequired !== undefined && badge.pointsRequired !== null) {
+        if (user.points >= badge.pointsRequired) {
+          const list = badge.type === 'positive' ? 'positiveBadges' : 'negativeBadges';
+          const already = (user[list] as any[]).some(b => b.badgeId.toString() === badge._id.toString());
+          if (!already) {
+            (user[list] as any[]).push({ badgeId: badge._id.toString(), reason: `Auto-awarded: reached ${user.points} points` });
+          }
+        }
+      }
+    }
+
+    await user.save();
+  } catch {
+    // Silently fail — badge award should never break main flows
+  }
+};
+
 // ─── Award / Deduct Points ───────────────────────────────────────────────
 
 export const awardPoints = async (req: Request, res: Response): Promise<void> => {
@@ -40,7 +68,7 @@ export const awardPoints = async (req: Request, res: Response): Promise<void> =>
       prevPoints, prevTier, delta,
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -55,7 +83,7 @@ export const getUserReputation = async (req: Request, res: Response): Promise<vo
     const logs = await ReputationLog.find({ userId }).sort({ createdAt: -1 }).limit(20);
     res.json({ user, logs });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -95,7 +123,7 @@ export const issueBadge = async (req: Request, res: Response): Promise<void> => 
 
     res.json({ userId, badge: { name: badge.name, slug: badge.slug, type: badge.type }, badges: user[badgeList] });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -131,7 +159,7 @@ export const revokeBadge = async (req: Request, res: Response): Promise<void> =>
 
     res.json({ userId, badgeId, positiveBadges: user.positiveBadges, negativeBadges: user.negativeBadges });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -154,7 +182,7 @@ export const getLeaderboard = async (req: Request, res: Response): Promise<void>
     }));
     res.json({ leaderboard: rank, total: rank.length });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 

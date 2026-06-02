@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import SearchBar from '../components/ui/SearchBar';
 import CategoryGrid, { categoryPills } from '../components/ui/CategoryGrid';
 import TopSolved from '../components/ui/TopSolved';
 import TrendingIssues from '../components/ui/TrendingIssues';
+import FromMeetings from '../components/ui/FromMeetings';
 import CTA from '../components/ui/CTA';
 import api from '../utils/api';
 import type { SearchResult, TrendingQuery } from '../types/ui';
@@ -118,7 +120,7 @@ const getConfidenceLevel = (result: SearchResult): string => {
 
   if (textScore >= 2 || vectorScore >= 0.9) return 'High';
   if (textScore > 0 || vectorScore >= 0.82) return 'Medium';
-  return 'Medium';
+  return 'Low';
 };
 
 interface ConfidenceTagProps {
@@ -126,67 +128,234 @@ interface ConfidenceTagProps {
 }
 
 function ConfidenceTag({ level }: ConfidenceTagProps) {
-  const isHigh = level === 'High';
+  const colorClass =
+    level === 'High'
+      ? 'bg-success-light text-success'
+      : level === 'Medium'
+        ? 'bg-warning-light text-warning'
+        : 'bg-mist text-ink-faint';
   return (
-    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold ${
-      isHigh ? 'bg-success-light text-success' : 'bg-warning-light text-warning'
-    }`}>
+    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold ${colorClass}`}>
       {level} Confidence
     </span>
   );
 }
 
+const ClockIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1 inline-block align-middle">
+    <circle cx="12" cy="12" r="10" />
+    <polyline points="12 6 12 12 16 14" />
+  </svg>
+);
+
+const ThumbsUpIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" />
+  </svg>
+);
+
+const ThumbsDownIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm8-13h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3" />
+  </svg>
+);
+
 interface ResultItemProps {
   result: SearchResult;
   expanded: boolean;
   onToggle: () => void;
+  onShowHistory: (id: string, question: string) => void;
+  navigate: ReturnType<typeof import('react-router-dom').useNavigate>;
 }
 
-function ResultItem({ result, expanded, onToggle }: ResultItemProps) {
+function ResultItem({ result, expanded, onToggle, onShowHistory, navigate }: ResultItemProps) {
   const title = result.question || result.title || 'Untitled';
   const fullContent = result.answer || result.body || '';
   const isCommunity = result.source === 'community';
   const sourceLabel = result.source === 'faq' ? 'FAQ' : 'Community';
   const confidence = getConfidenceLevel(result);
 
+  const [voted, setVoted] = useState<'helpful' | 'unhelpful' | null>(null);
+  const [hv, setHv] = useState(0);
+  const [uhv, setUhv] = useState(0);
+  const [showSuggest, setShowSuggest] = useState(false);
+  const [suggestion, setSuggestion] = useState('');
+  const [suggesting, setSuggesting] = useState(false);
+  const [suggestSuccess, setSuggestSuccess] = useState('');
+  const [suggestError, setSuggestError] = useState('');
+
+  useEffect(() => {
+    setHv(Number(result.helpfulVotes || 0));
+    setUhv(Number(result.unhelpfulVotes || 0));
+    setVoted(null);
+    setShowSuggest(false);
+    setSuggestion('');
+    setSuggestSuccess('');
+    setSuggestError('');
+  }, [result]);
+
+  const handleVote = async (helpful: boolean) => {
+    if (voted) return;
+    try {
+      const res = await api.patch<{ helpfulVotes: number; unhelpfulVotes: number }>(`/faq/${result._id}/feedback`, { helpful });
+      setHv(res.data.helpfulVotes);
+      setUhv(res.data.unhelpfulVotes);
+      setVoted(helpful ? 'helpful' : 'unhelpful');
+    } catch {
+      if (helpful) {
+        setHv(v => v + 1);
+      } else {
+        setUhv(v => v + 1);
+      }
+      setVoted(helpful ? 'helpful' : 'unhelpful');
+    }
+  };
+
+  const handleSuggestSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!suggestion.trim()) return;
+    setSuggesting(true);
+    setSuggestError('');
+    setSuggestSuccess('');
+    try {
+      await api.post(`/faq/${result._id}/suggest`, { suggestion: suggestion.trim() });
+      setSuggestSuccess('Thank you! Your suggestion has been recorded.');
+      setSuggestion('');
+      setTimeout(() => {
+        setShowSuggest(false);
+        setSuggestSuccess('');
+      }, 3000);
+    } catch (err: any) {
+      const msg = err.response?.data?.message || 'Failed to submit suggestion. Please try again.';
+      setSuggestError(msg);
+    } finally {
+      setSuggesting(false);
+    }
+  };
+
   return (
     <div className={`rounded-2xl border transition-all duration-300 overflow-hidden ${
       expanded ? 'border-accent/30 bg-cream' : 'border-border/70 bg-white/80 hover:bg-cream'
-    }`}>
+    }`}
+      onClick={() => {
+        if (isCommunity && result._id) {
+          navigate(`/community?post=${result._id}`);
+        } else {
+          onToggle();
+        }
+      }}
+      style={{ cursor: 'pointer' }}
+    >
       <button
-        onClick={onToggle}
+        onClick={(e) => { e.stopPropagation(); onToggle(); }}
         className="w-full text-left p-4 flex items-start justify-between gap-3"
         aria-expanded={expanded}
       >
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-ink leading-snug line-clamp-1">
-            {title}
-          </p>
-          {fullContent && (
-            <p className="mt-1 text-xs text-ink-soft leading-relaxed line-clamp-2">
-              {fullContent}
-            </p>
-          )}
-          <div className="mt-2 flex items-center gap-2 flex-wrap text-[11px] text-ink-faint">
-            <span className="px-2 py-0.5 rounded-full bg-mist text-ink-soft">
+          <div className="flex items-center gap-2 flex-wrap text-[10px] mb-1.5">
+            <span className="px-2.5 py-0.5 rounded-full bg-mist text-ink-soft font-semibold uppercase tracking-wider">
               {sourceLabel}
             </span>
             {result.category && (
-              <span className="text-ink-faint">{result.category}</span>
+              <span className="px-2.5 py-0.5 rounded-full bg-accent-light text-accent font-semibold uppercase tracking-wider">
+                {result.category}
+              </span>
             )}
           </div>
+          <p className="text-sm font-semibold text-ink leading-snug">
+            {title}
+          </p>
+          {!expanded && fullContent && (
+            <p className="mt-1.5 text-xs text-ink-soft leading-relaxed line-clamp-2">
+              {fullContent}
+            </p>
+          )}
         </div>
         <ConfidenceTag level={confidence} />
       </button>
 
       {expanded && fullContent && (
-        <div className="px-4 pb-4 border-t border-border/60">
+        <div className="px-4 pb-4 border-t border-border/40">
           {result.source === 'faq' && result.answer && (
-            <div className="mt-3 rounded-xl bg-accent-light border border-accent/15 p-4">
-              <p className="text-[11px] font-semibold text-accent mb-2 uppercase tracking-wide">Answer</p>
-              <p className="text-sm text-ink/75 leading-relaxed whitespace-pre-wrap">
-                {result.answer}
-              </p>
+            <div className="mt-3 space-y-4">
+              <div className="rounded-xl bg-accent-light border border-accent/15 p-4">
+                <p className="text-[11px] font-semibold text-accent mb-2 uppercase tracking-wide">Answer</p>
+                <p className="text-sm text-ink/75 leading-relaxed whitespace-pre-wrap">
+                  {result.answer}
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between border-t border-border/40 pt-3">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="text-xs text-ink-soft font-medium">Was this helpful?</span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleVote(true); }}
+                    disabled={voted !== null}
+                    title="Helpful"
+                    className={`inline-flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-full border transition-all duration-200 ${
+                      voted === 'helpful'
+                        ? 'border-accent/40 bg-accent-light text-accent'
+                        : 'border-border text-ink-faint hover:border-accent/40 hover:text-accent'
+                    } disabled:cursor-default`}
+                  >
+                    <ThumbsUpIcon />
+                    <span className="font-semibold">{hv}</span>
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleVote(false); }}
+                    disabled={voted !== null}
+                    title="Not helpful"
+                    className={`inline-flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-full border transition-all duration-200 ${
+                      voted === 'unhelpful'
+                        ? 'border-red-200 bg-red-50 text-red-600'
+                        : 'border-border text-ink-faint hover:border-red-200 hover:text-red-500'
+                    } disabled:cursor-default`}
+                  >
+                    <ThumbsDownIcon />
+                    <span className="font-semibold">{uhv}</span>
+                  </button>
+                  {voted && <span className="text-xs text-ink-soft animate-fade-in font-medium ml-1">· Thanks for your feedback!</span>}
+                </div>
+
+                <button
+                  onClick={(e) => { e.stopPropagation(); setShowSuggest(!showSuggest); }}
+                  className="text-xs font-semibold text-accent hover:text-accent-dark hover:underline transition-colors"
+                >
+                  Suggest better answer
+                </button>
+              </div>
+
+              {showSuggest && (
+                <form onSubmit={handleSuggestSubmit} className="mt-3 bg-mist/60 border border-border/70 rounded-2xl p-4 space-y-3 animate-fade-in" onClick={e => e.stopPropagation()}>
+                  <p className="text-xs font-semibold text-ink">Suggest a better answer</p>
+                  <textarea
+                    value={suggestion}
+                    onChange={(e) => setSuggestion(e.target.value)}
+                    placeholder="What would be a better or more accurate answer to this question?"
+                    rows={3}
+                    className="w-full text-xs p-3 rounded-xl border border-border bg-white focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent resize-y"
+                    required
+                  />
+                  {suggestError && <p className="text-[11px] text-danger">{suggestError}</p>}
+                  {suggestSuccess && <p className="text-[11px] text-success">{suggestSuccess}</p>}
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowSuggest(false)}
+                      className="px-3 py-1.5 rounded-full border border-border bg-white text-[11px] font-semibold text-ink-soft hover:bg-cream transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={suggesting}
+                      className="px-4 py-1.5 rounded-full bg-accent text-white text-[11px] font-semibold hover:bg-accent-dark transition-colors disabled:opacity-50"
+                    >
+                      {suggesting ? 'Submitting...' : 'Submit suggestion'}
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
           )}
 
@@ -204,16 +373,193 @@ function ResultItem({ result, expanded, onToggle }: ResultItemProps) {
               <p className="text-sm text-ink/75 leading-relaxed">{result.answer}</p>
             </div>
           )}
+        </div>
+      )}
 
-          {isCommunity && !result.answer && (
-            <div className="mt-3 rounded-xl bg-warning-light border border-warning/15 p-3">
-              <p className="text-xs text-warning">
-                This question has not been answered yet. Ask the community to help!
-              </p>
+      {/* Bottom Toggler Action Bar */}
+      <div className="px-4 pb-4 flex items-center justify-between border-t border-border/10 pt-3 bg-mist/30">
+        <button
+          onClick={(e) => { e.stopPropagation(); onToggle(); }}
+          className="inline-flex items-center gap-1 text-xs font-semibold text-ink-soft hover:text-accent transition-colors"
+        >
+          {expanded ? (
+            <>
+              Collapse answer
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="18 15 12 9 6 15" />
+              </svg>
+            </>
+          ) : (
+            <>
+              Read full answer
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </>
+          )}
+        </button>
+
+        {result.source === 'faq' && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onShowHistory(result._id, title); }}
+            title="View verification history log"
+            className="inline-flex items-center gap-1 text-xs text-ink-faint hover:text-ink-soft transition-colors"
+          >
+            <ClockIcon />
+            <span>History</span>
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+interface HistoryModalProps {
+  faqId: string;
+  faqQuestion: string;
+  onClose: () => void;
+}
+
+function HistoryModal({ faqId, faqQuestion, onClose }: HistoryModalProps) {
+  const [logs, setLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    api.get(`/faq/${faqId}/history`)
+      .then((res) => {
+        if (isMounted) setLogs(res.data.logs || []);
+      })
+      .catch((err) => {
+        console.error('Failed to load history', err);
+      })
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [faqId]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/40 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+      <div className="bg-card rounded-3xl border border-border shadow-float w-full max-w-lg overflow-hidden flex flex-col max-h-[80vh]" onClick={e => e.stopPropagation()}>
+        <div className="p-5 border-b border-border flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-serif font-semibold text-ink uppercase tracking-wide">FAQ Verification History</h3>
+            <p className="text-xs text-ink-soft mt-1 line-clamp-1">{faqQuestion}</p>
+          </div>
+          <button onClick={onClose} className="text-ink-soft hover:text-ink transition-colors p-1.5 rounded-full hover:bg-mist">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <div className="p-6 overflow-y-auto space-y-4 flex-1">
+          {loading ? (
+            <div className="space-y-3 py-6 animate-pulse">
+              <div className="h-4 bg-mist rounded w-1/3"></div>
+              <div className="h-3 bg-mist rounded w-full"></div>
+              <div className="h-3 bg-mist rounded w-2/3"></div>
+            </div>
+          ) : logs.length === 0 ? (
+            <div className="text-center py-8">
+              <span className="text-2xl">🌱</span>
+              <p className="text-sm font-medium text-ink mt-2">No verification log events found</p>
+              <p className="text-xs text-ink-soft mt-1">This FAQ has been verified and stable since its creation.</p>
+            </div>
+          ) : (
+            <div className="relative border-l-2 border-border pl-5 ml-2.5 space-y-6">
+              {logs.map((log) => {
+                let title = '';
+                let details = '';
+                let icon = 'ℹ️';
+                let iconBg = 'bg-mist';
+                let iconColor = 'text-ink-soft';
+
+                switch (log.event) {
+                  case 'auto_flag':
+                    title = 'Auto-Flagged';
+                    details = 'System automatically marked this FAQ as stale and due for verification.';
+                    icon = '🤖';
+                    iconBg = 'bg-warning-light';
+                    iconColor = 'text-warning';
+                    break;
+                  case 'manual_flag':
+                    title = 'Flagged by User';
+                    details = `Marked as outdated: "${log.metadata?.reason || 'No reason provided'}"`;
+                    icon = '🚩';
+                    iconBg = 'bg-danger-light';
+                    iconColor = 'text-danger';
+                    break;
+                  case 'freshness_vote':
+                    title = 'Peer Review Vote';
+                    details = `Vote cast: ${log.metadata?.verdict === 'still_accurate' ? 'Accurate' : 'Needs Update'}${
+                      log.metadata?.action ? ` (${log.metadata.action})` : ''
+                    }`;
+                    icon = '🗳️';
+                    iconBg = 'bg-accent-light';
+                    iconColor = 'text-accent';
+                    break;
+                  case 'auto_verified':
+                    title = 'Auto-Verified';
+                    details = `Verified as accurate by community consensus (${log.metadata?.voteCount || 0} votes).`;
+                    icon = '✓';
+                    iconBg = 'bg-success-light';
+                    iconColor = 'text-success';
+                    break;
+                  case 'mod_verified':
+                    title = 'Verified by Moderator';
+                    details = 'A moderator verified and updated the FAQ content.';
+                    icon = '🛡️';
+                    iconBg = 'bg-success-light';
+                    iconColor = 'text-success';
+                    break;
+                  case 'mod_dismissed':
+                    title = 'Flag Dismissed';
+                    details = 'Moderator reviewed the outdated flag and dismissed it.';
+                    icon = '✓';
+                    iconBg = 'bg-success-light';
+                    iconColor = 'text-success';
+                    break;
+                  case 'escalated':
+                    title = 'Escalated to Mod';
+                    details = `Escalated for moderator review: "${log.metadata?.reason || 'Needs update votes cast'}"`;
+                    icon = '⚠';
+                    iconBg = 'bg-warning-light';
+                    iconColor = 'text-warning';
+                    break;
+                  default:
+                    title = log.event;
+                    details = JSON.stringify(log.metadata || {});
+                }
+
+                return (
+                  <div key={log._id} className="relative">
+                    <span className={`absolute -left-[31px] top-0.5 w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold ${iconBg} ${iconColor} border-2 border-card`}>
+                      {icon}
+                    </span>
+                    <div>
+                      <p className="text-xs font-semibold text-ink">{title}</p>
+                      {details && <p className="text-xs text-ink-soft mt-0.5 leading-relaxed">{details}</p>}
+                      <p className="text-[10px] text-ink-faint mt-1">
+                        {new Date(log.createdAt).toLocaleString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                          hour: 'numeric',
+                          minute: '2-digit',
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -221,11 +567,13 @@ function ResultItem({ result, expanded, onToggle }: ResultItemProps) {
 export default function HomePage() {
   const [results, setResults] = useState<SearchResult[] | null>(null);
   const [loading, setLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('');
   const [trending, setTrending] = useState<TrendingQuery[]>([]);
   const [trendingLoading, setTrendingLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [historyFaq, setHistoryFaq] = useState<{ id: string; question: string } | null>(null);
   const searchBarRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
@@ -279,14 +627,17 @@ export default function HomePage() {
     setExpandedId(null);
     setLoading(true);
     setResults(null);
+    setSearchError(null);
     searchBarRef.current?.focus();
     window.scrollTo({ top: 200, behavior: 'smooth' });
 
     try {
       const res = await api.post('/search', { query: nextQuery });
       setResults(res.data.results);
-    } catch {
+    } catch (err: any) {
+      if (axios.isCancel(err)) return;
       setResults([]);
+      setSearchError('Search failed. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -308,6 +659,7 @@ export default function HomePage() {
     setQuery('');
     setResults(null);
     setLoading(false);
+    setSearchError(null);
     setActiveCategory('');
     setExpandedId(null);
   };
@@ -322,15 +674,15 @@ export default function HomePage() {
           <DoodleElements />
 
           <h1 className="font-serif text-[1.75rem] sm:text-4xl md:text-5xl lg:text-[3.2rem] leading-[1.15] tracking-tight text-ink mb-3">
-            Ask. Discover. Get{' '}
-            <span className="doodle-underline font-serif" style={{ fontWeight: 700 }}>Solved.</span>
+            Every intern doubt,{' '}
+            <span className="doodle-underline font-serif" style={{ fontWeight: 700 }}>solved.</span>
             <svg className="inline-block ml-2 align-middle" width="24" height="18" viewBox="0 0 24 18" style={{ opacity: 0.18 }}>
               <path d="M2 12 Q6 4 12 9 Q18 14 22 6" stroke="#1f1f1f" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
             </svg>
           </h1>
 
           <p className="text-sm sm:text-base text-ink-soft mb-6 sm:mb-8 max-w-lg leading-relaxed mx-auto px-2">
-            Search your doubt or explore solved questions from the community.
+            Search a doubt, or read questions pulled straight from your team's Zoom sessions.
           </p>
         </section>
 
@@ -352,6 +704,7 @@ export default function HomePage() {
               onQueryChange={handleQueryChange}
               onResults={setResults}
               onLoading={setLoading}
+              onError={setSearchError}
               disableSuggestions={true}
             />
 
@@ -360,11 +713,25 @@ export default function HomePage() {
                 <div className="rounded-3xl border border-border bg-card/95 backdrop-blur-xl shadow-float">
                   <div className="flex items-center justify-between px-4 pt-4 pb-2">
                     <div>
-                      <p className="text-[11px] font-semibold text-ink-faint uppercase tracking-wide">
-                        {showResultsPanel ? 'Search results' : 'Search suggestions'}
-                      </p>
-                      {isTyping && (
-                        <p className="text-sm text-ink mt-1">
+                      <div className="flex items-center gap-1.5 text-[11px] text-ink-faint mb-1">
+                        <button
+                          onClick={handleClear}
+                          className="hover:text-ink transition-colors flex items-center gap-1"
+                        >
+                          <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M9 2L3 6L9 10" />
+                          </svg>
+                          Home
+                        </button>
+                        <span>›</span>
+                        <span className="font-medium text-ink">
+                          {showResultsPanel
+                            ? `Results for "${query}"`
+                            : `Suggestions for "${query}"`}
+                        </span>
+                      </div>
+                      {!isTyping && (
+                        <p className="text-sm text-ink mt-0.5">
                           Results for <span className="font-semibold">"{query}"</span>
                         </p>
                       )}
@@ -411,11 +778,19 @@ export default function HomePage() {
                               result={result}
                               expanded={isExpanded}
                               onToggle={() => setExpandedId(isExpanded ? null : resultKey)}
+                              onShowHistory={(id, question) => setHistoryFaq({ id, question })}
+                              navigate={navigate}
                             />
                           );
                         })}
 
-                        {!loading && matchingResults.length === 0 && (
+                        {searchError && (
+                          <div className="rounded-2xl bg-danger-light border border-danger/15 p-4 text-xs text-danger">
+                            {searchError}
+                          </div>
+                        )}
+
+                        {!loading && !searchError && matchingResults.length === 0 && (
                           <div className="rounded-2xl border border-dashed border-border bg-white/70 p-4">
                             <p className="text-xs text-ink-soft">
                               {isReadyForResults
@@ -520,12 +895,23 @@ export default function HomePage() {
           </section>
         )}
 
+        {/* From Zoom Meetings — the project's actual goal, surfaced for interns */}
+        {!isSearchActive && <FromMeetings />}
+
         {/* CTA */}
         {!isSearchActive && <CTA />}
 
         {/* Footer */}
         <Footer />
       </main>
+
+      {historyFaq && (
+        <HistoryModal
+          faqId={historyFaq.id}
+          faqQuestion={historyFaq.question}
+          onClose={() => setHistoryFaq(null)}
+        />
+      )}
     </div>
   );
 }

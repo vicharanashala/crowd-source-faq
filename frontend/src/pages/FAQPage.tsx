@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import SearchBar from '../components/ui/SearchBar';
-import WordCloud from '../components/ui/WordCloud';
 import { FAQDoodles } from '../components/ui/PageDoodles';
 import api from '../utils/api';
 import type { TrendingQuery } from '../types/ui';
@@ -135,6 +135,13 @@ export default function FAQPage() {
   const [trendingWords, setTrendingWords] = useState<TrendingQuery[]>([]);
 
   const [resultFaqId, setResultFaqId] = useState<string | undefined>(undefined);
+  const { id: urlFaqId } = useParams<string>();
+  const navigate = useNavigate();
+
+  // Scroll to top when a question detail is opened
+  const scrollToTop = useCallback(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
 
   // Track top result FAQ ID when search results arrive
   useEffect(() => {
@@ -197,6 +204,20 @@ export default function FAQPage() {
     }
   }, [grouped]);
 
+  // If user landed on /faq/:id directly, open that FAQ immediately
+  useEffect(() => {
+    if (!urlFaqId || !grouped || Object.keys(grouped).length === 0) return;
+    // Search all categories for the FAQ with this ID
+    for (const [cat, items] of Object.entries(grouped)) {
+      const found = items.find((item) => item._id === urlFaqId);
+      if (found) {
+        setActiveQuestion({ ...found, category: cat });
+        setActiveCategory(cat);
+        return;
+      }
+    }
+  }, [urlFaqId, grouped]);
+
   useEffect(() => {
     setVisibleCount(8);
   }, [activeCategory, searchResults, searchQuery]);
@@ -233,16 +254,45 @@ export default function FAQPage() {
     return pool.filter((item) => item._id !== activeQuestion._id).slice(0, 5);
   }, [activeQuestion, grouped]);
 
+  const runSearch = async (q: string) => {
+    const queryStr = q.trim();
+    if (queryStr.length < 3) return;
+
+    setSearchLoading(true);
+    setError('');
+    try {
+      const res = await api.post('/search', { query: queryStr });
+      setSearchResults(res.data.results || []);
+    } catch {
+      setSearchResults([]);
+      setError('Search failed. Please try again.');
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const handleWordClick = (wordQuery: string) => {
+    setSearchQuery(wordQuery);
+    setActiveCategory('');
+    setActiveQuestion(null);
+    runSearch(wordQuery);
+  };
+
   const handleCategoryOpen = (name: string) => {
+    // Use functional update to batch all state changes in one render cycle,
+    // preventing intermediate render flashes (e.g. activeQuestion=null briefly visible)
     setActiveCategory(name);
     setActiveQuestion(null);
     setSearchQuery('');
     setSearchResults(null);
     setSearchLoading(false);
+    setVisibleCount(8);
   };
 
   const handleQuestionOpen = (item: FAQItem) => {
     setActiveQuestion(item);
+    setSearchQuery('');
+    setSearchResults(null);
   };
 
   const handleBackToCategories = () => {
@@ -251,6 +301,18 @@ export default function FAQPage() {
   };
 
   const handleBackFromDetail = () => {
+    // Detect whether the user came from the homepage via a highlighted card
+    // (clicked from "Solved Recently" or similar on the HomePage).
+    // If so, navigate back to '/' instead of relying on browser history.
+    const fromHomepage = !!sessionStorage.getItem('yaksha_faq_highlight');
+    sessionStorage.removeItem('yaksha_faq_highlight');
+
+    if (fromHomepage) {
+      navigate('/');
+      return;
+    }
+    // Otherwise just close the detail panel — the conditional rendering
+    // will show the correct prior state (search results or category list)
     setActiveQuestion(null);
   };
 
@@ -277,7 +339,7 @@ export default function FAQPage() {
       <main className="max-w-[1200px] mx-auto px-4 sm:px-6 pt-20 sm:pt-24 pb-10 relative z-10">
         <div className="mb-6 sm:mb-8 text-center">
           <h1 className="text-2xl sm:text-3xl font-serif text-ink tracking-tight">
-            Frequently Asked Questions
+            Intern FAQs — solved
           </h1>
           {total > 0 && (
             <p className="mt-2 text-sm text-ink-soft">
@@ -303,6 +365,7 @@ export default function FAQPage() {
               onQueryChange={handleSearchChange}
               onResults={(res) => setSearchResults(res as unknown as FAQItem[])}
               onLoading={setSearchLoading}
+              onError={(err) => setError(err || '')}
               placeholder="Search for topics, keywords, or questions..."
               disableSuggestions={true}
             />
@@ -330,22 +393,42 @@ export default function FAQPage() {
             />
           </div>
 
-          {/* Trending Queries Word Cloud */}
-          {trendingWords.length > 0 && !showDropdown && !activeCategory && !activeQuestion && !searchActive && (
-            <div className="mt-5 transition-all duration-300">
-              <p className="text-xs font-semibold text-ink-faint uppercase tracking-wide mb-2">Trending searches</p>
-              <div className="bg-card/60 rounded-2xl border border-border/50 shadow-subtle">
-                <WordCloud
-                  words={trendingWords}
-                  onWordClick={(query: string) => {
-                    setSearchQuery(query);
-                    handleSearchChange(query);
-                  }}
-                  maxWords={20}
-                />
+          {/* Trending searches — top 10 queries from search logs (noise filtered) */}
+          {trendingWords.length > 0 && !showDropdown && !activeCategory && !activeQuestion && !searchActive && (() => {
+            // Filter out noise: very short queries, 1-word queries with low count,
+            // and queries that are obviously test/junk (e.g. "test", "meow")
+            const NOISE = new Set(['test', 'meow', 'awdawd', 'a', 'asdf', 'qwerty', 'hi', 'hello', 'hey']);
+            const cleaned = trendingWords
+              .filter((w) => {
+                const q = w.query.trim().toLowerCase();
+                if (NOISE.has(q)) return false;
+                if (q.length < 4) return false;
+                if (w.count < 2) return false;
+                return true;
+              })
+              .slice(0, 10);
+            if (cleaned.length === 0) return null;
+            return (
+              <div className="mt-5 transition-all duration-300">
+                <p className="text-xs font-semibold text-ink-faint uppercase tracking-wide mb-2">Trending searches</p>
+                <div className="bg-card/60 rounded-2xl border border-border/50 shadow-subtle p-4">
+                  <div className="flex flex-wrap gap-2">
+                    {cleaned.map((word, i) => (
+                      <button
+                        key={word.query + i}
+                        onClick={() => handleWordClick(word.query)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/80 border border-border/70 text-xs font-medium text-ink hover:bg-accent hover:text-white hover:border-accent transition-all duration-200 hover:-translate-y-0.5 hover:shadow-subtle"
+                      >
+                        <span className="text-ink-faint font-semibold text-[10px]">#{i + 1}</span>
+                        {word.query}
+                        <span className="text-ink-faint text-[10px]">({word.count})</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </section>
 
         {loading && (
@@ -374,6 +457,13 @@ export default function FAQPage() {
             relatedItems={relatedItems}
             onBack={handleBackFromDetail}
             onSelectRelated={handleQuestionOpen}
+            backLabel={
+              searchActive
+                ? 'Back to Search Results'
+                : activeCategory
+                ? `Back to ${formatCategoryName(activeCategory)}`
+                : 'Back to Categories'
+            }
           />
         )}
 

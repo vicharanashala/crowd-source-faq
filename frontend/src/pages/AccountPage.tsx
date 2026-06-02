@@ -2,6 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import api from '../utils/api';
+import Input from '../components/ui/Input';
+import Button from '../components/ui/Button';
+import Navbar from '../components/layout/Navbar';
+import Footer from '../components/layout/Footer';
 
 interface ZoomStatus {
   connected: boolean;
@@ -12,17 +16,98 @@ interface ZoomStatus {
 export default function AccountPage() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+
+  // ─── Edit Profile ────────────────────────────────────────────────
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({ name: '', email: '' });
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileSuccess, setProfileSuccess] = useState('');
+  const [profileError, setProfileError] = useState('');
+
+  // Sync form with current user data
+  useEffect(() => {
+    if (user) {
+      setProfileForm({ name: user.name ?? '', email: user.email ?? '' });
+    }
+  }, [user]);
+
+  const handleProfileSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setProfileLoading(true);
+    setProfileError('');
+    setProfileSuccess('');
+    try {
+      const res = await api.patch<{ user: { id: string; name: string; email: string; role: string } }>('/auth/profile', {
+        name: profileForm.name.trim(),
+        email: profileForm.email.trim(),
+      });
+      // Update localStorage and reload user context
+      const updatedUser = res.data.user;
+      const stored = localStorage.getItem('yaksha_user');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        localStorage.setItem('yaksha_user', JSON.stringify({ ...parsed, ...updatedUser }));
+      }
+      setProfileSuccess('Profile updated successfully.');
+      setEditingProfile(false);
+      // Force a page reload to refresh auth context with new data
+      setTimeout(() => window.location.reload(), 800);
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      setProfileError(axiosErr.response?.data?.message || 'Failed to update profile.');
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  // ─── Change Password ────────────────────────────────────────────
+  const [showPassword, setShowPassword] = useState(false);
+  const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [pwLoading, setPwLoading] = useState(false);
+  const [pwSuccess, setPwSuccess] = useState('');
+  const [pwError, setPwError] = useState('');
+
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPwError('');
+    setPwSuccess('');
+
+    if (pwForm.newPassword.length < 6) {
+      setPwError('New password must be at least 6 characters.');
+      return;
+    }
+    if (pwForm.newPassword !== pwForm.confirmPassword) {
+      setPwError('Passwords do not match.');
+      return;
+    }
+
+    setPwLoading(true);
+    try {
+      await api.put('/auth/password', {
+        currentPassword: pwForm.currentPassword,
+        newPassword: pwForm.newPassword,
+      });
+      setPwSuccess('Password changed successfully.');
+      setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setTimeout(() => { setPwSuccess(''); setShowPassword(false); }, 3000);
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      setPwError(axiosErr.response?.data?.message || 'Failed to change password.');
+    } finally {
+      setPwLoading(false);
+    }
+  };
+
+  // ─── Zoom Integration ───────────────────────────────────────────
   const [zoomStatus, setZoomStatus] = useState<ZoomStatus | null>(null);
   const [zoomLoading, setZoomLoading] = useState(false);
   const [zoomError, setZoomError] = useState<string | null>(null);
   const [disconnecting, setDisconnecting] = useState(false);
 
-  // Read zoom status from URL params (set by OAuth callback redirect)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('zoom_connected') === '1') {
       setZoomStatus({ connected: true });
-      // Clean URL
       window.history.replaceState({}, '', '/account');
     } else if (params.get('zoom_error')) {
       setZoomError(decodeURIComponent(params.get('zoom_error')!));
@@ -30,13 +115,11 @@ export default function AccountPage() {
     }
   }, []);
 
-  // Fetch Zoom connection status
   const fetchZoomStatus = async () => {
     try {
       const res = await api.get<ZoomStatus>('/zoom/auth/status');
       setZoomStatus(res.data);
     } catch {
-      // Not connected
       setZoomStatus({ connected: false });
     }
   };
@@ -82,9 +165,11 @@ export default function AccountPage() {
     : null;
 
   return (
-    <div className="min-h-screen bg-bg px-4 py-10">
-      <div className="max-w-xl mx-auto space-y-6">
-
+    <div className="min-h-screen bg-bg">
+      <Navbar />
+      {/* pt-20 / pt-24 clears the fixed Navbar (h-14 on mobile, h-16 on sm+).
+          Without it the "Account" heading sits behind the header. */}
+      <div className="max-w-xl mx-auto px-4 pt-20 sm:pt-24 pb-8 sm:pb-10 space-y-6">
         {/* Page title + back */}
         <div className="flex items-center justify-between">
           <div>
@@ -92,7 +177,16 @@ export default function AccountPage() {
             <p className="text-sm text-ink-faint mt-0.5">Manage your profile and integrations</p>
           </div>
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => {
+              // navigate(-1) is unsafe if the user landed on /account directly —
+              // it can push them to about:blank or outside the SPA. Default to
+              // home in that case.
+              if (window.history.length > 1) {
+                navigate(-1);
+              } else {
+                navigate('/');
+              }
+            }}
             className="flex items-center gap-1.5 text-sm text-ink-faint hover:text-ink transition-colors"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -104,17 +198,143 @@ export default function AccountPage() {
 
         {/* Profile card */}
         <div className="bg-card rounded-2xl border border-border p-6 space-y-4">
-          <h2 className="text-sm font-semibold text-ink uppercase tracking-wide">Profile</h2>
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center text-accent font-bold text-lg">
-              {user?.name?.[0]?.toUpperCase() ?? '?'}
-            </div>
-            <div>
-              <p className="font-medium text-ink">{user?.name ?? 'Unknown'}</p>
-              <p className="text-sm text-ink-faint">{user?.email ?? ''}</p>
-              <p className="text-xs text-ink-faint mt-0.5 capitalize">{user?.role ?? 'user'}</p>
-            </div>
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-ink uppercase tracking-wide">Profile</h2>
+            {!editingProfile && (
+              <button
+                onClick={() => { setEditingProfile(true); setProfileSuccess(''); setProfileError(''); }}
+                className="text-xs font-semibold text-accent hover:text-accent-hover transition-colors"
+              >
+                Edit
+              </button>
+            )}
           </div>
+
+          {!editingProfile ? (
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center text-accent font-bold text-lg">
+                {user?.name?.[0]?.toUpperCase() ?? '?'}
+              </div>
+              <div>
+                <p className="font-medium text-ink">{user?.name ?? 'Unknown'}</p>
+                <p className="text-sm text-ink-faint">{user?.email ?? ''}</p>
+                <p className="text-xs text-ink-faint mt-0.5 capitalize">{user?.role ?? 'user'}</p>
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={handleProfileSubmit} className="space-y-3">
+              <Input
+                id="edit-name"
+                label="Full Name"
+                value={profileForm.name}
+                onChange={e => setProfileForm(f => ({ ...f, name: e.target.value }))}
+                placeholder="Your name"
+                disabled={profileLoading}
+              />
+              <Input
+                id="edit-email"
+                label="Email"
+                type="email"
+                value={profileForm.email}
+                onChange={e => setProfileForm(f => ({ ...f, email: e.target.value }))}
+                placeholder="you@example.com"
+                disabled={profileLoading}
+              />
+              {profileError && (
+                <p className="text-xs text-danger bg-danger-light border border-danger/15 rounded-xl px-3 py-2">
+                  {profileError}
+                </p>
+              )}
+              <div className="flex items-center gap-2 pt-1">
+                <Button type="submit" loading={profileLoading} size="sm">
+                  Save changes
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setEditingProfile(false);
+                    setProfileForm({ name: user?.name ?? '', email: user?.email ?? '' });
+                    setProfileError('');
+                  }}
+                  disabled={profileLoading}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          )}
+
+          {profileSuccess && (
+            <p className="text-xs text-success bg-success-light border border-success/15 rounded-xl px-3 py-2 animate-fade-in">
+              {profileSuccess}
+            </p>
+          )}
+        </div>
+
+        {/* Change Password */}
+        <div className="bg-card rounded-2xl border border-border p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-ink uppercase tracking-wide">Security</h2>
+            <button
+              onClick={() => { setShowPassword(!showPassword); setPwError(''); setPwSuccess(''); }}
+              className="text-xs font-semibold text-accent hover:text-accent-hover transition-colors"
+            >
+              {showPassword ? 'Cancel' : 'Change password'}
+            </button>
+          </div>
+
+          {!showPassword ? (
+            <p className="text-sm text-ink-faint">Password last changed: unknown</p>
+          ) : (
+            <form onSubmit={handlePasswordSubmit} className="space-y-3">
+              <Input
+                id="current-password"
+                label="Current Password"
+                type="password"
+                autoComplete="current-password"
+                value={pwForm.currentPassword}
+                onChange={e => setPwForm(f => ({ ...f, currentPassword: e.target.value }))}
+                placeholder="••••••••"
+                disabled={pwLoading}
+              />
+              <Input
+                id="new-password"
+                label="New Password"
+                type="password"
+                autoComplete="new-password"
+                value={pwForm.newPassword}
+                onChange={e => setPwForm(f => ({ ...f, newPassword: e.target.value }))}
+                placeholder="••••••••"
+                disabled={pwLoading}
+              />
+              <p className="text-[10px] text-ink-faint -mt-2">Minimum 6 characters</p>
+              <Input
+                id="confirm-new-password"
+                label="Confirm New Password"
+                type="password"
+                autoComplete="new-password"
+                value={pwForm.confirmPassword}
+                onChange={e => setPwForm(f => ({ ...f, confirmPassword: e.target.value }))}
+                placeholder="••••••••"
+                disabled={pwLoading}
+              />
+              {pwError && (
+                <p className="text-xs text-danger bg-danger-light border border-danger/15 rounded-xl px-3 py-2">
+                  {pwError}
+                </p>
+              )}
+              {pwSuccess && (
+                <p className="text-xs text-success bg-success-light border border-success/15 rounded-xl px-3 py-2 animate-fade-in">
+                  {pwSuccess}
+                </p>
+              )}
+              <Button type="submit" loading={pwLoading} size="sm">
+                Update password
+              </Button>
+            </form>
+          )}
         </div>
 
         {user?.role === 'admin' && (
@@ -208,6 +428,7 @@ export default function AccountPage() {
         </button>
 
       </div>
+      <Footer />
     </div>
   );
 }

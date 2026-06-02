@@ -14,9 +14,17 @@ export interface Comment {
   downvotes?: (string | { _id?: string })[];
   verified?: boolean;
   isExpertAnswer?: boolean;
+  isFirstResponder?: boolean;
+  firstResponderAwardedAt?: string | null;
   depth: number;
   parentId?: string | null;
   replies?: Comment[];
+  solutionDNA?: {
+    steps: string[];
+    tools: string[];
+    timeToComplete?: string;
+    difficulty?: 'Easy' | 'Moderate' | 'Tricky';
+  };
 }
 
 export interface ThreadPost {
@@ -28,8 +36,24 @@ export interface ThreadPost {
   createdAt?: string;
   upvotes?: (string | { _id?: string })[];
   comments?: Comment[];
+  timeTrialStatus?: 'none' | 'pending' | 'awarded';
+  timeTrialStartedAt?: string | null;
+  timeTrialFirstResponder?: string | null;
+  timeTrialFirstResponderAt?: string | null;
+  timeTrialHoursRemaining?: number | null;
   answer?: string | null;
   answerIsExpert?: boolean;
+  answerAuthorId?: string;
+  dna?: {
+    steps: string[];
+    tools: string[];
+    timeToComplete?: string;
+    difficulty?: 'Easy' | 'Moderate' | 'Tricky';
+  };
+  // Escalation fields
+  escalationStatus?: 'none' | 'escalated' | 'resolved' | 'dismissed';
+  escalatedAt?: string | null;
+  escalationReason?: string | null;
   [key: string]: unknown;
 }
 
@@ -108,21 +132,57 @@ function CommentNode({
   const totalReplies = countReplies(comment) + localReplies.length;
   const isExpert = comment.isExpertAnswer;
   const isVerified = comment.verified;
+  const isFirstResponder = comment.isFirstResponder;
 
-  const doUpvote = () =>
+  const doUpvote = () => {
+    const previousUpvotes = localUpvotes;
+    const previousDownvotes = localDownvotes;
+    const isUpvoted = previousUpvotes.some(u => (typeof u === 'object' ? (u as { _id?: string })._id || u : u)?.toString() === currentUserId);
+    
+    // Optimistically update states
+    setLocalUpvotes(prev =>
+      isUpvoted
+        ? prev.filter(u => (typeof u === 'object' ? (u as { _id?: string })._id || u : u)?.toString() !== currentUserId)
+        : [...prev, currentUserId]
+    );
+    setLocalDownvotes(prev =>
+      prev.filter(u => (typeof u === 'object' ? (u as { _id?: string })._id || u : u)?.toString() !== currentUserId)
+    );
+
     api.post<{ upvotedByMe: boolean }>(`/community/${postId}/comments/${comment._id}/upvote`)
       .then(res => {
-        setLocalUpvotes(prev =>
-          res.data.upvotedByMe
-            ? [...prev, currentUserId]
-            : prev.filter(u => (typeof u === 'object' ? (u as { _id?: string })._id || u : u)?.toString() !== currentUserId)
+        // Sync with server state
+        setLocalUpvotes(res.data.upvotedByMe
+          ? [...(previousUpvotes.filter(u => (typeof u === 'object' ? (u as { _id?: string })._id : u)?.toString() !== currentUserId)), currentUserId]
+          : previousUpvotes.filter(u => (typeof u === 'object' ? (u as { _id?: string })._id : u)?.toString() !== currentUserId)
         );
         setLocalDownvotes(prev =>
           prev.filter(u => (typeof u === 'object' ? (u as { _id?: string })._id || u : u)?.toString() !== currentUserId)
         );
-      }).catch(console.error);
+      })
+      .catch(err => {
+        // Rollback
+        setLocalUpvotes(previousUpvotes);
+        setLocalDownvotes(previousDownvotes);
+        console.error(err);
+      });
+  };
 
-  const doDownvote = () =>
+  const doDownvote = () => {
+    const previousUpvotes = localUpvotes;
+    const previousDownvotes = localDownvotes;
+    const isDownvoted = previousDownvotes.some(u => (typeof u === 'object' ? (u as { _id?: string })._id || u : u)?.toString() === currentUserId);
+
+    // Optimistically update states
+    setLocalDownvotes(prev =>
+      isDownvoted
+        ? prev.filter(u => (typeof u === 'object' ? (u as { _id?: string })._id || u : u)?.toString() !== currentUserId)
+        : [...prev, currentUserId]
+    );
+    setLocalUpvotes(prev =>
+      prev.filter(u => (typeof u === 'object' ? (u as { _id?: string })._id || u : u)?.toString() !== currentUserId)
+    );
+
     api.post<{ deleted?: boolean; downvotedByMe: boolean }>(
       `/community/${postId}/comments/${comment._id}/downvote`
     ).then(res => {
@@ -130,16 +190,24 @@ function CommentNode({
         try { new Audio('/fahhhhh.mp3').play(); } catch (_) {}
         const el = document.getElementById(`comment-${comment._id}`);
         if (el) { el.style.setProperty('--current-opacity', String(commentOpacity)); el.classList.add('comment-dying'); }
+        return;
       }
-      setLocalDownvotes(prev =>
-        res.data.downvotedByMe
-          ? [...prev, currentUserId]
-          : prev.filter(u => (typeof u === 'object' ? (u as { _id?: string })._id || u : u)?.toString() !== currentUserId)
+      
+      // Sync with server state
+      setLocalDownvotes(res.data.downvotedByMe
+        ? [...(previousDownvotes.filter(u => (typeof u === 'object' ? (u as { _id?: string })._id : u)?.toString() !== currentUserId)), currentUserId]
+        : previousDownvotes.filter(u => (typeof u === 'object' ? (u as { _id?: string })._id : u)?.toString() !== currentUserId)
       );
       setLocalUpvotes(prev =>
         prev.filter(u => (typeof u === 'object' ? (u as { _id?: string })._id || u : u)?.toString() !== currentUserId)
       );
-    }).catch(console.error);
+    }).catch(err => {
+      // Rollback
+      setLocalDownvotes(previousDownvotes);
+      setLocalUpvotes(previousUpvotes);
+      console.error(err);
+    });
+  };
 
   const handleReply = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -224,6 +292,11 @@ function CommentNode({
                   <span className="text-xs font-semibold text-ink">{comment.author?.name || 'User'}</span>
                   {isExpert && <Badge variant="accent">👑</Badge>}
                   {isVerified && <span className="text-[10px] text-emerald-500">✓</span>}
+                  {isFirstResponder && (
+                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-yellow-100 border border-yellow-300 text-yellow-700 text-[10px] font-bold">
+                      🏅 First Responder
+                    </span>
+                  )}
                   <span className="text-[10px] text-ink-faint">·</span>
                   <span className="text-[10px] text-ink-faint">{formatDate(comment.createdAt)}</span>
                   {depth > 0 && (
@@ -347,6 +420,7 @@ export default function ThreadDetail({ postId, onClose }: ThreadDetailProps) {
     (id) => (typeof id === 'object' ? (id as { _id?: string })._id || id : id)?.toString() === currentUserId
   );
   const canResolve = userRole === 'admin' || userRole === 'moderator' || userRole === 'expert';
+  const isPrivileged = userRole === 'admin' || userRole === 'moderator';
   const topLevelComments = post?.comments ?? [];
 
   useEffect(() => {
@@ -366,26 +440,48 @@ export default function ThreadDetail({ postId, onClose }: ThreadDetailProps) {
   }, [onClose]);
 
   const handleUpvote = async () => {
-    if (upvoteLoading || !post) return;
-    setUpvoteLoading(true);
+    if (!post) return;
+    
+    const previousUpvotes = post.upvotes ?? [];
+    const isUpvoted = previousUpvotes.some(
+      (id) => (typeof id === 'object' ? (id as { _id?: string })._id || id : id)?.toString() === currentUserId
+    );
+
+    // Optimistic state update
+    const nextUpvotes = isUpvoted
+      ? previousUpvotes.filter((u) => (typeof u === 'object' ? (u as { _id?: string })._id : u)?.toString() !== currentUserId)
+      : [...previousUpvotes, currentUserId];
+
+    setPost((prev) =>
+      prev ? {
+        ...prev,
+        upvotes: nextUpvotes,
+      } : prev
+    );
+
     try {
       const res = await api.post<{ upvotedByMe: boolean }>(`/community/${post._id}/upvote`);
+      // Sync with server state
       setPost((prev) =>
         prev ? {
           ...prev,
           upvotes: res.data.upvotedByMe
-            ? [...(prev.upvotes ?? []), currentUserId]
-            : (prev.upvotes ?? []).filter(
-                (u) => (typeof u === 'object' ? (u as { _id?: string })._id || u : u)?.toString() !== currentUserId
-              ),
+            ? [...previousUpvotes.filter((u) => (typeof u === 'object' ? (u as { _id?: string })._id || u : u)?.toString() !== currentUserId), currentUserId]
+            : previousUpvotes.filter((u) => (typeof u === 'object' ? (u as { _id?: string })._id || u : u)?.toString() !== currentUserId),
         } : prev
       );
     } catch (e) {
+      // Rollback
+      setPost((prev) =>
+        prev ? {
+          ...prev,
+          upvotes: previousUpvotes,
+        } : prev
+      );
       const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Upvote failed. Please try again.';
       setActionError(msg);
       setTimeout(() => setActionError(null), 3000);
     }
-    finally { setUpvoteLoading(false); }
   };
 
   const handleComment = async (e: React.FormEvent) => {
@@ -512,6 +608,24 @@ export default function ThreadDetail({ postId, onClose }: ThreadDetailProps) {
                   <span className="text-xs text-ink-soft">by {post.author?.name || 'Student'}</span>
                   <span className="text-xs text-ink-faint">·</span>
                   <span className="text-xs text-ink-faint">{formatDate(post.createdAt)}</span>
+                  {isPrivileged && post.timeTrialStatus === 'pending' && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 border border-red-200 text-red-600 text-xs font-semibold">
+                      ⚡ Time-Trial Active
+                      {post.timeTrialHoursRemaining != null && (
+                        <span className="font-mono"> · {post.timeTrialHoursRemaining}h left</span>
+                      )}
+                    </span>
+                  )}
+                  {isPrivileged && post.timeTrialStatus === 'awarded' && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-50 border border-yellow-300 text-yellow-700 text-xs font-semibold">
+                      🏅 First Responder Challenge — Resolved
+                    </span>
+                  )}
+                  {isPrivileged && post.escalationStatus === 'escalated' && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 border border-red-200 text-red-600 text-xs font-semibold">
+                      ⚠ Escalated{post.escalationReason ? ` — ${post.escalationReason}` : ''}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -571,6 +685,41 @@ export default function ThreadDetail({ postId, onClose }: ThreadDetailProps) {
                 {post.answerIsExpert && <Badge variant="success">👑 Expert</Badge>}
               </div>
               <p className="text-sm text-ink/80 leading-relaxed">{post.answer}</p>
+
+              {/* DNA Strip */}
+              {post.dna && (
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <span className="text-[10px] font-semibold text-ink-soft uppercase tracking-wider">Solution DNA</span>
+                  {post.dna.steps.length > 0 && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent/10 border border-accent/20 text-xs font-medium text-accent">
+                      {post.dna.steps.length} step{post.dna.steps.length !== 1 ? 's' : ''}
+                    </span>
+                  )}
+                  {post.dna.tools.map((tool, i) => (
+                    <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-mist border border-border text-xs text-ink-soft">
+                      {tool}
+                    </span>
+                  ))}
+                  {post.dna.timeToComplete && (
+                    <span className="inline-flex items-center gap-1 text-xs text-ink-faint">
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.2">
+                        <circle cx="5" cy="5" r="4"/>
+                        <path d="M5 3V5L6.5 6.5" strokeLinecap="round"/>
+                      </svg>
+                      {post.dna.timeToComplete}
+                    </span>
+                  )}
+                  {post.dna.difficulty && (
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
+                      post.dna.difficulty === 'Easy' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' :
+                      post.dna.difficulty === 'Moderate' ? 'bg-yellow-100 text-yellow-700 border border-yellow-200' :
+                      'bg-red-100 text-red-600 border border-red-200'
+                    }`}>
+                      {post.dna.difficulty}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

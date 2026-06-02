@@ -5,6 +5,7 @@ import SearchLog from '../models/SearchLog.js';
 import AdminLog from '../models/AdminLog.js';
 import CommunityPost from '../models/CommunityPost.js';
 import { invalidateCache } from '../utils/cache.js';
+import { sanitizeHtml } from '../utils/sanitize.js';
 
 export const logAction = async (
   adminId: string,
@@ -81,7 +82,7 @@ export const getStats = async (_req: Request, res: Response): Promise<void> => {
       trends: { faqs: parseFloat(faqTrend) },
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -115,7 +116,7 @@ export const getFaqGrowth = async (req: Request, res: Response): Promise<void> =
 
     res.json(result);
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -130,7 +131,7 @@ export const getTopCategories = async (_req: Request, res: Response): Promise<vo
 
     res.json(data.map((d) => ({ name: d._id, count: d.count, views: d.views })));
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -167,7 +168,7 @@ export const getSearchInsights = async (_req: Request, res: Response): Promise<v
       recentActivity,
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -199,7 +200,7 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
 
     res.json({ users, total, page, pages: Math.ceil(total / limit) });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -237,7 +238,7 @@ export const getAdminFAQs = async (req: Request, res: Response): Promise<void> =
 
     res.json({ faqs, total, page, pages: Math.ceil(total / limit), categories });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -251,7 +252,7 @@ export const approveFAQ = async (req: Request, res: Response): Promise<void> => 
     await logAction(req.user!._id.toString(), 'approve_faq', faq._id.toString(), 'faq', faq.question);
     res.json({ message: 'FAQ approved.', faq });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -265,7 +266,7 @@ export const rejectFAQ = async (req: Request, res: Response): Promise<void> => {
     await logAction(req.user!._id.toString(), 'reject_faq', faq._id.toString(), 'faq', faq.question);
     res.json({ message: 'FAQ rejected.', faq });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -281,9 +282,9 @@ export const updateFAQ = async (req: Request, res: Response): Promise<void> => {
     const faq = await FAQ.findByIdAndUpdate(
       req.params.id,
       {
-        ...(question && { question }),
-        ...(answer && { answer }),
-        ...(category && { category }),
+        ...(question && { question: sanitizeHtml(question) }),
+        ...(answer && { answer: sanitizeHtml(answer) }),
+        ...(category && { category: sanitizeHtml(category) }),
         ...(status && { status }),
       },
       { new: true, runValidators: true }
@@ -300,7 +301,7 @@ export const updateFAQ = async (req: Request, res: Response): Promise<void> => {
 
     res.json({ message: 'FAQ updated.', faq });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -319,7 +320,7 @@ export const deleteFAQ = async (req: Request, res: Response): Promise<void> => {
 
     res.json({ message: 'FAQ deleted.' });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -337,9 +338,9 @@ export const createFAQ = async (req: Request, res: Response): Promise<void> => {
       return;
     }
     const faq = await FAQ.create({
-      question,
-      answer,
-      category,
+      question: sanitizeHtml(question),
+      answer: sanitizeHtml(answer),
+      category: sanitizeHtml(category),
       status,
       createdBy: req.user!._id,
     });
@@ -350,7 +351,7 @@ export const createFAQ = async (req: Request, res: Response): Promise<void> => {
 
     res.status(201).json({ message: 'FAQ created.', faq });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -383,7 +384,7 @@ export const getReports = async (req: Request, res: Response): Promise<void> => 
       },
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -411,7 +412,7 @@ export const getActivityFeed = async (req: Request, res: Response): Promise<void
       hasMore: skip + logs.length < total,
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -453,7 +454,7 @@ export const getUserActivityChart = async (req: Request, res: Response): Promise
 
     res.json(result);
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -487,7 +488,7 @@ export const getCommunityPosts = async (req: Request, res: Response): Promise<vo
 
     res.json({ posts, total, page, pages: Math.ceil(total / limit) });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -502,6 +503,6 @@ export const deleteCommunityPost = async (req: Request, res: Response): Promise<
     await logAction(req.user!._id.toString(), 'delete_community_post', post._id.toString(), 'community_post', post.title);
     res.json({ message: 'Post deleted.' });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };

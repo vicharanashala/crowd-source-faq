@@ -51,16 +51,19 @@ export interface IUser extends Document {
   bannedBy?: mongoose.Types.ObjectId;
   suspendedUntil?: Date;
   isDeleted: boolean;
-  deletedAt?: Date;
-  // Zoom OAuth (per-user)
-  zoomConnected: boolean;
-  zoomUserId?: string;        // Zoom's internal user ID
-  zoomAccessToken?: string;
-  zoomRefreshToken?: string;
-  zoomTokenExpiry?: Date;
-  zoomConnectedAt?: Date;
-  // Methods
-  comparePassword(candidatePassword: string): Promise<boolean>;
+    deletedAt?: Date;
+    // Zoom OAuth (per-user)
+    zoomConnected: boolean;
+    zoomUserId?: string;
+    zoomAccessToken?: string;
+    zoomRefreshToken?: string;
+    zoomTokenExpiry?: Date;
+    zoomConnectedAt?: Date;
+    // Admin 2FA / TOTP
+    totpEnabled: boolean;
+    totpSecret?: string; // AES-256-GCM encrypted
+    // Methods
+    comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
 // ─── Tier thresholds ──────────────────────────────────────────────────────────
@@ -128,6 +131,10 @@ const userSchema = new MongooseSchema<IUser>(
     zoomRefreshToken: { type: String },
     zoomTokenExpiry:  { type: Date },
     zoomConnectedAt:  { type: Date },
+
+    // Admin 2FA / TOTP
+    totpEnabled:   { type: Boolean, default: false },
+    totpSecret:    { type: String },   // AES-256-GCM encrypted; only stored after 2FA is set up
   },
   { timestamps: true }
 );

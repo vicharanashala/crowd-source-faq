@@ -10,6 +10,10 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$SCRIPT_DIR/.."
 BACKEND="$ROOT/backend"
 
+# Resolve node_modules/.bin paths once
+TSX="$BACKEND/node_modules/.bin/tsx"
+NPM="$BACKEND/node_modules/.bin/npm"
+
 FONT="\033[94m"
 OK="\033[92m"
 WARN="\033[93m"
@@ -64,8 +68,12 @@ else
 
   log "Checking Node.js..."
   node --version > /dev/null || die "Node.js not found"
+  [ ! -x "$TSX" ] && die "tsx not found at $TSX — run: cd backend && npm install"
 
   log "Starting backend (tsx watch server.ts)..."
   echo ""
-  npm run dev
+  # Kill orphaned tsx on port 6767 before starting
+  pkill -f "tsx.*server" 2>/dev/null || true
+  sleep 1
+  "$TSX" watch server.ts > /tmp/yaksha-backend.log 2>&1 &
 fi

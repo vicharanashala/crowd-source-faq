@@ -1,5 +1,5 @@
 import React from 'react';
-import { FAQItem, getQuestionTitle, getAnswerText, formatDate, getCategoryIcon, formatCategoryName } from './faqUtils';
+import { FAQItem, getQuestionTitle, getAnswerText, formatDate, getCategoryIcon, formatCategoryName, TrustBadge } from './faqUtils';
 import ReportFAQButton from './ReportFAQButton';
 
 interface QuestionDetailProps {
@@ -7,13 +7,15 @@ interface QuestionDetailProps {
   relatedItems: FAQItem[];
   onBack: () => void;
   onSelectRelated: (item: FAQItem) => void;
+  backLabel?: string;
 }
 
-export default function QuestionDetail({ item, relatedItems, onBack, onSelectRelated }: QuestionDetailProps) {
+export default function QuestionDetail({ item, relatedItems, onBack, onSelectRelated, backLabel }: QuestionDetailProps) {
   const title = getQuestionTitle(item);
   const answer = getAnswerText(item);
   const metaDate = formatDate(item?.updatedAt || item?.createdAt);
   const sourceLabel = item?.source ? (item.source === 'faq' ? 'FAQ' : 'Community') : '';
+  const trustLevel = item?.trustLevel;
   const highlight = answer ? answer.split('. ').slice(0, 1).join('. ') : '';
 
   return (
@@ -56,7 +58,7 @@ export default function QuestionDetail({ item, relatedItems, onBack, onSelectRel
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="15 18 9 12 15 6" />
           </svg>
-          Back
+          {backLabel || 'Back'}
         </button>
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -72,6 +74,7 @@ export default function QuestionDetail({ item, relatedItems, onBack, onSelectRel
 
         <h2 className="mt-4 text-xl font-semibold text-ink leading-snug">
           {title}
+          {trustLevel && <TrustBadge level={trustLevel} />}
         </h2>
 
         {answer ? (

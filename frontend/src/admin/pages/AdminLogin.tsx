@@ -1,7 +1,8 @@
 import React, { useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAdminAuth } from '../hooks/useAdminAuth';
+import { getPublicUrl } from '../../utils/publicUrl';
 import type { User } from '../../hooks/useAuth';
 
 export default function AdminLogin() {
@@ -11,6 +12,7 @@ export default function AdminLogin() {
   const [loading, setLoading] = useState<boolean>(false);
   const { login } = useAdminAuth();
   const navigate = useNavigate();
+  const publicUrl = getPublicUrl();
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -131,6 +133,15 @@ export default function AdminLogin() {
 
         <p className="text-center text-xs text-white/20 mt-6">
           Admin access only. Unauthorized access is prohibited.
+        </p>
+
+        <p className="text-center mt-4">
+          <Link
+            to="/"
+            className="text-xs text-white/30 hover:text-white/60 transition-colors underline underline-offset-2"
+          >
+            ← Goto Website
+          </Link>
         </p>
       </motion.div>
     </div>

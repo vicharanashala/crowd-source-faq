@@ -69,9 +69,52 @@ export const getUnresolvedSearches = async (req: Request, res: Response): Promis
 };
 
 /**
- * Admin: resolve an unresolved search entry.
- * PATCH /api/admin/unresolved-search/:id/resolve
+ * Admin: delete an unresolved search entry.
+ * DELETE /api/admin/unresolved-search/:id
  */
+export const deleteUnresolved = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const deleted = await UnresolvedSearch.findByIdAndDelete(req.params.id);
+    if (!deleted) {
+      res.status(404).json({ message: 'Not found' });
+      return;
+    }
+    res.json({ message: 'Deleted' });
+  } catch (err) {
+    res.status(500).json({ message: `Delete failed: ${(err as Error).message}` });
+  }
+};
+
+/**
+ * Admin: bulk delete unresolved search entries by IDs or query pattern.
+ * POST /api/admin/unresolved-search/bulk-delete
+ * Body: { ids?: string[]; queryPattern?: string }
+ */
+export const bulkDeleteUnresolved = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { ids, queryPattern } = req.body as { ids?: string[]; queryPattern?: string };
+
+    if (!ids?.length && !queryPattern) {
+      res.status(400).json({ message: 'Provide ids or queryPattern' });
+      return;
+    }
+
+    let query: Record<string, unknown> = {};
+    if (ids?.length) {
+      query = { _id: { $in: ids } };
+    } else if (queryPattern) {
+      // ReDoS hardening: cap length, escape special chars
+      const pattern = String(queryPattern).slice(0, 100);
+      const safe = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      query = { query: { $regex: safe, $options: 'i' } };
+    }
+
+    const result = await UnresolvedSearch.deleteMany(query);
+    res.json({ message: `Deleted ${result.deletedCount} entries` });
+  } catch (err) {
+    res.status(500).json({ message: `Bulk delete failed: ${(err as Error).message}` });
+  }
+};
 export const resolveUnresolved = async (req: Request, res: Response): Promise<void> => {
   try {
     const { resolution, faqId } = req.body as {

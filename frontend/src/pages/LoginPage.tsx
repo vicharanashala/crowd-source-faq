@@ -7,6 +7,7 @@ import Button from '../components/ui/Button';
 export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const isExpired = new URLSearchParams(window.location.search).get('expired') === 'true';
 
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
@@ -51,13 +52,19 @@ export default function LoginPage() {
             </svg>
           </div>
           <h1 className="text-xl font-serif text-ink">Yaksha FAQ Portal</h1>
-          <p className="text-xs text-ink-soft mt-1.5">Internship knowledge base</p>
+          <p className="text-xs text-ink-soft mt-1.5">Intern FAQs — solved from your team's Zoom sessions</p>
         </div>
 
         <div className="bg-card rounded-2xl border border-border shadow-card p-6">
           <h2 className="text-sm font-semibold text-ink mb-5">Sign in to your account</h2>
 
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+            {isExpired && !error && (
+              <p className="text-xs text-warning bg-warning-light border border-warning/15 rounded-xl px-3 py-2">
+                Your session has expired. Please sign in again.
+              </p>
+            )}
+
             <Input
               id="login-email"
               name="email"

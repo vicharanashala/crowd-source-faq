@@ -3,7 +3,6 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import rateLimit from 'express-rate-limit';
 import mongoose from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
 import connectDB from './config/db.js';
@@ -18,8 +17,16 @@ import teaRoutes from './routes/tea.js';
 import reputationRoutes from './routes/reputation.js';
 import moderationRoutes from './routes/moderation.js';
 import zoomRoutes from './routes/zoom.js';
+import knowledgeRoutes from './routes/knowledge.js';
+import { ingestFrontendLog } from './utils/fileLogger.js';
 import { logger } from './utils/logger.js';
+import { requestLogger } from './utils/requestLogger.js';
 import { startEscalationScheduler, stopEscalationScheduler } from './controllers/escalationController.js';
+import { runPromotionCycle } from './services/promotionService.js';
+import { getMetrics } from './utils/metrics.js';
+import { runWithContext } from './utils/requestContext.js';
+import { flushSearchLogs } from './controllers/searchController.js';
+import { jobQueue } from './utils/jobQueue.js';
 import * as Sentry from '@sentry/node';
 import { expressIntegration } from '@sentry/node';
 
@@ -54,13 +61,19 @@ app.use(async (req: Request, res: Response, next: NextFunction) => {
   }
 });
 
-// 2. Request ID middleware — generates UUID for each request
+// 2. Request ID + Context middleware — generates UUID and attaches AsyncLocalStorage context
 app.use((req: Request, res: Response, next: NextFunction) => {
   const requestId = uuidv4();
   (req as Request & { id: string }).id = requestId;
   res.setHeader('X-Request-ID', requestId);
-  next();
+
+  // Propagate context into AsyncLocalStorage so getContext() works in any async operation
+  const ctx = { requestId, userId: (req as Request & { user?: { id: string } }).user?.id };
+  runWithContext(ctx, async () => { next(); });
 });
+
+// 2b. Request logging — full audit trail for every HTTP request
+app.use(requestLogger);
 
 // 3. Dynamic CORS Configuration (Must be first to handle preflight requests!)
 // Defines which frontend domains are allowed to communicate with this API
@@ -79,7 +92,9 @@ app.use(cors({
     if (!origin) return callback(null, true);
 
     // Check if the origin is in our whitelist or is a dynamic Vercel preview branch
-    if (allowedOrigins.indexOf(origin) !== -1 || origin.endsWith('.vercel.app')) {
+    // Vercel preview deployments — only in non-production
+  const isVercelPreview = process.env.NODE_ENV !== 'production' && origin.endsWith('.vercel.app');
+  if (allowedOrigins.indexOf(origin) !== -1 || isVercelPreview) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
@@ -94,29 +109,11 @@ app.use(helmet({
 }));
 app.use(morgan('dev')); // Logs incoming HTTP requests to the console
 
-// 3. Rate Limiting
-// Prevents brute-force attacks and DDoS by capping requests per IP
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15-minute window
-  max: 300,                 // Limit each IP to 300 requests per window
-  message: 'Too many requests from this IP, please try again after 15 minutes',
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-const adminLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 300,
-  message: 'Too many admin requests, please try again after 15 minutes',
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-app.use('/api/admin', adminLimiter);
-app.use('/api/', apiLimiter);
-
 // 4. Body Parsing
 app.use(express.json()); // Parses incoming JSON payloads in the request body
+
+// Route to receive frontend logs and write them to main_log.txt
+app.post('/api/log', ingestFrontendLog);
 
 // 5. Mount API Routes
 app.use('/api/auth', authRoutes);
@@ -130,6 +127,7 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/notifications/tea', teaRoutes);
 app.use('/api/zoom', zoomRoutes);
+app.use('/api/knowledge', knowledgeRoutes);
 
 // 6. Health Check Endpoint
 // Useful for deployment platforms (like Vercel/AWS) to verify the server is alive
@@ -158,6 +156,17 @@ app.post('/api/warm', async (_req: Request, res: Response) => {
     res.json({ status: 'warmed' });
   } catch {
     res.status(500).json({ status: 'warm failed' });
+  }
+});
+
+// 8. Prometheus-compatible metrics endpoint
+app.get('/api/metrics', async (_req: Request, res: Response) => {
+  try {
+    const metrics = getMetrics();
+    res.set('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
+    res.send(metrics);
+  } catch (err) {
+    res.status(500).json({ message: 'metrics unavailable' });
   }
 });
 
@@ -192,8 +201,8 @@ function validateEnv(): void {
   const jwtSecret = process.env.JWT_SECRET;
   if (!jwtSecret) {
     errors.push('JWT_SECRET is required');
-  } else if (jwtSecret.length < 8) {
-    errors.push('JWT_SECRET must be at least 8 characters');
+  } else if (jwtSecret.length < 32) {
+    errors.push('JWT_SECRET must be at least 32 characters');
   }
 
   // Optional: PORT
@@ -248,17 +257,46 @@ if (process.env.NODE_ENV !== 'production') {
   app.listen(PORT, () => {
     logger.info(`Yaksha FAQ Portal backend running on port ${PORT}`);
     startEscalationScheduler();
+
+    // Start promotion scheduler — every 15 minutes, idempotent
+    const promotionInterval = setInterval(runPromotionCycle, 15 * 60 * 1000);
+    runPromotionCycle().catch((e: Error) => logger.error(`Initial promotion cycle: ${e.message}`));
+
+    // Clean up on shutdown
+    const cleanup = () => {
+      clearInterval(promotionInterval);
+      stopEscalationScheduler();
+    };
+    process.on('SIGTERM', cleanup);
+    process.on('SIGINT', cleanup);
   });
 }
 
 // Graceful shutdown — flush pending work before exiting
-process.on('SIGTERM', () => {
+async function gracefulShutdown(signal: string): Promise<void> {
+  logger.info(`[shutdown] Received ${signal}, starting graceful shutdown`);
+  Sentry.close(2000).catch(() => {}); // flush Sentry within 2s
+
+  // Stop accepting new jobs and wait for in-flight ones
+  await jobQueue.flush(15_000);
+
+  // Flush buffered search logs to MongoDB
+  await flushSearchLogs();
+
+  // Stop the escalation scheduler
   stopEscalationScheduler();
-  process.exit(0);
+
+  // Close MongoDB connection
+  await mongoose.connection.close();
+
+  logger.info('[shutdown] Graceful shutdown complete');
+}
+
+process.on('SIGTERM', () => {
+  gracefulShutdown('SIGTERM').finally(() => process.exit(0));
 });
 process.on('SIGINT', () => {
-  stopEscalationScheduler();
-  process.exit(0);
+  gracefulShutdown('SIGINT').finally(() => process.exit(0));
 });
 
 // Export the app for testing or serverless handler wrapping

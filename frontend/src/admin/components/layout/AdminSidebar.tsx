@@ -7,16 +7,48 @@ interface NavItem {
   to: string; label: string; icon: () => ReactNode; end?: boolean;
 }
 
-const NAV: NavItem[] = [
-  { to: '/admin',           label: 'Dashboard',   icon: GridIcon,    end: true  },
-  { to: '/admin/faqs',     label: 'FAQs',         icon: DocIcon             },
-  { to: '/admin/community', label: 'Community',    icon: ChatIcon             },
-  { to: '/admin/users',     label: 'Users',        icon: UsersIcon             },
-  { to: '/admin/moderation',label: 'Moderation',   icon: ShieldIcon            },
-  { to: '/admin/leaderboard',label: 'Leaderboard', icon: TrophyIcon            },
-  { to: '/admin/unresolved-search', label: 'FAQ Gaps', icon: SearchMissIcon         },
-  { to: '/admin/zoom-meetings', label: 'Zoom Insights', icon: VideoIcon          },
-  { to: '/admin/settings',  label: 'Settings',      icon: SettingsIcon          },
+interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
+
+const NAV: NavGroup[] = [
+  {
+    label: 'Overview',
+    items: [
+      { to: '/admin',            label: 'Dashboard',   icon: GridIcon,    end: true },
+    ],
+  },
+  {
+    label: 'Content',
+    items: [
+      { to: '/admin/faqs',           label: 'FAQs',          icon: DocIcon },
+      { to: '/admin/faqs/review',    label: 'FAQ Review',    icon: ShieldCheckIcon },
+      { to: '/admin/unresolved-search', label: 'FAQ Gaps',    icon: SearchMissIcon },
+      { to: '/admin/community',      label: 'Community',     icon: ChatIcon },
+      { to: '/admin/moderation',     label: 'Moderation',    icon: ShieldIcon },
+    ],
+  },
+  {
+    label: 'Community',
+    items: [
+      { to: '/admin/users',          label: 'Users',         icon: UsersIcon },
+      { to: '/admin/leaderboard',    label: 'Leaderboard',   icon: TrophyIcon },
+    ],
+  },
+  {
+    label: 'Data Sources',
+    items: [
+      { to: '/admin/zoom-meetings',  label: 'Zoom Meetings', icon: VideoIcon },
+    ],
+  },
+  {
+    label: 'System',
+    items: [
+      { to: '/admin/settings/ai',    label: 'AI Settings',   icon: BrainIcon },
+      { to: '/admin/settings',       label: 'Settings',      icon: SettingsIcon },
+    ],
+  },
 ];
 
 function GridIcon()    { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>; }
@@ -28,6 +60,8 @@ function TrophyIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" f
 function SettingsIcon(){ return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>; }
 function SearchMissIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="8" x2="14" y2="14"/><line x1="14" y1="8" x2="8" y2="14"/></svg>; }
 function VideoIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>; }
+function BrainIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96-.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 4.44-1.5"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96-.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-4.44-1.5"/></svg>; }
+function ShieldCheckIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>; }
 function LogoutIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>; }
 
 function SidebarContent({ onMobileClose }: { onMobileClose: () => void }) {
@@ -49,17 +83,33 @@ function SidebarContent({ onMobileClose }: { onMobileClose: () => void }) {
         </div>
       </div>
 
-      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        {NAV.map((item) => (
-          <NavLink key={item.to} to={item.to} end={item.end} onClick={onMobileClose}
-            className={({ isActive }) =>
-              `flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-all duration-150 ${
-                isActive ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
-              }`
-            }>
-            {item.icon()}
-            <span className="font-light">{item.label}</span>
-          </NavLink>
+      <nav className="flex-1 px-3 py-4 overflow-y-auto">
+        {NAV.map((group) => (
+          <div key={group.label} className="mb-4">
+            <p className="px-3 py-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+              {group.label}
+            </p>
+            <div className="space-y-0.5">
+              {group.items.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.end}
+                  onClick={onMobileClose}
+                  className={({ isActive }) =>
+                    `flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-all duration-150 ${
+                      isActive
+                        ? 'bg-gray-100 text-gray-900 font-medium'
+                        : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
+                    }`
+                  }
+                >
+                  {item.icon()}
+                  <span className="font-light">{item.label}</span>
+                </NavLink>
+              ))}
+            </div>
+          </div>
         ))}
       </nav>
 

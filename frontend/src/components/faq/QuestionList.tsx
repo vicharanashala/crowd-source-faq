@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { FAQItem, getQuestionTitle, getAnswerText, formatDate, formatCategoryName } from './faqUtils';
+import { FAQItem, getQuestionTitle, getAnswerText, formatDate, formatCategoryName, TrustBadge } from './faqUtils';
 
 interface QuestionItemProps {
   item: FAQItem;
@@ -21,6 +21,7 @@ export function QuestionItem({ item, onSelect }: QuestionItemProps) {
         <div className="min-w-0">
           <p className="text-sm font-medium text-ink leading-snug line-clamp-2">
             {title}
+            <TrustBadge level={item.trustLevel} />
           </p>
           {answer && (
             <p className="mt-1 text-xs text-ink-soft leading-relaxed line-clamp-2">

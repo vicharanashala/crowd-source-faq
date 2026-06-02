@@ -6,7 +6,7 @@ import Modal from '../components/common/Modal';
 import { TableSkeleton } from '../components/common/SkeletonLoader';
 
 function useDebounce<T>(value: T, delay: number): T { const [v, setV] = useState(value); useEffect(() => { const t = setTimeout(() => setV(value), delay); return () => clearTimeout(t); }, [value, delay]); return v; }
-interface CommunityPost { _id: string; title: string; body: string; status: 'answered' | 'unanswered'; author: { _id: string; name: string; email: string }; comments: Array<{ _id: string; body: string; author: { name: string }; verified: boolean }>; upvotes: string[]; createdAt: string; answer?: string; }
+interface CommunityPost { _id: string; title: string; body: string; status: 'answered' | 'unanswered'; author: { _id: string; name: string; email: string }; comments: Array<{ _id: string; body: string; author: { name: string }; verified: boolean }>; upvotes: string[]; createdAt: string; answer?: string; reports?: Array<{ reportedBy: string; reason: string; createdAt?: string }>; }
 interface CommunityPostsResponse { posts: CommunityPost[]; total: number; page: number; pages: number; }
 interface Toast { msg: string; type: 'success' | 'warn' | 'error'; }
 
@@ -63,17 +63,23 @@ export default function AdminCommunity() {
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead><tr className="bg-gray-50 border-b border-gray-200">
-              <th className={th}>Title</th><th className={th}>Author</th><th className={th}>Status</th>
-              <th className={`${th} text-right`}>Comments</th><th className={`${th} text-right`}>Upvotes</th><th className={th}>Date</th><th className={`${th} text-right`}>Actions</th>
+              <th className={th}>Title</th><th className={th}>Author</th><th className={th}>Status</th><th className={`${th} text-right`}>Reports</th><th className={`${th} text-right`}>Comments</th><th className={`${th} text-right`}>Upvotes</th><th className={th}>Date</th><th className={`${th} text-right`}>Actions</th>
             </tr></thead>
             <tbody>
-              {loading ? <tr><td colSpan={7} className="px-3 py-6"><TableSkeleton rows={8} /></td></tr> :
-               posts.length === 0 ? <tr><td colSpan={7} className="px-3 py-10 text-center text-sm text-gray-400">No posts found</td></tr> :
+              {loading ? <tr><td colSpan={8} className="px-3 py-6"><TableSkeleton rows={8} /></td></tr> :
+               posts.length === 0 ? <tr><td colSpan={8} className="px-3 py-10 text-center text-sm text-gray-400">No posts found</td></tr> :
                posts.map(post => (
                 <tr key={post._id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors">
                   <td className={`${td} max-w-[180px] truncate`} title={post.title}>{post.title}</td>
                   <td className={`${td} text-gray-500`}>{post.author?.name ?? '—'}</td>
                   <td className={td}><Badge status={post.status === 'answered' ? 'approved' : 'pending'} label={post.status} showDot={false} /></td>
+                  <td className={`${td} text-right`}>
+                    {(post.reports?.length ?? 0) > 0 ? (
+                      <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-red-50 border border-red-200 text-[10px] font-bold text-red-600">{post.reports!.length}</span>
+                    ) : (
+                      <span className="text-gray-300">—</span>
+                    )}
+                  </td>
                   <td className={`${td} text-right text-gray-500 tabular-nums`}>{post.comments?.length ?? 0}</td>
                   <td className={`${td} text-right text-gray-500 tabular-nums`}>{post.upvotes?.length ?? 0}</td>
                   <td className={`${td} text-gray-500`}>{new Date(post.createdAt).toLocaleDateString('en-IN')}</td>
@@ -99,6 +105,18 @@ export default function AdminCommunity() {
             <div><p className="text-xs font-medium text-gray-500 mb-1">Body</p><p className="text-sm text-gray-800 whitespace-pre-wrap">{viewPost.body}</p></div>
             <div><p className="text-xs font-medium text-gray-500 mb-1">Status</p><Badge status={viewPost.status === 'answered' ? 'approved' : 'pending'} label={viewPost.status} showDot={false} /></div>
             {viewPost.answer && <div><p className="text-xs font-medium text-gray-500 mb-1">Official Answer</p><p className="text-sm text-emerald-700 whitespace-pre-wrap border-l-2 border-emerald-300 pl-3">{viewPost.answer}</p></div>}
+            {viewPost.reports && viewPost.reports.length > 0 && (
+              <div className="p-3 rounded-lg bg-red-50 border border-red-200">
+                <p className="text-xs font-semibold text-red-600 mb-2">⚠ {viewPost.reports.length} Report{viewPost.reports.length !== 1 ? 's' : ''}</p>
+                <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                  {viewPost.reports.map((r, i) => (
+                    <div key={i} className="text-xs text-red-700 bg-white rounded-lg px-3 py-2 border border-red-100">
+                      {r.reason}{r.createdAt ? ` — ${new Date(r.createdAt).toLocaleDateString('en-IN')}` : ''}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <div>
               <p className="text-xs font-medium text-gray-500 mb-1">Comments ({viewPost.comments?.length ?? 0})</p>
               {viewPost.comments?.length ? <div className="space-y-1.5 max-h-40 overflow-y-auto">{viewPost.comments.map(c => <div key={c._id} className="text-sm text-gray-700 bg-gray-50 rounded-lg px-3 py-2 border border-gray-100"><span className="font-medium">{c.author?.name ?? '—'}: </span>{c.body}{c.verified && <span className="ml-2 text-emerald-500">✓</span>}</div>)}</div> : <p className="text-xs text-gray-400">No comments</p>}

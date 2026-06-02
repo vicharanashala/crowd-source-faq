@@ -11,6 +11,7 @@ import {
   type SearchResultItem,
   type ResultSource,
 } from '../utils/search.js';
+import { searchRequests, searchResultsReturned, searchLogFlushActive, searchLogFlushes } from '../utils/metrics.js';
 
 // Cache configuration: Store up to 500 recent queries for 1 hour to reduce DB/AI loads
 const searchCache = new LRUCache<string, SearchResultItem[]>({
@@ -38,12 +39,16 @@ function scheduleFlush(): void {
   if (flushTimer) return;
   flushTimer = setTimeout(async () => {
     flushTimer = null;
+    searchLogFlushActive.inc();
     const logs = pendingLogs.splice(0);
-    if (logs.length === 0) return;
+    if (logs.length === 0) { searchLogFlushActive.dec(); return; }
     try {
       await SearchLog.insertMany(logs, { ordered: false });
+      searchLogFlushes.inc();
     } catch {
       // silently discard failed batch inserts
+    } finally {
+      searchLogFlushActive.dec();
     }
   }, BATCH_FLUSH_INTERVAL_MS);
 }
@@ -58,6 +63,18 @@ function bufferSearchLog(entry: Omit<PendingLog, 'createdAt'>): void {
   } else {
     scheduleFlush();
   }
+}
+
+/**
+ * Flush any buffered search logs immediately.
+ * Called by the graceful shutdown handler to ensure no logs are lost on exit.
+ * Returns a promise that resolves when the insert (if any) completes.
+ */
+export async function flushSearchLogs(): Promise<void> {
+  if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
+  if (pendingLogs.length === 0) return;
+  const logs = pendingLogs.splice(0);
+  await SearchLog.insertMany(logs, { ordered: false }).catch(() => {});
 }
 
 // Helper: Executes traditional MongoDB keyword search
@@ -108,7 +125,30 @@ const runVectorSearch = async (collectionName: string, queryEmbedding: number[],
           body: 1,
           status: 1,
           category: 1,
+          helpfulVotes: 1,
+          unhelpfulVotes: 1,
           score: { $meta: 'vectorSearchScore' }, // Expose similarity score
+          trustLevel: 1,
+        },
+      },
+      // Boost score based on trust level: high (official) > expert (admin_approved) > medium (community_approved) > low
+      {
+        $addFields: {
+          score: {
+            $add: [
+              { $meta: 'vectorSearchScore' },
+              {
+                $switch: {
+                  branches: [
+                    { case: { $eq: ['$trustLevel', 'high'] },   then: 0.15 },
+                    { case: { $eq: ['$trustLevel', 'expert'] }, then: 0.07 },
+                    { case: { $eq: ['$trustLevel', 'medium'] }, then: 0.02 },
+                  ],
+                  default: 0,
+                },
+              },
+            ],
+          },
         },
       },
     ];
@@ -138,6 +178,8 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
     // 1. Check Redis semantic cache first (shared across all serverless instances)
     const redisCached = await getCachedResults(normalizedQuery);
     if (redisCached) {
+      searchRequests.inc({ source: 'redis', cached: 'true' });
+      searchResultsReturned.observe({ source: 'redis' }, redisCached.results.length);
       res.json({ results: redisCached.results, total: redisCached.results.length, cached: true });
       return;
     }
@@ -146,6 +188,8 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
     if (searchCache.has(normalizedQuery)) {
       const cachedResults = searchCache.get(normalizedQuery)!;
       await setCachedResults(normalizedQuery, cachedResults);
+      searchRequests.inc({ source: 'lru', cached: 'true' });
+      searchResultsReturned.observe({ source: 'lru' }, cachedResults.length);
       res.json({ results: cachedResults, total: cachedResults.length, cached: true });
       return;
     }
@@ -186,10 +230,13 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
       topResultSource: topResult?.source ?? null,
     });
 
+    searchRequests.inc({ source: 'fresh', cached: 'false' });
+    searchResultsReturned.observe({ source: 'fresh' }, filtered.length);
+
     res.json({ results: filtered, total: filtered.length, cached: false });
   } catch (error) {
     logger.error('Search error', { error: error instanceof Error ? error.message : String(error) });
-    res.status(500).json({ message: 'Search failed', error: (error as Error).message });
+    res.status(500).json({ message: 'Search failed', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -206,7 +253,7 @@ export const getTrending = async (req: Request, res: Response): Promise<void> =>
         },
       },
       { $sort: { count: -1 } },
-      { $limit: 6 },
+      { $limit: 50 },
       {
         $project: {
           _id: 0,
@@ -219,7 +266,7 @@ export const getTrending = async (req: Request, res: Response): Promise<void> =>
 
     res.json({ trending });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 

@@ -5,7 +5,7 @@ import type { Post } from '../../types/ui';
 
 interface CreatePostDialogProps {
   onClose: () => void;
-  onCreated: (post: Post) => void;
+  onCreated: (post: Post, dupResult?: { isDuplicate: boolean; dupCount: number; faqMatches: number }) => void;
 }
 
 export default function CreatePostDialog({ onClose, onCreated }: CreatePostDialogProps) {
@@ -35,10 +35,20 @@ export default function CreatePostDialog({ onClose, onCreated }: CreatePostDialo
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState('');
   const [duplicateMatch, setDuplicateMatch] = useState<{ isDuplicate: boolean; matches: any[] } | null>(null);
   const [checkingDuplicates, setCheckingDuplicates] = useState(false);
   const [floatAway, setFloatAway] = useState(false);
   const duplicateCheckTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Toast state
+  const [toast, setToast] = useState<{ msg: string; type: 'success' | 'warn' | 'info' } | null>(null);
+
+  const showToast = (msg: string, type: 'success' | 'warn' | 'info' = 'info') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3500);
+  };
 
   // Save draft on field changes
   const handleTitleChange = (val: string) => {
@@ -105,16 +115,32 @@ export default function CreatePostDialog({ onClose, onCreated }: CreatePostDialo
       setError('Both title and description are required.');
       return;
     }
-    if (duplicateMatch && duplicateMatch.isDuplicate) {
+    // Block only if match is an FAQ (already answered in FAQ)
+    // Community matches are suggestions — allow posting
+    const faqMatch = duplicateMatch?.matches?.find((m: any) => m.source === 'faq');
+    if (faqMatch) {
       setError('This question is already answered in our FAQ. Please check the FAQ page first.');
       return;
     }
     setLoading(true);
     try {
-      const res = await api.post<{ post: Post }>('/community', { title: title.trim(), body: body.trim() });
+      const res = await api.post<{ post: Post }>('/community', { title: title.trim(), body: body.trim(), tags });
       // Clear draft on success
       try { sessionStorage.removeItem(DRAFT_KEY); } catch {}
-      onCreated(res.data.post);
+      // Show toast with duplicate check result
+      const dupCount = duplicateMatch?.matches?.length ?? 0;
+      if (dupCount > 0) {
+        const faqMatches = duplicateMatch?.matches?.filter((m: any) => m.source === 'faq').length ?? 0;
+        if (faqMatches > 0) {
+          showToast(`⚠️ Similar FAQ found — your question has been linked.`, 'warn');
+        } else {
+          showToast(`🔍 ${dupCount} similar discussion${dupCount > 1 ? 's' : ''} found — good to cross-reference.`, 'info');
+        }
+      } else {
+        showToast(`✅ Your question has been posted to the community!`, 'success');
+      }
+      const dupResult = { isDuplicate: duplicateMatch?.isDuplicate ?? false, dupCount, faqMatches: duplicateMatch?.matches?.filter((m: any) => m.source === 'faq').length ?? 0 };
+      onCreated(res.data.post, dupResult);
       dialogRef.current?.close();
     } catch (err) {
       const errObj = err as { response?: { data?: { message?: string } } };
@@ -124,7 +150,8 @@ export default function CreatePostDialog({ onClose, onCreated }: CreatePostDialo
     }
   };
 
-  const isSubmitDisabled = !title.trim() || !body.trim() || (duplicateMatch && duplicateMatch.isDuplicate) || checkingDuplicates;
+  const faqMatch = duplicateMatch?.matches?.some((m: any) => m.source === 'faq');
+  const isSubmitDisabled = !title.trim() || !body.trim() || faqMatch || checkingDuplicates || loading;
 
   return (
     <dialog
@@ -182,11 +209,16 @@ export default function CreatePostDialog({ onClose, onCreated }: CreatePostDialo
             <div className="faq-match-banner">
               <span>📖</span>
               <div>
-                <p className="font-medium">This question is already answered in our FAQ!</p>
-                <p className="text-xs mt-0.5 opacity-80">
-                  <strong>"{duplicateMatch.matches[0]?.question || duplicateMatch.matches[0]?.title}"</strong>
-                </p>
-                <a href="/faq" className="text-xs mt-1 inline-block">→ Go to FAQ page</a>
+                <p className="font-medium">Similar question found!</p>
+                {duplicateMatch.matches.slice(0, 3).map((m: any, i: number) => (
+                  <p key={i} className="text-xs mt-0.5 opacity-80">
+                    {m.source === 'faq' ? '📋 FAQ' : '💬 Community'}: <strong>"{m.question || m.title}"</strong>
+                    {m.score && <span className="text-ink-faint"> ({(m.score * 100).toFixed(0)}% match)</span>}
+                  </p>
+                ))}
+                {duplicateMatch.matches.some((m: any) => m.source === 'faq') && (
+                  <a href="/faq" className="text-xs mt-1 inline-block">→ Check FAQ for answer</a>
+                )}
               </div>
             </div>
           )}
@@ -205,11 +237,58 @@ export default function CreatePostDialog({ onClose, onCreated }: CreatePostDialo
               required
               className="w-full rounded-xl border border-border bg-mist px-3 py-2.5 text-sm text-ink placeholder-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/25 focus:bg-card transition-all resize-none"
             />
-            <p className="text-xs text-ink-faint mt-1 text-right">{body.length}/2000</p>
+            <p className={`text-xs mt-1 text-right ${body.length > 1800 ? 'text-danger font-semibold' : 'text-ink-faint'}`}>{body.length}/2000</p>
+          </div>
+
+          {/* Tags */}
+          <div>
+            <label htmlFor="post-tags" className="block text-xs font-medium text-ink-soft mb-1.5">
+              Tags <span className="text-ink-faint font-normal">(optional — press Enter or comma to add)</span>
+            </label>
+            <div className="flex flex-wrap gap-2 p-3 rounded-xl border border-border bg-mist focus-within:ring-2 focus-within:ring-accent/25 focus-within:bg-card transition-all">
+              {tags.map((tag) => (
+                <span key={tag} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-accent/10 text-accent text-xs font-semibold">
+                  {tag}
+                  <button
+                    type="button"
+                    onClick={() => setTags(tags.filter((t) => t !== tag))}
+                    className="hover:text-danger"
+                    aria-label={`Remove tag ${tag}`}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+              <input
+                id="post-tags"
+                type="text"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if ((e.key === 'Enter' || e.key === ',') && tagInput.trim()) {
+                    e.preventDefault();
+                    const newTag = tagInput.trim().replace(/,/g, '');
+                    if (newTag && !tags.includes(newTag)) setTags([...tags, newTag]);
+                    setTagInput('');
+                  }
+                }}
+                placeholder={tags.length === 0 ? "e.g. NOC, ViBe, Timetable" : ""}
+                className="flex-1 min-w-[120px] bg-transparent text-sm text-ink placeholder-ink-faint focus:outline-none"
+              />
+            </div>
           </div>
 
           {error && (
             <p className="text-xs text-danger bg-danger-light border border-danger/15 rounded-xl px-3 py-2">{error}</p>
+          )}
+
+          {toast && (
+            <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] px-5 py-3 rounded-xl text-sm font-medium shadow-float border animate-fade-in
+              ${toast.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
+                toast.type === 'warn' ? 'bg-amber-50 border-amber-200 text-amber-700' :
+                'bg-blue-50 border-blue-200 text-blue-700'}`}>
+              {toast.msg}
+            </div>
           )}
 
           <div className="flex gap-2 pt-1">

@@ -61,7 +61,7 @@ export const flagFAQ = async (req: Request<{ id: string }>, res: Response): Prom
 
     res.json({ message: 'FAQ flagged for review.' });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -198,7 +198,7 @@ export const voteReview = async (req: Request<{ id: string }>, res: Response): P
       needsUpdateVotes: needsUpdate,
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -248,7 +248,7 @@ export const getReviewQueue = async (_req: Request, res: Response): Promise<void
 
     res.json({ queue });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -325,7 +325,7 @@ export const getEscalated = async (_req: Request, res: Response): Promise<void> 
 
     res.json({ escalated });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -383,7 +383,7 @@ export const verifyEscalatedFAQ = async (req: Request<{ id: string }>, res: Resp
 
     res.json({ message: 'FAQ re-verified and updated.', faq });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -418,7 +418,7 @@ export const dismissEscalatedFAQ = async (req: Request<{ id: string }>, res: Res
 
     res.json({ message: 'Flag dismissed.', faq });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 

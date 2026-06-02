@@ -3,20 +3,10 @@ import Avatar from '../ui/Avatar';
 import Badge from '../ui/Badge';
 import Button from '../ui/Button';
 import api from '../../utils/api';
-import type { Post } from '../../types/ui';
+import type { Post, Comment } from '../../types/ui';
 
 const formatDate = (d: string | undefined) =>
   new Date(d ?? Date.now()).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
-
-interface Comment {
-  _id: string;
-  author?: { name?: string };
-  body: string;
-  createdAt?: string;
-  upvotes?: unknown[];
-  downvotes?: unknown[];
-  verified?: boolean;
-}
 
 interface PostDetailDialogProps {
   post: Post;
@@ -36,6 +26,17 @@ export default function PostDetailDialog({ post: initialPost, onClose, currentUs
   const [resolveLoading, setResolveLoading] = useState(false);
   const [expertHelpLoading, setExpertHelpLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [showDnaEditor, setShowDnaEditor] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportLoading, setReportLoading] = useState(false);
+  const [dnaSteps, setDnaSteps] = useState('');
+  const [dnaTools, setDnaTools] = useState('');
+  const [dnaTime, setDnaTime] = useState('');
+  const [dnaDifficulty, setDnaDifficulty] = useState<'Easy' | 'Moderate' | 'Tricky'>('Moderate');
+  const [dnaSaving, setDnaSaving] = useState(false);
+
+  const isAnswer = userRole === 'admin' || userRole === 'moderator' || post.answerAuthorId === currentUserId;
 
   const isAnswered = post.status === 'answered';
   const upvoteCount = (post.upvotes?.length ?? 0);
@@ -72,22 +73,39 @@ export default function PostDetailDialog({ post: initialPost, onClose, currentUs
   }, [onClose]);
 
   const handleUpvote = async () => {
-    if (upvoteLoading) return;
-    setUpvoteLoading(true);
+    const previousUpvotes = post.upvotes || [];
+    const isUpvoted = previousUpvotes.some(
+      (id) => (typeof id === 'object' ? (id as { _id?: string })._id || id : id)?.toString() === currentUserId
+    );
+
+    // Optimistic local state update
+    const nextUpvotes = isUpvoted
+      ? previousUpvotes.filter((u) => (typeof u === 'object' ? (u as { _id?: string })._id : u)?.toString() !== currentUserId)
+      : [...previousUpvotes, currentUserId];
+
+    setPost((prev) => ({
+      ...prev,
+      upvotes: nextUpvotes,
+    }));
+
     try {
       const res = await api.post<{ upvotedByMe: boolean }>(`/community/${post._id}/upvote`);
+      // Sync with server state
       setPost((prev) => ({
         ...prev,
         upvotes: res.data.upvotedByMe
-          ? [...(prev.upvotes || []), currentUserId]
-          : (prev.upvotes || []).filter((u) => (typeof u === 'object' ? (u as { _id?: string })._id : u)?.toString() !== currentUserId),
+          ? [...previousUpvotes.filter((u) => (typeof u === 'object' ? (u as { _id?: string })._id : u)?.toString() !== currentUserId), currentUserId]
+          : previousUpvotes.filter((u) => (typeof u === 'object' ? (u as { _id?: string })._id : u)?.toString() !== currentUserId),
       }));
     } catch (e) {
+      // Rollback on failure
+      setPost((prev) => ({
+        ...prev,
+        upvotes: previousUpvotes,
+      }));
       const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Upvote failed. Please try again.';
       setActionError(msg);
       setTimeout(() => setActionError(null), 3000);
-    } finally {
-      setUpvoteLoading(false);
     }
   };
 
@@ -136,6 +154,30 @@ export default function PostDetailDialog({ post: initialPost, onClose, currentUs
       console.error(e);
     } finally {
       setExpertHelpLoading(false);
+    }
+  };
+
+  const handleReport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reportReason.trim()) return;
+    setReportLoading(true);
+    try {
+      await api.post(`/community/${post._id}/report`, { reason: reportReason });
+      setShowReportModal(false);
+      setReportReason('');
+      setActionError(null);
+      // Show success feedback
+      const banner = document.createElement('div');
+      banner.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] px-5 py-3 bg-emerald-50 border border-emerald-200 rounded-xl text-sm text-emerald-700 font-medium shadow-lg';
+      banner.textContent = 'Report submitted. Thank you.';
+      document.body.appendChild(banner);
+      setTimeout(() => banner.remove(), 3000);
+    } catch (err) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Failed to submit report.';
+      setActionError(msg);
+      setTimeout(() => setActionError(null), 4000);
+    } finally {
+      setReportLoading(false);
     }
   };
 
@@ -199,6 +241,17 @@ export default function PostDetailDialog({ post: initialPost, onClose, currentUs
         <div className="overflow-y-auto flex-1">
           <div className="px-6 py-4">
             <p className="text-sm text-ink/70 leading-relaxed">{post.body}</p>
+
+          {/* Tags */}
+          {post.tags && post.tags.length > 0 && (
+            <div className="px-6 pb-4 flex flex-wrap items-center gap-2 mt-3">
+              {post.tags.map((tag: string) => (
+                <span key={tag} className="inline-flex items-center px-2.5 py-1 rounded-full bg-mist border border-border text-xs font-medium text-ink-soft">
+                  #{tag}
+                </span>
+              ))}
+            </div>
+          )}
           </div>
 
           <div className="px-6 pb-4 flex items-center gap-3">
@@ -238,7 +291,7 @@ export default function PostDetailDialog({ post: initialPost, onClose, currentUs
               </Button>
             )}
 
-            {!canResolve && !isAnswered && currentUserId && (
+            {!canResolve && !isAnswered && currentUserId && post.author?._id !== currentUserId && (
               <Button
                 variant="secondary"
                 size="sm"
@@ -251,6 +304,19 @@ export default function PostDetailDialog({ post: initialPost, onClose, currentUs
                 </svg>
                 Request Expert Help
               </Button>
+            )}
+
+            {currentUserId && post.author?._id !== currentUserId && (
+              <button
+                onClick={() => setShowReportModal(true)}
+                className="ml-2 text-xs text-red-400 hover:text-red-600 flex items-center gap-1 transition-colors"
+                title="Report this post"
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M6 1L7.5 4.5H11.5L8.5 7.5L9.5 11L6 8.5L2.5 11L3.5 7.5L0.5 4.5H4.5L6 1Z"/>
+                </svg>
+                Report
+              </button>
             )}
           </div>
 
@@ -269,6 +335,151 @@ export default function PostDetailDialog({ post: initialPost, onClose, currentUs
                 {post.answerIsExpert ? '⭐ Expert Mentor Answer' : 'Official Answer'}
               </p>
               <p className="text-sm text-ink/75 leading-relaxed">{post.answer}</p>
+
+              {/* DNA Strip */}
+              {post.dna && (
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <span className="text-[10px] font-semibold text-ink-soft uppercase tracking-wider">Solution DNA</span>
+                  {post.dna.steps.length > 0 && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent/10 border border-accent/20 text-xs font-medium text-accent">
+                      {post.dna.steps.length} step{post.dna.steps.length !== 1 ? 's' : ''}
+                    </span>
+                  )}
+                  {post.dna.tools.map((tool, i) => (
+                    <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-mist border border-border text-xs text-ink-soft">
+                      {tool}
+                    </span>
+                  ))}
+                  {post.dna.timeToComplete && (
+                    <span className="inline-flex items-center gap-1 text-xs text-ink-faint">
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.2">
+                        <circle cx="5" cy="5" r="4"/>
+                        <path d="M5 3V5L6.5 6.5" strokeLinecap="round"/>
+                      </svg>
+                      {post.dna.timeToComplete}
+                    </span>
+                  )}
+                  {post.dna.difficulty && (
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
+                      post.dna.difficulty === 'Easy' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' :
+                      post.dna.difficulty === 'Moderate' ? 'bg-yellow-100 text-yellow-700 border border-yellow-200' :
+                      'bg-red-100 text-red-600 border border-red-200'
+                    }`}>
+                      {post.dna.difficulty}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Edit DNA Button */}
+              {isAnswer && (
+                <div className="mt-3 flex justify-end">
+                  <button
+                    onClick={() => {
+                      setDnaSteps(post.dna?.steps.join('\n') || '');
+                      setDnaTools(post.dna?.tools.join(', ') || '');
+                      setDnaTime(post.dna?.timeToComplete || '');
+                      setDnaDifficulty(post.dna?.difficulty || 'Moderate');
+                      setShowDnaEditor(true);
+                    }}
+                    className="text-[11px] text-accent/70 hover:text-accent font-medium transition-colors flex items-center gap-1"
+                  >
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.3">
+                      <path d="M7.5 1.5L8.5 2.5L3 8L1 8.5L1.5 6.5L7.5 1.5Z" strokeLinejoin="round"/>
+                    </svg>
+                    {post.dna ? 'Edit DNA' : 'Add DNA'}
+                  </button>
+                </div>
+              )}
+
+              {/* Inline DNA Editor */}
+              {showDnaEditor && (
+                <div className="mt-3 p-3 rounded-xl border border-accent/20 bg-mist space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-accent">Edit Solution DNA</span>
+                    <button onClick={() => setShowDnaEditor(false)} className="text-ink-faint hover:text-ink text-sm">✕</button>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-medium text-ink-soft uppercase tracking-wider">Steps (one per line)</label>
+                    <textarea
+                      value={dnaSteps}
+                      onChange={e => setDnaSteps(e.target.value)}
+                      rows={3}
+                      placeholder="Enter each step on a new line"
+                      className="mt-1 w-full rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs text-ink placeholder-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/30 resize-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-medium text-ink-soft uppercase tracking-wider">Tools (comma-separated)</label>
+                    <input
+                      type="text"
+                      value={dnaTools}
+                      onChange={e => setDnaTools(e.target.value)}
+                      placeholder="e.g., VS Code, Terminal, Git"
+                      className="mt-1 w-full rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs text-ink placeholder-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/30"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <label className="text-[10px] font-medium text-ink-soft uppercase tracking-wider">Time to Complete</label>
+                      <input
+                        type="text"
+                        value={dnaTime}
+                        onChange={e => setDnaTime(e.target.value)}
+                        placeholder="e.g., 30 mins"
+                        className="mt-1 w-full rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs text-ink placeholder-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/30"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="text-[10px] font-medium text-ink-soft uppercase tracking-wider">Difficulty</label>
+                      <select
+                        value={dnaDifficulty}
+                        onChange={e => setDnaDifficulty(e.target.value as 'Easy' | 'Moderate' | 'Tricky')}
+                        className="mt-1 w-full rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs text-ink focus:outline-none focus:ring-2 focus:ring-accent/30"
+                      >
+                        <option value="Easy">Easy</option>
+                        <option value="Moderate">Moderate</option>
+                        <option value="Tricky">Tricky</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 justify-end pt-1">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setShowDnaEditor(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      loading={dnaSaving}
+                      onClick={async () => {
+                        setDnaSaving(true);
+                        try {
+                          const dna = {
+                            steps: dnaSteps.split('\n').map(s => s.trim()).filter(Boolean),
+                            tools: dnaTools.split(',').map(t => t.trim()).filter(Boolean),
+                            timeToComplete: dnaTime.trim() || undefined,
+                            difficulty: dnaDifficulty,
+                          };
+                          await api.patch(`/community/${post._id}/dna`, dna);
+                          setPost(prev => ({ ...prev, dna }));
+                          setShowDnaEditor(false);
+                        } catch (e) {
+                          console.error(e);
+                        } finally {
+                          setDnaSaving(false);
+                        }
+                      }}
+                    >
+                      Save DNA
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -312,18 +523,76 @@ export default function PostDetailDialog({ post: initialPost, onClose, currentUs
                   const commentOpacity = netScore >= 0 ? 1 : Math.max(0.15, 1 - (Math.abs(netScore) * 0.2));
 
                   const handleCommentUpvote = async () => {
+                    const previousComments = post.comments || [];
+                    const commentToUpdate = previousComments.find(cm => cm._id === comment._id);
+                    if (!commentToUpdate) return;
+
+                    const isUpvoted = commentToUpdate.upvotes?.some(u => (typeof u === 'object' ? (u as { _id?: string })._id || u : u)?.toString() === currentUserId);
+
+                    // Optimistic update
+                    setPost(prev => ({
+                      ...prev,
+                      comments: (prev.comments as Comment[]).map(cm =>
+                        cm._id === comment._id
+                          ? {
+                              ...cm,
+                              upvotes: isUpvoted
+                                ? (cm.upvotes || []).filter(u => (typeof u === 'object' ? (u as { _id?: string })._id : u)?.toString() !== currentUserId)
+                                : [...(cm.upvotes || []), currentUserId],
+                              downvotes: (cm.downvotes || []).filter(u => (typeof u === 'object' ? (u as { _id?: string })._id : u)?.toString() !== currentUserId)
+                            }
+                          : cm
+                      )
+                    }));
+
                     try {
                       const res = await api.post<{ upvotedByMe: boolean }>(`/community/${post._id}/comments/${comment._id}/upvote`);
+                      // Sync with server response
                       setPost(prev => ({
                         ...prev,
                         comments: (prev.comments as Comment[]).map(cm =>
-                          cm._id === comment._id ? { ...cm, upvotes: res.data.upvotedByMe ? [...(cm.upvotes || []), currentUserId] : (cm.upvotes || []).filter(u => (typeof u === 'object' ? (u as { _id?: string })._id : u)?.toString() !== currentUserId), downvotes: (cm.downvotes || []).filter(u => (typeof u === 'object' ? (u as { _id?: string })._id : u)?.toString() !== currentUserId) } : cm
+                          cm._id === comment._id
+                            ? {
+                                ...cm,
+                                upvotes: res.data.upvotedByMe
+                                  ? [...(commentToUpdate.upvotes || []).filter(u => (typeof u === 'object' ? (u as { _id?: string })._id : u)?.toString() !== currentUserId), currentUserId]
+                                  : (commentToUpdate.upvotes || []).filter(u => (typeof u === 'object' ? (u as { _id?: string })._id : u)?.toString() !== currentUserId),
+                                downvotes: (cm.downvotes || []).filter(u => (typeof u === 'object' ? (u as { _id?: string })._id : u)?.toString() !== currentUserId)
+                              }
+                            : cm
                         )
                       }));
-                    } catch (e) { console.error(e); }
+                    } catch (e) {
+                      // Rollback
+                      setPost(prev => ({ ...prev, comments: previousComments }));
+                      setActionError('Comment upvote failed. Please try again.');
+                      setTimeout(() => setActionError(null), 3000);
+                    }
                   };
 
                   const handleCommentDownvote = async () => {
+                    const previousComments = post.comments || [];
+                    const commentToUpdate = previousComments.find(cm => cm._id === comment._id);
+                    if (!commentToUpdate) return;
+
+                    const isDownvoted = commentToUpdate.downvotes?.some(u => (typeof u === 'object' ? (u as { _id?: string })._id || u : u)?.toString() === currentUserId);
+
+                    // Optimistic update
+                    setPost(prev => ({
+                      ...prev,
+                      comments: (prev.comments as Comment[]).map(cm =>
+                        cm._id === comment._id
+                          ? {
+                              ...cm,
+                              downvotes: isDownvoted
+                                ? (cm.downvotes || []).filter(u => (typeof u === 'object' ? (u as { _id?: string })._id : u)?.toString() !== currentUserId)
+                                : [...(cm.downvotes || []), currentUserId],
+                              upvotes: (cm.upvotes || []).filter(u => (typeof u === 'object' ? (u as { _id?: string })._id : u)?.toString() !== currentUserId)
+                            }
+                          : cm
+                      )
+                    }));
+
                     try {
                       const res = await api.post<{ deleted?: boolean; downvotedByMe: boolean }>(`/community/${post._id}/comments/${comment._id}/downvote`);
                       if (res.data.deleted) {
@@ -340,13 +609,28 @@ export default function PostDetailDialog({ post: initialPost, onClose, currentUs
                         }
                         return;
                       }
+
+                      // Sync with server response
                       setPost(prev => ({
                         ...prev,
                         comments: (prev.comments as Comment[]).map(cm =>
-                          cm._id === comment._id ? { ...cm, downvotes: res.data.downvotedByMe ? [...(cm.downvotes || []), currentUserId] : (cm.downvotes || []).filter(u => (typeof u === 'object' ? (u as { _id?: string })._id : u)?.toString() !== currentUserId), upvotes: (cm.upvotes || []).filter(u => (typeof u === 'object' ? (u as { _id?: string })._id : u)?.toString() !== currentUserId) } : cm
+                          cm._id === comment._id
+                            ? {
+                                ...cm,
+                                downvotes: res.data.downvotedByMe
+                                  ? [...(commentToUpdate.downvotes || []).filter(u => (typeof u === 'object' ? (u as { _id?: string })._id : u)?.toString() !== currentUserId), currentUserId]
+                                  : (commentToUpdate.downvotes || []).filter(u => (typeof u === 'object' ? (u as { _id?: string })._id : u)?.toString() !== currentUserId),
+                                upvotes: (cm.upvotes || []).filter(u => (typeof u === 'object' ? (u as { _id?: string })._id : u)?.toString() !== currentUserId)
+                              }
+                            : cm
                         )
                       }));
-                    } catch (e) { console.error(e); }
+                    } catch (e) {
+                      // Rollback
+                      setPost(prev => ({ ...prev, comments: previousComments }));
+                      setActionError('Comment downvote failed. Please try again.');
+                      setTimeout(() => setActionError(null), 3000);
+                    }
                   };
 
                   return (
@@ -443,6 +727,35 @@ export default function PostDetailDialog({ post: initialPost, onClose, currentUs
             <p className="text-xs text-ink-faint mt-1.5 ml-1">Press Enter to post, Shift+Enter for newline</p>
           </form>
         </div>
+
+        {/* Report Modal */}
+        {showReportModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm">
+            <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-sm mx-4 p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold text-ink">Report Post</h3>
+                <button onClick={() => { setShowReportModal(false); setReportReason(''); }} className="text-ink-faint hover:text-ink text-sm w-6 h-6 flex items-center justify-center rounded-full hover:bg-border transition-colors">✕</button>
+              </div>
+              <form onSubmit={handleReport} className="space-y-3">
+                <div>
+                  <label className="text-xs font-medium text-ink-soft mb-1.5 block">Why are you reporting this?</label>
+                  <textarea
+                    value={reportReason}
+                    onChange={(e) => setReportReason(e.target.value)}
+                    rows={3}
+                    placeholder="Describe the issue (spam, harassment, inappropriate content, etc.)"
+                    className="w-full rounded-xl border border-border bg-mist px-3 py-2.5 text-sm text-ink placeholder-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/25 resize-none"
+                    autoFocus
+                  />
+                </div>
+                <div className="flex gap-2 justify-end pt-1">
+                  <Button type="button" variant="secondary" size="sm" onClick={() => { setShowReportModal(false); setReportReason(''); }}>Cancel</Button>
+                  <Button type="submit" variant="danger" size="sm" loading={reportLoading} disabled={!reportReason.trim()}>Submit Report</Button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </dialog>
   );

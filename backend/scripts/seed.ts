@@ -32,34 +32,50 @@ const seed = async () => {
       { name: 'Admin User', email: 'admin@yaksha.com', password: 'admin123', role: 'admin' },
     ];
     for (const user of users) {
-      await User.findOneAndUpdate({ email: user.email }, user, { upsert: true, runValidators: true });
+      const existing = await User.findOne({ email: user.email });
+      if (existing) {
+        // Only update name and role — never touch password of existing users
+        existing.name = user.name;
+        existing.role = user.role as any;
+        await existing.save();
+      } else {
+        const created = await User.create(user);
+        // hash the password by triggering the pre-save hook
+        created.password = user.password;
+        await created.save();
+      }
     }
-    console.log('  ✓ Users upserted');
+    console.log('  ✓ Users upserted and passwords hashed');
 
     // Upsert FAQs from faqs.json
     console.log('[2/2] Seeding FAQs...');
     const faqPath = path.join(__dirname, '..', 'faqs.json');
-    const faqDataRaw = await fs.readFile(faqPath, 'utf-8');
-    const allFaqs = JSON.parse(faqDataRaw).map((faq: any) => ({
-      question: faq.question,
-      answer: faq.answer,
-      category: faq.category || 'General',
-    }));
-    console.log(`  Found ${allFaqs.length} FAQs in faqs.json`);
+    try {
+      const faqDataRaw = await fs.readFile(faqPath, 'utf-8');
+      const allFaqs = JSON.parse(faqDataRaw).map((faq: any) => ({
+        question: faq.question,
+        answer: faq.answer,
+        category: faq.category || 'General',
+      }));
+      console.log(`  Found ${allFaqs.length} FAQs in faqs.json`);
 
-    let inserted = 0, skipped = 0;
-    for (let i = 0; i < allFaqs.length; i++) {
-      const faq = allFaqs[i];
-      const existing = await FAQ.findOne({ question: faq.question });
-      if (existing) { skipped++; continue; }
+      let inserted = 0, skipped = 0;
+      for (let i = 0; i < allFaqs.length; i++) {
+        const faq = allFaqs[i];
+        const existing = await FAQ.findOne({ question: faq.question });
+        if (existing) { skipped++; continue; }
 
-      const embedding = await generateEmbedding(`Section: ${faq.category}. Question: ${faq.question}. Answer: ${faq.answer}`);
-      await FAQ.create({ ...faq, embedding, searchCount: 0 });
-      inserted++;
-      if ((i + 1) % 10 === 0) console.log(`  Processed ${i + 1}/${allFaqs.length} (${inserted} inserted, ${skipped} skipped)`);
+        const embedding = await generateEmbedding(`Section: ${faq.category}. Question: ${faq.question}. Answer: ${faq.answer}`);
+        await FAQ.create({ ...faq, embedding, searchCount: 0 });
+        inserted++;
+        if ((i + 1) % 10 === 0) console.log(`  Processed ${i + 1}/${allFaqs.length} (${inserted} inserted, ${skipped} skipped)`);
+      }
+
+      console.log(`  ✓ ${inserted} inserted, ${skipped} skipped`);
+    } catch (err) {
+      console.warn(`  ⚠ Warning: Could not read faqs.json from ${faqPath}. Skipping FAQ seeding. ${(err as Error).message}`);
     }
 
-    console.log(`  ✓ ${inserted} inserted, ${skipped} skipped`);
     console.log('Seeding complete!');
     process.exit(0);
   } catch (error) {
@@ -69,3 +85,4 @@ const seed = async () => {
 };
 
 seed();
+

@@ -14,9 +14,15 @@ import {
   getMeeting,
   listInsights,
   updateInsight,
+  getZoomHealthStatus,
+  getZoomPublicStats,
 } from '../controllers/zoomController.js';
 
 const router = Router();
+
+// ── Public stats (no auth) — used by HomePage to show "X meetings processed" ──
+// MUST be registered before any protect middleware
+router.get('/public-stats', getZoomPublicStats);
 
 // ── OAuth (per-user) ──────────────────────────────────────────────────────────
 // GET /api/zoom/auth/connect   — redirect to Zoom OAuth
@@ -39,5 +45,6 @@ router.get('/meetings', listMeetings);
 router.get('/meetings/:id', getMeeting);
 router.get('/insights', listInsights);
 router.put('/insights/:id', updateInsight);
+router.get('/health', getZoomHealthStatus);
 
 export default router;

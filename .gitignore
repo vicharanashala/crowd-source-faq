@@ -161,3 +161,12 @@ scraper.js
 *.swo
 *~
 .DS_Store
+
+# =============================================================================
+# Shamagama Custom Ignores
+# =============================================================================
+*.png
+.playwright-mcp/
+session_*.txt
+main_log.txt
+server-debug.log

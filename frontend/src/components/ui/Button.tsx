@@ -1,6 +1,6 @@
 import React from 'react';
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'accent';
+type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'accent' | 'danger';
 type ButtonSize = 'sm' | 'md' | 'lg';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -15,6 +15,7 @@ const variantStyles: Record<ButtonVariant, React.CSSProperties> = {
   secondary: {},
   ghost: {},
   accent: { backgroundColor: 'rgba(90, 122, 90, 0.1)', color: '#5a7a5a' },
+  danger: { backgroundColor: '#dc2626' },
 };
 
 const variantClasses: Record<ButtonVariant, string> = {
@@ -26,6 +27,8 @@ const variantClasses: Record<ButtonVariant, string> = {
     'bg-transparent text-ink-soft hover:bg-mist hover:text-ink active:bg-border/40',
   accent:
     'hover:bg-accent/15 active:bg-accent/20',
+  danger:
+    'text-white hover:brightness-90 active:brightness-75 shadow-sm',
 };
 
 const sizeClasses: Record<ButtonSize, string> = {

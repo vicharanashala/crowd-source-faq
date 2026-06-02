@@ -1,5 +1,6 @@
-import React, { useState, useRef, type FormEvent, type ChangeEvent } from 'react';
+import React, { useState, useRef, useEffect, type FormEvent, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import api from '../../utils/api';
 import type { SearchResult } from '../../types/ui';
 
@@ -12,6 +13,7 @@ interface Suggestion {
 interface SearchBarProps {
   onResults: (results: SearchResult[] | null) => void;
   onLoading: (loading: boolean) => void;
+  onError?: (error: string | null) => void;
   value?: string;
   onQueryChange?: (value: string) => void;
   placeholder?: string;
@@ -25,6 +27,7 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
   {
     onResults,
     onLoading,
+    onError,
     value,
     onQueryChange,
     placeholder = 'Ask anything about your internship...',
@@ -44,20 +47,39 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
   const query = isControlled ? (value ?? '') : internalQuery;
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suggestDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    // If the search query value changes (especially from outside), clear pending debounced searches
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+    if (suggestDebounceRef.current) {
+      clearTimeout(suggestDebounceRef.current);
+      suggestDebounceRef.current = null;
+    }
+  }, [value]);
+
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   const handleSearch = async (searchQuery: string) => {
     if (!searchQuery.trim() || searchQuery.trim().length < 3) {
       onResults(null);
+      onError?.(null);
       return;
     }
 
     onLoading(true);
+    onError?.(null);
     try {
       const res = await api.post<{ results: SearchResult[] }>('/search', { query: searchQuery.trim() });
       onResults(res.data.results ?? null);
-    } catch {
+    } catch (err: any) {
+      if (axios.isCancel(err)) {
+        return; // Ignore cancelled requests
+      }
       onResults([]);
+      onError?.('Search failed. Please check your connection and try again.');
     } finally {
       onLoading(false);
     }
@@ -95,10 +117,15 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
     // Search debounce (600ms)
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (val.trim().length >= 3) {
-      debounceRef.current = setTimeout(() => handleSearch(val), 600);
-      setShowSuggestions(false);
+      debounceRef.current = setTimeout(() => {
+        setShowSuggestions(false);
+        handleSearch(val);
+      }, 600);
     } else {
+      // Keep showing suggestions/result dropdown while user is typing
+      // Only clear results when query goes below 3 chars
       onResults(null);
+      onError?.(null);
       if (!disableSuggestions) {
         setSuggestions([]);
         setShowSuggestions(false);
@@ -123,7 +150,7 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
     } catch {
       setSuggestionError('Could not load FAQ. Navigating anyway.');
     }
-    navigate(`/faq`);
+    navigate(`/faq/${faqId}`);
   };
 
   // Close suggestions on outside click
@@ -152,6 +179,14 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
           type="text"
           value={query}
           onChange={handleChange}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              if (debounceRef.current) clearTimeout(debounceRef.current);
+              setShowSuggestions(false);
+              handleSearch(query);
+            }
+          }}
           onFocus={onFocus}
           onBlur={handleBlur}
           placeholder={placeholder}

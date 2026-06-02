@@ -23,6 +23,7 @@ export default function CommunityPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -38,23 +39,34 @@ export default function CommunityPage() {
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
 
-  const fetchPosts = useCallback((pageNum = 1) => {
-    if (pageNum === 1) setLoading(true);
+  // Backend uses cursor-based pagination. The previous version sent `?page=2`
+  // which the backend silently ignored — so every "Load more" call returned
+  // the FIRST batch and we got duplicates. Send the cursor instead.
+  const fetchPosts = useCallback((reset = false) => {
+    if (reset) setLoading(true);
     else setLoadingMore(true);
-    api.get('/community', { params: { page: pageNum, limit: 20 } })
+    api.get('/community', {
+      params: {
+        limit: 20,
+        filter,
+        sort,
+        ...(reset ? {} : nextCursor ? { cursor: nextCursor } : {}),
+      },
+    })
       .then((res) => {
         const incoming = res.data.posts || [];
-        setPosts((prev) => pageNum === 1 ? incoming : [...prev, ...incoming]);
+        setPosts((prev) => reset ? incoming : [...prev, ...incoming]);
         setTotal(res.data.total || 0);
         setHasMore(res.data.hasMore ?? false);
-        setPage(pageNum);
+        setNextCursor(res.data.nextCursor ?? null);
+        setPage((p) => reset ? 1 : p + 1);
       })
       .catch(() => setError('Failed to load posts. Please try again.'))
       .finally(() => {
         setLoading(false);
         setLoadingMore(false);
       });
-  }, []);
+  }, [filter, sort, nextCursor]);
 
   // Thread detail: when a post ID is set, show ThreadDetail instead of the list/dialog
   const handleOpenThread = useCallback((postId: string) => {
@@ -63,9 +75,10 @@ export default function CommunityPage() {
 
   const handleCloseThread = useCallback(() => {
     setSelectedPostId(null);
-    // Refresh current page to pick up any new comments/upvotes
-    fetchPosts(page);
-  }, [page, fetchPosts]);
+    // Refresh current view to pick up any new comments/upvotes
+    fetchPosts(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchPosts]);
 
   // If navigated here via ?ask=true (from navbar "Ask Question") or ?post=<id> (from search)
   useEffect(() => {
@@ -108,13 +121,35 @@ export default function CommunityPage() {
   }, [posts, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    fetchPosts(1);
-  }, [fetchPosts]);
+    fetchPosts(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter, sort]);
 
-  const handleLoadMore = () => {
-    if (!hasMore || loadingMore) return;
-    fetchPosts(page + 1);
-  };
+  // Reset cursor + posts when filter/sort changes so we paginate the
+  // newly-filtered set from the beginning.
+  useEffect(() => {
+    setNextCursor(null);
+    setPosts([]);
+  }, [filter, sort]);
+
+  // ── Infinite scroll — fetch the next page when the sentinel enters view ────
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!sentinelRef.current) return;
+    if (!hasMore || loading || loadingMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          fetchPosts(false);
+        }
+      },
+      { rootMargin: '300px 0px' } // start loading 300px before the sentinel
+    );
+    observer.observe(sentinelRef.current);
+    return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasMore, loading, loadingMore, nextCursor, filter, sort]);
 
   const runSemanticSearch = useCallback(async (q: string) => {
     setSearchLoading(true);
@@ -131,7 +166,7 @@ export default function CommunityPage() {
 
   useEffect(() => {
     const q = search.trim();
-    if (!q) {
+    if (!q || q.length < 3) {
       setSearchResults([]);
       return;
     }
@@ -158,7 +193,7 @@ export default function CommunityPage() {
       });
       return;
     }
-    fetchPosts(1);
+    fetchPosts(true);
   }, [filter, sort]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handlePostCreated = (newPost: Post) => {
@@ -201,8 +236,11 @@ export default function CommunityPage() {
         <div className="flex items-start justify-between gap-3 sm:gap-4 mb-6 sm:mb-8">
           <div className="min-w-0">
             <h1 className="text-xl sm:text-2xl font-serif text-ink tracking-tight">Community Board</h1>
+            <p className="mt-1 sm:mt-1.5 text-xs sm:text-sm text-ink-soft truncate">
+              Ask anything, get answers from peers and moderators
+            </p>
             {!loading && (
-              <p className="mt-1 sm:mt-1.5 text-xs sm:text-sm text-ink-soft truncate">
+              <p className="mt-0.5 text-[11px] text-ink-faint">
                 {total} discussions · {answeredCount} answered · {unansweredCount} open
               </p>
             )}
@@ -231,6 +269,11 @@ export default function CommunityPage() {
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey && search.trim().length >= 3) {
+                  runSemanticSearch(search.trim());
+                }
+              }}
               placeholder="Search questions…"
               className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-border bg-card text-sm text-ink placeholder-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/25 transition-all"
             />
@@ -274,7 +317,7 @@ export default function CommunityPage() {
           </div>
         )}
 
-        {loading && (
+        {(loading || searchLoading) && (
           <div className="space-y-3">
             {[1, 2, 3, 4, 5].map((i) => (
               <div key={i} className="bg-card rounded-2xl border border-border shadow-subtle p-4 flex items-start gap-4 animate-pulse">
@@ -295,7 +338,7 @@ export default function CommunityPage() {
           </div>
         )}
 
-        {!loading && !error && total === 0 && (
+        {!loading && !searchLoading && !error && total === 0 && (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <div className="w-16 h-16 rounded-2xl bg-mist flex items-center justify-center mb-4">
               <svg width="28" height="28" viewBox="0 0 28 28" fill="none" stroke="currentColor" className="text-ink-faint" strokeWidth="1.5">
@@ -312,13 +355,13 @@ export default function CommunityPage() {
           </div>
         )}
 
-        {!loading && !error && total > 0 && displayedPosts.length === 0 && (
+        {!loading && !searchLoading && !error && total > 0 && displayedPosts.length === 0 && (
           <p className="text-center text-sm text-ink-soft py-16">
             No posts match your current filters.
           </p>
         )}
 
-        {!loading && !error && displayedPosts.length > 0 && (
+        {!loading && !searchLoading && !error && displayedPosts.length > 0 && (
           <div className="space-y-3">
             {displayedPosts.map((post) => (
               <CommunityPostCard
@@ -331,18 +374,23 @@ export default function CommunityPage() {
           </div>
         )}
 
-        {!loading && !search.trim() && hasMore && (
-          <div className="mt-6 flex justify-center">
-            <button
-              onClick={handleLoadMore}
-              disabled={loadingMore}
-              className="px-6 py-2.5 rounded-full border border-border bg-card text-sm font-medium text-ink hover:bg-cream transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              {loadingMore && (
-                <span className="w-4 h-4 border-2 border-ink/20 border-t-ink rounded-full animate-spin inline-block" />
-              )}
-              {loadingMore ? 'Loading…' : `Load more${total > 0 ? ` (${total - posts.length} remaining)` : ''}`}
-            </button>
+        {/* Infinite scroll sentinel — when this enters view, fetch next page */}
+        {!loading && !search.trim() && displayedPosts.length > 0 && (
+          <div ref={sentinelRef} className="h-12 flex items-center justify-center mt-4">
+            {hasMore ? (
+              loadingMore ? (
+                <div className="flex items-center gap-2 text-xs text-ink-faint">
+                  <span className="w-4 h-4 border-2 border-ink/20 border-t-ink rounded-full animate-spin inline-block" />
+                  Loading more…
+                </div>
+              ) : (
+                <span className="text-xs text-ink-faint">Scroll for more</span>
+              )
+            ) : (
+              posts.length > 0 && (
+                <span className="text-xs text-ink-faint">You've reached the end · {total} discussions</span>
+              )
+            )}
           </div>
         )}
 

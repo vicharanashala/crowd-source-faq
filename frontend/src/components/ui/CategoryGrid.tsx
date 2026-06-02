@@ -1,4 +1,4 @@
-import React, { useRef, type ReactNode } from 'react';
+import React, { useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Category } from '../../types/ui';
 
@@ -113,6 +113,15 @@ export default function CategoryGrid({
 }: CategoryGridProps) {
   const navigate = useNavigate();
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const [showLeftFade, setShowLeftFade] = useState(false);
+  const [showRightFade, setShowRightFade] = useState(false);
+
+  const updateFades = () => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    setShowLeftFade(el.scrollLeft > 8);
+    setShowRightFade(el.scrollLeft + el.clientWidth < el.scrollWidth - 8);
+  };
 
   const handleScroll = (direction: number) => {
     if (!scrollerRef.current) return;
@@ -150,8 +159,15 @@ export default function CategoryGrid({
 
         <div
           ref={scrollerRef}
-          className="flex-1 flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide scroll-smooth"
+          onScroll={updateFades}
+          className="relative flex-1 flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide scroll-smooth"
         >
+          {showLeftFade && (
+            <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-bg/90 to-transparent pointer-events-none z-10" />
+          )}
+          {showRightFade && (
+            <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-bg/90 to-transparent pointer-events-none z-10" />
+          )}
           {categories.map((cat) => {
             const isActive = !!(activeCategory
               && activeCategory.toLowerCase() === cat.name.toLowerCase());

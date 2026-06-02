@@ -12,10 +12,28 @@ export interface FAQItem {
   description?: string;
   summary?: string;
   source?: 'faq' | 'community';
+  trustLevel?: string;
   status?: string;
   updatedAt?: string;
   createdAt?: string;
   [key: string]: unknown;
+}
+
+export function TrustBadge({ level }: { level?: string }) {
+  if (!level) return null;
+  const map: Record<string, { label: string; class: string }> = {
+    high:   { label: 'Official', class: 'bg-stone-100 text-stone-600 border-stone-200' },
+    expert: { label: 'Admin Approved', class: 'bg-blue-50 text-blue-700 border-blue-200' },
+    medium: { label: 'Community Approved', class: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    low:    { label: 'Community', class: 'bg-amber-50 text-amber-700 border-amber-200' },
+  };
+  const cfg = map[level];
+  if (!cfg) return null;
+  return (
+    <span className={`ml-1.5 text-[10px] px-1.5 py-0.5 rounded border font-medium ${cfg.class}`}>
+      {cfg.label}
+    </span>
+  );
 }
 
 // Icon components

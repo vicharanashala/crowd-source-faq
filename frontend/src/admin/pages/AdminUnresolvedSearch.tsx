@@ -105,7 +105,7 @@ export default function AdminUnresolvedSearch() {
     if (!selectedForResolve) return;
     setResolving(true);
     try {
-      await adminApi.patch(`/admin/search/unresolved-search/${selectedForResolve._id}/resolve`, { resolution });
+      await adminApi.patch(`/admin/search/unresolved/${selectedForResolve._id}/resolve`, { resolution });
       showToast('Marked as ' + (resolution === 'faq_updated' ? 'FAQ updated' : resolution === 'community_post_created' ? 'Community post created' : 'Dismissed'), 'success');
       setSelectedForResolve(null);
       fetchItems();
@@ -117,6 +117,25 @@ export default function AdminUnresolvedSearch() {
     }
   };
 
+  // Bulk delete spam patterns
+  const spamPatterns = ['test', 'vaibhav', 'nigga', 'awdawd', 'one two ka four', 'hehehe', ',epw'];
+  const handleBulkDeleteSpam = async () => {
+    if (!window.confirm(`Delete all unresolved entries matching spam patterns?\n\nThis will remove entries with queries containing: ${spamPatterns.join(', ')}\n\nThis action cannot be undone.`)) return;
+    setResolving(true);
+    try {
+      const results = await Promise.allSettled(
+        spamPatterns.map((p: string) => adminApi.post('/search/unresolved/bulk-delete', { queryPattern: p }))
+      );
+      const succeeded = results.filter((r: PromiseSettledResult<unknown>) => r.status === 'fulfilled').length;
+      const failed = results.filter((r: PromiseSettledResult<unknown>) => r.status === 'rejected').length;
+      showToast(`Deleted spam entries (${succeeded}/${spamPatterns.length} patterns applied${failed ? `, ${failed} failed` : ''})`, succeeded > 0 ? 'success' : 'warn');
+      fetchItems();
+      fetchStats();
+    } catch {
+      showToast('Bulk delete failed', 'error');
+    }
+  };
+
   const th = 'px-3 py-2.5 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wide';
   const td = 'px-3 py-3 text-sm text-gray-800';
 
@@ -125,9 +144,17 @@ export default function AdminUnresolvedSearch() {
       <AnimatePresence>{toast && <Toast toast={toast} />}</AnimatePresence>
 
       {/* Header */}
-      <div>
-        <h2 className="text-lg font-semibold text-gray-900">Unresolved Search Feedback</h2>
-        <p className="text-sm text-gray-500 mt-0.5">Queries where FAQ results didn't answer the user's question</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900">Unresolved Search Feedback</h2>
+          <p className="text-sm text-gray-500 mt-0.5">Queries where FAQ results didn't answer the user's question</p>
+        </div>
+        <button
+          onClick={handleBulkDeleteSpam}
+          className="px-3 py-1.5 rounded-md text-xs font-medium bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 hover:border-red-300 transition-colors"
+        >
+          Delete spam entries
+        </button>
       </div>
 
       {/* Stats row */}

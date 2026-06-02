@@ -12,6 +12,8 @@ import {
   getUnresolvedSearches,
   resolveUnresolved,
   getUnresolvedStats,
+  deleteUnresolved,
+  bulkDeleteUnresolved,
 } from '../controllers/unresolvedSearchController.js';
 
 const router = Router();
@@ -29,8 +31,8 @@ const suggestLimiter = rateLimit({
 router.get('/trending', getTrending);
 router.get('/suggest',  suggestLimiter, getSuggest);
 
-// ── Semantic search ─────────────────────────────────────────────────────────
-router.post('/', protect, semanticSearch);
+// ── Semantic search (public — no auth required) ─────────────────────────────
+router.post('/', semanticSearch);
 
 // ── Unresolved feedback ─────────────────────────────────────────────────────
 // POST: capture "not resolved" search feedback (auth optional — uses token if present)
@@ -39,6 +41,8 @@ router.post('/unresolved', submitUnresolved);
 // ── Admin: unresolved search management ────────────────────────────────────
 router.get('/unresolved-list',         adminOnly, getUnresolvedSearches);
 router.patch('/unresolved/:id/resolve', adminOnly, resolveUnresolved);
-router.get('/unresolved-stats',        adminOnly, getUnresolvedStats);
+router.delete('/unresolved/:id',         adminOnly, deleteUnresolved);
+router.post('/unresolved/bulk-delete',    adminOnly, bulkDeleteUnresolved);
+router.get('/unresolved-stats',          adminOnly, getUnresolvedStats);
 
 export default router;

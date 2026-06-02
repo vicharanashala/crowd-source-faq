@@ -2,13 +2,29 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
 
+type TeaEventType = 'faq_published' | 'post_answered' | 'post_deleted' | 'post_answered_user';
+
 interface TeaDrop {
   _id: string;
-  faqId: string;
-  faqQuestion: string;
+  eventType: TeaEventType;
+  // FAQ fields
+  faqId?: string;
+  faqQuestion?: string;
+  // Post fields
+  postId?: string;
+  postTitle?: string;
+  triggeredByName?: string;
+  content?: string;
   read: boolean;
   createdAt: string;
 }
+
+const EVENT_META: Record<TeaEventType, { label: string; icon: string; color: string; bgColor: string }> = {
+  faq_published:     { label: 'new faq',        icon: '📋', color: 'text-purple-600',   bgColor: 'bg-purple-50' },
+  post_answered:     { label: 'resolved',        icon: '✅', color: 'text-emerald-600',   bgColor: 'bg-emerald-50' },
+  post_deleted:      { label: 'removed',         icon: '🗑',  color: 'text-red-500',       bgColor: 'bg-red-50' },
+  post_answered_user:{ label: 'new answer',      icon: '💡', color: 'text-amber-600',     bgColor: 'bg-amber-50' },
+};
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -34,16 +50,13 @@ export default function SpillTheTea() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Fetch tea feed
   const fetchTea = useCallback(async (pageNum = 1, reset = false) => {
     if (!user) return;
     setLoading(true);
     try {
-      const res = await api.get<{
-        drops: TeaDrop[];
-        hasMore: boolean;
-        unreadCount: number;
-      }>(`/notifications/tea?page=${pageNum}&limit=20`);
+      const res = await api.get<{ drops: TeaDrop[]; hasMore: boolean; unreadCount: number }>(
+        `/notifications/tea?page=${pageNum}&limit=20`
+      );
       setDrops((prev) => (reset ? res.data.drops : [...prev, ...res.data.drops]));
       setUnread(res.data.unreadCount);
       setHasMore(res.data.hasMore);
@@ -55,7 +68,6 @@ export default function SpillTheTea() {
     }
   }, [user]);
 
-  // Poll for new drops every 30s when dropdown is open
   useEffect(() => {
     if (open) {
       fetchTea(1, true);
@@ -63,18 +75,13 @@ export default function SpillTheTea() {
     } else {
       if (pollingRef.current) clearInterval(pollingRef.current);
     }
-    return () => {
-      if (pollingRef.current) clearInterval(pollingRef.current);
-    };
+    return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
   }, [open, fetchTea]);
 
-  // Close on outside click
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setOpen(false);
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -85,9 +92,7 @@ export default function SpillTheTea() {
       await api.patch('/notifications/tea/read-all');
       setDrops((prev) => prev.map((d) => ({ ...d, read: true })));
       setUnread(0);
-    } catch (e) {
-      console.error(e);
-    }
+    } catch (e) { console.error(e); }
   };
 
   const handleMarkOneRead = async (id: string) => {
@@ -95,29 +100,28 @@ export default function SpillTheTea() {
       await api.patch(`/notifications/tea/${id}/read`);
       setDrops((prev) => prev.map((d) => (d._id === id ? { ...d, read: true } : d)));
       setUnread((u) => Math.max(0, u - 1));
-    } catch (e) {
-      console.error(e);
-    }
+    } catch (e) { console.error(e); }
   };
 
   const handleDropClick = (drop: TeaDrop) => {
     if (!drop.read) handleMarkOneRead(drop._id);
-    // Navigate to the FAQ page with this question highlighted
-    window.location.href = `/faq?q=${encodeURIComponent(drop.faqQuestion)}`;
+    const search = drop.postTitle ?? drop.faqQuestion ?? '';
+    if (search) window.location.href = `/faq?q=${encodeURIComponent(search)}`;
   };
 
   if (!user) return null;
 
-  const freshLabel = (drop: TeaDrop, index: number) =>
-    !drop.read && index === 0 ? 'fresh tea ☕' : 'tea';
+  const freshLabel = (drop: TeaDrop, index: number) => {
+    const meta = EVENT_META[drop.eventType] ?? EVENT_META['faq_published'];
+    return !drop.read && index === 0 ? `${meta.label} ${meta.icon}` : meta.label;
+  };
 
   return (
     <div className="relative" ref={dropdownRef}>
-      {/* Trigger button */}
+      {/* Trigger */}
       <button
         onClick={() => setOpen((v) => !v)}
         className="relative flex items-center justify-center w-9 h-9 rounded-full hover:bg-black/[0.04] transition-colors"
-        aria-label="Spill the Tea"
         title="Spill the Tea ☕"
       >
         <span className="text-lg" style={{ fontSize: '1.15rem' }}>☕</span>
@@ -137,18 +141,11 @@ export default function SpillTheTea() {
               <span className="text-base">☕</span>
               <span className="text-sm font-semibold text-ink">Spill the Tea</span>
               {unread > 0 && (
-                <span className="text-[10px] font-semibold text-accent bg-accent-light px-2 py-0.5 rounded-full">
-                  {unread} new
-                </span>
+                <span className="text-[10px] font-semibold text-accent bg-accent-light px-2 py-0.5 rounded-full">{unread} new</span>
               )}
             </div>
             {unread > 0 && (
-              <button
-                onClick={handleMarkAllRead}
-                className="text-[11px] text-ink-faint hover:text-ink transition-colors"
-              >
-                Mark all read
-              </button>
+              <button onClick={handleMarkAllRead} className="text-[11px] text-ink-faint hover:text-ink transition-colors">Mark all read</button>
             )}
           </div>
 
@@ -156,52 +153,56 @@ export default function SpillTheTea() {
           <div className="max-h-80 overflow-y-auto">
             {loading && drops.length === 0 ? (
               <div className="p-4 space-y-2">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-12 rounded-xl bg-mist animate-pulse" />
-                ))}
+                {[1, 2, 3].map((i) => <div key={i} className="h-12 rounded-xl bg-mist animate-pulse" />)}
               </div>
             ) : drops.length === 0 ? (
               <div className="flex flex-col items-center py-10 px-4 text-center">
                 <span className="text-2xl mb-2">👀</span>
                 <p className="text-sm font-medium text-ink-soft">No tea yet</p>
-                <p className="text-xs text-ink-faint mt-1">New FAQs will appear here as drops</p>
+                <p className="text-xs text-ink-faint mt-1">Updates on your posts will appear here</p>
               </div>
             ) : (
               <div className="divide-y divide-border/40">
-                {drops.map((drop, idx) => (
-                  <button
-                    key={drop._id}
-                    onClick={() => handleDropClick(drop)}
-                    className={`w-full text-left px-4 py-3 hover:bg-mist/50 transition-colors ${
-                      !drop.read ? 'bg-accent-light/20' : ''
-                    }`}
-                  >
-                    <div className="flex items-start gap-2.5">
-                      <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs ${
-                        !drop.read && idx === 0
-                          ? 'bg-accent text-white'
-                          : 'bg-mist text-ink-faint'
-                      }`}>
-                        {idx === 0 && !drop.read ? '☕' : '🍵'}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 mb-0.5">
-                          <span className={`text-[10px] font-semibold uppercase tracking-wider ${
-                            !drop.read && idx === 0 ? 'text-accent' : 'text-ink-faint'
-                          }`}>
-                            {freshLabel(drop, idx)}
-                          </span>
-                          <span className="text-[10px] text-ink-faint">·</span>
-                          <span className="text-[10px] text-ink-faint">{timeAgo(drop.createdAt)}</span>
+                {drops.map((drop, idx) => {
+                  const meta = EVENT_META[drop.eventType] ?? EVENT_META['faq_published'];
+                  const isFresh = !drop.read && idx === 0;
+                  const title = drop.postTitle ?? drop.faqQuestion ?? '';
+                  const isDeleted = drop.eventType === 'post_deleted';
+
+                  return (
+                    <button
+                      key={drop._id}
+                      onClick={() => handleDropClick(drop)}
+                      className={`w-full text-left px-4 py-3 hover:bg-mist/50 transition-colors ${!drop.read ? `${meta.bgColor}/20` : ''}`}
+                    >
+                      <div className="flex items-start gap-2.5">
+                        <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs ${
+                          isFresh ? 'bg-accent text-white' : 'bg-mist text-ink-faint'
+                        }`}>
+                          {isFresh ? '☕' : meta.icon}
                         </div>
-                        <p className="text-xs text-ink leading-snug line-clamp-2">{drop.faqQuestion}</p>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            <span className={`text-[10px] font-semibold uppercase tracking-wider ${isFresh ? meta.color : 'text-ink-faint'}`}>
+                              {freshLabel(drop, idx)}
+                            </span>
+                            <span className="text-[10px] text-ink-faint">·</span>
+                            <span className="text-[10px] text-ink-faint">{timeAgo(drop.createdAt)}</span>
+                          </div>
+                          <p className={`text-xs leading-snug line-clamp-2 ${isDeleted ? 'italic text-ink-faint' : 'text-ink'}`}>
+                            {isDeleted ? `Your post "${title}" was removed` : title}
+                          </p>
+                          {drop.triggeredByName && !isDeleted && (
+                            <p className="text-[10px] text-ink-faint mt-0.5">
+                              by {drop.triggeredByName}
+                            </p>
+                          )}
+                        </div>
+                        {!drop.read && <div className="flex-shrink-0 w-2 h-2 rounded-full bg-accent mt-1" />}
                       </div>
-                      {!drop.read && (
-                        <div className="flex-shrink-0 w-2 h-2 rounded-full bg-accent mt-1" />
-                      )}
-                    </div>
-                  </button>
-                ))}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>

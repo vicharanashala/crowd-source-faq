@@ -121,6 +121,6 @@ export const searchCommunityPosts = async (req: Request, res: Response): Promise
 
     res.json({ results, total: results.length, query: q });
   } catch (error) {
-    res.status(500).json({ message: 'Search failed', error: (error as Error).message });
+    res.status(500).json({ message: 'Search failed', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };

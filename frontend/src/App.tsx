@@ -1,27 +1,32 @@
+import React, { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth';
+import Spinner from './components/ui/Spinner';
 
 // User pages
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
-import AccountPage from './pages/AccountPage';
-import HomePage from './pages/HomePage';
-import FAQPage from './pages/FAQPage';
-import CommunityPage from './pages/CommunityPage';
-import Spinner from './components/ui/Spinner';
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const RegisterPage = lazy(() => import('./pages/RegisterPage'));
+const AccountPage = lazy(() => import('./pages/AccountPage'));
+const HomePage = lazy(() => import('./pages/HomePage'));
+const FAQPage = lazy(() => import('./pages/FAQPage'));
+const CommunityPage = lazy(() => import('./pages/CommunityPage'));
+const LeaderboardPage = lazy(() => import('./pages/LeaderboardPage'));
+
 // Admin pages
-import AdminLogin from './admin/pages/AdminLogin';
-import AdminDashboard from './admin/pages/AdminDashboard';
-import AdminFAQs from './admin/pages/AdminFAQs';
-import AdminUsers from './admin/pages/AdminUsers';
-import AdminSettings from './admin/pages/AdminSettings';
-import AdminCommunity from './admin/pages/AdminCommunity';
-import AdminModeration from './admin/pages/AdminModeration';
-import AdminLeaderboard from './admin/pages/AdminLeaderboard';
-import AdminUnresolvedSearch from './admin/pages/AdminUnresolvedSearch';
-import AdminZoomMeetings from './admin/pages/AdminZoomMeetings';
-import AdminZoomInsights from './admin/pages/AdminZoomInsights';
-import AdminLayout from './admin/components/layout/AdminLayout';
+const AdminLogin = lazy(() => import('./admin/pages/AdminLogin'));
+const AdminDashboard = lazy(() => import('./admin/pages/AdminDashboard'));
+const AdminFAQs = lazy(() => import('./admin/pages/AdminFAQs'));
+const AdminUsers = lazy(() => import('./admin/pages/AdminUsers'));
+const AdminSettings = lazy(() => import('./admin/pages/AdminSettings'));
+const AdminCommunity = lazy(() => import('./admin/pages/AdminCommunity'));
+const AdminModeration = lazy(() => import('./admin/pages/AdminModeration'));
+const AdminLeaderboard = lazy(() => import('./admin/pages/AdminLeaderboard'));
+const AdminUnresolvedSearch = lazy(() => import('./admin/pages/AdminUnresolvedSearch'));
+const AdminZoomMeetings = lazy(() => import('./admin/pages/AdminZoomMeetings'));
+const AdminZoomInsights = lazy(() => import('./admin/pages/AdminZoomInsights'));
+const AdminAISettings = lazy(() => import('./admin/pages/AdminAISettings'));
+const FaqReview = lazy(() => import('./admin/pages/FaqReview'));
+const AdminLayout = lazy(() => import('./admin/components/layout/AdminLayout'));
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -92,8 +97,10 @@ function AppRoutes() {
       {/* Private Routes: Wrapped in ProtectedRoute to enforce authentication */}
       <Route path="/" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
       <Route path="/faq" element={<ProtectedRoute><FAQPage /></ProtectedRoute>} />
+      <Route path="/faq/:id" element={<ProtectedRoute><FAQPage /></ProtectedRoute>} />
       <Route path="/community" element={<ProtectedRoute><CommunityPage /></ProtectedRoute>} />
       <Route path="/account" element={<ProtectedRoute><AccountPage /></ProtectedRoute>} />
+      <Route path="/leaderboard" element={<ProtectedRoute><LeaderboardPage /></ProtectedRoute>} />
 
       {/* Admin Panel dedicated routes (guarded by AdminRoute) */}
       <Route path="/admin/login" element={<AdminLogin />} />
@@ -107,6 +114,8 @@ function AppRoutes() {
       <Route path="/admin/unresolved-search" element={<AdminRoute><AdminLayout><AdminUnresolvedSearch /></AdminLayout></AdminRoute>} />
       <Route path="/admin/zoom-meetings" element={<AdminRoute><AdminLayout><AdminZoomMeetings /></AdminLayout></AdminRoute>} />
       <Route path="/admin/zoom-insights" element={<AdminRoute><AdminLayout><AdminZoomInsights /></AdminLayout></AdminRoute>} />
+      <Route path="/admin/settings/ai" element={<AdminRoute><AdminLayout><AdminAISettings /></AdminLayout></AdminRoute>} />
+      <Route path="/admin/faqs/review" element={<AdminRoute><AdminLayout><FaqReview /></AdminLayout></AdminRoute>} />
 
       {/* Catch-all fallback: Redirect any unknown URLs to the home page */}
       <Route path="*" element={<Navigate to="/" replace />} />
@@ -121,8 +130,10 @@ export default function App() {
     <BrowserRouter>
       {/* 2. AuthProvider injects global user state into all child components */}
       <AuthProvider>
-        {/* 4. AppRoutes actually renders the correct page based on the URL */}
-        <AppRoutes />
+        <Suspense fallback={<div className="min-h-screen bg-bg flex items-center justify-center"><Spinner size="md" /></div>}>
+          {/* 4. AppRoutes actually renders the correct page based on the URL */}
+          <AppRoutes />
+        </Suspense>
       </AuthProvider>
     </BrowserRouter>
   );

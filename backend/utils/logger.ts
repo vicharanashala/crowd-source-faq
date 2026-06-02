@@ -16,11 +16,23 @@ const LOG_LEVELS: Record<LogLevel, string> = {
   error: 'ERROR',
 };
 
+const C = {
+  red: (s: string) => `\x1b[31m${s}\x1b[0m`,
+  yellow: (s: string) => `\x1b[33m${s}\x1b[0m`,
+  blue: (s: string) => `\x1b[34m${s}\x1b[0m`,
+  dim: (s: string) => `\x1b[2m${s}\x1b[0m`,
+};
+
 function formatLog(entry: LogWithRequestId): string {
-  const timestamp = new Date().toISOString();
+  const timestamp = new Date().toISOString().slice(11, 23);
   const levelStr = LOG_LEVELS[entry.level];
-  const metaStr = JSON.stringify(entry.meta || {});
-  return `[${timestamp}] [${levelStr}] [${entry.requestId}] ${entry.message} ${metaStr}`;
+  const coloredLevel = entry.level === 'error'
+    ? C.red(levelStr)
+    : entry.level === 'warn'
+    ? C.yellow(levelStr)
+    : C.blue(levelStr);
+  const metaStr = Object.keys(entry.meta || {}).length > 0 ? ` ${JSON.stringify(entry.meta)}` : '';
+  return `${C.dim(`[${timestamp}]`)} ${coloredLevel} ${entry.message}${metaStr}`;
 }
 
 function logWithRequestId(requestId: string, input: LogInput): void {
@@ -45,6 +57,17 @@ export const logger = {
     logWithRequestId(requestId || '-', { level: 'warn', message, meta }),
   error: (message: string, meta?: object, requestId?: string) =>
     logWithRequestId(requestId || '-', { level: 'error', message, meta }),
+  /**
+   * Audit log for security-sensitive admin actions.
+   * Always logged at ERROR level so it stands out in log aggregation systems.
+   * Fields: action, userId, targetId, requestId, timestamp.
+   */
+  audit: (action: string, meta?: Record<string, unknown>) =>
+    logWithRequestId('-', {
+      level: 'error',
+      message: `[AUDIT] ${action}`,
+      meta: { action, timestamp: new Date().toISOString(), ...meta },
+    }),
 };
 
 export type { LogLevel, LogInput };

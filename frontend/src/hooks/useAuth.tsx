@@ -37,17 +37,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const token = localStorage.getItem('yaksha_token');
     if (!token) {
       setLoading(false);
-      return;
+    } else {
+      api.get('/auth/me')
+        .then((res) => setUser(res.data.user as User))
+        .catch(() => {
+          localStorage.removeItem('yaksha_token');
+          localStorage.removeItem('yaksha_user');
+          setUser(null);
+        })
+        .finally(() => setLoading(false));
     }
 
-    api.get('/auth/me')
-      .then((res) => setUser(res.data.user as User))
-      .catch(() => {
-        localStorage.removeItem('yaksha_token');
-        localStorage.removeItem('yaksha_user');
-        setUser(null);
-      })
-      .finally(() => setLoading(false));
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'yaksha_token') {
+        if (!e.newValue) {
+          // Token deleted in another tab (logout)
+          setUser(null);
+        } else {
+          // Token updated in another tab (login)
+          setLoading(true);
+          api.get('/auth/me')
+            .then((res) => setUser(res.data.user as User))
+            .catch(() => {
+              localStorage.removeItem('yaksha_token');
+              localStorage.removeItem('yaksha_user');
+              setUser(null);
+            })
+            .finally(() => setLoading(false));
+        }
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   const login = async (email: string, password: string): Promise<User> => {

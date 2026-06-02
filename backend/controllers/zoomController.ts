@@ -18,8 +18,12 @@ import { ZoomMeeting, ZoomInsight } from '../models/ZoomMeeting.js';
 import User from '../models/User.js';
 import { downloadTranscriptAsUser } from '../utils/zoomOAuth.js';
 import { parseVTT, parseVTTWithSpeakers, isEmptyTranscript } from '../utils/vttParser.js';
+import { processZoomMeetingForKnowledge } from '../services/knowledgeBase.js';
 import { extractInsightsFromTranscript } from '../utils/zoomExtractor.js';
+import { CircuitOpenError } from '../utils/circuitBreaker.js';
+import { sanitizeText } from '../utils/sanitize.js';
 import { logger } from '../utils/logger.js';
+import { getZoomHealth, recordZoomError } from '../utils/zoomHealth.js';
 
 // ─── Webhook Validation ──────────────────────────────────────────────────────
 
@@ -55,10 +59,11 @@ export async function handleZoomWebhook(req: Request, res: Response): Promise<vo
 async function processRecordingEvent(payload: ZoomWebhookPayload): Promise<void> {
   const obj = payload.payload?.object ?? {};
 
-  const zoomUserId   = String(obj.host_id    ?? '');
-  const zoomEmail    = String(obj.host_email ?? '').toLowerCase().trim();
-  const zoomMeetingId = String(obj.id        ?? '');
-  const topic = String(obj.topic ?? 'Untitled Meeting').trim();
+  // Sanitize all user-provided strings
+  const zoomUserId    = sanitizeText(obj.host_id    ?? '');
+  const zoomEmail     = sanitizeText(obj.host_email ?? '').toLowerCase().trim();
+  const zoomMeetingId = sanitizeText(obj.id         ?? '');
+  const topic         = sanitizeText(obj.topic      ?? 'Untitled Meeting');
 
   // ── Privacy: skip blacklisted meetings ──────────────────────────────────
   if (isBlacklisted(topic)) {
@@ -116,7 +121,11 @@ async function processRecordingEvent(payload: ZoomWebhookPayload): Promise<void>
 
   // ── Async: download + parse + extract using user's token ────────────────
   processTranscriptForUser(meeting, user._id.toString()).catch((err) => {
-    logger.error(`[Zoom] processTranscript failed for meeting ${meeting._id}`, { error: err.message });
+    const msg = err instanceof CircuitOpenError
+      ? 'Circuit breaker open — Zoom API temporarily unavailable'
+      : (err instanceof Error ? err.message : String(err));
+    logger.error(`[Zoom] processTranscript failed for meeting ${meeting._id}: ${msg}`);
+    recordZoomError(msg);
   });
 }
 
@@ -176,6 +185,11 @@ export async function processTranscriptForUser(
     });
 
     logger.info(`[Zoom] Processed meeting ${meeting._id}: ${insightDocs.length} insights extracted.`);
+
+    // ── Also extract knowledge for the knowledge base (non-blocking) ─────────
+    processZoomMeetingForKnowledge(meeting._id.toString()).catch((err) =>
+      logger.warn(`[Zoom] Knowledge extraction failed for meeting ${meeting._id}: ${err.message}`)
+    );
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     await ZoomMeeting.findByIdAndUpdate(meeting._id, {
@@ -183,7 +197,46 @@ export async function processTranscriptForUser(
       errorMessage: msg,
       processingCompletedAt: new Date(),
     });
+    recordZoomError(msg);
     throw err;
+  }
+}
+
+// ─── Health Check ────────────────────────────────────────────────────────────
+
+export async function getZoomHealthStatus(_req: Request, res: Response): Promise<void> {
+  try {
+    const health = await getZoomHealth();
+    res.json(health);
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to get Zoom health', error: (err as Error).message });
+  }
+}
+
+// ─── Public Stats (HomePage "From Zoom Meetings" section) ──────────────────
+// Returns anonymized aggregate stats. No user info, no transcript content.
+export async function getZoomPublicStats(_req: Request, res: Response): Promise<void> {
+  try {
+    const [meetingsProcessed, insightsExtracted, knowledgeExtracted, faqsPromoted] = await Promise.all([
+      ZoomMeeting.countDocuments({ status: 'completed' }),
+      ZoomInsight.countDocuments({}),
+      Promise.resolve(0), // TranscriptKnowledge uses a different model — count separately
+      ZoomMeeting.countDocuments({ status: 'completed', insightCount: { $gt: 0 } }),
+    ]);
+
+    // Count TranscriptKnowledge separately (different model import)
+    const { TranscriptKnowledge } = await import('../models/TranscriptKnowledge.js');
+    const tkCount = await TranscriptKnowledge.countDocuments({});
+
+    res.json({
+      meetingsProcessed,
+      insightsExtracted,
+      knowledgeExtracted: tkCount,
+      faqsPromoted,
+    });
+  } catch (err) {
+    // Don't 500 the homepage — return zeros and let the UI hide the section
+    res.json({ meetingsProcessed: 0, insightsExtracted: 0, knowledgeExtracted: 0, faqsPromoted: 0 });
   }
 }
 

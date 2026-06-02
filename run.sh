@@ -22,14 +22,20 @@ ok()   { echo -e "${OK}[✔]${RESET} $1"; }
 warn() { echo -e "${WARN}[!]${RESET} $1"; }
 die()  { echo -e "${ERROR}[✘]${RESET} $1" >&2; exit 1; }
 
-BACKEND_PID=""
+NGROK_PID=""
 FRONTEND_PID=""
 
 cleanup() {
   echo ""
   warn "Shutting down..."
+  # Read PID from file if set
+  [ -z "$BACKEND_PID" ] && [ -f /tmp/yaksha-backend.pid ] && BACKEND_PID=$(cat /tmp/yaksha-backend.pid)
   [ -n "$BACKEND_PID" ] && kill $BACKEND_PID 2>/dev/null || true
   [ -n "$FRONTEND_PID" ] && kill $FRONTEND_PID 2>/dev/null || true
+  [ -n "$NGROK_PID" ] && kill $NGROK_PID 2>/dev/null || true
+  # Clean up orphaned tsx processes on port 6767
+  pkill -f "tsx.*server" 2>/dev/null || true
+  rm -f /tmp/yaksha-backend.pid
   ok "Done."
   exit 0
 }
@@ -146,6 +152,7 @@ setup_env() {
   echo ""
   echo "  --- Optional (press Enter to skip) ---"
   prompt_optional "MINIMAX_API_KEY"     "MINIMAX_API_KEY (for Zoom transcript extraction)"
+  prompt_optional "NGROK_AUTH_TOKEN"    "NGROK_AUTH_TOKEN (from ngrok.com dashboard — enables webhook tunnel)"
   prompt_optional "ZOOM_CLIENT_ID"      "ZOOM_CLIENT_ID (from Zoom App marketplace)"
   prompt_optional "ZOOM_CLIENT_SECRET"  "ZOOM_CLIENT_SECRET (from Zoom App marketplace)"
   prompt_optional "REDIS_URL"           "REDIS_URL (Upstash Redis — enables cross-instance cache)"
@@ -162,8 +169,9 @@ wait_for_backend() {
   local waited=0
   log "Waiting for backend to be ready..."
   while [ $waited -lt $max_wait ]; do
-    local status=$(curl -sf --max-time 2 http://localhost:6767/api/health 2>/dev/null \
-      | python3 -c "import sys,json; print(json.load(sys.stdin).get('db','?'))" 2>/dev/null \
+    local status
+    status=$(curl -sf --max-time 2 http://localhost:6767/api/health 2>/dev/null \
+      | grep -o '"db":"[^"]*"' 2>/dev/null | cut -d'"' -f4 \
       || echo "waiting")
     if [ "$status" = "connected" ]; then
       ok "MongoDB connected"
@@ -184,18 +192,77 @@ start_backend() {
   source ".env" 2>/dev/null || true
   source ".env.local" 2>/dev/null || true
   set +a
-  npm run dev &
+  # Kill any existing process on port 6767 before starting
+  pkill -f "tsx.*server" 2>/dev/null || true
+  sleep 1
+
+  # Session log — timestamped, previous sessions preserved
+  SESSION_TIMESTAMP=$(date '+%Y-%m-%d_%H-%M-%S')
+  SESSION_LOG="$ROOT/logs/session_${SESSION_TIMESTAMP}.txt"
+  mkdir -p "$ROOT/logs"
+  touch "$SESSION_LOG"
+  echo "$SESSION_LOG" > /tmp/yaksha-session-log
+
+  # Keep latest symlink for easy access
+  ln -sf "session_${SESSION_TIMESTAMP}.txt" "$ROOT/main_log.txt" 2>/dev/null || true
+
+  # Run tsx — prefix with [backend], tee to session log
+  node_modules/.bin/tsx watch server.ts 2>&1 | \
+    sed -u "s/^\([^[]]*\)/[backend] \1/" | \
+    tee "$SESSION_LOG" &
   BACKEND_PID=$!
-  ok "Backend PID $BACKEND_PID"
+  echo $BACKEND_PID > /tmp/yaksha-backend.pid
+  ok "Backend PID $BACKEND_PID — logs: $SESSION_LOG"
+}
+
+# ── Start ngrok (tunnel to expose local backend for Zoom webhook) ──────────────
+start_ngrok() {
+  local ngrok_token=$(grep "^NGROK_AUTH_TOKEN=" "$BACKEND/.env.local" 2>/dev/null | cut -d'=' -f2- | sed "s/^['\"]//g;s/['\"]$//g")
+  if [ -z "$ngrok_token" ]; then
+    warn "NGROK_AUTH_TOKEN not found in .env.local — skipping ngrok"
+    return 0
+  fi
+
+  log "Starting ngrok tunnel to port 6767..."
+  ngrok config add-authtoken "$ngrok_token" 2>/dev/null || true
+  ngrok http 6767 --log=stdout > /tmp/ngrok.log 2>&1 &
+  NGROK_PID=$!
+  sleep 4
+
+  # Extract the HTTPS URL
+  local ngrok_url=$(grep -o 'https://[a-zA-Z0-9-]*\.ngrok-free\.app' /tmp/ngrok.log 2>/dev/null | head -1 || true)
+  if [ -n "$ngrok_url" ]; then
+    ok "Ngrok tunnel: $ngrok_url"
+    # Update ZOOM_REDIRECT_URI in .env.local if it has the old ngrok URL
+    local old_url=$(grep "^ZOOM_REDIRECT_URI=" "$BACKEND/.env.local" 2>/dev/null | cut -d'=' -f2- | sed "s/^['\"]//g;s/['\"]$//g")
+    if [ -n "$old_url" ]; then
+      sed -i '' "s|^ZOOM_REDIRECT_URI=.*|ZOOM_REDIRECT_URI=${ngrok_url}/api/zoom/auth/callback|" "$BACKEND/.env.local"
+      ok "Updated ZOOM_REDIRECT_URI → ${ngrok_url}/api/zoom/auth/callback"
+    fi
+  else
+    warn "Could not detect ngrok URL — check /tmp/ngrok.log"
+  fi
 }
 
 # ── Start frontend ──────────────────────────────────────────────────────────────
 start_frontend() {
   log "Starting frontend..."
   cd "$FRONTEND"
-  npm run dev &
+
+  # Reuse the same session log file that backend started
+  SESSION_LOG=$(cat /tmp/yaksha-session-log 2>/dev/null || echo "")
+  if [ -z "$SESSION_LOG" ]; then
+    SESSION_LOG="$ROOT/logs/session_$(date '+%Y-%m-%d_%H-%M-%S').txt"
+    mkdir -p "$ROOT/logs"
+    touch "$SESSION_LOG"
+  fi
+
+  # Run vite — prefix with [frontend], append to session log
+  npm run dev 2>&1 | \
+    sed -u "s/^\([^[]]*\)/[frontend] \1/" | \
+    tee -a "$SESSION_LOG" &
   FRONTEND_PID=$!
-  ok "Frontend PID $FRONTEND_PID"
+  ok "Frontend PID $FRONTEND_PID — logs in this terminal"
 }
 
 # ── Kill existing processes ──────────────────────────────────────────────────────
@@ -230,6 +297,7 @@ else
   ok "Port 5173 is free"
 fi
 
+start_ngrok
 start_backend
 wait_for_backend
 start_frontend

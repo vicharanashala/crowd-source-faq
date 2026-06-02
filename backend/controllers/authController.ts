@@ -1,7 +1,11 @@
 import jwt from 'jsonwebtoken';
 import { Request, Response } from 'express';
 import User, { IUser, UserRole } from '../models/User.js';
+import CommunityPost from '../models/CommunityPost.js';
+import Notification from '../models/Notification.js';
 import { registerSchema, loginSchema, changePasswordSchema } from '../utils/validation.js';
+import { sanitizeHtml } from '../utils/sanitize.js';
+import { logger } from '../utils/logger.js';
 
 // Helper: Generates a signed JWT using the user's ID
 const generateToken = (id: string): string => {
@@ -46,7 +50,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 
     res.status(201).json({ token, user: userResponse });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -83,7 +87,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
     res.json({ token, user: userResponse });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -116,7 +120,7 @@ export const getAllUsers = async (req: Request, res: Response): Promise<void> =>
     const users = await User.find({}).sort({ createdAt: -1 });
     res.json({ users });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -162,7 +166,7 @@ export const updateProfile = async (req: Request, res: Response): Promise<void> 
 
     res.json({ message: 'Profile updated.', user: userResponse });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -203,7 +207,7 @@ export const changePassword = async (req: Request, res: Response): Promise<void>
 
     res.json({ message: 'Password changed successfully.' });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -233,7 +237,7 @@ export const updateUserRole = async (req: Request, res: Response): Promise<void>
 
     res.json({ message: 'User role updated successfully.', user: targetUser });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -250,8 +254,89 @@ export const deleteUser = async (req: Request, res: Response): Promise<void> => 
       return;
     }
     await User.findByIdAndDelete(req.params.id);
+    logger.audit?.('user_deleted', {
+      adminId: req.user._id.toString(),
+      targetId: req.params.id,
+      requestId: (req as Request & { id: string }).id,
+    });
     res.json({ message: 'User deleted successfully.' });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
+  }
+};
+
+// GET /api/auth/export — Export authenticated user's data as JSON
+export const exportUserData = async (req: Request, res: Response): Promise<void> => {
+  if (!req.user) {
+    res.status(401).json({ message: 'Not authorized.' });
+    return;
+  }
+
+  const userId = req.user._id.toString();
+  const requestId = (req as Request & { id: string }).id;
+
+  try {
+    const [user, posts, notifications, notificationsCount] = await Promise.all([
+      User.findById(userId).select('-password').lean(),
+      CommunityPost.find({ author: userId }).sort({ createdAt: -1 }).limit(500).lean(),
+      Notification.find({ recipient: userId }).sort({ createdAt: -1 }).limit(200).lean(),
+      Notification.countDocuments({ recipient: userId }),
+    ]);
+
+    if (!user) {
+      res.status(404).json({ message: 'User not found.' });
+      return;
+    }
+
+    logger.audit?.('data_export', { userId, requestId });
+
+    const u = user as any;
+    const exportData = {
+      exportedAt: new Date().toISOString(),
+      schemaVersion: '1.0',
+      user: {
+        id: u._id?.toString(),
+        name: sanitizeHtml(u.name),
+        email: u.email,
+        role: u.role,
+        reputation: u.reputation,
+        points: u.points,
+        tier: u.tier,
+        createdAt: u.createdAt,
+        twoFactorEnabled: u.totpEnabled ?? false,
+      },
+      content: {
+        communityPosts: posts.map((p: any) => ({
+          id: p._id.toString(),
+          title: sanitizeHtml(p.title),
+          body: sanitizeHtml(p.body ?? ''),
+          status: p.status,
+          upvoteCount: p.upvotes?.length ?? 0,
+          answer: p.answer ? sanitizeHtml(p.answer) : null,
+          createdAt: p.createdAt,
+          updatedAt: p.updatedAt,
+        })),
+        totalPosts: posts.length,
+      },
+      notifications: {
+        records: notifications.map((n: any) => ({
+          id: n._id.toString(),
+          type: n.type,
+          title: sanitizeHtml(n.title),
+          message: sanitizeHtml(n.message),
+          link: n.link,
+          read: n.read,
+          createdAt: n.createdAt,
+        })),
+        totalNotifications: notificationsCount,
+      },
+    };
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="yaksha-export-${userId.slice(-8)}.json"`);
+    res.json(exportData);
+  } catch (error) {
+    logger.error('Data export failed', { /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ }, requestId);
+    res.status(500).json({ message: 'Export failed. Please try again.' });
   }
 };
