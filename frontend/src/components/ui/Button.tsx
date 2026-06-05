@@ -11,18 +11,18 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantStyles: Record<ButtonVariant, React.CSSProperties> = {
-  primary: { backgroundColor: '#5a7a5a' },
+  primary: { backgroundColor: 'var(--color-accent)' },
   secondary: {},
   ghost: {},
-  accent: { backgroundColor: 'rgba(90, 122, 90, 0.1)', color: '#5a7a5a' },
-  danger: { backgroundColor: '#dc2626' },
+  accent: { backgroundColor: 'var(--color-accent-light)', color: 'var(--color-accent)' },
+  danger: { backgroundColor: 'var(--color-danger)' },
 };
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
     'text-white hover:brightness-90 active:brightness-75 shadow-sm',
   secondary:
-    'bg-white text-ink border border-border hover:bg-mist hover:border-ink-soft active:bg-border',
+    'bg-card text-ink border border-border hover:bg-mist hover:border-ink-soft active:bg-border',
   ghost:
     'bg-transparent text-ink-soft hover:bg-mist hover:text-ink active:bg-border/40',
   accent:
@@ -63,7 +63,7 @@ export default function Button({
       {loading && (
         <span className="w-3.5 h-3.5 rounded-full border-2 border-current/30 border-t-current animate-spin flex-shrink-0" />
       )}
-      {children}
+      <span className="leading-none">{children}</span>
     </button>
   );
 }

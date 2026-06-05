@@ -35,12 +35,12 @@ export default function Input({
         <input
           id={id}
           className={
-            `w-full px-4 py-2.5 rounded-xl border border-border bg-white text-sm text-ink placeholder-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/25 focus:border-accent transition-all duration-200 ease-smooth `
-            + `${iconLeft ? 'pl-10' : ''} `
-            + `${iconRight ? 'pr-10' : ''} `
-            + `${error ? 'border-danger ring-1 ring-danger-light' : ''} `
-            + `${props.disabled ? 'bg-gray-100 cursor-not-allowed text-ink-faint' : ''} `
-            + className
+            `w-full px-4 py-2.5 rounded-xl border border-border bg-card text-sm text-ink placeholder-ink-faint ` +
+            `focus:outline-none focus:ring-2 focus:ring-accent/25 focus:border-accent transition-all duration-200 ease-smooth ` +
+            `${iconLeft ? 'pl-10' : ''} ` +
+            `${iconRight ? 'pr-10' : ''} ` +
+            `${error ? 'border-danger focus:ring-danger/20 focus:border-danger' : ''} ` +
+            className
           }
           {...props}
         />
@@ -50,9 +50,7 @@ export default function Input({
           </div>
         )}
       </div>
-      {error && (
-        <p className="mt-1.5 text-xs text-danger">{error}</p>
-      )}
+      {error && <p className="mt-1.5 text-xs text-danger">{error}</p>}
     </div>
   );
 }

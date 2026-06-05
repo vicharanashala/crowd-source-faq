@@ -31,9 +31,9 @@ export default function FreshnessTierSelector({
             }}
             className={`flex-1 py-2 px-3 rounded-xl border text-xs font-medium transition-all
               ${tier === t
-                ? t === 'evergreen' ? 'border-green-400 bg-green-50 text-green-700'
-                : t === 'seasonal' ? 'border-blue-400 bg-blue-50 text-blue-700'
-                : 'border-red-400 bg-red-50 text-red-700'
+                ? t === 'evergreen' ? 'border-accent bg-accent-light text-accent'
+                : t === 'seasonal' ? 'border-accent bg-accent-light text-accent'
+                : 'border-danger/50 bg-danger-light text-danger'
                 : 'border-border text-ink-soft hover:bg-mist'
               }`}
           >

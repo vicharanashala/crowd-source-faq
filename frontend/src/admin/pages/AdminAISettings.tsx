@@ -316,8 +316,8 @@ export default function AdminAISettings() {
   if (loading) {
     return (
       <div className="space-y-4 max-w-3xl">
-        <div className="h-8 w-48 bg-gray-100 rounded animate-pulse" />
-        <div className="h-64 bg-white rounded-xl border border-gray-200 animate-pulse" />
+        <div className="h-8 w-48 bg-admin-surface rounded animate-pulse" />
+        <div className="h-64 bg-admin-card rounded-xl border border-white/5 animate-pulse" />
       </div>
     );
   }
@@ -328,8 +328,8 @@ export default function AdminAISettings() {
     <div className="space-y-6 max-w-3xl">
       {/* Header */}
       <div>
-        <h2 className="text-lg font-semibold text-gray-900">AI Settings</h2>
-        <p className="text-sm text-gray-500 mt-0.5">
+        <h2 className="text-lg font-semibold text-admin-text">AI Settings</h2>
+        <p className="text-sm text-admin-muted mt-0.5">
           Configure AI providers, API keys, custom endpoints, and per-feature parameters.
         </p>
       </div>
@@ -347,12 +347,12 @@ export default function AdminAISettings() {
       )}
 
       {/* ── Active Provider ─────────────────────────────────────────── */}
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50">
+      <div className="bg-admin-card border border-white/5 rounded-xl overflow-hidden">
+        <div className="px-5 py-4 border-b border-white/5 bg-admin-bg/50">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-semibold text-gray-800">Active Provider</p>
-              <p className="text-xs text-gray-500 mt-0.5">Click a provider to make it the default for all AI features.</p>
+              <p className="text-sm font-semibold text-admin-text">Active Provider</p>
+              <p className="text-xs text-admin-muted mt-0.5">Click a provider to make it the default for all AI features.</p>
             </div>
             <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${currentMeta.badgeColor}`}>
               <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
@@ -375,15 +375,15 @@ export default function AdminAISettings() {
                 className={`relative p-4 rounded-xl border-2 text-left transition-all duration-200 ${
                   isActive
                     ? 'border-accent bg-accent/5 shadow-sm'
-                    : 'border-gray-100 hover:border-gray-300 hover:bg-gray-50'
+                    : 'border-white/5 hover:border-white/10 hover:bg-admin-bg'
                 } ${savingProvider ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
               >
                 {isActive && (
                   <span className="absolute top-2 right-2 text-accent text-xs font-bold">● Active</span>
                 )}
-                <p className="text-sm font-semibold text-gray-900">{meta.label}</p>
-                <p className="text-xs text-gray-500 mt-0.5">{meta.description}</p>
-                <p className="text-[10px] text-gray-400 mt-1 font-mono">{meta.defaultModel}</p>
+                <p className="text-sm font-semibold text-admin-text">{meta.label}</p>
+                <p className="text-xs text-admin-muted mt-0.5">{meta.description}</p>
+                <p className="text-[10px] text-admin-muted mt-1 font-mono">{meta.defaultModel}</p>
                 {configured && (
                   <p className="text-[10px] text-accent mt-1 font-semibold">Custom config set</p>
                 )}
@@ -394,16 +394,16 @@ export default function AdminAISettings() {
       </div>
 
       {/* ── Per-Provider Configuration (API key, base URL, model) ──── */}
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50">
-          <p className="text-sm font-semibold text-gray-800">Provider Credentials & Endpoints</p>
-          <p className="text-xs text-gray-500 mt-0.5">
+      <div className="bg-admin-card border border-white/5 rounded-xl overflow-hidden">
+        <div className="px-5 py-4 border-b border-white/5 bg-admin-bg/50">
+          <p className="text-sm font-semibold text-admin-text">Provider Credentials & Endpoints</p>
+          <p className="text-xs text-admin-muted mt-0.5">
             Per-provider API keys are encrypted at rest. Base URL lets you point a provider at a custom endpoint.
             Leave any field blank to use the default.
           </p>
         </div>
 
-        <div className="divide-y divide-gray-100">
+        <div className="divide-y divide-white/5">
           {(Object.keys(PROVIDER_META) as ProviderKey[]).map((provider) => {
             const meta = PROVIDER_META[provider];
             const draft = providerDrafts[provider];
@@ -422,8 +422,8 @@ export default function AdminAISettings() {
                     </span>
                   )}
                   {!override?.hasKey && (
-                    <span className="inline-flex items-center gap-1 text-[10px] text-gray-400 font-medium">
-                      <span className="w-1.5 h-1.5 rounded-full bg-gray-300" />
+                    <span className="inline-flex items-center gap-1 text-[10px] text-admin-muted font-medium">
+                      <span className="w-1.5 h-1.5 rounded-full bg-admin-muted/30" />
                       No dashboard key (env var fallback)
                     </span>
                   )}
@@ -432,7 +432,7 @@ export default function AdminAISettings() {
                 {/* API Key */}
                 <div>
                   <label className="flex items-center justify-between mb-1">
-                    <span className="text-[10px] font-semibold text-gray-500 uppercase">API Key</span>
+                    <span className="text-[10px] font-semibold text-admin-muted uppercase">API Key</span>
                     <div className="flex items-center gap-2 text-[10px]">
                       {override?.hasKey && (
                         <>
@@ -444,7 +444,7 @@ export default function AdminAISettings() {
                           >
                             {draft.revealing ? 'Revealing…' : draft.showKey ? 'Hide' : 'Reveal'}
                           </button>
-                          <span className="text-gray-300">·</span>
+                          <span className="text-admin-muted">·</span>
                           <button
                             type="button"
                             onClick={() => handleClearApiKey(provider)}
@@ -464,42 +464,42 @@ export default function AdminAISettings() {
                       onChange={(e) => setProviderDrafts(prev => ({ ...prev, [provider]: { ...prev[provider], apiKey: e.target.value, showKey: true } }))}
                       placeholder={override?.hasKey ? '•••••••••••••••• (stored) — type to replace' : 'Paste your API key here…'}
                       autoComplete="off"
-                      className="w-full px-3 py-2 rounded-lg text-xs border border-gray-200 bg-white text-gray-800 font-mono focus:outline-none focus:border-gray-400"
+                      className="w-full px-3 py-2 rounded-lg text-xs border border-white/5 bg-admin-card text-admin-text font-mono focus:outline-none focus:border-admin-purple/50"
                     />
                   </div>
-                  <p className="text-[10px] text-gray-400 mt-1">
+                  <p className="text-[10px] text-admin-muted mt-1">
                     Get a key: <a href={meta.docsUrl} target="_blank" rel="noreferrer" className="text-accent hover:underline">{meta.docsUrl.replace('https://', '')}</a>
                   </p>
                 </div>
 
                 {/* Base URL */}
                 <div>
-                  <label className="block text-[10px] font-semibold text-gray-500 uppercase mb-1">
-                    Base URL <span className="text-[9px] text-gray-400 font-normal">(optional — leave blank for default)</span>
+                  <label className="block text-[10px] font-semibold text-admin-muted uppercase mb-1">
+                    Base URL <span className="text-[9px] text-admin-muted font-normal">(optional — leave blank for default)</span>
                   </label>
                   <input
                     type="text"
                     value={draft.baseURL}
                     onChange={(e) => setProviderDrafts(prev => ({ ...prev, [provider]: { ...prev[provider], baseURL: e.target.value } }))}
                     placeholder={meta.defaultBaseURL}
-                    className="w-full px-3 py-2 rounded-lg text-xs border border-gray-200 bg-white text-gray-800 font-mono focus:outline-none focus:border-gray-400"
+                    className="w-full px-3 py-2 rounded-lg text-xs border border-white/5 bg-admin-card text-admin-text font-mono focus:outline-none focus:border-admin-purple/50"
                   />
-                  <p className="text-[10px] text-gray-400 mt-1">
+                  <p className="text-[10px] text-admin-muted mt-1">
                     Point at a proxy, self-hosted gateway, or OpenAI-compatible endpoint.
                   </p>
                 </div>
 
                 {/* Model */}
                 <div>
-                  <label className="block text-[10px] font-semibold text-gray-500 uppercase mb-1">
-                    Default Model <span className="text-[9px] text-gray-400 font-normal">(optional)</span>
+                  <label className="block text-[10px] font-semibold text-admin-muted uppercase mb-1">
+                    Default Model <span className="text-[9px] text-admin-muted font-normal">(optional)</span>
                   </label>
                   <input
                     type="text"
                     value={draft.model}
                     onChange={(e) => setProviderDrafts(prev => ({ ...prev, [provider]: { ...prev[provider], model: e.target.value } }))}
                     placeholder={meta.defaultModel}
-                    className="w-full px-3 py-2 rounded-lg text-xs border border-gray-200 bg-white text-gray-800 font-mono focus:outline-none focus:border-gray-400"
+                    className="w-full px-3 py-2 rounded-lg text-xs border border-white/5 bg-admin-card text-admin-text font-mono focus:outline-none focus:border-admin-purple/50"
                   />
                 </div>
 
@@ -509,7 +509,7 @@ export default function AdminAISettings() {
                     type="button"
                     onClick={() => handleSaveProviderDraft(provider)}
                     disabled={isSaving}
-                    className="px-4 py-1.5 rounded-lg text-xs font-medium text-white bg-gray-900 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="px-4 py-1.5 rounded-lg text-xs font-medium text-white bg-admin-bg hover:bg-admin-surface disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     {isSaving ? 'Saving…' : `Save ${meta.label}`}
                   </button>
@@ -521,44 +521,44 @@ export default function AdminAISettings() {
       </div>
 
       {/* ── Usage Statistics ────────────────────────────────────────── */}
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
-          <p className="text-sm font-semibold text-gray-800">Usage Statistics</p>
+      <div className="bg-admin-card border border-white/5 rounded-xl overflow-hidden">
+        <div className="px-5 py-4 border-b border-white/5 bg-admin-bg/50 flex items-center justify-between">
+          <p className="text-sm font-semibold text-admin-text">Usage Statistics</p>
           <button
             onClick={handleResetUsage}
-            className="text-xs text-gray-500 hover:text-red-500 transition-colors"
+            className="text-xs text-admin-muted hover:text-red-500 transition-colors"
           >
             Reset stats
           </button>
         </div>
         <div className="p-5 grid grid-cols-3 gap-4">
-          <div className="text-center p-3 bg-gray-50 rounded-xl">
-            <p className="text-2xl font-bold text-gray-900">{config?.usage.totalRequests.toLocaleString() ?? 0}</p>
-            <p className="text-xs text-gray-500 mt-0.5">Total Requests</p>
+          <div className="text-center p-3 bg-admin-bg rounded-xl">
+            <p className="text-2xl font-bold text-admin-text">{config?.usage.totalRequests.toLocaleString() ?? 0}</p>
+            <p className="text-xs text-admin-muted mt-0.5">Total Requests</p>
           </div>
-          <div className="text-center p-3 bg-gray-50 rounded-xl">
-            <p className="text-2xl font-bold text-gray-900">
+          <div className="text-center p-3 bg-admin-bg rounded-xl">
+            <p className="text-2xl font-bold text-admin-text">
               ${(config?.usage.totalEstimatedCost ?? 0).toFixed(4)}
             </p>
-            <p className="text-xs text-gray-500 mt-0.5">Estimated Cost (USD)</p>
+            <p className="text-xs text-admin-muted mt-0.5">Estimated Cost (USD)</p>
           </div>
-          <div className="text-center p-3 bg-gray-50 rounded-xl">
-            <p className="text-2xl font-bold text-gray-900">
+          <div className="text-center p-3 bg-admin-bg rounded-xl">
+            <p className="text-2xl font-bold text-admin-text">
               {config?.usage.lastResetAt
                 ? new Date(config.usage.lastResetAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
                 : '—'}
             </p>
-            <p className="text-xs text-gray-500 mt-0.5">Last Reset</p>
+            <p className="text-xs text-admin-muted mt-0.5">Last Reset</p>
           </div>
         </div>
       </div>
 
       {/* ── Per-Feature Configuration ───────────────────────────────── */}
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
+      <div className="bg-admin-card border border-white/5 rounded-xl overflow-hidden">
+        <div className="px-5 py-4 border-b border-white/5 bg-admin-bg/50 flex items-center justify-between">
           <div>
-            <p className="text-sm font-semibold text-gray-800">Feature Configuration</p>
-            <p className="text-xs text-gray-500 mt-0.5">Per-feature model selection and parameters.</p>
+            <p className="text-sm font-semibold text-admin-text">Feature Configuration</p>
+            <p className="text-xs text-admin-muted mt-0.5">Per-feature model selection and parameters.</p>
           </div>
           <button
             onClick={handleSaveFeatures}
@@ -570,7 +570,7 @@ export default function AdminAISettings() {
         </div>
 
         {features && (
-          <div className="divide-y divide-gray-50">
+          <div className="divide-y divide-white/5">
             {(Object.keys(FEATURE_LABELS) as Array<keyof typeof FEATURE_LABELS>).map((feature) => {
               const f = features[feature];
               const meta = PROVIDER_META[activeProvider as keyof typeof PROVIDER_META];
@@ -579,8 +579,8 @@ export default function AdminAISettings() {
                   {/* Feature header */}
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-semibold text-gray-800">{FEATURE_LABELS[feature]}</p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-sm font-semibold text-admin-text">{FEATURE_LABELS[feature]}</p>
+                      <p className="text-xs text-admin-muted">
                         {feature === 'duplicateDetection' && 'Blocks duplicate posts before creation'}
                         {feature === 'knowledgeExtraction' && 'Extracts Q&A pairs from transcripts and posts'}
                         {feature === 'searchSummarization' && 'Generates concise answers from search results'}
@@ -596,17 +596,17 @@ export default function AdminAISettings() {
                   {/* Model + parameters */}
                   <div className={`grid grid-cols-3 gap-3 ${f.enabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
                     <div>
-                      <label className="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Model</label>
+                      <label className="block text-[10px] font-semibold text-admin-muted uppercase mb-1">Model</label>
                       <input
                         type="text"
                         value={f.model}
                         onChange={(e) => handleModelChange(feature, e.target.value)}
-                        className="w-full px-3 py-2 rounded-lg text-xs border border-gray-200 bg-white text-gray-800 focus:outline-none focus:border-gray-400"
+                        className="w-full px-3 py-2 rounded-lg text-xs border border-white/5 bg-admin-card text-admin-text focus:outline-none focus:border-admin-purple/50"
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-semibold text-gray-500 uppercase mb-1">
-                        Temperature <span className="text-[9px] text-gray-400">(0–1)</span>
+                      <label className="block text-[10px] font-semibold text-admin-muted uppercase mb-1">
+                        Temperature <span className="text-[9px] text-admin-muted">(0–1)</span>
                       </label>
                       <input
                         type="number"
@@ -615,11 +615,11 @@ export default function AdminAISettings() {
                         step="0.05"
                         value={Number(f.temperature.toFixed(2))}
                         onChange={(e) => handleTempChange(feature, parseFloat(e.target.value) || 0)}
-                        className="w-full px-3 py-2 rounded-lg text-xs border border-gray-200 bg-white text-gray-800 focus:outline-none focus:border-gray-400"
+                        className="w-full px-3 py-2 rounded-lg text-xs border border-white/5 bg-admin-card text-admin-text focus:outline-none focus:border-admin-purple/50"
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Max Tokens</label>
+                      <label className="block text-[10px] font-semibold text-admin-muted uppercase mb-1">Max Tokens</label>
                       <input
                         type="number"
                         min="64"
@@ -627,7 +627,7 @@ export default function AdminAISettings() {
                         step="64"
                         value={f.maxTokens}
                         onChange={(e) => handleMaxTokensChange(feature, parseInt(e.target.value) || 1024)}
-                        className="w-full px-3 py-2 rounded-lg text-xs border border-gray-200 bg-white text-gray-800 focus:outline-none focus:border-gray-400"
+                        className="w-full px-3 py-2 rounded-lg text-xs border border-white/5 bg-admin-card text-admin-text focus:outline-none focus:border-admin-purple/50"
                       />
                     </div>
                   </div>
@@ -639,9 +639,9 @@ export default function AdminAISettings() {
       </div>
 
       {/* ── API Health Check ────────────────────────────────────────── */}
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
-          <p className="text-sm font-semibold text-gray-800">Provider Health</p>
+      <div className="bg-admin-card border border-white/5 rounded-xl overflow-hidden">
+        <div className="px-5 py-4 border-b border-white/5 bg-admin-bg/50 flex items-center justify-between">
+          <p className="text-sm font-semibold text-admin-text">Provider Health</p>
         </div>
         <div className="p-5">
           <div className="grid grid-cols-2 gap-3">
@@ -652,16 +652,16 @@ export default function AdminAISettings() {
               return (
                 <div
                   key={key}
-                  className={`p-3 rounded-xl border ${isActive ? 'border-accent bg-accent/5' : 'border-gray-100'}`}
+                  className={`p-3 rounded-xl border ${isActive ? 'border-accent bg-accent/5' : 'border-white/5'}`}
                 >
                   <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${isActive ? 'bg-accent' : 'bg-gray-300'}`} />
-                    <p className="text-xs font-medium text-gray-700">{PROVIDER_META[key].label}</p>
+                    <div className={`w-2 h-2 rounded-full ${isActive ? 'bg-accent' : 'bg-admin-muted/30'}`} />
+                    <p className="text-xs font-medium text-admin-text">{PROVIDER_META[key].label}</p>
                     {isActive && (
                       <span className="ml-auto text-[9px] font-bold text-accent uppercase tracking-wide">Active</span>
                     )}
                   </div>
-                  <p className="text-[10px] text-gray-400 mt-1 font-mono">
+                  <p className="text-[10px] text-admin-muted mt-1 font-mono">
                     {isActive ? 'Configured' : 'Not active'}
                   </p>
                   {resultForProvider && (
@@ -709,12 +709,12 @@ function Toggle({
       aria-checked={checked}
       onClick={() => !disabled && onChange(!checked)}
       className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-accent/50 ${
-        checked ? 'bg-accent' : 'bg-gray-200'
+        checked ? 'bg-accent' : 'bg-admin-surface'
       } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
       disabled={disabled}
     >
       <span
-        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${
+        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-admin-card shadow-sm transition-transform duration-200 ${
           checked ? 'translate-x-[18px]' : 'translate-x-0.5'
         }`}
       />

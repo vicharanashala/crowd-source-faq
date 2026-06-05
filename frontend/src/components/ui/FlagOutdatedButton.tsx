@@ -94,7 +94,7 @@ export default function FlagOutdatedButton({ faqId, reviewStatus, onFlagged }: F
                 {loading ? 'Sending…' : 'Submit Flag'}
               </button>
             </div>
-            {error && <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
+            {error && <p className="text-xs text-danger bg-danger-light rounded-lg px-3 py-2">{error}</p>}
           </form>
         </dialog>
       )}

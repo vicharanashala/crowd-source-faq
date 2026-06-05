@@ -23,12 +23,12 @@ interface LeaderboardEntry {
 type Period = 'weekly' | 'monthly' | 'all';
 
 const TIER_COLORS: Record<string, string> = {
-  newcomer:       'bg-gray-100 text-gray-600',
-  contributor:   'bg-amber-100 text-amber-700',
-  helper:        'bg-slate-100 text-slate-600',
-  expert:        'bg-yellow-100 text-yellow-700',
-  champion:      'bg-indigo-100 text-indigo-700',
-  knowledge_master: 'bg-violet-100 text-violet-700',
+  newcomer:       'bg-mist text-ink-soft',
+  contributor:   'bg-warning-light text-warning',
+  helper:        'bg-mist text-ink-soft',
+  expert:        'bg-warning-light text-warning',
+  champion:      'bg-accent-light text-accent',
+  knowledge_master: 'bg-[rgba(139,92,246,0.1)] text-[#8b5cf6]',
 };
 
 const TIER_ICONS: Record<string, string> = {
@@ -92,7 +92,7 @@ export default function LeaderboardPage() {
           <p className="text-sm text-ink-soft mt-1">Top contributors in the Yaksha community</p>
           {lastUpdated && (
             <p className="text-[10px] text-ink-faint mt-1 flex items-center justify-center gap-1.5">
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-accent-light0 animate-pulse" />
               <span>Live · updated {Math.max(0, Math.round((Date.now() - lastUpdated.getTime()) / 1000))}s ago · refreshes every 30s</span>
             </p>
           )}
@@ -103,7 +103,7 @@ export default function LeaderboardPage() {
                 onClick={() => setPeriod(p)}
                 className={`px-4 py-1.5 text-xs rounded-lg border transition-colors ${
                   period === p
-                    ? 'bg-ink text-white border-ink'
+                    ? 'bg-ink text-bg border-ink'
                     : 'border-border text-ink-faint hover:bg-mist'
                 }`}
               >
@@ -126,11 +126,11 @@ export default function LeaderboardPage() {
                   <div
                     key={e.userId}
                     className={`relative rounded-2xl border p-4 sm:p-5 text-center bg-card shadow-subtle transition-all ${
-                      isFirst ? 'border-yellow-400/60 ring-2 ring-yellow-200/50 sm:scale-105 pb-6 sm:pb-7' : 'border-border'
+                      isFirst ? 'border-warning/60 ring-2 ring-warning/30 sm:scale-105 pb-6 sm:pb-7' : 'border-border'
                     }`}
                   >
                     <div className={`absolute -top-3 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full text-[10px] font-bold shadow-sm ${
-                      isFirst ? 'bg-yellow-400 text-yellow-900' : e.rank === 2 ? 'bg-slate-300 text-slate-800' : 'bg-orange-400 text-orange-900'
+                      isFirst ? 'bg-warning text-[#1a1a1a]' : e.rank === 2 ? 'bg-ink-faint text-[#1a1a1a]' : 'bg-[#f97316] text-[#1a1a1a]'
                     }`}>
                       {isFirst ? '🥇 #1' : e.rank === 2 ? '🥈 #2' : '🥉 #3'}
                     </div>
@@ -206,9 +206,9 @@ export default function LeaderboardPage() {
                       </td>
                       <td className="px-4 py-3 text-right hidden md:table-cell">
                         <div className="flex items-center justify-end gap-1.5">
-                          <div className="w-10 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div className="w-10 h-1.5 bg-mist rounded-full overflow-hidden">
                             <div
-                              className="h-full bg-indigo-500 rounded-full"
+                              className="h-full bg-accent rounded-full"
                               style={{ width: `${e.trustScore}%` }}
                             />
                           </div>
@@ -231,4 +231,3 @@ export default function LeaderboardPage() {
       <Footer />
     </div>
   );
-}

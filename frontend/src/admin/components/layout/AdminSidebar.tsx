@@ -70,15 +70,15 @@ function SidebarContent({ onMobileClose }: { onMobileClose: () => void }) {
   const handleLogout = () => { logout(); navigate('/admin/login'); };
 
   return (
-    <div className="flex flex-col h-full bg-white border-r border-gray-200">
-      <div className="px-5 py-5 border-b border-gray-100">
+    <div className="flex flex-col h-full bg-admin-card border-r border-white/5">
+      <div className="px-5 py-5 border-b border-white/5">
         <div className="flex items-center gap-3">
-          <div className="w-7 h-7 rounded-md bg-gray-900 flex items-center justify-center shrink-0">
+          <div className="w-7 h-7 rounded-md bg-admin-bg flex items-center justify-center shrink-0">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="white"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
           </div>
           <div>
-            <p className="text-sm font-semibold text-gray-900 leading-none">Yaksha</p>
-            <p className="text-[10px] text-gray-400 mt-0.5">Admin</p>
+            <p className="text-sm font-semibold text-admin-text leading-none">Yaksha</p>
+            <p className="text-[10px] text-admin-muted mt-0.5">Admin</p>
           </div>
         </div>
       </div>
@@ -86,7 +86,7 @@ function SidebarContent({ onMobileClose }: { onMobileClose: () => void }) {
       <nav className="flex-1 px-3 py-4 overflow-y-auto">
         {NAV.map((group) => (
           <div key={group.label} className="mb-4">
-            <p className="px-3 py-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+            <p className="px-3 py-1.5 text-[10px] font-semibold text-admin-muted uppercase tracking-wider">
               {group.label}
             </p>
             <div className="space-y-0.5">
@@ -99,8 +99,8 @@ function SidebarContent({ onMobileClose }: { onMobileClose: () => void }) {
                   className={({ isActive }) =>
                     `flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-all duration-150 ${
                       isActive
-                        ? 'bg-gray-100 text-gray-900 font-medium'
-                        : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
+                        ? 'bg-admin-surface text-admin-text font-medium'
+                        : 'text-admin-muted hover:text-admin-text hover:bg-admin-bg'
                     }`
                   }
                 >
@@ -113,18 +113,18 @@ function SidebarContent({ onMobileClose }: { onMobileClose: () => void }) {
         ))}
       </nav>
 
-      <div className="px-3 pb-4 border-t border-gray-100 pt-3 space-y-1">
+      <div className="px-3 pb-4 border-t border-white/5 pt-3 space-y-1">
         <div className="flex items-center gap-2.5 px-3 py-2">
-          <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-xs font-semibold text-gray-600 shrink-0">
+          <div className="w-7 h-7 rounded-full bg-admin-surface flex items-center justify-center text-xs font-semibold text-admin-muted shrink-0">
             {user?.name?.[0]?.toUpperCase() ?? 'A'}
           </div>
           <div className="min-w-0">
-            <p className="text-xs font-medium text-gray-800 truncate">{user?.name ?? 'Admin'}</p>
-            <p className="text-[10px] text-gray-400 truncate">{user?.email ?? ''}</p>
+            <p className="text-xs font-medium text-admin-text truncate">{user?.name ?? 'Admin'}</p>
+            <p className="text-[10px] text-admin-muted truncate">{user?.email ?? ''}</p>
           </div>
         </div>
         <button onClick={handleLogout}
-          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-all">
+          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm text-admin-muted hover:text-admin-text hover:bg-admin-bg transition-all">
           <LogoutIcon /><span className="font-light">Logout</span>
         </button>
       </div>
@@ -137,17 +137,17 @@ interface AdminSidebarProps { mobileOpen: boolean; onMobileClose: () => void; }
 export default function AdminSidebar({ mobileOpen, onMobileClose }: AdminSidebarProps) {
   return (
     <>
-      <aside className="hidden lg:flex flex-col w-56 shrink-0 fixed left-0 top-0 h-full z-30 bg-white border-r border-gray-200">
+      <aside className="hidden lg:flex flex-col w-56 shrink-0 fixed left-0 top-0 h-full z-30 bg-admin-card border-r border-white/5">
         <SidebarContent onMobileClose={onMobileClose} />
       </aside>
       <AnimatePresence>
         {mobileOpen && (
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-40 bg-gray-900/20 lg:hidden" onClick={onMobileClose} />
+              className="fixed inset-0 z-40 bg-admin-bg/20 lg:hidden" onClick={onMobileClose} />
             <motion.aside initial={{ x: -240 }} animate={{ x: 0 }} exit={{ x: -240 }}
               transition={{ type: 'tween', duration: 0.2, ease: 'easeOut' }}
-              className="fixed left-0 top-0 h-full w-56 z-50 lg:hidden bg-white border-r border-gray-200">
+              className="fixed left-0 top-0 h-full w-56 z-50 lg:hidden bg-admin-card border-r border-white/5">
               <SidebarContent onMobileClose={onMobileClose} />
             </motion.aside>
           </>

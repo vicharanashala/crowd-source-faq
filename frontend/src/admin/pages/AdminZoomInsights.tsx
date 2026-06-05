@@ -68,24 +68,24 @@ function ConfidenceBar({ score }: { score: number }) {
   const color = score >= 80 ? 'bg-emerald-500' : score >= 60 ? 'bg-blue-500' : 'bg-amber-500';
   return (
     <div className="flex items-center gap-2">
-      <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden max-w-[80px]">
+      <div className="flex-1 h-1.5 bg-admin-surface rounded-full overflow-hidden max-w-[80px]">
         <div className={`h-full ${color} rounded-full`} style={{ width: `${score}%` }} />
       </div>
-      <span className="text-xs text-gray-500 font-medium">{Math.round(score)}%</span>
+      <span className="text-xs text-admin-muted font-medium">{Math.round(score)}%</span>
     </div>
   );
 }
 
 function InsightCardSkeleton() {
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-5 space-y-3 animate-pulse">
+    <div className="bg-admin-card border border-white/5 rounded-lg p-5 space-y-3 animate-pulse">
       <div className="flex items-center gap-3">
-        <div className="h-5 w-16 bg-gray-200 rounded" />
-        <div className="h-5 w-24 bg-gray-200 rounded" />
+        <div className="h-5 w-16 bg-admin-surface rounded" />
+        <div className="h-5 w-24 bg-admin-surface rounded" />
       </div>
-      <div className="h-4 w-3/4 bg-gray-200 rounded" />
-      <div className="h-4 w-full bg-gray-200 rounded" />
-      <div className="h-3 w-1/2 bg-gray-200 rounded" />
+      <div className="h-4 w-3/4 bg-admin-surface rounded" />
+      <div className="h-4 w-full bg-admin-surface rounded" />
+      <div className="h-3 w-1/2 bg-admin-surface rounded" />
     </div>
   );
 }
@@ -182,57 +182,57 @@ export default function AdminZoomInsights() {
       <div className="space-y-5 max-w-5xl">
         {/* Header */}
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">Zoom Insights</h2>
-          <p className="text-sm text-gray-500 mt-0.5">Review AI-extracted FAQs and announcements before publishing</p>
+          <h2 className="text-lg font-semibold text-admin-text">Zoom Insights</h2>
+          <p className="text-sm text-admin-muted mt-0.5">Review AI-extracted FAQs and announcements before publishing</p>
         </div>
 
         {/* Stats row */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <p className="text-xs text-gray-500 font-medium">Pending Review</p>
+          <div className="bg-admin-card border border-white/5 rounded-lg p-4">
+            <p className="text-xs text-admin-muted font-medium">Pending Review</p>
             <p className="text-2xl font-bold text-amber-600 mt-1">{stats.pending_review}</p>
           </div>
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <p className="text-xs text-gray-500 font-medium">Approved</p>
+          <div className="bg-admin-card border border-white/5 rounded-lg p-4">
+            <p className="text-xs text-admin-muted font-medium">Approved</p>
             <p className="text-2xl font-bold text-emerald-600 mt-1">{stats.approved}</p>
           </div>
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <p className="text-xs text-gray-500 font-medium">Rejected</p>
+          <div className="bg-admin-card border border-white/5 rounded-lg p-4">
+            <p className="text-xs text-admin-muted font-medium">Rejected</p>
             <p className="text-2xl font-bold text-red-600 mt-1">{stats.rejected}</p>
           </div>
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <p className="text-xs text-gray-500 font-medium">Total</p>
-            <p className="text-2xl font-bold text-gray-900 mt-1">{stats.total}</p>
+          <div className="bg-admin-card border border-white/5 rounded-lg p-4">
+            <p className="text-xs text-admin-muted font-medium">Total</p>
+            <p className="text-2xl font-bold text-admin-text mt-1">{stats.total}</p>
           </div>
         </div>
 
         {/* Filter tabs */}
-        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-          <div className="flex items-center gap-1 px-4 py-2.5 border-b border-gray-100">
-            <span className="text-[10px] font-semibold text-gray-400 uppercase mr-2">Status:</span>
+        <div className="bg-admin-card border border-white/5 rounded-lg overflow-hidden">
+          <div className="flex items-center gap-1 px-4 py-2.5 border-b border-white/5">
+            <span className="text-[10px] font-semibold text-admin-muted uppercase mr-2">Status:</span>
             {STATUS_TABS.map(tab => (
               <button
                 key={tab.key}
                 onClick={() => { setStatusFilter(tab.key); setPage(1); }}
                 className={`px-3 py-1 rounded text-xs font-semibold transition-colors ${
                   statusFilter === tab.key
-                    ? 'text-gray-900 bg-gray-100'
-                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                    ? 'text-admin-text bg-admin-surface'
+                    : 'text-admin-muted hover:text-admin-text hover:bg-admin-bg'
                 }`}
               >
                 {tab.label}
               </button>
             ))}
-            <span className="mx-2 border-l border-gray-200 h-4" />
-            <span className="text-[10px] font-semibold text-gray-400 uppercase mr-2">Type:</span>
+            <span className="mx-2 border-l border-white/5 h-4" />
+            <span className="text-[10px] font-semibold text-admin-muted uppercase mr-2">Type:</span>
             {TYPE_TABS.map(tab => (
               <button
                 key={tab.key}
                 onClick={() => { setTypeFilter(tab.key); setPage(1); }}
                 className={`px-3 py-1 rounded text-xs font-semibold transition-colors ${
                   typeFilter === tab.key
-                    ? 'text-gray-900 bg-gray-100'
-                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                    ? 'text-admin-text bg-admin-surface'
+                    : 'text-admin-muted hover:text-admin-text hover:bg-admin-bg'
                 }`}
               >
                 {tab.label}
@@ -241,7 +241,7 @@ export default function AdminZoomInsights() {
           </div>
 
           {/* Insights list */}
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-white/5">
             {loading ? (
               Array.from({ length: 5 }).map((_, i) => <InsightCardSkeleton key={i} />)
             ) : insights.length === 0 ? (
@@ -250,12 +250,12 @@ export default function AdminZoomInsights() {
                   <circle cx="11" cy="11" r="8"/>
                   <line x1="21" y1="21" x2="16.65" y2="16.65"/>
                 </svg>
-                <p className="text-sm text-gray-500 font-medium">No insights found</p>
-                <p className="text-xs text-gray-400 mt-1">Try adjusting your filters</p>
+                <p className="text-sm text-admin-muted font-medium">No insights found</p>
+                <p className="text-xs text-admin-muted mt-1">Try adjusting your filters</p>
               </div>
             ) : (
               insights.map(insight => (
-                <div key={insight._id} className="px-5 py-4 hover:bg-gray-50">
+                <div key={insight._id} className="px-5 py-4 hover:bg-admin-bg">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0 space-y-2">
                       {/* Badges row */}
@@ -267,15 +267,15 @@ export default function AdminZoomInsights() {
 
                       {/* Question (if FAQ) */}
                       {insight.type === 'FAQ' && insight.question && (
-                        <p className="text-sm font-semibold text-gray-900">{insight.question}</p>
+                        <p className="text-sm font-semibold text-admin-text">{insight.question}</p>
                       )}
 
                       {/* Answer / Content */}
-                      <p className="text-sm text-gray-700">{insight.answer_or_content}</p>
+                      <p className="text-sm text-admin-text">{insight.answer_or_content}</p>
 
                       {/* Transcript snippet */}
                       {insight.transcript_snippet && (
-                        <p className="text-xs text-gray-400 italic pl-3 border-l-2 border-gray-200 max-w-xl">
+                        <p className="text-xs text-admin-muted italic pl-3 border-l-2 border-white/5 max-w-xl">
                           "{insight.transcript_snippet}"
                         </p>
                       )}
@@ -288,11 +288,11 @@ export default function AdminZoomInsights() {
                           <line x1="8" y1="2" x2="8" y2="6"/>
                           <line x1="3" y1="10" x2="21" y2="10"/>
                         </svg>
-                        <span className="text-xs text-gray-500 font-medium truncate max-w-xs">
+                        <span className="text-xs text-admin-muted font-medium truncate max-w-xs">
                           {insight.meetingId.topic}
                         </span>
-                        <span className="text-xs text-gray-400">·</span>
-                        <span className="text-xs text-gray-400">{timeAgo(insight.meetingId.startTime)}</span>
+                        <span className="text-xs text-admin-muted">·</span>
+                        <span className="text-xs text-admin-muted">{timeAgo(insight.meetingId.startTime)}</span>
                       </div>
                     </div>
 
@@ -326,7 +326,7 @@ export default function AdminZoomInsights() {
                         </button>
                       )}
                       {insight.publishedFaqId && (
-                        <span className="px-3 py-1.5 rounded text-xs font-medium bg-gray-100 text-gray-500">
+                        <span className="px-3 py-1.5 rounded text-xs font-medium bg-admin-surface text-admin-muted">
                           Published
                         </span>
                       )}
@@ -339,20 +339,20 @@ export default function AdminZoomInsights() {
 
           {/* Pagination */}
           {pages > 1 && (
-            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
-              <span className="text-xs text-gray-500">Page {page} of {pages} · {total} insights</span>
+            <div className="flex items-center justify-between px-4 py-3 border-t border-white/5">
+              <span className="text-xs text-admin-muted">Page {page} of {pages} · {total} insights</span>
               <div className="flex gap-2">
                 <button
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="px-3 py-1 text-xs rounded border border-gray-200 hover:bg-gray-50 disabled:opacity-30 transition-colors"
+                  className="px-3 py-1 text-xs rounded border border-white/5 hover:bg-admin-bg disabled:opacity-30 transition-colors"
                 >
                   ← Prev
                 </button>
                 <button
                   onClick={() => setPage(p => p + 1)}
                   disabled={page >= pages}
-                  className="px-3 py-1 text-xs rounded border border-gray-200 hover:bg-gray-50 disabled:opacity-30 transition-colors"
+                  className="px-3 py-1 text-xs rounded border border-white/5 hover:bg-admin-bg disabled:opacity-30 transition-colors"
                 >
                   Next →
                 </button>

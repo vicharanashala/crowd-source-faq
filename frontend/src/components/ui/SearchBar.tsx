@@ -178,7 +178,7 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
           onFocus={onFocus}
           onBlur={handleBlur}
           placeholder={placeholder}
-          className="w-full pl-12 pr-32 py-5 sm:py-[22px] rounded-[26px] border border-border/70 bg-cream text-sm sm:text-base text-ink placeholder-ink-faint focus:outline-none focus:border-accent/50 focus:bg-white transition-all duration-300 shadow-[0_14px_34px_rgba(0,0,0,0.08)]"
+          className="w-full pl-12 pr-32 py-5 sm:py-[22px] rounded-[26px] border border-border/70 bg-cream text-sm sm:text-base text-ink placeholder-ink-faint focus:outline-none focus:border-accent/50 focus:bg-card transition-all duration-300 shadow-[0_14px_34px_rgba(0,0,0,0.08)]"
           autoComplete="off"
         />
 
@@ -196,7 +196,7 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
 
         {/* Suggestions dropdown */}
         {!disableSuggestions && showSuggestions && suggestions.length > 0 && (
-          <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-border rounded-2xl shadow-[0_14px_34px_rgba(0,0,0,0.12)] z-50 overflow-hidden">
+          <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-2xl shadow-[0_14px_34px_rgba(0,0,0,0.12)] z-50 overflow-hidden">
             {suggestions.map((s) => (
               <button
                 key={s._id}

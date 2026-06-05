@@ -1,107 +1,73 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  // Scan all JS/JSX/TS/TSX files for Tailwind classes (supports incremental TS adoption)
   content: ['./index.html', './src/**/*.{js,jsx,ts,tsx}'],
-
   theme: {
     extend: {
-      // ── Typography ──────────────────────────────────────────────
-      // Matches UI project (vins/Frontend): Inter for body, DM Serif Display for headings
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
         serif: ['DM Serif Display', 'Playfair Display', 'Georgia', 'serif'],
         mono: ['JetBrains Mono', 'monospace'],
       },
-
-      // ── Color Palette ───────────────────────────────────────────
-      // Fully adopted from the UI project's design system
       colors: {
-        // Core neutrals
-        bg: '#f7f6f3',           // Warm paper background
-        card: '#ffffff',          // Card surfaces
-        border: '#e5e5e5',        // Borders and dividers
-
-        // Text hierarchy
+        bg: 'var(--color-bg)',
+        card: 'var(--color-card)',
+        border: 'var(--color-border)',
+        mist: 'var(--color-mist)',
+        cream: 'var(--color-cream)',
+        elevated: 'var(--color-elevated)',
+        chip: 'var(--color-chip, var(--color-mist))',
         ink: {
-          DEFAULT: '#1f1f1f',     // Primary text
-          soft: '#6b6b6b',        // Secondary / muted text
-          faint: '#9a9a9a',       // Tertiary / placeholder text
+          DEFAULT: 'var(--color-ink)',
+          soft: 'var(--color-ink-soft)',
+          faint: 'var(--color-ink-faint)',
         },
-
-        // Primary accent (warm sage — harmonizes with #f7f6f3 background)
         accent: {
-          DEFAULT: '#5a7a5a',     // Primary buttons, links, active states
-          light: 'rgba(90, 122, 90, 0.1)',  // Accent backgrounds
-          hover: '#4a6a4a',       // Hover state
-          dark: '#3d5a3d',        // Active/pressed state
+          DEFAULT: 'var(--color-accent)',
+          light: 'var(--color-accent-light)',
+          hover: 'var(--color-accent-hover)',
+          dark: 'var(--color-accent-dark)',
         },
-
-        // Semantic colors
         success: {
-          DEFAULT: '#5a9a6b',     // Answered / resolved states
-          light: 'rgba(90, 154, 107, 0.1)',
+          DEFAULT: 'var(--color-success)',
+          light: 'var(--color-success-light)',
         },
         warning: {
-          DEFAULT: '#c4943a',     // Open / pending states
-          light: 'rgba(196, 148, 58, 0.1)',
+          DEFAULT: 'var(--color-warning)',
+          light: 'var(--color-warning-light)',
         },
         danger: {
-          DEFAULT: '#dc4a4a',     // Errors
-          light: 'rgba(220, 74, 74, 0.08)',
+          DEFAULT: 'var(--color-danger)',
+          light: 'var(--color-danger-light)',
         },
-
-        // Legacy sage kept for backward compatibility (will phase out)
+        // Legacy sage kept for backward compatibility
         sage: {
-          50:  '#f4f7f4',
-          100: '#e2ece2',
-          200: '#c3d9c3',
-          300: '#96bc96',
-          400: '#649964',
-          500: '#457a45',
-          600: '#336133',
-          700: '#294e29',
-          800: '#223f22',
-          900: '#1c341c',
+          50:  '#f4f7f4', 100: '#e2ece2', 200: '#c3d9c3', 300: '#96bc96',
+          400: '#649964', 500: '#457a45', 600: '#336133', 700: '#294e29',
+          800: '#223f22', 900: '#1c341c',
         },
-
-        // Muted background surfaces
-        mist: '#f0eeea',
-        cream: '#faf9f6',
+        // Admin panel colors (always dark)
         admin: {
-          bg: '#030307',
-          surface: '#0d0d18',
-          card: '#0f0f1e',
-          purple: '#8b5cf6',
-          'purple-bright': '#a78bfa',
-          blue: '#3b82f6',
-          cyan: '#22d3ee',
-          green: '#10b981',
-          yellow: '#f59e0b',
-          red: '#ef4444',
-          text: '#e4e4f0',
-          muted: '#6b6b8a',
+          bg: '#030307', surface: '#0d0d18', card: '#0f0f1e',
+          purple: '#8b5cf6', 'purple-bright': '#a78bfa',
+          blue: '#3b82f6', cyan: '#22d3ee', green: '#10b981',
+          yellow: '#f59e0b', red: '#ef4444',
+          text: '#e4e4f0', muted: '#6b6b8a',
         },
       },
-
-      // ── Box Shadows ─────────────────────────────────────────────
       boxShadow: {
-        'subtle': '0 2px 12px rgba(0,0,0,0.04)',
-        'card': '0 1px 3px 0 rgba(0,0,0,0.06), 0 1px 2px -1px rgba(0,0,0,0.06)',
-        'card-hover': '0 12px 40px rgba(0,0,0,0.06)',
-        'float': '0 8px 24px 0 rgba(0,0,0,0.10)',
+        'subtle': 'var(--shadow-subtle)',
+        'card': 'var(--shadow-card)',
+        'card-hover': 'var(--shadow-card-hover)',
+        'float': 'var(--shadow-float)',
+        'glow': 'var(--shadow-glow)',
         'glow-purple': '0 0 24px rgba(139,92,246,0.4)',
         'glow-blue': '0 0 24px rgba(59,130,246,0.4)',
         'glow-cyan': '0 0 24px rgba(34,211,238,0.4)',
         'admin-card': '0 4px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04)',
-        'glow': '0 0 0 3px rgba(90, 122, 90, 0.12), 0 8px 32px rgba(0,0,0,0.06)',
       },
-
-      // ── Transitions ─────────────────────────────────────────────
       transitionTimingFunction: {
         'smooth': 'cubic-bezier(0.22, 0.61, 0.36, 1)',
       },
-
-      // ── Animations ──────────────────────────────────────────────
       keyframes: {
         'fade-in': {
           from: { opacity: '0', transform: 'translateY(8px)' },

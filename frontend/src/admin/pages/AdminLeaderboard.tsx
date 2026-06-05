@@ -4,7 +4,7 @@ import adminApi from '../utils/adminApi';
 interface LeaderboardEntry { rank: number; userId: string; name: string; points: number; reputation: number; tier: string; badges: number; joinedAt: string; }
 
 const TIER_COLORS: Record<string, string> = {
-  newcomer:       'bg-gray-100 text-gray-600',
+  newcomer:       'bg-admin-surface text-admin-muted',
   contributor:   'bg-amber-100 text-amber-700',
   helper:        'bg-slate-100 text-slate-600',
   expert:        'bg-yellow-100 text-yellow-700',
@@ -35,14 +35,14 @@ export default function AdminLeaderboard() {
       .finally(() => setLoading(false));
   }, [page]);
 
-  const th = 'px-4 py-2.5 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wide';
-  const td = 'px-4 py-3 text-sm text-gray-800';
+  const th = 'px-4 py-2.5 text-left text-[10px] font-semibold text-admin-muted uppercase tracking-wide';
+  const td = 'px-4 py-3 text-sm text-admin-text';
 
   return (
     <div className="space-y-4 max-w-4xl">
       <div>
-        <h2 className="text-lg font-semibold text-gray-900">Leaderboard</h2>
-        <p className="text-sm text-gray-500 mt-0.5">{total} ranked users · top 50 overall</p>
+        <h2 className="text-lg font-semibold text-admin-text">Leaderboard</h2>
+        <p className="text-sm text-admin-muted mt-0.5">{total} ranked users · top 50 overall</p>
       </div>
 
       {/* Top 3 podium */}
@@ -53,13 +53,13 @@ export default function AdminLeaderboard() {
             if (!e) return null;
             return (
               <div key={e.userId}
-                className={`rounded-xl border p-4 text-center ${RANK_COLORS[idx + 1] ?? 'bg-white border-gray-200'}`}>
+                className={`rounded-xl border p-4 text-center ${RANK_COLORS[idx + 1] ?? 'bg-admin-card border-white/5'}`}>
                 <div className="text-2xl mb-1">{idx === 1 ? '🥇' : idx === 0 ? '🥈' : '🥉'}</div>
-                <p className="text-sm font-semibold text-gray-900">{e.name}</p>
-                <p className="text-xl font-bold text-gray-900 mt-1">{e.points.toLocaleString()}</p>
-                <p className="text-[10px] text-gray-500 mt-0.5">points</p>
+                <p className="text-sm font-semibold text-admin-text">{e.name}</p>
+                <p className="text-xl font-bold text-admin-text mt-1">{e.points.toLocaleString()}</p>
+                <p className="text-[10px] text-admin-muted mt-0.5">points</p>
                 <div className="mt-2 flex justify-center gap-1">
-                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${TIER_COLORS[e.tier] || 'bg-gray-100 text-gray-600'}`}>{TIER_ICONS[e.tier] ?? ''} {e.tier}</span>
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${TIER_COLORS[e.tier] || 'bg-admin-surface text-admin-muted'}`}>{TIER_ICONS[e.tier] ?? ''} {e.tier}</span>
                 </div>
               </div>
             );
@@ -68,34 +68,34 @@ export default function AdminLeaderboard() {
       )}
 
       {/* Full table */}
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+      <div className="bg-admin-card border border-white/5 rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead><tr className="bg-gray-50 border-b border-gray-200">
+            <thead><tr className="bg-admin-bg border-b border-white/5">
               <th className={th}>Rank</th><th className={th}>User</th><th className={th}>Points</th><th className={th}>Reputation</th><th className={th}>Tier</th><th className={th}>Badges</th><th className={th}>Joined</th>
             </tr></thead>
             <tbody>
               {loading ? (
-                [...Array(5)].map((_, i) => <tr key={i} className="border-b border-gray-100"><td colSpan={7} className="px-4 py-4 text-center text-sm text-gray-400">Loading…</td></tr>)
+                [...Array(5)].map((_, i) => <tr key={i} className="border-b border-white/5"><td colSpan={7} className="px-4 py-4 text-center text-sm text-admin-muted">Loading…</td></tr>)
               ) : entries.length === 0 ? (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-400">No users yet</td></tr>
+                <tr><td colSpan={7} className="px-4 py-8 text-center text-sm text-admin-muted">No users yet</td></tr>
               ) : entries.map(e => (
-                <tr key={e.userId} className={`border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors ${e.rank <= 3 ? 'bg-gray-50/50' : ''}`}>
+                <tr key={e.userId} className={`border-b border-white/5 last:border-0 hover:bg-admin-bg transition-colors ${e.rank <= 3 ? 'bg-admin-bg/50' : ''}`}>
                   <td className={td}>
-                    <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${e.rank === 1 ? 'bg-yellow-100 text-yellow-800' : e.rank === 2 ? 'bg-slate-100 text-slate-700' : e.rank === 3 ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600'}`}>
+                    <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${e.rank === 1 ? 'bg-yellow-100 text-yellow-800' : e.rank === 2 ? 'bg-slate-100 text-slate-700' : e.rank === 3 ? 'bg-orange-100 text-orange-700' : 'bg-admin-surface text-admin-muted'}`}>
                       {e.rank}
                     </span>
                   </td>
-                  <td className={`${td} font-medium text-gray-900`}>{e.name}</td>
-                  <td className={`${td} font-semibold text-gray-900`}>{e.points.toLocaleString()}</td>
-                  <td className={`${td} text-gray-600`}>{e.reputation.toLocaleString()}</td>
+                  <td className={`${td} font-medium text-admin-text`}>{e.name}</td>
+                  <td className={`${td} font-semibold text-admin-text`}>{e.points.toLocaleString()}</td>
+                  <td className={`${td} text-admin-muted`}>{e.reputation.toLocaleString()}</td>
                   <td className={td}>
-                    <span className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded ${TIER_COLORS[e.tier] || 'bg-gray-100 text-gray-600'}`}>
+                    <span className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded ${TIER_COLORS[e.tier] || 'bg-admin-surface text-admin-muted'}`}>
                       {TIER_ICONS[e.tier] ?? ''} {e.tier}
                     </span>
                   </td>
-                  <td className={td}><span className="text-gray-600">{e.badges > 0 ? `🏅 ${e.badges}` : '—'}</span></td>
-                  <td className={`${td} text-gray-400 text-xs`}>{new Date(e.joinedAt).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
+                  <td className={td}><span className="text-admin-muted">{e.badges > 0 ? `🏅 ${e.badges}` : '—'}</span></td>
+                  <td className={`${td} text-admin-muted text-xs`}>{new Date(e.joinedAt).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
                 </tr>
               ))}
             </tbody>

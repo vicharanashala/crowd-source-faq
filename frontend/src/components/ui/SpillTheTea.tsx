@@ -22,10 +22,10 @@ interface TeaDrop {
 }
 
 const EVENT_META: Record<TeaEventType, { label: string; icon: string; color: string; bgColor: string }> = {
-  faq_published:     { label: 'new faq',        icon: '📋', color: 'text-purple-600',   bgColor: 'bg-purple-50' },
-  post_answered:     { label: 'resolved',        icon: '✅', color: 'text-emerald-600',   bgColor: 'bg-emerald-50' },
-  post_deleted:      { label: 'removed',         icon: '🗑',  color: 'text-red-500',       bgColor: 'bg-red-50' },
-  post_answered_user:{ label: 'new answer',      icon: '💡', color: 'text-amber-600',     bgColor: 'bg-amber-50' },
+  faq_published:     { label: 'new faq',        icon: '📋', color: 'text-[#8b5cf6]',   bgColor: 'bg-[rgba(139,92,246,0.1)]' },
+  post_answered:     { label: 'resolved',        icon: '✅', color: 'text-accent',   bgColor: 'bg-accent-light' },
+  post_deleted:      { label: 'removed',         icon: '🗑',  color: 'text-danger',       bgColor: 'bg-danger-light' },
+  post_answered_user:{ label: 'new answer',      icon: '💡', color: 'text-warning',     bgColor: 'bg-warning-light' },
 };
 
 function timeAgo(dateStr: string): string {
@@ -166,7 +166,7 @@ export default function SpillTheTea() {
       {/* Trigger */}
       <button
         onClick={() => setOpen((v) => !v)}
-        className="relative flex items-center justify-center w-9 h-9 rounded-full hover:bg-black/[0.04] transition-colors"
+        className="relative flex items-center justify-center w-9 h-9 rounded-full hover:bg-mist transition-colors"
         title="Spill the Tea ☕"
       >
         <span className="text-lg" style={{ fontSize: '1.15rem' }}>☕</span>
@@ -179,7 +179,7 @@ export default function SpillTheTea() {
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute right-0 top-12 w-80 bg-white rounded-2xl border border-border shadow-float z-50 overflow-hidden animate-fade-in">
+        <div className="absolute right-0 top-12 w-80 bg-card rounded-2xl border border-border shadow-float z-50 overflow-hidden animate-fade-in">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-border/60">
             <div className="flex items-center gap-2">

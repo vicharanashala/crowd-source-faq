@@ -535,7 +535,7 @@ export default function AccountPage() {
                 <div className="w-10 h-10 rounded-xl bg-[#2D8CFF]/10 flex items-center justify-center shrink-0">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                     <path d="M15.5 8.5l5-3v9l-5-3v-3z" fill="#2D8CFF"/>
-                    <rect x="2" y="6" width="11" height="12" rx="2" stroke="#2D8CFF" strokeWidth="1.5" fill="none"/>
+                    <rect x="2" y="6" width="11" height="12" rx="2" stroke="currentColor" strokeWidth="1.5" fill="none"/>
                   </svg>
                 </div>
                 <div>
@@ -551,8 +551,8 @@ export default function AccountPage() {
               {/* Connection badge */}
               <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${
                 zoomStatus?.connected
-                  ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
-                  : 'bg-gray-100 text-gray-500 border border-gray-200'
+                  ? 'bg-accent-light text-accent border border-accent/30'
+                  : 'bg-mist text-ink-faint border border-border'
               }`}>
                 {zoomStatus?.connected ? 'Connected' : 'Not connected'}
               </span>
@@ -560,7 +560,7 @@ export default function AccountPage() {
 
             {/* Error message */}
             {zoomError && (
-              <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5">
+              <div className="text-sm text-danger bg-danger-light border border-danger/30 rounded-xl px-4 py-2.5">
                 {zoomError}
               </div>
             )}
@@ -570,7 +570,7 @@ export default function AccountPage() {
               <button
                 onClick={handleDisconnectZoom}
                 disabled={disconnecting}
-                className="w-full px-4 py-2.5 rounded-xl border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-4 py-2.5 rounded-xl border border-danger/30 text-danger text-sm font-medium hover:bg-danger-light transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {disconnecting ? 'Disconnecting...' : 'Disconnect Zoom'}
               </button>
@@ -630,9 +630,9 @@ export default function AccountPage() {
                 {/* File selector — choose a file first */}
                 {transcriptProgress?.stage === 'done' ? (
                   // Upload done — show reset
-                  <div className="flex items-center justify-between px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-xl">
-                    <span className="text-xs text-emerald-700">Done — {transcriptProgress.message}</span>
-                    <button onClick={handleTranscriptCancel} className="text-[10px] text-emerald-600 hover:text-emerald-800 font-medium underline">Upload another</button>
+                  <div className="flex items-center justify-between px-3 py-2 bg-accent-light border border-accent/30 rounded-xl">
+                    <span className="text-xs text-accent">Done — {transcriptProgress.message}</span>
+                    <button onClick={handleTranscriptCancel} className="text-[10px] text-accent hover:text-emerald-800 font-medium underline">Upload another</button>
                   </div>
                 ) : transcriptMeetingId ? (
                   // Processing — show progress bar
@@ -667,7 +667,7 @@ export default function AccountPage() {
                       </button>
                       <button
                         onClick={handleTranscriptCancel}
-                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-ink text-xs font-medium hover:bg-gray-50 transition-colors"
+                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-ink text-xs font-medium hover:bg-mist transition-colors"
                       >
                         Cancel
                       </button>
@@ -732,8 +732,8 @@ export default function AccountPage() {
                 {transcriptMsg && (
                   <div className={`text-xs px-3 py-2 rounded-lg ${
                     transcriptMsg.type === 'ok'
-                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                      : 'bg-red-50 text-red-600 border border-red-200'
+                      ? 'bg-accent-light text-accent border border-accent/30'
+                      : 'bg-danger-light text-danger border border-danger/30'
                   }`}>
                     {transcriptMsg.text}
                   </div>

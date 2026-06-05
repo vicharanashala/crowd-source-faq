@@ -71,13 +71,13 @@ function StatusBadge({ status }: { status: ZoomMeeting['status'] }) {
 
 function MeetingRowSkeleton() {
   return (
-    <tr className="border-b border-gray-50 last:border-0">
-      <td className="px-4 py-3"><div className="h-4 w-32 bg-gray-200 rounded animate-pulse" /></td>
-      <td className="px-4 py-3"><div className="h-4 w-24 bg-gray-200 rounded animate-pulse" /></td>
-      <td className="px-4 py-3"><div className="h-4 w-12 bg-gray-200 rounded animate-pulse" /></td>
-      <td className="px-4 py-3"><div className="h-4 w-16 bg-gray-200 rounded animate-pulse" /></td>
-      <td className="px-4 py-3"><div className="h-4 w-8 bg-gray-200 rounded animate-pulse" /></td>
-      <td className="px-4 py-3"><div className="h-4 w-20 bg-gray-200 rounded animate-pulse" /></td>
+    <tr className="border-b border-white/5 last:border-0">
+      <td className="px-4 py-3"><div className="h-4 w-32 bg-admin-surface rounded animate-pulse" /></td>
+      <td className="px-4 py-3"><div className="h-4 w-24 bg-admin-surface rounded animate-pulse" /></td>
+      <td className="px-4 py-3"><div className="h-4 w-12 bg-admin-surface rounded animate-pulse" /></td>
+      <td className="px-4 py-3"><div className="h-4 w-16 bg-admin-surface rounded animate-pulse" /></td>
+      <td className="px-4 py-3"><div className="h-4 w-8 bg-admin-surface rounded animate-pulse" /></td>
+      <td className="px-4 py-3"><div className="h-4 w-20 bg-admin-surface rounded animate-pulse" /></td>
     </tr>
   );
 }
@@ -249,8 +249,8 @@ export default function AdminZoomMeetings() {
       <div className="space-y-5 max-w-5xl">
         {/* Header */}
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">Zoom Meetings</h2>
-          <p className="text-sm text-gray-500 mt-0.5">AI-extracted FAQs and announcements from Zoom recordings</p>
+          <h2 className="text-lg font-semibold text-admin-text">Zoom Meetings</h2>
+          <p className="text-sm text-admin-muted mt-0.5">AI-extracted FAQs and announcements from Zoom recordings</p>
         </div>
 
         {/* Connection banner */}
@@ -330,36 +330,36 @@ export default function AdminZoomMeetings() {
 
         {/* Stats row */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <p className="text-xs text-gray-500 font-medium">Total Meetings</p>
-            <p className="text-2xl font-bold text-gray-900 mt-1">{stats.total}</p>
+          <div className="bg-admin-card border border-white/5 rounded-lg p-4">
+            <p className="text-xs text-admin-muted font-medium">Total Meetings</p>
+            <p className="text-2xl font-bold text-admin-text mt-1">{stats.total}</p>
           </div>
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <p className="text-xs text-gray-500 font-medium">Processing</p>
+          <div className="bg-admin-card border border-white/5 rounded-lg p-4">
+            <p className="text-xs text-admin-muted font-medium">Processing</p>
             <p className="text-2xl font-bold text-blue-600 mt-1">{stats.processing}</p>
           </div>
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <p className="text-xs text-gray-500 font-medium">Completed</p>
+          <div className="bg-admin-card border border-white/5 rounded-lg p-4">
+            <p className="text-xs text-admin-muted font-medium">Completed</p>
             <p className="text-2xl font-bold text-emerald-600 mt-1">{stats.completed}</p>
           </div>
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <p className="text-xs text-gray-500 font-medium">Failed</p>
+          <div className="bg-admin-card border border-white/5 rounded-lg p-4">
+            <p className="text-xs text-admin-muted font-medium">Failed</p>
             <p className="text-2xl font-bold text-red-600 mt-1">{stats.failed}</p>
           </div>
         </div>
 
         {/* Transcript upload section */}
-        <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
+        <div className="bg-admin-card border border-white/5 rounded-xl p-4 space-y-3">
           <div className="flex items-center gap-2">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-admin-muted">
               <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
             </svg>
-            <h3 className="text-sm font-semibold text-gray-900">Upload Transcript</h3>
+            <h3 className="text-sm font-semibold text-admin-text">Upload Transcript</h3>
           </div>
-          <p className="text-xs text-gray-500">Upload a Zoom VTT transcript or plain text file for AI FAQ extraction.</p>
+          <p className="text-xs text-admin-muted">Upload a Zoom VTT transcript or plain text file for AI FAQ extraction.</p>
 
           <div>
-            <input id="upload-topic" type="text" placeholder="Meeting topic (e.g. Q3 Planning, Sprint Retro)" className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[#2D8CFF]" />
+            <input id="upload-topic" type="text" placeholder="Meeting topic (e.g. Q3 Planning, Sprint Retro)" className="w-full px-3 py-2 rounded-lg border border-white/5 text-sm text-admin-text placeholder-admin-muted focus:outline-none focus:border-[#2D8CFF]" />
           </div>
 
           {/* File selected but not processed — Process / Cancel */}
@@ -380,7 +380,7 @@ export default function AdminZoomMeetings() {
                 </button>
                 <button
                   onClick={handleTranscriptCancel}
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-gray-700 text-xs font-medium hover:bg-gray-50 transition-colors"
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/5 text-admin-text text-xs font-medium hover:bg-admin-bg transition-colors"
                 >
                   Cancel
                 </button>
@@ -398,7 +398,7 @@ export default function AdminZoomMeetings() {
               <div className="h-1.5 bg-[#2D8CFF]/15 rounded-full overflow-hidden">
                 <div className="h-full bg-[#2D8CFF] rounded-full transition-all duration-700 ease-out" style={{ width: `${uploadProgress.percent}%` }} />
               </div>
-              <p className="text-[10px] text-gray-500">{uploadProgress.message}</p>
+              <p className="text-[10px] text-admin-muted">{uploadProgress.message}</p>
             </div>
           )}
 
@@ -434,16 +434,16 @@ export default function AdminZoomMeetings() {
         </div>
 
         {/* Filter tabs */}
-        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-          <div className="flex border-b border-gray-100">
+        <div className="bg-admin-card border border-white/5 rounded-lg overflow-hidden">
+          <div className="flex border-b border-white/5">
             {FILTER_TABS.map(tab => (
               <button
                 key={tab.key}
                 onClick={() => { setStatusFilter(tab.key); setPage(1); }}
                 className={`px-4 py-2.5 text-xs font-semibold transition-colors ${
                   statusFilter === tab.key
-                    ? 'text-gray-900 border-b-2 border-gray-900 bg-gray-50'
-                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                    ? 'text-admin-text border-b-2 border-admin-purple bg-admin-bg'
+                    : 'text-admin-muted hover:text-admin-text hover:bg-admin-bg'
                 }`}
               >
                 {tab.label}
@@ -454,13 +454,13 @@ export default function AdminZoomMeetings() {
           {/* Table */}
           <table className="w-full">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50">
-                <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-500 uppercase">Topic</th>
-                <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-500 uppercase">Date</th>
-                <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-500 uppercase">Duration</th>
-                <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-500 uppercase">Status</th>
-                <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-500 uppercase">Insights</th>
-                <th className="px-4 py-2.5 text-right text-[10px] font-semibold text-gray-500 uppercase">Actions</th>
+              <tr className="border-b border-white/5 bg-admin-bg">
+                <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-admin-muted uppercase">Topic</th>
+                <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-admin-muted uppercase">Date</th>
+                <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-admin-muted uppercase">Duration</th>
+                <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-admin-muted uppercase">Status</th>
+                <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-admin-muted uppercase">Insights</th>
+                <th className="px-4 py-2.5 text-right text-[10px] font-semibold text-admin-muted uppercase">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -468,7 +468,7 @@ export default function AdminZoomMeetings() {
                 Array.from({ length: 5 }).map((_, i) => <MeetingRowSkeleton key={i} />)
               ) : meetings.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-sm text-gray-400">
+                  <td colSpan={6} className="px-4 py-12 text-center text-sm text-admin-muted">
                     <svg className="mx-auto mb-2" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                       <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
                       <line x1="16" y1="2" x2="16" y2="6"/>
@@ -493,19 +493,19 @@ export default function AdminZoomMeetings() {
                 </tr>
               ) : (
                 meetings.map(meeting => (
-                  <tr key={meeting._id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50">
+                  <tr key={meeting._id} className="border-b border-white/5 last:border-0 hover:bg-admin-bg">
                     <td className="px-4 py-3">
-                      <div className="text-sm font-medium text-gray-900 max-w-xs truncate">{meeting.topic}</div>
-                      <div className="text-[10px] text-gray-400">{meeting.hostEmail}</div>
+                      <div className="text-sm font-medium text-admin-text max-w-xs truncate">{meeting.topic}</div>
+                      <div className="text-[10px] text-admin-muted">{meeting.hostEmail}</div>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{timeAgo(meeting.startTime)}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{formatDuration(meeting.duration)}</td>
+                    <td className="px-4 py-3 text-sm text-admin-muted">{timeAgo(meeting.startTime)}</td>
+                    <td className="px-4 py-3 text-sm text-admin-muted">{formatDuration(meeting.duration)}</td>
                     <td className="px-4 py-3"><StatusBadge status={meeting.status} /></td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{meeting.insightCount}</td>
+                    <td className="px-4 py-3 text-sm text-admin-muted">{meeting.insightCount}</td>
                     <td className="px-4 py-3 text-right">
                       <Link
                         to={`/admin/zoom-insights?meetingId=${meeting._id}`}
-                        className="inline-flex items-center gap-1 px-3 py-1 rounded text-xs font-medium text-white bg-gray-900 hover:bg-gray-700 transition-colors"
+                        className="inline-flex items-center gap-1 px-3 py-1 rounded text-xs font-medium text-white bg-admin-bg hover:bg-admin-surface transition-colors"
                       >
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <circle cx="11" cy="11" r="8"/>
@@ -522,20 +522,20 @@ export default function AdminZoomMeetings() {
 
           {/* Pagination */}
           {pages > 1 && (
-            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
-              <span className="text-xs text-gray-500">Page {page} of {pages} · {total} meetings</span>
+            <div className="flex items-center justify-between px-4 py-3 border-t border-white/5">
+              <span className="text-xs text-admin-muted">Page {page} of {pages} · {total} meetings</span>
               <div className="flex gap-2">
                 <button
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="px-3 py-1 text-xs rounded border border-gray-200 hover:bg-gray-50 disabled:opacity-30 transition-colors"
+                  className="px-3 py-1 text-xs rounded border border-white/5 hover:bg-admin-bg disabled:opacity-30 transition-colors"
                 >
                   ← Prev
                 </button>
                 <button
                   onClick={() => setPage(p => p + 1)}
                   disabled={page >= pages}
-                  className="px-3 py-1 text-xs rounded border border-gray-200 hover:bg-gray-50 disabled:opacity-30 transition-colors"
+                  className="px-3 py-1 text-xs rounded border border-white/5 hover:bg-admin-bg disabled:opacity-30 transition-colors"
                 >
                   Next →
                 </button>
@@ -548,18 +548,18 @@ export default function AdminZoomMeetings() {
       {/* Process confirmation modal */}
       {showProcessModal && uploadSelectedFile && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm" onClick={() => setShowProcessModal(false)} />
-          <div className="relative bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-sm p-6 space-y-4">
+          <div className="absolute inset-0 bg-admin-bg/40 backdrop-blur-sm" onClick={() => setShowProcessModal(false)} />
+          <div className="relative bg-admin-card rounded-2xl shadow-2xl border border-white/5 w-full max-w-sm p-6 space-y-4">
             <div>
-              <h3 className="text-base font-semibold text-gray-900">Process transcript?</h3>
-              <p className="text-xs text-gray-500 mt-1">This will send the file to AI for FAQ extraction. This action cannot be undone.</p>
+              <h3 className="text-base font-semibold text-admin-text">Process transcript?</h3>
+              <p className="text-xs text-admin-muted mt-1">This will send the file to AI for FAQ extraction. This action cannot be undone.</p>
             </div>
-            <div className="bg-gray-50 rounded-xl px-3 py-2 space-y-1">
+            <div className="bg-admin-bg rounded-xl px-3 py-2 space-y-1">
               <div className="flex items-center gap-2">
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#2D8CFF" strokeWidth="1.5"><path d="M6 9V3M3 5l3 3 3-3M2 10h8"/></svg>
-                <span className="text-xs text-gray-900 font-medium truncate">{uploadSelectedFile.file.name}</span>
+                <span className="text-xs text-admin-text font-medium truncate">{uploadSelectedFile.file.name}</span>
               </div>
-              <div className="text-[10px] text-gray-500">
+              <div className="text-[10px] text-admin-muted">
                 Topic: {(document.getElementById('upload-topic') as HTMLInputElement)?.value || '—'}
               </div>
             </div>
@@ -573,7 +573,7 @@ export default function AdminZoomMeetings() {
               </button>
               <button
                 onClick={() => setShowProcessModal(false)}
-                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors"
+                className="flex-1 px-4 py-2.5 rounded-xl border border-white/5 text-admin-text text-sm font-medium hover:bg-admin-bg transition-colors"
               >
                 Cancel
               </button>

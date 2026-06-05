@@ -4,6 +4,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useAuthModal, useAuthGate } from '../../context/AuthModalContext';
 import { buildTransformedUrl } from '../../hooks/useCloudinaryUpload';
 import NotificationBell from '../../components/ui/NotificationBell';
+import ThemeToggle from '../../components/ui/ThemeToggle';
 
 const navItems = [
   { label: 'Home', to: '/' },
@@ -68,7 +69,7 @@ export default function Navbar() {
 
   const initials = user?.name ? user.name.charAt(0).toUpperCase() : '?';
   const avatarColor = getAvatarColor(user?.name);
-  // Thumbnail transform — cap the navbar avatar at 64×64 so we're not
+  // Thumbnail transform — cap the navbar avatar at 64x64 so we're not
   // downloading the full-size upload on every page. Cloudinary returns
   // a transformed URL, no extra round-trip.
   const avatarSrc = user?.avatar?.url
@@ -80,16 +81,16 @@ export default function Navbar() {
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-[400ms] ease-smooth
         ${scrolled
-          ? 'bg-bg/82 backdrop-blur-[20px] saturate-[1.8] border-b border-black/[0.04] shadow-subtle'
+          ? 'bg-[var(--glass-bg)] backdrop-blur-[20px] saturate-[1.8] border-b border-ink/[0.04] shadow-subtle'
           : 'bg-transparent border-b border-transparent'
         }`}
     >
-      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between relative">
+      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 h-14 sm:h-16 grid grid-cols-[auto,1fr,auto] items-center gap-4">
 
         {/* Logo */}
-        <NavLink to="/" className="flex items-center gap-2.5 group flex-shrink-0">
+        <NavLink to="/" className="flex items-center gap-2.5 group flex-shrink-0 justify-self-start">
           <div className="w-9 h-9 rounded-[10px] border-2 border-ink flex items-center justify-center transition-transform duration-300 group-hover:rotate-[-6deg]">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1f1f1f" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10"/>
               <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
               <line x1="12" y1="17" x2="12.01" y2="17"/>
@@ -101,7 +102,7 @@ export default function Navbar() {
         </NavLink>
 
         {/* Center Pill Group (Desktop) */}
-        <div className="hidden lg:flex items-center gap-1.5 px-1.5 py-[5px] rounded-full border-[1.5px] border-border bg-white/50 backdrop-blur-[12px] absolute left-1/2 -translate-x-1/2">
+        <div className="hidden lg:flex items-center justify-center gap-1.5 px-1.5 py-[5px] rounded-full border-[1.5px] border-border bg-card/50 backdrop-blur-[12px] max-w-[640px] w-full mx-auto min-w-0">
           {navItems.map(({ label, to }) => (
             <NavLink
               key={to}
@@ -117,7 +118,7 @@ export default function Navbar() {
         </div>
 
         {/* Right Side */}
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2 flex-shrink-0 justify-self-end">
 
           {/* Ask AI — placeholder for the upcoming floating chat widget. */}
           <button
@@ -146,6 +147,7 @@ export default function Navbar() {
         {/* Unauthenticated — Sign in (text) + Get started (filled) */}
         {!isAuthenticated && (
           <div className="hidden lg:flex items-center gap-2">
+            <ThemeToggle />
             <button
               onClick={() => openModal('signin')}
               className="px-3 py-1.5 text-sm font-medium text-ink-soft hover:text-ink transition-colors"
@@ -166,6 +168,7 @@ export default function Navbar() {
           <>
             <div className="hidden lg:block w-px h-6 bg-border mx-1" />
 
+            <ThemeToggle />
             <NotificationBell />
 
             {/* User Avatar + Dropdown */}
@@ -178,12 +181,12 @@ export default function Navbar() {
                   <img
                     src={avatarSrc}
                     alt={user?.name ? `${user.name} avatar` : 'avatar'}
-                    className="w-9 h-9 rounded-full object-cover shadow-[0_0_0_2px_#fff,0_1px_4px_rgba(0,0,0,0.08)] transition-transform duration-200 group-hover:scale-105"
+                    className="w-9 h-9 rounded-full object-cover shadow-[0_0_0_2px_var(--color-card),0_1px_4px_rgba(0,0,0,0.08)] transition-transform duration-200 group-hover:scale-105"
                     loading="lazy"
                   />
                 ) : (
                   <div
-                    className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-semibold shadow-[0_0_0_2px_#fff,0_1px_4px_rgba(0,0,0,0.08)] transition-transform duration-200 group-hover:scale-105"
+                    className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-semibold shadow-[0_0_0_2px_var(--color-card),0_1px_4px_rgba(0,0,0,0.08)] transition-transform duration-200 group-hover:scale-105"
                     style={{ backgroundColor: avatarColor }}
                   >
                     {initials}
@@ -191,15 +194,15 @@ export default function Navbar() {
                 )}
                 <svg
                   width="12" height="12" viewBox="0 0 24 24" fill="none"
-                  stroke="#6b6b6b" strokeWidth="2.5"
-                  className={`hidden md:block transition-transform duration-200 ${profileOpen ? 'rotate-180' : ''}`}
+                  stroke="currentColor" strokeWidth="2.5"
+                  className={`hidden md:block text-ink-soft transition-transform duration-200 ${profileOpen ? 'rotate-180' : ''}`}
                 >
                   <polyline points="6 9 12 15 18 9"/>
                 </svg>
               </button>
 
               {profileOpen && (
-                <div className="absolute right-0 top-12 w-48 bg-white rounded-xl border border-border shadow-float py-2 animate-fade-in z-50">
+                <div className="absolute right-0 top-12 w-48 bg-card rounded-xl border border-border shadow-float py-2 animate-fade-in z-50">
                   <div className="px-4 py-2 border-b border-border/50">
                     <p className="text-sm font-medium text-ink">{user?.name || 'User'}</p>
                     <p className="text-xs text-ink-faint">{user?.email || ''}</p>
@@ -233,7 +236,7 @@ export default function Navbar() {
         {/* Mobile hamburger */}
         <button
             onClick={() => setMobileOpen(!mobileOpen)}
-            className="lg:hidden flex w-9 h-9 items-center justify-center rounded-[10px] hover:bg-black/[0.04] transition-colors"
+            className="lg:hidden flex w-9 h-9 items-center justify-center rounded-[10px] hover:bg-ink/[0.04] transition-colors"
             aria-label="Toggle menu"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -256,15 +259,9 @@ export default function Navbar() {
 
       {/* Mobile Dropdown */}
       <div
-        className={`lg:hidden overflow-hidden transition-all duration-[350ms] ease-smooth ${
-          mobileOpen ? 'max-h-[28rem] opacity-100' : 'max-h-0 opacity-0'
+        className={`lg:hidden overflow-hidden transition-all duration-[350ms] ease-smooth bg-card/95 backdrop-blur-[20px] ${
+          mobileOpen ? 'max-h-[28rem] opacity-100 border-t border-border' : 'max-h-0 opacity-0 border-t border-transparent'
         }`}
-        style={{
-          backgroundColor: 'rgba(255,255,255,0.95)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          borderTop: mobileOpen ? '1px solid #e5e5e5' : 'none',
-        }}
       >
         <div className="px-6 py-4 flex flex-col gap-1">
           {navItems.map(({ label, to }) => (
@@ -277,7 +274,7 @@ export default function Navbar() {
                 `block px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
                   isActive
                     ? 'bg-accent-light text-accent'
-                    : 'text-ink-soft hover:text-ink hover:bg-black/[0.03]'
+                    : 'text-ink-soft hover:text-ink hover:bg-ink/[0.03]'
                 }`
               }
             >

@@ -22,7 +22,7 @@ export default function QuestionDetail({ item, relatedItems, onBack, onSelectRel
   return (
     <div className="grid lg:grid-cols-[260px_1fr] gap-6">
       <aside className="hidden lg:flex flex-col gap-4">
-        <div className="rounded-2xl border border-border/70 bg-white/80 p-4">
+        <div className="rounded-2xl border border-border/70 bg-card/80 p-4">
           <p className="text-xs font-semibold text-ink-faint uppercase tracking-wide">Category</p>
           <div className="mt-3 flex items-center gap-2 text-sm text-ink">
             <span className="w-8 h-8 rounded-xl bg-mist flex items-center justify-center text-ink-faint">
@@ -32,7 +32,7 @@ export default function QuestionDetail({ item, relatedItems, onBack, onSelectRel
           </div>
         </div>
 
-        <div className="rounded-2xl border border-border/70 bg-white/80 p-4">
+        <div className="rounded-2xl border border-border/70 bg-card/80 p-4">
           <p className="text-xs font-semibold text-ink-faint uppercase tracking-wide">Related questions</p>
           <div className="mt-3 space-y-2">
             {relatedItems.length === 0 && (
@@ -109,7 +109,7 @@ export default function QuestionDetail({ item, relatedItems, onBack, onSelectRel
                 <button
                   key={rel._id}
                   onClick={() => onSelectRelated(rel)}
-                  className="px-3 py-1.5 rounded-full border border-border/70 bg-white text-xs text-ink hover:border-accent/50 hover:text-accent transition-colors"
+                  className="px-3 py-1.5 rounded-full border border-border/70 bg-card text-xs text-ink hover:border-accent/50 hover:text-accent transition-colors"
                 >
                   {getQuestionTitle(rel)}
                 </button>

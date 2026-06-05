@@ -34,7 +34,7 @@ interface QueueItem {
 }
 
 const lifecycleConfig: Record<string, { label: string; class: string }> = {
-  open:               { label: 'Open', class: 'bg-gray-100 text-gray-600 border-gray-200' },
+  open:               { label: 'Open', class: 'bg-admin-surface text-admin-muted border-white/5' },
   answered:           { label: 'Answered', class: 'bg-blue-50 text-blue-700 border-blue-200' },
   community_accepted: { label: 'Community Approved', class: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
   ai_validated:       { label: 'AI Validated', class: 'bg-purple-50 text-purple-700 border-purple-200' },
@@ -226,7 +226,7 @@ export default function FaqReview() {
                       <td className="py-3 px-4">
                         {ai ? (
                           <div className="flex items-center gap-1">
-                            <div className="w-12 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div className="w-12 h-1.5 bg-admin-surface rounded-full overflow-hidden">
                               <div className="h-full bg-purple-500 rounded-full" style={{ width: `${ai.confidenceScore}%` }} />
                             </div>
                             <span className="text-xs text-ink-faint">{ai.confidenceScore}%</span>
@@ -314,7 +314,7 @@ export default function FaqReview() {
       {/* View / Edit Modal */}
       {viewItem && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 overflow-y-auto py-8">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4">
+          <div className="bg-admin-card rounded-2xl shadow-xl w-full max-w-2xl mx-4">
             <div className="flex items-center justify-between p-6 border-b border-border">
               <h2 className="text-lg font-semibold text-ink">Review Details</h2>
               <button onClick={() => { setViewItem(null); setEditData(null); }} className="text-ink-faint hover:text-ink transition-colors">✕</button>
@@ -332,7 +332,7 @@ export default function FaqReview() {
                   </span>
                 )}
                 {viewItem.existingFaq && (
-                  <span className={`text-xs px-2 py-0.5 rounded border font-medium ${tc[viewItem.existingFaq.trustLevel]?.class ?? 'bg-gray-50 text-gray-600 border-gray-200'}`}>
+                  <span className={`text-xs px-2 py-0.5 rounded border font-medium ${tc[viewItem.existingFaq.trustLevel]?.class ?? 'bg-admin-bg text-admin-muted border-white/5'}`}>
                     {tc[viewItem.existingFaq.trustLevel]?.label ?? viewItem.existingFaq.trustLevel}
                   </span>
                 )}
@@ -345,7 +345,7 @@ export default function FaqReview() {
                 <div className="text-sm text-ink-faint mt-1">{viewItem.body?.slice(0, 300)}{viewItem.body?.length > 300 ? '…' : ''}</div>
                 <div className="flex flex-wrap gap-1 mt-2">
                   {(viewItem.tags ?? []).map(tag => (
-                    <span key={tag} className="text-[10px] px-1.5 py-0.5 bg-gray-50 text-gray-600 rounded border border-gray-200">{tag}</span>
+                    <span key={tag} className="text-[10px] px-1.5 py-0.5 bg-admin-bg text-admin-muted rounded border border-white/5">{tag}</span>
                   ))}
                 </div>
               </div>
@@ -365,7 +365,7 @@ export default function FaqReview() {
                   <div className="flex items-center justify-between mb-1">
                     <div className="text-xs font-semibold text-ink-faint uppercase tracking-wide">AI Generated FAQ</div>
                     <div className="flex items-center gap-1">
-                      <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="w-16 h-1.5 bg-admin-surface rounded-full overflow-hidden">
                         <div className="h-full bg-purple-500 rounded-full" style={{ width: `${viewItem.aiGeneratedFaq.confidenceScore}%` }} />
                       </div>
                       <span className="text-xs text-ink-faint">{viewItem.aiGeneratedFaq.confidenceScore}% conf.</span>
@@ -466,7 +466,7 @@ export default function FaqReview() {
         if (!item) return null;
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-            <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md">
+            <div className="bg-admin-card rounded-2xl shadow-xl p-6 w-full max-w-md">
               <h2 className="text-lg font-semibold text-ink mb-2">Merge Duplicate FAQ</h2>
               <p className="text-sm text-ink-faint mb-4">
                 Merge <strong className="text-ink">{item.title}</strong> into an existing FAQ to avoid duplication.
@@ -503,7 +503,7 @@ export default function FaqReview() {
       {/* Objection Modal */}
       {objectModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md">
+          <div className="bg-admin-card rounded-2xl shadow-xl p-6 w-full max-w-md">
             <h2 className="text-lg font-semibold text-ink mb-4">Object to Promotion</h2>
             <p className="text-sm text-ink-faint mb-4">
               Provide a reason for your objection. This will prevent further auto-promotion of this content.

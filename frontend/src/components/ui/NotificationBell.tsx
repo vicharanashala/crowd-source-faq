@@ -27,7 +27,7 @@ function timeAgo(dateStr: string): string {
 
 function BellIcon({ hasUnread }: { hasUnread: boolean }) {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b6b6b" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
       <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
     </svg>
@@ -135,7 +135,7 @@ export default function NotificationBell() {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
-        className="hidden lg:flex w-9 h-9 items-center justify-center rounded-full hover:bg-black/[0.04] transition-colors relative cursor-pointer"
+        className="hidden lg:flex w-9 h-9 items-center justify-center rounded-full hover:bg-mist transition-colors relative cursor-pointer"
         aria-label="Notifications"
       >
         <BellIcon hasUnread={totalUnread > 0} />
@@ -147,7 +147,7 @@ export default function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-12 w-80 bg-white rounded-2xl border border-border shadow-float z-50 overflow-hidden animate-fade-in">
+        <div className="absolute right-0 top-12 w-80 bg-card rounded-2xl border border-border shadow-float z-50 overflow-hidden animate-fade-in">
           {/* Tabs */}
           <div className="flex border-b border-border/60">
             <button

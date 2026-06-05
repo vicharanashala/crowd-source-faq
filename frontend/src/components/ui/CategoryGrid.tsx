@@ -149,7 +149,7 @@ export default function CategoryGrid({
         <button
           type="button"
           onClick={() => handleScroll(-1)}
-          className="shrink-0 w-8 h-8 rounded-full border border-border/80 bg-white/90 backdrop-blur-sm shadow-subtle flex items-center justify-center text-ink-faint hover:text-ink hover:border-ink/20 hover:bg-cream transition-all"
+          className="shrink-0 w-8 h-8 rounded-full border border-border/80 bg-card/90 backdrop-blur-sm shadow-subtle flex items-center justify-center text-ink-faint hover:text-ink hover:border-ink/20 hover:bg-cream transition-all"
           aria-label="Scroll categories left"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -179,7 +179,7 @@ export default function CategoryGrid({
                 className={`flex items-center gap-2 px-4 py-2 rounded-full border text-xs font-semibold whitespace-nowrap transition-all duration-200 flex-shrink-0
                   ${isActive
                     ? 'bg-accent text-white border-accent/50 shadow-[0_10px_26px_rgba(90,122,90,0.25)]'
-                    : 'bg-white/80 text-ink border-border/70 hover:bg-cream hover:-translate-y-0.5 hover:shadow-subtle'
+                    : 'bg-card/80 text-ink border-border/70 hover:bg-cream hover:-translate-y-0.5 hover:shadow-subtle'
                   }`}
               >
                 <span className={`${isActive ? 'text-white' : 'text-ink-faint'}`}>
@@ -194,7 +194,7 @@ export default function CategoryGrid({
         <button
           type="button"
           onClick={() => handleScroll(1)}
-          className="shrink-0 w-8 h-8 rounded-full border border-border/80 bg-white/90 backdrop-blur-sm shadow-subtle flex items-center justify-center text-ink-faint hover:text-ink hover:border-ink/20 hover:bg-cream transition-all"
+          className="shrink-0 w-8 h-8 rounded-full border border-border/80 bg-card/90 backdrop-blur-sm shadow-subtle flex items-center justify-center text-ink-faint hover:text-ink hover:border-ink/20 hover:bg-cream transition-all"
           aria-label="Scroll categories right"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

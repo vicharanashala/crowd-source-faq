@@ -388,9 +388,9 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
 
           {toast && (
             <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] px-5 py-3 rounded-xl text-sm font-medium shadow-float border animate-fade-in
-              ${toast.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
-                toast.type === 'warn' ? 'bg-amber-50 border-amber-200 text-amber-700' :
-                'bg-blue-50 border-blue-200 text-blue-700'}`}>
+              ${toast.type === 'success' ? 'bg-accent-light border-accent/30 text-accent' :
+                toast.type === 'warn' ? 'bg-warning-light border-warning/30 text-warning' :
+                'bg-accent-light border-accent/30 text-accent'}`}>
               {toast.msg}
             </div>
           )}

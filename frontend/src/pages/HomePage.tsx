@@ -12,94 +12,110 @@ import CTA from '../components/ui/CTA';
 import api from '../utils/api';
 import type { SearchResult, TrendingQuery } from '../types/ui';
 
-// Hand-drawn doodle decorations
+// Hand-drawn doodle decorations — green glow in dark mode, warm muted in light
+const doodleStyle = (extra?: React.CSSProperties): React.CSSProperties => ({
+  pointerEvents: 'none' as const,
+  opacity: 'var(--doodle-opacity)' as unknown as number,
+  filter: 'var(--doodle-glow)' as string,
+  ...extra,
+});
+
 function DoodleElements(): React.ReactNode {
   return (
     <>
-      {/* Curly bracket doodle */}
-      <div className="absolute -top-6 -left-16 hidden lg:block" style={{ pointerEvents: 'none' }}>
-        <svg width="50" height="100" viewBox="0 0 50 100" fill="none" style={{ opacity: 0.3 }}>
-          <path d="M40 8 C26 8, 22 18, 22 28 C22 38, 16 44, 6 46 C16 48, 22 54, 22 64 C22 74, 26 84, 40 84" stroke="#b8a080" strokeWidth="2.2" fill="none" strokeLinecap="round"/>
+      {/* Curly bracket — left of hero */}
+      <div className="absolute -top-6 -left-16 hidden lg:block" style={doodleStyle()}>
+        <svg width="60" height="120" viewBox="0 0 60 120" fill="none">
+          <path d="M48 10 C30 10, 26 22, 26 34 C26 46, 18 52, 6 55 C18 58, 26 64, 26 76 C26 88, 30 100, 48 100" stroke="var(--doodle-primary)" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
         </svg>
       </div>
 
       {/* "Let's solve it!" speech bubble */}
-      <div className="absolute -top-8 left-[40px] hidden lg:block" style={{ pointerEvents: 'none', transform: 'rotate(-6deg)' }}>
-        <svg width="105" height="80" viewBox="0 0 105 80" fill="none" style={{ opacity: 0.32 }}>
-          <ellipse cx="52" cy="28" rx="42" ry="22" stroke="#b8a080" strokeWidth="2" strokeDasharray="6 4" fill="none"/>
-          <path d="M68 46 L80 68 L62 44" stroke="#b8a080" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-          <text x="22" y="25" fontSize="11" fontFamily="'DM Serif Display', serif" fontStyle="italic" fill="#8a7560" opacity="0.85">Let&apos;s</text>
-          <text x="18" y="38" fontSize="11" fontFamily="'DM Serif Display', serif" fontStyle="italic" fill="#8a7560" opacity="0.85">solve it!</text>
+      <div className="absolute -top-10 left-[30px] hidden lg:block" style={doodleStyle({ transform: 'rotate(-6deg)' })}>
+        <svg width="120" height="90" viewBox="0 0 120 90" fill="none">
+          <ellipse cx="58" cy="32" rx="48" ry="26" stroke="var(--doodle-primary)" strokeWidth="2" strokeDasharray="6 4" fill="none"/>
+          <path d="M76 54 L90 78 L70 52" stroke="var(--doodle-primary)" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+          <text x="24" y="28" fontSize="12" fontFamily="'DM Serif Display', serif" fontStyle="italic" fill="var(--doodle-muted)">Let&apos;s</text>
+          <text x="20" y="43" fontSize="12" fontFamily="'DM Serif Display', serif" fontStyle="italic" fill="var(--doodle-muted)">solve it!</text>
         </svg>
       </div>
 
-      {/* Big sparkle */}
-      <div className="absolute top-2 right-[28%] hidden lg:block" style={{ pointerEvents: 'none' }}>
-        <svg width="28" height="28" viewBox="0 0 28 28" fill="none" style={{ opacity: 0.35 }}>
-          <path d="M14 2 L14 26 M2 14 L26 14 M5 5 L23 23 M23 5 L5 23" stroke="#c4943a" strokeWidth="1.8" strokeLinecap="round"/>
+      {/* Big sparkle — top right area */}
+      <div className="absolute top-[-10px] right-[24%] hidden lg:block" style={doodleStyle()}>
+        <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+          <path d="M18 2 L18 34 M2 18 L34 18 M6 6 L30 30 M30 6 L6 30" stroke="var(--doodle-accent)" strokeWidth="2" strokeLinecap="round"/>
         </svg>
       </div>
 
-      {/* Small star */}
-      <div className="absolute top-[20px] left-[16%] hidden lg:block" style={{ pointerEvents: 'none' }}>
-        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" style={{ opacity: 0.3 }}>
-          <path d="M9 0 L9 18 M0 9 L18 9" stroke="#5a7a5a" strokeWidth="1.8" strokeLinecap="round"/>
-          <path d="M3 3 L15 15 M15 3 L3 15" stroke="#5a7a5a" strokeWidth="1.2" strokeLinecap="round"/>
+      {/* Small star cluster — left side */}
+      <div className="absolute top-[15px] left-[14%] hidden lg:block" style={doodleStyle()}>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <path d="M12 0 L12 24 M0 12 L24 12" stroke="var(--doodle-green)" strokeWidth="2" strokeLinecap="round"/>
+          <path d="M4 4 L20 20 M20 4 L4 20" stroke="var(--doodle-green)" strokeWidth="1.5" strokeLinecap="round"/>
         </svg>
       </div>
 
-      {/* Curved arrow */}
-      <div className="absolute top-[120px] -left-10 hidden lg:block" style={{ pointerEvents: 'none' }}>
-        <svg width="70" height="70" viewBox="0 0 70 70" fill="none" style={{ opacity: 0.3 }}>
-          <path d="M12 8 C24 30, 36 44, 58 54" stroke="#b8a080" strokeWidth="2.2" fill="none" strokeLinecap="round"/>
-          <path d="M48 48 L58 54 L50 60" stroke="#b8a080" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+      {/* Another small sparkle — right of heading */}
+      <div className="absolute top-[5px] right-[8%] hidden lg:block" style={doodleStyle()}>
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <path d="M10 1 L10 19 M1 10 L19 10" stroke="var(--doodle-green)" strokeWidth="1.8" strokeLinecap="round"/>
+          <path d="M4 4 L16 16 M16 4 L4 16" stroke="var(--doodle-green)" strokeWidth="1.2" strokeLinecap="round"/>
         </svg>
       </div>
 
-      {/* Lightbulb doodle */}
-      <div className="absolute -top-4 -right-14 hidden lg:block" style={{ pointerEvents: 'none' }}>
-        <svg width="55" height="75" viewBox="0 0 55 75" fill="none" style={{ opacity: 0.3 }}>
-          <path d="M27 12 C16 12, 10 20, 10 28 C10 36, 16 40, 20 46 L34 46 C38 40, 44 36, 44 28 C44 20, 38 12, 27 12Z" stroke="#c4943a" strokeWidth="2" fill="none" strokeLinecap="round"/>
-          <line x1="20" y1="50" x2="34" y2="50" stroke="#c4943a" strokeWidth="2" strokeLinecap="round"/>
-          <line x1="22" y1="54" x2="32" y2="54" stroke="#c4943a" strokeWidth="2" strokeLinecap="round"/>
-          <line x1="27" y1="2" x2="27" y2="7" stroke="#c4943a" strokeWidth="1.8" strokeLinecap="round"/>
-          <line x1="8" y1="12" x2="12" y2="16" stroke="#c4943a" strokeWidth="1.8" strokeLinecap="round"/>
-          <line x1="46" y1="12" x2="42" y2="16" stroke="#c4943a" strokeWidth="1.8" strokeLinecap="round"/>
-          <line x1="2" y1="28" x2="7" y2="28" stroke="#c4943a" strokeWidth="1.8" strokeLinecap="round"/>
-          <line x1="47" y1="28" x2="52" y2="28" stroke="#c4943a" strokeWidth="1.8" strokeLinecap="round"/>
+      {/* Curved arrow — below bracket */}
+      <div className="absolute top-[130px] -left-10 hidden lg:block" style={doodleStyle()}>
+        <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
+          <path d="M14 10 C28 34, 42 50, 66 62" stroke="var(--doodle-primary)" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
+          <path d="M54 56 L66 62 L58 70" stroke="var(--doodle-primary)" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       </div>
 
-      {/* Question mark doodle */}
-      <div className="absolute top-[210px] -right-14 hidden lg:block" style={{ pointerEvents: 'none' }}>
-        <svg width="40" height="60" viewBox="0 0 40 60" fill="none" style={{ opacity: 0.35 }}>
-          <path d="M12 16 C12 6, 28 6, 28 16 C28 24, 20 26, 20 36" stroke="#b8a080" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
-          <circle cx="20" cy="44" r="2.5" fill="#b8a080"/>
+      {/* Lightbulb doodle — top right */}
+      <div className="absolute -top-4 -right-16 hidden lg:block" style={doodleStyle()}>
+        <svg width="65" height="85" viewBox="0 0 65 85" fill="none">
+          <path d="M32 14 C18 14, 12 24, 12 33 C12 42, 18 47, 23 54 L41 54 C46 47, 52 42, 52 33 C52 24, 46 14, 32 14Z" stroke="var(--doodle-accent)" strokeWidth="2.2" fill="none" strokeLinecap="round"/>
+          <line x1="23" y1="59" x2="41" y2="59" stroke="var(--doodle-accent)" strokeWidth="2.2" strokeLinecap="round"/>
+          <line x1="26" y1="64" x2="38" y2="64" stroke="var(--doodle-accent)" strokeWidth="2.2" strokeLinecap="round"/>
+          {/* Rays */}
+          <line x1="32" y1="2" x2="32" y2="8" stroke="var(--doodle-accent)" strokeWidth="2" strokeLinecap="round"/>
+          <line x1="9" y1="14" x2="14" y2="19" stroke="var(--doodle-accent)" strokeWidth="2" strokeLinecap="round"/>
+          <line x1="55" y1="14" x2="50" y2="19" stroke="var(--doodle-accent)" strokeWidth="2" strokeLinecap="round"/>
+          <line x1="2" y1="33" x2="8" y2="33" stroke="var(--doodle-accent)" strokeWidth="2" strokeLinecap="round"/>
+          <line x1="56" y1="33" x2="62" y2="33" stroke="var(--doodle-accent)" strokeWidth="2" strokeLinecap="round"/>
         </svg>
       </div>
 
-      {/* Pencil doodle */}
-      <div className="absolute top-[200px] left-[-20px] hidden lg:block" style={{ pointerEvents: 'none' }}>
-        <svg width="50" height="50" viewBox="0 0 50 50" fill="none" style={{ opacity: 0.28 }}>
-          <path d="M38 5 L12 32 L10 42 L20 40 L46 13 Z" stroke="#8a7560" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-          <line x1="30" y1="12" x2="38" y2="20" stroke="#8a7560" strokeWidth="1.5" strokeLinecap="round"/>
+      {/* Question mark — far right */}
+      <div className="absolute top-[220px] -right-16 hidden lg:block" style={doodleStyle()}>
+        <svg width="44" height="68" viewBox="0 0 44 68" fill="none">
+          <path d="M12 18 C12 6, 32 6, 32 18 C32 28, 22 30, 22 42" stroke="var(--doodle-primary)" strokeWidth="2.8" fill="none" strokeLinecap="round"/>
+          <circle cx="22" cy="52" r="3" fill="var(--doodle-primary)"/>
         </svg>
       </div>
 
-      {/* Code brackets */}
-      <div className="absolute top-[330px] right-[-12px] hidden lg:block" style={{ pointerEvents: 'none' }}>
-        <svg width="45" height="55" viewBox="0 0 45 55" fill="none" style={{ opacity: 0.28 }}>
-          <path d="M16 5 L6 27 L16 49" stroke="#8a7560" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-          <path d="M29 5 L39 27 L29 49" stroke="#8a7560" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-          <line x1="14" y1="20" x2="31" y2="20" stroke="#8a7560" strokeWidth="1.5" strokeLinecap="round"/>
-          <line x1="14" y1="34" x2="31" y2="34" stroke="#8a7560" strokeWidth="1.5" strokeLinecap="round"/>
+      {/* Pencil — left side lower */}
+      <div className="absolute top-[210px] left-[-24px] hidden lg:block" style={doodleStyle()}>
+        <svg width="55" height="55" viewBox="0 0 55 55" fill="none">
+          <path d="M42 5 L14 36 L12 48 L24 44 L52 15 Z" stroke="var(--doodle-muted)" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+          <line x1="34" y1="13" x2="42" y2="21" stroke="var(--doodle-muted)" strokeWidth="1.8" strokeLinecap="round"/>
         </svg>
       </div>
 
-      {/* Wavy squiggle */}
-      <div className="absolute top-[170px] right-[12%] hidden lg:block" style={{ pointerEvents: 'none' }}>
-        <svg width="90" height="16" viewBox="0 0 90 16" fill="none" style={{ opacity: 0.3 }}>
-          <path d="M2 8 Q12 2, 22 8 Q32 14, 42 8 Q52 2, 62 8 Q72 14, 82 8" stroke="#5a7a5a" strokeWidth="2" fill="none" strokeLinecap="round"/>
+      {/* Code brackets — right side lower */}
+      <div className="absolute top-[340px] right-[-16px] hidden lg:block" style={doodleStyle()}>
+        <svg width="50" height="60" viewBox="0 0 50 60" fill="none">
+          <path d="M18 5 L6 30 L18 55" stroke="var(--doodle-muted)" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M32 5 L44 30 L32 55" stroke="var(--doodle-muted)" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+          <line x1="15" y1="22" x2="35" y2="22" stroke="var(--doodle-muted)" strokeWidth="1.8" strokeLinecap="round"/>
+          <line x1="15" y1="38" x2="35" y2="38" stroke="var(--doodle-muted)" strokeWidth="1.8" strokeLinecap="round"/>
+        </svg>
+      </div>
+
+      {/* Wavy squiggle — mid-right */}
+      <div className="absolute top-[175px] right-[10%] hidden lg:block" style={doodleStyle()}>
+        <svg width="100" height="18" viewBox="0 0 100 18" fill="none">
+          <path d="M2 9 Q14 2, 26 9 Q38 16, 50 9 Q62 2, 74 9 Q86 16, 98 9" stroke="var(--doodle-green)" strokeWidth="2.2" fill="none" strokeLinecap="round"/>
         </svg>
       </div>
     </>
@@ -235,7 +251,7 @@ function ResultItem({ result, expanded, onToggle, onShowHistory, navigate }: Res
 
   return (
     <div className={`rounded-2xl border transition-all duration-300 overflow-hidden ${
-      expanded ? 'border-accent/30 bg-cream' : 'border-border/70 bg-white/80 hover:bg-cream'
+      expanded ? 'border-accent/30 bg-cream' : 'border-border/70 bg-card/80 hover:bg-cream'
     }`}
       onClick={() => {
         if (isCommunity && result._id) {
@@ -307,8 +323,8 @@ function ResultItem({ result, expanded, onToggle, onShowHistory, navigate }: Res
                     title="Not helpful"
                     className={`inline-flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-full border transition-all duration-200 ${
                       voted === 'unhelpful'
-                        ? 'border-red-200 bg-red-50 text-red-600'
-                        : 'border-border text-ink-faint hover:border-red-200 hover:text-red-500'
+                        ? 'border-danger/30 bg-danger-light text-danger'
+                        : 'border-border text-ink-faint hover:border-danger/30 hover:text-danger'
                     } disabled:cursor-default`}
                   >
                     <ThumbsDownIcon />
@@ -333,7 +349,7 @@ function ResultItem({ result, expanded, onToggle, onShowHistory, navigate }: Res
                     onChange={(e) => setSuggestion(e.target.value)}
                     placeholder="What would be a better or more accurate answer to this question?"
                     rows={3}
-                    className="w-full text-xs p-3 rounded-xl border border-border bg-white focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent resize-y"
+                    className="w-full text-xs p-3 rounded-xl border border-border bg-card focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent resize-y"
                     required
                   />
                   {suggestError && <p className="text-[11px] text-danger">{suggestError}</p>}
@@ -342,7 +358,7 @@ function ResultItem({ result, expanded, onToggle, onShowHistory, navigate }: Res
                     <button
                       type="button"
                       onClick={() => setShowSuggest(false)}
-                      className="px-3 py-1.5 rounded-full border border-border bg-white text-[11px] font-semibold text-ink-soft hover:bg-cream transition-colors"
+                      className="px-3 py-1.5 rounded-full border border-border bg-card text-[11px] font-semibold text-ink-soft hover:bg-cream transition-colors"
                     >
                       Cancel
                     </button>
@@ -675,15 +691,12 @@ export default function HomePage() {
           <DoodleElements />
 
           <h1 className="font-serif text-[1.75rem] sm:text-4xl md:text-5xl lg:text-[3.2rem] leading-[1.15] tracking-tight text-ink mb-3">
-            Every intern doubt,{' '}
-            <span className="doodle-underline font-serif" style={{ fontWeight: 700 }}>solved.</span>
-            <svg className="inline-block ml-2 align-middle" width="24" height="18" viewBox="0 0 24 18" style={{ opacity: 0.18 }}>
-              <path d="M2 12 Q6 4 12 9 Q18 14 22 6" stroke="#1f1f1f" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
-            </svg>
+            Ask. Discover. Get{' '}
+            <span className="doodle-underline font-serif text-accent" style={{ fontWeight: 700 }}>Solved.</span>
           </h1>
 
           <p className="text-sm sm:text-base text-ink-soft mb-6 sm:mb-8 max-w-lg leading-relaxed mx-auto px-2">
-            Search a doubt, or read questions pulled straight from your team's Zoom sessions.
+            Search your doubt or explore solved questions from the community.
           </p>
         </section>
 
@@ -765,7 +778,7 @@ export default function HomePage() {
                           [1, 2, 3].map((i) => (
                             <div
                               key={i}
-                              className="h-[86px] rounded-2xl border border-border/60 bg-white/70 animate-pulse"
+                              className="h-[86px] rounded-2xl border border-border/60 bg-card/70 animate-pulse"
                             />
                           ))
                         )}
@@ -792,7 +805,7 @@ export default function HomePage() {
                         )}
 
                         {!loading && !searchError && matchingResults.length === 0 && isReadyForResults && (
-                          <div className="rounded-2xl border border-dashed border-border bg-white/70 p-4">
+                          <div className="rounded-2xl border border-dashed border-border bg-card/70 p-4">
                             <p className="text-xs text-ink-soft">
                               No matches found. Try a different phrase or ask the community.
                             </p>
@@ -800,14 +813,14 @@ export default function HomePage() {
                         )}
                       </div>
 
-                      <div className="mt-3 rounded-2xl border border-border/70 bg-white/80 p-3 flex items-center justify-between gap-3">
+                      <div className="mt-3 rounded-2xl border border-border/70 bg-card/80 p-3 flex items-center justify-between gap-3">
                         <div>
                           <p className="text-xs font-semibold text-ink">Need a human answer?</p>
                           <p className="text-[11px] text-ink-soft">Ask the community and get help faster.</p>
                         </div>
                         <button
                           onClick={() => navigate(`/community?ask=true&title=${encodeURIComponent(query.trim())}`)}
-                          className="shrink-0 px-3 py-2 rounded-full bg-ink text-white text-[11px] font-semibold hover:bg-ink/85 transition-colors"
+                          className="shrink-0 px-3 py-2 rounded-full bg-ink text-bg text-[11px] font-semibold hover:bg-ink/85 transition-colors"
                         >
                           Ask community
                         </button>
@@ -824,7 +837,7 @@ export default function HomePage() {
                             <button
                               key={cat.name}
                               onClick={() => handleQuickSearch(cat.name)}
-                              className="w-full flex items-center gap-2 px-3 py-2 rounded-2xl border border-border/60 bg-white/70 text-left hover:bg-cream transition-colors"
+                              className="w-full flex items-center gap-2 px-3 py-2 rounded-2xl border border-border/60 bg-card/70 text-left hover:bg-cream transition-colors"
                             >
                               <span className="text-ink-faint">{cat.icon}</span>
                               <span className="text-sm text-ink">{cat.name}</span>
@@ -840,7 +853,7 @@ export default function HomePage() {
                         <div className="mt-2 flex flex-wrap gap-2">
                           {trendingLoading && (
                             [1, 2, 3].map((i) => (
-                              <div key={i} className="h-8 w-24 rounded-full border border-border/60 bg-white/70 animate-pulse" />
+                              <div key={i} className="h-8 w-24 rounded-full border border-border/60 bg-card/70 animate-pulse" />
                             ))
                           )}
 
@@ -848,7 +861,7 @@ export default function HomePage() {
                             <button
                               key={item.query}
                               onClick={() => handleQuickSearch(item.query)}
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border/60 bg-white/70 hover:bg-cream transition-colors group"
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border/60 bg-card/70 hover:bg-cream transition-colors group"
                             >
                               <span className="text-ink-faint group-hover:text-leaf transition-colors">
                                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none">

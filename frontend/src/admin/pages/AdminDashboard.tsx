@@ -52,13 +52,13 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-6 max-w-5xl">
       <div>
-        <h2 className="text-lg font-semibold text-gray-900">Dashboard</h2>
-        <p className="text-sm text-gray-500 mt-0.5">Platform overview</p>
+        <h2 className="text-lg font-semibold text-admin-text">Dashboard</h2>
+        <p className="text-sm text-admin-muted mt-0.5">Platform overview</p>
       </div>
 
       {/* FAQ stats */}
       <div>
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">FAQs</p>
+        <p className="text-xs font-semibold text-admin-muted uppercase tracking-wide mb-2">FAQs</p>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {loading ? Array.from({ length: 4 }).map((_, i) => <StatsCardSkeleton key={i} />) : stats ? (
             <>
@@ -73,7 +73,7 @@ export default function AdminDashboard() {
 
       {/* Users + Searches */}
       <div>
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Users &amp; Search</p>
+        <p className="text-xs font-semibold text-admin-muted uppercase tracking-wide mb-2">Users &amp; Search</p>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {loading ? Array.from({ length: 4 }).map((_, i) => <StatsCardSkeleton key={i} />) : stats ? (
             <>
@@ -88,7 +88,7 @@ export default function AdminDashboard() {
 
       {/* Community */}
       <div>
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Community</p>
+        <p className="text-xs font-semibold text-admin-muted uppercase tracking-wide mb-2">Community</p>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {loading ? Array.from({ length: 2 }).map((_, i) => <StatsCardSkeleton key={i} />) : (
             <>
@@ -101,19 +101,19 @@ export default function AdminDashboard() {
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-100">
-            <p className="text-xs font-semibold text-gray-700">FAQ Growth</p>
-            <p className="text-[10px] text-gray-400">Last 14 days</p>
+        <div className="bg-admin-card border border-white/5 rounded-lg overflow-hidden">
+          <div className="px-4 py-3 border-b border-white/5">
+            <p className="text-xs font-semibold text-admin-text">FAQ Growth</p>
+            <p className="text-[10px] text-admin-muted">Last 14 days</p>
           </div>
           <div className="p-4">
             {loading ? <ChartSkeleton height={160} /> : <FAQGrowthChart data={growth} />}
           </div>
         </div>
-        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-100">
-            <p className="text-xs font-semibold text-gray-700">User Activity</p>
-            <p className="text-[10px] text-gray-400">Last 14 days</p>
+        <div className="bg-admin-card border border-white/5 rounded-lg overflow-hidden">
+          <div className="px-4 py-3 border-b border-white/5">
+            <p className="text-xs font-semibold text-admin-text">User Activity</p>
+            <p className="text-[10px] text-admin-muted">Last 14 days</p>
           </div>
           <div className="p-4">
             {loading ? <ChartSkeleton height={160} /> : <UserActivityChart data={activity} />}
@@ -123,18 +123,18 @@ export default function AdminDashboard() {
 
       {/* Top search terms */}
       {!loading && searchInsights?.topQueries && searchInsights.topQueries.length > 0 && (
-        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-100">
-            <p className="text-xs font-semibold text-gray-700">Top Search Terms</p>
+        <div className="bg-admin-card border border-white/5 rounded-lg overflow-hidden">
+          <div className="px-4 py-3 border-b border-white/5">
+            <p className="text-xs font-semibold text-admin-text">Top Search Terms</p>
           </div>
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-white/5">
             {searchInsights.topQueries.slice(0, 8).map((q, i) => (
               <div key={i} className="flex items-center justify-between px-4 py-2.5">
                 <div className="flex items-center gap-3">
-                  <span className="text-[10px] text-gray-400 w-4 text-right">{i + 1}</span>
-                  <span className="text-sm text-gray-800">{q.term}</span>
+                  <span className="text-[10px] text-admin-muted w-4 text-right">{i + 1}</span>
+                  <span className="text-sm text-admin-text">{q.term}</span>
                 </div>
-                <span className="text-xs text-gray-500 tabular-nums">{q.count}</span>
+                <span className="text-xs text-admin-muted tabular-nums">{q.count}</span>
               </div>
             ))}
           </div>
@@ -143,23 +143,23 @@ export default function AdminDashboard() {
 
       {/* Platform info */}
       {!loading && stats && (
-        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-100">
-            <p className="text-xs font-semibold text-gray-700">Platform</p>
+        <div className="bg-admin-card border border-white/5 rounded-lg overflow-hidden">
+          <div className="px-4 py-3 border-b border-white/5">
+            <p className="text-xs font-semibold text-admin-text">Platform</p>
           </div>
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-white/5">
             <div className="flex items-center justify-between px-4 py-2.5">
-              <span className="text-sm text-gray-600">Top Category</span>
-              <span className="text-sm font-medium text-gray-900">{stats.topCategory}</span>
+              <span className="text-sm text-admin-muted">Top Category</span>
+              <span className="text-sm font-medium text-admin-text">{stats.topCategory}</span>
             </div>
             <div className="flex items-center justify-between px-4 py-2.5">
-              <span className="text-sm text-gray-600">Resolution Rate</span>
-              <span className="text-sm font-medium text-gray-900">
+              <span className="text-sm text-admin-muted">Resolution Rate</span>
+              <span className="text-sm font-medium text-admin-text">
                 {stats.totalFaqs > 0 ? Math.round((stats.approvedFaqs / stats.totalFaqs) * 100) : 0}%
               </span>
             </div>
             <div className="flex items-center justify-between px-4 py-2.5">
-              <span className="text-sm text-gray-600">FAQ Trend</span>
+              <span className="text-sm text-admin-muted">FAQ Trend</span>
               <span className={`text-sm font-medium ${((stats.trends?.faqs ?? 0) >= 0) ? 'text-emerald-600' : 'text-red-500'}`}>
                 {(stats.trends?.faqs ?? 0) >= 0 ? '+' : ''}{stats.trends?.faqs ?? 0}% vs last week
               </span>
@@ -173,10 +173,10 @@ export default function AdminDashboard() {
 
 function StatCard({ label, value, sub, alert }: { label: string; value: number; sub: string; alert?: boolean }) {
   return (
-    <div className={`bg-white border rounded-lg p-4 ${alert ? 'border-amber-300 bg-amber-50' : 'border-gray-200'}`}>
-      <p className={`text-2xl font-bold tabular-nums ${alert ? 'text-amber-700' : 'text-gray-900'}`}>{value}</p>
-      <p className="text-sm font-medium text-gray-700 mt-0.5">{label}</p>
-      <p className="text-xs text-gray-400 mt-0.5">{sub}</p>
+    <div className={`bg-admin-card border rounded-lg p-4 ${alert ? 'border-amber-300 bg-amber-50' : 'border-white/5'}`}>
+      <p className={`text-2xl font-bold tabular-nums ${alert ? 'text-amber-700' : 'text-admin-text'}`}>{value}</p>
+      <p className="text-sm font-medium text-admin-text mt-0.5">{label}</p>
+      <p className="text-xs text-admin-muted mt-0.5">{sub}</p>
     </div>
   );
 }

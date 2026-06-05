@@ -16,7 +16,7 @@ export function CategoryCard({ name, items, onOpen }: CategoryCardProps) {
   return (
     <button
       onClick={() => onOpen(name)}
-      className="group relative text-left rounded-2xl border border-border/70 bg-white/80 p-5 shadow-subtle transition-all duration-300 hover:-translate-y-1 hover:shadow-card-hover overflow-hidden"
+      className="group relative text-left rounded-2xl border border-border/70 bg-card/80 p-5 shadow-subtle transition-all duration-300 hover:-translate-y-1 hover:shadow-card-hover overflow-hidden"
     >
       <div className={`absolute -top-6 -right-8 w-24 h-24 rounded-full blur-2xl ${tone.halo}`} />
       <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-accent/40 to-transparent" />

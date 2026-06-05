@@ -72,7 +72,7 @@ export default function SearchFeedback({ searchQuery, resultFaqId }: SearchFeedb
             </button>
             <button
               onClick={handleNo}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-border bg-white text-xs font-semibold text-ink hover:bg-mist transition-colors"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-border bg-card text-xs font-semibold text-ink hover:bg-mist transition-colors"
             >
               No, I need more help
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

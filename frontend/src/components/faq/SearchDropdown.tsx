@@ -51,11 +51,11 @@ export default function SearchDropdown({
             <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
               {loading && (
                 [1, 2, 3].map((i) => (
-                  <div key={i} className="h-[72px] rounded-2xl border border-border/60 bg-white/70 animate-pulse" />
+                  <div key={i} className="h-[72px] rounded-2xl border border-border/60 bg-card/70 animate-pulse" />
                 ))
               )}
               {!loading && items.length === 0 && (
-                <div className="rounded-2xl border border-dashed border-border bg-white/70 p-4 text-xs text-ink-soft">
+                <div className="rounded-2xl border border-dashed border-border bg-card/70 p-4 text-xs text-ink-soft">
                   No matches yet. Keep typing or browse a category.
                 </div>
               )}
@@ -63,7 +63,7 @@ export default function SearchDropdown({
                 <button
                   key={item._id || item.title || item.question || idx}
                   onClick={() => onSelectQuestion(item)}
-                  className="w-full text-left rounded-2xl border border-border/60 bg-white/70 px-3 py-2 hover:bg-cream transition-colors"
+                  className="w-full text-left rounded-2xl border border-border/60 bg-card/70 px-3 py-2 hover:bg-cream transition-colors"
                 >
                   <p className="text-sm font-semibold text-ink line-clamp-1">
                     {getQuestionTitle(item)}
@@ -85,7 +85,7 @@ export default function SearchDropdown({
                 <button
                   key={name}
                   onClick={() => onSelectCategory(name)}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-2xl border border-border/60 bg-white/70 text-left hover:bg-cream transition-colors"
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-2xl border border-border/60 bg-card/70 text-left hover:bg-cream transition-colors"
                 >
                   <span className="text-ink-faint">{getCategoryIcon(name)}</span>
                   <span className="text-sm text-ink">{formatCategoryName(name)}</span>

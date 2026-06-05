@@ -121,7 +121,7 @@ export default function QuestionList({
           <select
             value={sortOption}
             onChange={(e) => onSortChange(e.target.value)}
-            className="rounded-full border border-border bg-white px-3 py-1 text-xs text-ink focus:outline-none"
+            className="rounded-full border border-border bg-card px-3 py-1 text-xs text-ink focus:outline-none"
           >
             <option value="relevant">Most relevant</option>
             <option value="recent">Most recent</option>

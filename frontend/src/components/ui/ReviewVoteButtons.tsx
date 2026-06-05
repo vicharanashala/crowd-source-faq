@@ -86,8 +86,8 @@ export default function ReviewVoteButtons({
           disabled={loading}
           className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border text-xs font-medium transition-all
             ${myVote === 'still_accurate'
-              ? 'border-green-400 bg-green-50 text-green-700'
-              : 'border-border text-ink-soft hover:border-green-300 hover:text-green-600'
+              ? 'border-accent bg-accent-light text-accent'
+              : 'border-border text-ink-soft hover:border-accent/40 hover:text-accent'
             }`}
         >
           <span>👍</span>
@@ -100,8 +100,8 @@ export default function ReviewVoteButtons({
           disabled={loading}
           className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border text-xs font-medium transition-all
             ${myVote === 'needs_update'
-              ? 'border-red-400 bg-red-50 text-red-700'
-              : 'border-border text-ink-soft hover:border-red-300 hover:text-red-600'
+              ? 'border-danger/50 bg-danger-light text-danger'
+              : 'border-border text-ink-soft hover:border-red-300 hover:text-danger'
             }`}
         >
           <span>🔄</span>
@@ -129,7 +129,7 @@ export default function ReviewVoteButtons({
             <button
               onClick={handleSubmitNeedsUpdate}
               disabled={loading}
-              className="flex-1 py-1.5 text-xs rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50"
+              className="flex-1 py-1.5 text-xs rounded-lg bg-danger text-white hover:bg-danger transition-colors disabled:opacity-50"
             >
               Submit
             </button>

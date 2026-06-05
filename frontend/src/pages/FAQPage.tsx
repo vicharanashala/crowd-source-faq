@@ -54,7 +54,7 @@ function CategoryPills({ categories, activeCategory, onSelect }: CategoryPillsPr
         <button
           type="button"
           onClick={() => handleScroll(-1)}
-          className="shrink-0 w-8 h-8 rounded-full border border-border/80 bg-white/90 shadow-subtle flex items-center justify-center text-ink-faint hover:text-ink hover:border-ink/20 hover:bg-cream transition-all"
+          className="shrink-0 w-8 h-8 rounded-full border border-border/80 bg-card/90 shadow-subtle flex items-center justify-center text-ink-faint hover:text-ink hover:border-ink/20 hover:bg-cream transition-all"
           aria-label="Scroll categories left"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -70,8 +70,8 @@ function CategoryPills({ categories, activeCategory, onSelect }: CategoryPillsPr
             onClick={() => onSelect('')}
             className={`flex items-center gap-2 px-4 py-2 rounded-full border text-xs font-semibold whitespace-nowrap transition-all duration-200 flex-shrink-0
               ${allActive
-                ? 'bg-ink text-white border-ink'
-                : 'bg-white/80 text-ink border-border/70 hover:bg-cream hover:-translate-y-0.5 hover:shadow-subtle'
+                ? 'bg-ink text-bg border-ink'
+                : 'bg-card/80 text-ink border-border/70 hover:bg-cream hover:-translate-y-0.5 hover:shadow-subtle'
               }`}
           >
             <span className={allActive ? 'text-white' : 'text-ink-faint'}>
@@ -90,7 +90,7 @@ function CategoryPills({ categories, activeCategory, onSelect }: CategoryPillsPr
                 className={`flex items-center gap-2 px-4 py-2 rounded-full border text-xs font-semibold whitespace-nowrap transition-all duration-200 flex-shrink-0
                   ${isActive
                     ? 'bg-accent text-white border-accent/60 shadow-[0_10px_26px_rgba(90,122,90,0.25)]'
-                    : 'bg-white/80 text-ink border-border/70 hover:bg-cream hover:-translate-y-0.5 hover:shadow-subtle'
+                    : 'bg-card/80 text-ink border-border/70 hover:bg-cream hover:-translate-y-0.5 hover:shadow-subtle'
                   }`}
               >
                 <span className={isActive ? 'text-white' : tone.accent}>
@@ -105,7 +105,7 @@ function CategoryPills({ categories, activeCategory, onSelect }: CategoryPillsPr
         <button
           type="button"
           onClick={() => handleScroll(1)}
-          className="shrink-0 w-8 h-8 rounded-full border border-border/80 bg-white/90 shadow-subtle flex items-center justify-center text-ink-faint hover:text-ink hover:border-ink/20 hover:bg-cream transition-all"
+          className="shrink-0 w-8 h-8 rounded-full border border-border/80 bg-card/90 shadow-subtle flex items-center justify-center text-ink-faint hover:text-ink hover:border-ink/20 hover:bg-cream transition-all"
           aria-label="Scroll categories right"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -429,7 +429,7 @@ export default function FAQPage() {
                       <button
                         key={word.query + i}
                         onClick={() => handleWordClick(word.query)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/80 border border-border/70 text-xs font-medium text-ink hover:bg-accent hover:text-white hover:border-accent transition-all duration-200 hover:-translate-y-0.5 hover:shadow-subtle"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-card/80 border border-border/70 text-xs font-medium text-ink hover:bg-accent hover:text-white hover:border-accent transition-all duration-200 hover:-translate-y-0.5 hover:shadow-subtle"
                       >
                         <span className="text-ink-faint font-semibold text-[10px]">#{i + 1}</span>
                         {word.query}
@@ -446,7 +446,7 @@ export default function FAQPage() {
         {loading && (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="h-[220px] rounded-2xl border border-border bg-white/70 animate-pulse" />
+              <div key={i} className="h-[220px] rounded-2xl border border-border bg-card/70 animate-pulse" />
             ))}
           </div>
         )}

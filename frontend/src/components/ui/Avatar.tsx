@@ -19,9 +19,9 @@ const palette = [
   'bg-accent-light text-accent',
   'bg-success-light text-success',
   'bg-warning-light text-warning',
-  'bg-purple-100 text-purple-700',
-  'bg-pink-100 text-pink-700',
-  'bg-teal-100 text-teal-700',
+  'bg-[rgba(139,92,246,0.1)] text-[#8b5cf6]',
+  'bg-[rgba(236,72,153,0.1)] text-[#be185d]',
+  'bg-[rgba(20,184,166,0.1)] text-[#0f766e]',
 ];
 
 export default function Avatar({ name, src, size = 'sm', className = '' }: AvatarProps) {

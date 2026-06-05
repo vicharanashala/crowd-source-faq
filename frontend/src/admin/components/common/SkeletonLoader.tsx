@@ -8,7 +8,7 @@ function Skeleton({ className = '', style = {} }: SkeletonProps) {
 
 export function StatsCardSkeleton() {
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-5">
+    <div className="bg-admin-card border border-white/5 rounded-lg p-5">
       <Skeleton className="w-16 h-7 mb-2" />
       <Skeleton className="w-24 h-3" />
     </div>

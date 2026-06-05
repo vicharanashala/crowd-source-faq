@@ -26,7 +26,7 @@ export default function FreshnessBadge({
 
   if (reviewStatus === 'pending_review') {
     return (
-      <span className={`inline-flex items-center gap-1 text-xs font-medium text-yellow-700 bg-yellow-50 px-1.5 py-0.5 rounded ${compact ? 'text-[10px]' : ''}`}>
+      <span className={`inline-flex items-center gap-1 text-xs font-medium text-warning bg-warning-light px-1.5 py-0.5 rounded ${compact ? 'text-[10px]' : ''}`}>
         ⏳ Under review
       </span>
     );
@@ -42,7 +42,7 @@ export default function FreshnessBadge({
 
   if (isEvergreen) {
     return (
-      <span className={`inline-flex items-center gap-1 text-xs text-green-600 ${compact ? '' : 'font-medium'}`}>
+      <span className={`inline-flex items-center gap-1 text-xs text-accent ${compact ? '' : 'font-medium'}`}>
         ✓ Verified
       </span>
     );
@@ -52,14 +52,14 @@ export default function FreshnessBadge({
 
   if (nearingExpiry) {
     return (
-      <span className="inline-flex items-center gap-1 text-xs text-amber-600 font-medium">
+      <span className="inline-flex items-center gap-1 text-xs text-warning font-medium">
         ✓ Verified {days}d ago
       </span>
     );
   }
 
   return (
-    <span className="inline-flex items-center gap-1 text-xs text-green-600">
+    <span className="inline-flex items-center gap-1 text-xs text-accent">
       ✓ Verified {days}d ago
     </span>
   );

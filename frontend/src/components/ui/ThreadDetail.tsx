@@ -99,12 +99,12 @@ const DEPTH_BARS  = [
 ];
 
 const LIFECYCLE_CONFIG: Record<string, { label: string; cls: string }> = {
-  open:               { label: 'Open',              cls: 'bg-gray-100 text-gray-600 border-gray-200' },
-  answered:           { label: 'Solved',            cls: 'bg-blue-50 text-blue-700 border-blue-200' },
-  community_accepted: { label: 'Community ✓',       cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-  ai_validated:       { label: 'AI Validated',      cls: 'bg-purple-50 text-purple-700 border-purple-200' },
-  admin_accepted:     { label: 'Admin Approved',    cls: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
-  converted_to_faq:   { label: 'Official FAQ',      cls: 'bg-stone-100 text-stone-700 border-stone-300' },
+  open:               { label: 'Open',              cls: 'bg-mist text-ink-soft border-border' },
+  answered:           { label: 'Solved',            cls: 'bg-accent-light text-accent border-accent/30' },
+  community_accepted: { label: 'Community ✓',       cls: 'bg-accent-light text-accent border-accent/30' },
+  ai_validated:       { label: 'AI Validated',      cls: 'bg-[rgba(139,92,246,0.1)] text-[#8b5cf6] border-[rgba(139,92,246,0.3)]' },
+  admin_accepted:     { label: 'Admin Approved',    cls: 'bg-accent-light text-accent border-accent/30' },
+  converted_to_faq:   { label: 'Official FAQ',      cls: 'bg-mist text-ink-soft border-border' },
 };
 
 // Count total descendants recursively
@@ -259,19 +259,19 @@ function CommentNode({
       <div className="flex flex-col items-center gap-0 mr-2 flex-shrink-0">
         <button
           onClick={doUpvote}
-          className={`w-6 h-6 rounded flex items-center justify-center transition-all ${hasUpvoted ? 'text-orange-500' : 'text-ink-faint hover:text-orange-400'}`}
+          className={`w-6 h-6 rounded flex items-center justify-center transition-all ${hasUpvoted ? 'text-warning' : 'text-ink-faint hover:text-orange-400'}`}
           title="Upvote"
         >
           <svg width="10" height="10" viewBox="0 0 10 10" fill={hasUpvoted ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5">
             <path d="M5 1L9 7H1L5 1Z" strokeLinejoin="round"/>
           </svg>
         </button>
-        <span className={`text-[10px] font-bold leading-none py-0.5 ${netScore > 0 ? 'text-orange-500' : netScore < 0 ? 'text-blue-400' : 'text-ink-faint'}`}>
+        <span className={`text-[10px] font-bold leading-none py-0.5 ${netScore > 0 ? 'text-warning' : netScore < 0 ? 'text-accent' : 'text-ink-faint'}`}>
           {netScore > 0 ? '+' : ''}{netScore || '0'}
         </span>
         <button
           onClick={doDownvote}
-          className={`w-6 h-6 rounded flex items-center justify-center transition-all ${hasDownvoted ? 'text-blue-500' : 'text-ink-faint hover:text-blue-400'}`}
+          className={`w-6 h-6 rounded flex items-center justify-center transition-all ${hasDownvoted ? 'text-accent' : 'text-ink-faint hover:text-accent'}`}
           title="Downvote"
         >
           <svg width="10" height="10" viewBox="0 0 10 10" fill={hasDownvoted ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5">
@@ -315,7 +315,7 @@ function CommentNode({
                   {isExpert && <Badge variant="accent">👑</Badge>}
                   {isVerified && <span className="text-[10px] text-emerald-500">✓</span>}
                   {isFirstResponder && (
-                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-yellow-100 border border-yellow-300 text-yellow-700 text-[10px] font-bold">
+                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-warning-light border border-warning/30 text-warning text-[10px] font-bold">
                       🏅 First Responder
                     </span>
                   )}
@@ -326,7 +326,7 @@ function CommentNode({
                       ↳ depth {depth}
                     </span>
                   )}
-                  <span className={`ml-auto text-[10px] font-bold ${netScore > 0 ? 'text-orange-500' : netScore < 0 ? 'text-blue-400' : 'text-ink-faint'}`}>
+                  <span className={`ml-auto text-[10px] font-bold ${netScore > 0 ? 'text-warning' : netScore < 0 ? 'text-accent' : 'text-ink-faint'}`}>
                     {netScore > 0 ? '+' : ''}{netScore} pts
                   </span>
                 </div>
@@ -338,13 +338,13 @@ function CommentNode({
                 <div className="flex items-center gap-1 mt-2">
                   <button
                     onClick={() => !hasUpvoted && doUpvote()}
-                    className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium transition-all ${hasUpvoted ? 'text-orange-500 bg-orange-500/10' : 'text-ink-faint hover:text-orange-500 hover:bg-orange-500/10'}`}
+                    className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium transition-all ${hasUpvoted ? 'text-warning bg-orange-500/10' : 'text-ink-faint hover:text-warning hover:bg-orange-500/10'}`}
                   >
                     {hasUpvoted ? '↑ Upvoted' : '↑ Upvote'}
                   </button>
                   <button
                     onClick={() => !hasDownvoted && doDownvote()}
-                    className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium transition-all ${hasDownvoted ? 'text-blue-500 bg-blue-500/10' : 'text-ink-faint hover:text-blue-500 hover:bg-blue-500/10'}`}
+                    className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium transition-all ${hasDownvoted ? 'text-accent bg-accent-light/10' : 'text-ink-faint hover:text-accent hover:bg-accent-light/10'}`}
                   >
                     {hasDownvoted ? '↓ Downvoted' : '↓ Downvote'}
                   </button>
@@ -648,7 +648,7 @@ export default function ThreadDetail({ postId, onClose }: ThreadDetailProps) {
                   <span className="text-xs text-ink-faint">·</span>
                   <span className="text-xs text-ink-faint">{formatDate(post.createdAt)}</span>
                   {isPrivileged && post.timeTrialStatus === 'pending' && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 border border-red-200 text-red-600 text-xs font-semibold">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-danger-light border border-danger/30 text-danger text-xs font-semibold">
                       ⚡ Time-Trial Active
                       {post.timeTrialHoursRemaining != null && (
                         <span className="font-mono"> · {post.timeTrialHoursRemaining}h left</span>
@@ -656,12 +656,12 @@ export default function ThreadDetail({ postId, onClose }: ThreadDetailProps) {
                     </span>
                   )}
                   {isPrivileged && post.timeTrialStatus === 'awarded' && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-50 border border-yellow-300 text-yellow-700 text-xs font-semibold">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-warning-light border border-warning/30 text-warning text-xs font-semibold">
                       🏅 First Responder Challenge — Resolved
                     </span>
                   )}
                   {isPrivileged && post.escalationStatus === 'escalated' && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 border border-red-200 text-red-600 text-xs font-semibold">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-danger-light border border-danger/30 text-danger text-xs font-semibold">
                       ⚠ Escalated{post.escalationReason ? ` — ${post.escalationReason}` : ''}
                     </span>
                   )}
@@ -774,9 +774,9 @@ export default function ThreadDetail({ postId, onClose }: ThreadDetailProps) {
                   )}
                   {post.dna.difficulty && (
                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
-                      post.dna.difficulty === 'Easy' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' :
-                      post.dna.difficulty === 'Moderate' ? 'bg-yellow-100 text-yellow-700 border border-yellow-200' :
-                      'bg-red-100 text-red-600 border border-red-200'
+                      post.dna.difficulty === 'Easy' ? 'bg-accent-light text-accent border border-accent/30' :
+                      post.dna.difficulty === 'Moderate' ? 'bg-warning-light text-warning border border-warning/30' :
+                      'bg-danger-light text-danger border border-danger/30'
                     }`}>
                       {post.dna.difficulty}
                     </span>

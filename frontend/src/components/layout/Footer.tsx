@@ -7,11 +7,10 @@ export default function Footer() {
   return (
     <footer className="w-full border-t border-border bg-bg/50 backdrop-blur-[10px] mt-16">
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-10 text-center">
-
         {/* Brand */}
         <Link to="/" className="inline-flex items-center gap-2.5 mb-5 no-underline group">
           <div className="w-8 h-8 rounded-[8px] border-2 border-ink flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-105">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1f1f1f" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10"/>
               <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
               <line x1="12" y1="17" x2="12.01" y2="17"/>

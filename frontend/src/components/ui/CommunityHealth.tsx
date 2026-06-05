@@ -27,7 +27,7 @@ export default function CommunityHealth() {
       label: 'Response Rate',
       value: `${stats.responseRate}%`,
       sub: `${stats.answeredPosts} of ${stats.totalPosts} answered`,
-      color: 'text-emerald-600',
+      color: 'text-accent',
       icon: (
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M2 7L5.5 10.5L12 3.5"/>
@@ -50,7 +50,7 @@ export default function CommunityHealth() {
       label: 'Active Contributors',
       value: String(stats.activeContributors),
       sub: 'this week',
-      color: 'text-purple-600',
+      color: 'text-[#8b5cf6]',
       icon: (
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="5" cy="4" r="2"/>
@@ -64,7 +64,7 @@ export default function CommunityHealth() {
       label: 'Unanswered',
       value: String(stats.unansweredPosts),
       sub: 'open questions',
-      color: stats.unansweredPosts > 0 ? 'text-amber-600' : 'text-emerald-600',
+      color: stats.unansweredPosts > 0 ? 'text-warning' : 'text-accent',
       icon: (
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="7" cy="7" r="5.5"/>

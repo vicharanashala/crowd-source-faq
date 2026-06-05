@@ -152,7 +152,7 @@ export default function AuthModal() {
           <button
             onClick={closeModal}
             aria-label="Close"
-            className="w-7 h-7 flex items-center justify-center rounded-full text-ink-faint hover:text-ink hover:bg-black/[0.04] transition-colors -mt-1 -mr-1"
+            className="w-7 h-7 flex items-center justify-center rounded-full text-ink-faint hover:text-ink hover:bg-mist transition-colors -mt-1 -mr-1"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
               <line x1="6" y1="6" x2="18" y2="18"/>
@@ -166,7 +166,7 @@ export default function AuthModal() {
           <button
             onClick={() => { setTab('signin'); setError(''); }}
             className={`flex-1 py-1.5 text-xs font-semibold rounded-full transition-colors ${
-              tab === 'signin' ? 'bg-white text-ink shadow-subtle' : 'text-ink-soft hover:text-ink'
+              tab === 'signin' ? 'bg-card text-ink shadow-subtle' : 'text-ink-soft hover:text-ink'
             }`}
           >
             Sign in
@@ -174,7 +174,7 @@ export default function AuthModal() {
           <button
             onClick={() => { setTab('register'); setError(''); }}
             className={`flex-1 py-1.5 text-xs font-semibold rounded-full transition-colors ${
-              tab === 'register' ? 'bg-white text-ink shadow-subtle' : 'text-ink-soft hover:text-ink'
+              tab === 'register' ? 'bg-card text-ink shadow-subtle' : 'text-ink-soft hover:text-ink'
             }`}
           >
             Get started

@@ -28,10 +28,10 @@ export interface FAQItem {
 export function TrustBadge({ level }: { level?: string }) {
   if (!level) return null;
   const map: Record<string, { label: string; class: string }> = {
-    high:   { label: 'Official', class: 'bg-stone-100 text-stone-600 border-stone-200' },
-    expert: { label: 'Admin Approved', class: 'bg-blue-50 text-blue-700 border-blue-200' },
-    medium: { label: 'Community Approved', class: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-    low:    { label: 'Community', class: 'bg-amber-50 text-amber-700 border-amber-200' },
+    high:   { label: 'Official', class: 'bg-mist text-ink-soft border-border' },
+    expert: { label: 'Admin Approved', class: 'bg-accent-light text-accent border-accent/30' },
+    medium: { label: 'Community Approved', class: 'bg-accent-light text-accent border-accent/30' },
+    low:    { label: 'Community', class: 'bg-warning-light text-warning border-warning/30' },
   };
   const cfg = map[level];
   if (!cfg) return null;
@@ -45,9 +45,9 @@ export function TrustBadge({ level }: { level?: string }) {
 export function SourceBadge({ sourceType }: { sourceType?: string }) {
   if (!sourceType || sourceType === 'manual') return null;
   const map: Record<string, { label: string; class: string }> = {
-    community_promotion: { label: 'From Community', class: 'bg-purple-50 text-purple-700 border-purple-200' },
+    community_promotion: { label: 'From Community', class: 'bg-[rgba(139,92,246,0.1)] text-[#8b5cf6] border-[rgba(139,92,246,0.3)]' },
     zoom_transcript:     { label: 'From Meetings',  class: 'bg-cyan-50 text-cyan-700 border-cyan-200' },
-    expert_verified:     { label: 'Expert Verified', class: 'bg-blue-50 text-blue-700 border-blue-200' },
+    expert_verified:     { label: 'Expert Verified', class: 'bg-accent-light text-accent border-accent/30' },
   };
   const cfg = map[sourceType];
   if (!cfg) return null;

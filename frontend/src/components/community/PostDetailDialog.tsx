@@ -169,7 +169,7 @@ export default function PostDetailDialog({ post: initialPost, onClose, currentUs
       setActionError(null);
       // Show success feedback
       const banner = document.createElement('div');
-      banner.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] px-5 py-3 bg-emerald-50 border border-emerald-200 rounded-xl text-sm text-emerald-700 font-medium shadow-lg';
+      banner.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] px-5 py-3 bg-accent-light border border-accent/30 rounded-xl text-sm text-accent font-medium shadow-lg';
       banner.textContent = 'Report submitted. Thank you.';
       document.body.appendChild(banner);
       setTimeout(() => banner.remove(), 3000);
@@ -336,7 +336,7 @@ export default function PostDetailDialog({ post: initialPost, onClose, currentUs
             {currentUserId && post.author?._id !== currentUserId && (
               <button
                 onClick={() => setShowReportModal(true)}
-                className="ml-2 text-xs text-red-400 hover:text-red-600 flex items-center gap-1 transition-colors"
+                className="ml-2 text-xs text-danger/70 hover:text-danger flex items-center gap-1 transition-colors"
                 title="Report this post"
               >
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -350,7 +350,7 @@ export default function PostDetailDialog({ post: initialPost, onClose, currentUs
           {isAnswered && post.answer && (
             <div className={`mx-6 mb-4 rounded-xl border p-4 ${
               post.answerIsExpert
-                ? 'bg-amber-light border-amber/20'
+                ? 'bg-warning-light border-warning/20'
                 : 'bg-success-light border-success/20'
             }`}>
               <p className={`text-xs font-semibold mb-2 uppercase tracking-wide flex items-center gap-1.5 ${
@@ -388,9 +388,9 @@ export default function PostDetailDialog({ post: initialPost, onClose, currentUs
                   )}
                   {post.dna.difficulty && (
                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
-                      post.dna.difficulty === 'Easy' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' :
-                      post.dna.difficulty === 'Moderate' ? 'bg-yellow-100 text-yellow-700 border border-yellow-200' :
-                      'bg-red-100 text-red-600 border border-red-200'
+                      post.dna.difficulty === 'Easy' ? 'bg-accent-light text-accent border border-accent/30' :
+                      post.dna.difficulty === 'Moderate' ? 'bg-warning-light text-warning border border-warning/30' :
+                      'bg-danger-light text-danger border border-danger/30'
                     }`}>
                       {post.dna.difficulty}
                     </span>
