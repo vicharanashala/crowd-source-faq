@@ -243,9 +243,9 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
-    // Normalize tags: array of trimmed non-empty strings, max 3
+    // Normalize tags: array of trimmed lowercase non-empty strings, max 3
     const safeTags: string[] = Array.isArray(tags)
-      ? tags.map((t: unknown) => String(t).trim()).filter(Boolean).slice(0, 3)
+      ? tags.map((t: unknown) => String(t).trim().toLowerCase()).filter(Boolean).slice(0, 3)
       : [];
 
     // ── Server-side duplicate check ──────────────────────────────────────────
@@ -769,7 +769,7 @@ export const setPostTags = async (req: Request, res: Response): Promise<void> =>
     const { tags } = req.body as { tags?: string[] };
     if (!Array.isArray(tags)) { res.status(400).json({ message: 'tags must be an array.' }); return; }
 
-    post.tags = tags.map((t: string) => t.trim()).filter(Boolean);
+    post.tags = tags.map((t: string) => t.trim().toLowerCase()).filter(Boolean);
     await post.save();
 
     res.json({ message: 'Tags updated.', tags: post.tags });
