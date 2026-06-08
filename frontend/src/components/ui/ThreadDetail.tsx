@@ -319,11 +319,11 @@ export default function ThreadDetail({ postId, onClose }: ThreadDetailProps) {
       
       {/* Scrollable container for the modal itself */}
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto pointer-events-none"
+        className="fixed inset-0 z-50 flex items-start justify-center pt-14 sm:pt-16 px-4 sm:px-6 pb-6 overflow-y-auto pointer-events-none"
       >
         <div
           className="relative w-full max-w-3xl bg-card rounded-2xl border border-border shadow-float animate-fade-in overflow-hidden flex flex-col pointer-events-auto"
-          style={{ maxHeight: 'calc(100vh - 3rem)' }}
+          style={{ maxHeight: 'calc(100vh - 5rem)' }}
         >
         {/* Action error banner */}
         {actionError && (
