@@ -4,8 +4,14 @@
  * TOTP secrets are AES-256-GCM encrypted at rest using the same scheme as Zoom tokens.
  */
 import { type Request, type Response } from 'express';
+import crypto from 'crypto';
 import User, { type IUser } from '../models/User.js';
+
+
+
+
 import { encrypt, decrypt } from '../utils/crypto.js';
+
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -14,11 +20,13 @@ function generateTOTPSecret(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
   const buf = Buffer.alloc(16);
   // Use Node.js stronger random source just for TOTP
-  const rng = require('crypto').randomBytes(16);
+  const rng = crypto.randomBytes(16);
+
   for (let i = 0; i < 16; i++) buf[i] = rng[i];
   return Array.from(buf)
     .map((b: number) => chars[b % chars.length])
     .join('');
+
 }
 
 /**
@@ -29,7 +37,7 @@ function generateTOTPSecret(): string {
  * @param offset   Time step offset relative to current time (default 0)
  */
 function computeTOTP(secret: string, offset: number = 0): string {
-  const crypto = require('crypto');
+
 
   // Pad or trim secret to 32 chars (base32 standard)
   const padded = secret.toUpperCase().padEnd(32, 'A');
