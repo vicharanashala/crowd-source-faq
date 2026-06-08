@@ -50,6 +50,8 @@ router.get('/answers/list', getAnswersList);
 router.get('/stats', getCommunityStats);
 
 router.get('/', getAllPosts);
+router.get('/review-queue', protect, authorize('admin', 'moderator'), getReviewQueue);
+router.get('/bookmarks', protect, getBookmarks);
 router.get('/:id', getPostById);
 router.get('/:id/related', getRelatedForPost);
 
