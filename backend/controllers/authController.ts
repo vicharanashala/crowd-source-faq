@@ -312,11 +312,30 @@ export const deleteUser = async (req: Request, res: Response): Promise<void> => 
       res.status(404).json({ message: 'User not found.' });
       return;
     }
-    await User.findByIdAndDelete(req.params.id);
+
+    // Soft delete & anonymize to prevent orphaned data crashes
+    target.isDeleted = true;
+    target.deletedAt = new Date();
+    target.name = 'Deleted User';
+    target.email = `deleted-${target._id}@yaksha.invalid`;
+    target.password = uuidv4(); // Re-randomize password to break login
+    target.avatar = undefined;
+    target.zoomConnected = false;
+    target.zoomAccessToken = undefined;
+    target.zoomRefreshToken = undefined;
+    target.totpEnabled = false;
+    target.totpSecret = undefined;
+
+    await target.save();
+
+    // Clean up private data that shouldn't persist
+    await Notification.deleteMany({ recipient: target._id });
+
     logger.audit?.('user_deleted', {
       adminId: req.user._id.toString(),
       targetId: req.params.id,
       requestId: (req as Request & { id: string }).id,
+      mode: 'soft_anonymize'
     });
     res.json({ message: 'User deleted successfully.' });
   } catch (error) {
