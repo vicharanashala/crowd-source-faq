@@ -60,7 +60,17 @@ function bufferSearchLog(entry: Omit<PendingLog, 'createdAt'>): void {
     // Immediate flush when buffer is full
     if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
     const logs = pendingLogs.splice(0);
-    SearchLog.insertMany(logs, { ordered: false }).catch(() => {});
+    searchLogFlushActive.inc();
+    SearchLog.insertMany(logs, { ordered: false })
+      .then(() => {
+        searchLogFlushes.inc();
+      })
+      .catch(() => {
+        // silently discard failed batch inserts
+      })
+      .finally(() => {
+        searchLogFlushActive.dec();
+      });
   } else {
     scheduleFlush();
   }
@@ -75,7 +85,15 @@ export async function flushSearchLogs(): Promise<void> {
   if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
   if (pendingLogs.length === 0) return;
   const logs = pendingLogs.splice(0);
-  await SearchLog.insertMany(logs, { ordered: false }).catch(() => {});
+  searchLogFlushActive.inc();
+  try {
+    await SearchLog.insertMany(logs, { ordered: false });
+    searchLogFlushes.inc();
+  } catch {
+    // silently discard failed batch inserts
+  } finally {
+    searchLogFlushActive.dec();
+  }
 }
 
 // Helper: Executes traditional MongoDB keyword search
