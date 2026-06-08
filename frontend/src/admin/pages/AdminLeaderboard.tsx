@@ -1,31 +1,35 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import adminApi from '../utils/adminApi';
 
 interface LeaderboardEntry { rank: number; userId: string; name: string; points: number; reputation: number; tier: string; badges: number; joinedAt: string; }
 
 const TIER_COLORS: Record<string, string> = {
-  newcomer:       'bg-gray-100 text-gray-600',
-  contributor:   'bg-amber-100 text-amber-700',
-  helper:        'bg-slate-100 text-slate-600',
-  expert:        'bg-yellow-100 text-yellow-700',
-  champion:      'bg-indigo-100 text-indigo-700',
-  knowledge_master: 'bg-violet-100 text-violet-700',
+  newcomer:         'bg-border/40 text-ink-faint',
+  contributor:      'bg-warning/10 text-warning',
+  helper:           'bg-blue-500/10 text-blue-400',
+  expert:           'bg-yellow-400/10 text-yellow-400',
+  champion:         'bg-accent/10 text-accent',
+  knowledge_master: 'bg-purple-500/10 text-purple-400',
 };
 const TIER_ICONS: Record<string, string> = {
-  newcomer:       '🌱',
-  contributor:   '🥉',
-  helper:        '🥈',
-  expert:        '🥇',
-  champion:      '💎',
+  newcomer:         '🌱',
+  contributor:      '🥉',
+  helper:           '🥈',
+  expert:           '🥇',
+  champion:         '💎',
   knowledge_master: '👑',
 };
-const RANK_COLORS: Record<number, string> = { 1: 'bg-yellow-50 border-yellow-200 text-yellow-800', 2: 'bg-slate-50 border-slate-200 text-slate-700', 3: 'bg-orange-50 border-orange-200 text-orange-700' };
+const RANK_COLORS: Record<number, string> = {
+  1: 'bg-yellow-400/10 border-yellow-400/20 text-yellow-400',
+  2: 'bg-border/40 border-border text-ink-soft',
+  3: 'bg-warning/10 border-warning/20 text-warning',
+};
 
 export default function AdminLeaderboard() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
+  const [page] = useState(1);
   const LIMIT = 20;
 
   useEffect(() => {
@@ -35,12 +39,9 @@ export default function AdminLeaderboard() {
       .finally(() => setLoading(false));
   }, [page]);
 
-  const th = 'px-4 py-2.5 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wide';
-  const td = 'px-4 py-3 text-sm text-gray-800';
-
   return (
     <div className="space-y-4 max-w-4xl">
-      <p className="text-sm text-gray-500 -mt-2">{total} ranked users · top 50 overall</p>
+      <p className="text-sm text-ink-faint -mt-2">{total} ranked users · top 50 overall</p>
 
       {/* Top 3 podium */}
       {!loading && entries.length >= 3 && (
@@ -50,13 +51,13 @@ export default function AdminLeaderboard() {
             if (!e) return null;
             return (
               <div key={e.userId}
-                className={`rounded-xl border p-4 text-center ${RANK_COLORS[idx + 1] ?? 'bg-white border-gray-200'}`}>
+                className={`rounded-xl border p-4 text-center ${RANK_COLORS[idx + 1] ?? 'bg-card border-border'}`}>
                 <div className="text-2xl mb-1">{idx === 1 ? '🥇' : idx === 0 ? '🥈' : '🥉'}</div>
-                <p className="text-sm font-semibold text-gray-900">{e.name}</p>
-                <p className="text-xl font-bold text-gray-900 mt-1">{e.points.toLocaleString()}</p>
-                <p className="text-[10px] text-gray-500 mt-0.5">points</p>
+                <p className="text-sm font-semibold text-ink">{e.name}</p>
+                <p className="text-xl font-bold text-ink mt-1">{e.points.toLocaleString()}</p>
+                <p className="text-[10px] text-ink-faint mt-0.5">points</p>
                 <div className="mt-2 flex justify-center gap-1">
-                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${TIER_COLORS[e.tier] || 'bg-gray-100 text-gray-600'}`}>{TIER_ICONS[e.tier] ?? ''} {e.tier}</span>
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${TIER_COLORS[e.tier] || 'bg-border/40 text-ink-faint'}`}>{TIER_ICONS[e.tier] ?? ''} {e.tier}</span>
                 </div>
               </div>
             );
@@ -65,34 +66,39 @@ export default function AdminLeaderboard() {
       )}
 
       {/* Full table */}
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+      <div className="admin-table-wrap">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead><tr className="bg-gray-50 border-b border-gray-200">
-              <th className={th}>Rank</th><th className={th}>User</th><th className={th}>Points</th><th className={th}>Reputation</th><th className={th}>Tier</th><th className={th}>Badges</th><th className={th}>Joined</th>
+            <thead><tr className="admin-thead-row">
+              <th className="admin-th">Rank</th><th className="admin-th">User</th><th className="admin-th">Points</th><th className="admin-th">Reputation</th><th className="admin-th">Tier</th><th className="admin-th">Badges</th><th className="admin-th">Joined</th>
             </tr></thead>
             <tbody>
               {loading ? (
-                [...Array(5)].map((_, i) => <tr key={i} className="border-b border-gray-100"><td colSpan={7} className="px-4 py-4 text-center text-sm text-gray-400">Loading…</td></tr>)
+                [...Array(5)].map((_, i) => <tr key={i} className="admin-tr"><td colSpan={7} className="admin-td text-center text-ink-faint">Loading…</td></tr>)
               ) : entries.length === 0 ? (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-400">No users yet</td></tr>
+                <tr><td colSpan={7} className="admin-empty">No users yet</td></tr>
               ) : entries.map(e => (
-                <tr key={e.userId} className={`border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors ${e.rank <= 3 ? 'bg-gray-50/50' : ''}`}>
-                  <td className={td}>
-                    <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${e.rank === 1 ? 'bg-yellow-100 text-yellow-800' : e.rank === 2 ? 'bg-slate-100 text-slate-700' : e.rank === 3 ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600'}`}>
+                <tr key={e.userId} className={`admin-tr ${e.rank <= 3 ? 'bg-mist/30' : ''}`}>
+                  <td className="admin-td">
+                    <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
+                      e.rank === 1 ? 'bg-yellow-400/10 text-yellow-400' :
+                      e.rank === 2 ? 'bg-border/40 text-ink-soft' :
+                      e.rank === 3 ? 'bg-warning/10 text-warning' :
+                                     'bg-border/40 text-ink-faint'
+                    }`}>
                       {e.rank}
                     </span>
                   </td>
-                  <td className={`${td} font-medium text-gray-900`}>{e.name}</td>
-                  <td className={`${td} font-semibold text-gray-900`}>{e.points.toLocaleString()}</td>
-                  <td className={`${td} text-gray-600`}>{e.reputation.toLocaleString()}</td>
-                  <td className={td}>
-                    <span className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded ${TIER_COLORS[e.tier] || 'bg-gray-100 text-gray-600'}`}>
+                  <td className="admin-td font-medium text-ink">{e.name}</td>
+                  <td className="admin-td font-semibold text-ink">{e.points.toLocaleString()}</td>
+                  <td className="admin-td text-ink-soft">{e.reputation.toLocaleString()}</td>
+                  <td className="admin-td">
+                    <span className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded ${TIER_COLORS[e.tier] || 'bg-border/40 text-ink-faint'}`}>
                       {TIER_ICONS[e.tier] ?? ''} {e.tier}
                     </span>
                   </td>
-                  <td className={td}><span className="text-gray-600">{e.badges > 0 ? `🏅 ${e.badges}` : '—'}</span></td>
-                  <td className={`${td} text-gray-400 text-xs`}>{new Date(e.joinedAt).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
+                  <td className="admin-td"><span className="text-ink-soft">{e.badges > 0 ? `🏅 ${e.badges}` : '—'}</span></td>
+                  <td className="admin-td text-ink-faint text-xs">{new Date(e.joinedAt).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
                 </tr>
               ))}
             </tbody>

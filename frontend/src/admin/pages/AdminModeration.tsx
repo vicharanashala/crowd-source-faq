@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import adminApi from '../utils/adminApi';
 
 interface BannedUser { _id: string; name: string; email: string; banReason?: string; bannedAt?: string; tier: string; points: number; }
@@ -42,7 +42,6 @@ export default function AdminModeration() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [warnModal, setWarnModal] = useState<{ userId: string; name: string } | null>(null);
   const [warnReason, setWarnReason] = useState('');
   const [suspendModal, setSuspendModal] = useState<{ userId: string; name: string } | null>(null);
@@ -51,7 +50,6 @@ export default function AdminModeration() {
   const [banModal, setBanModal] = useState<{ userId: string; name: string } | null>(null);
   const [banReason, setBanReason] = useState('');
 
-  // Escalated community posts
   const [escalatedPosts, setEscalatedPosts] = useState<EscalatedPost[]>([]);
   const [escalatedLoading, setEscalatedLoading] = useState(false);
   const [actionTab, setActionTab] = useState<'users' | 'escalated'>(() => {
@@ -91,31 +89,22 @@ export default function AdminModeration() {
   };
 
   useEffect(() => {
-    if (actionTab === 'users') {
-      fetchQueue();
-    } else {
-      fetchEscalatedPosts();
-    }
+    if (actionTab === 'users') fetchQueue();
+    else fetchEscalatedPosts();
   }, [page, actionTab]);
 
   const handleTabChange = (tab: 'users' | 'escalated') => {
     setActionTab(tab);
     const url = new URL(window.location.href);
-    if (tab === 'users') {
-      url.searchParams.delete('tab');
-    } else {
-      url.searchParams.set('tab', 'escalated');
-    }
+    if (tab === 'users') url.searchParams.delete('tab');
+    else url.searchParams.set('tab', 'escalated');
     window.history.replaceState({}, '', url.pathname + url.search);
-    
-    if (tab === 'users') {
-      setPage(1);
-    }
+    if (tab === 'users') setPage(1);
   };
 
   const doAction = async (fn: () => Promise<void>) => { try { await fn(); fetchQueue(); } catch {} };
 
-  const handleUnban  = (id: string) => doAction(async () => { await adminApi.post('/moderation/unban', { userId: id }); });
+  const handleUnban    = (id: string) => doAction(async () => { await adminApi.post('/moderation/unban', { userId: id }); });
   const handleUnsuspend = (id: string) => doAction(async () => { await adminApi.post('/moderation/unsuspend', { userId: id }); });
   const handleWarn    = async () => { if (!warnModal || !warnReason) return; await doAction(async () => { await adminApi.post('/moderation/warn', { userId: warnModal.userId, reason: warnReason }); }); setWarnModal(null); setWarnReason(''); };
   const handleSuspend = async () => { if (!suspendModal || !suspendReason) return; await doAction(async () => { await adminApi.post('/moderation/suspend', { userId: suspendModal.userId, reason: suspendReason, duration: suspendDuration }); }); setSuspendModal(null); setSuspendReason(''); };
@@ -131,22 +120,14 @@ export default function AdminModeration() {
   return (
     <div className="space-y-5 max-w-4xl">
       <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm text-gray-500">Manage bans, suspensions, warnings, and escalated questions</p>
-        </div>
+        <p className="text-sm text-ink-faint">Manage bans, suspensions, warnings, and escalated questions</p>
         {/* Tab switcher */}
-        <div className="flex rounded-md border border-gray-200 overflow-hidden text-xs font-medium shrink-0">
-          <button
-            onClick={() => handleTabChange('users')}
-            className={`px-4 py-2 transition-colors ${actionTab === 'users' ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
-          >Users</button>
-          <button
-            onClick={() => handleTabChange('escalated')}
-            className={`px-4 py-2 transition-colors flex items-center gap-1.5 ${actionTab === 'escalated' ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
-          >
+        <div className="admin-tab-bar">
+          <button onClick={() => handleTabChange('users')} className={`admin-tab ${actionTab === 'users' ? 'admin-tab-active' : ''}`}>Users</button>
+          <button onClick={() => handleTabChange('escalated')} className={`admin-tab flex items-center gap-1.5 ${actionTab === 'escalated' ? 'admin-tab-active' : ''}`}>
             Escalated
             {escalatedPosts.length > 0 && (
-              <span className={`inline-flex items-center justify-center w-4 h-4 rounded-full text-[9px] font-bold ${actionTab === 'escalated' ? 'bg-white text-gray-900' : 'bg-red-500 text-white'}`}>
+              <span className={`inline-flex items-center justify-center w-4 h-4 rounded-full text-[9px] font-bold ${actionTab === 'escalated' ? 'bg-white/20 text-white' : 'bg-danger text-white'}`}>
                 {escalatedPosts.length}
               </span>
             )}
@@ -158,25 +139,25 @@ export default function AdminModeration() {
         <>
           {/* Banned users */}
           {banned.length > 0 && (
-            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-              <div className="px-4 py-3 border-b border-gray-100 bg-red-50">
-                <p className="text-xs font-semibold text-red-700 uppercase tracking-wide">Banned ({banned.length})</p>
+            <div className="admin-card-surface">
+              <div className="admin-card-header bg-danger/5">
+                <p className="text-xs font-semibold text-danger uppercase tracking-wide">Banned ({banned.length})</p>
               </div>
               <table className="w-full">
-                <thead><tr className="border-b border-gray-100 bg-gray-50">
-                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-500 uppercase">User</th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-500 uppercase">Reason</th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-500 uppercase">Banned</th>
-                  <th className="px-4 py-2.5 text-right text-[10px] font-semibold text-gray-500 uppercase">Action</th>
+                <thead><tr className="admin-thead-row">
+                  <th className="admin-th">User</th>
+                  <th className="admin-th">Reason</th>
+                  <th className="admin-th">Banned</th>
+                  <th className="admin-th text-right">Action</th>
                 </tr></thead>
                 <tbody>
                   {banned.map(u => (
-                    <tr key={u._id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50">
-                      <td className="px-4 py-3"><div className="text-sm font-medium text-gray-900">{u.name}</div><div className="text-xs text-gray-500">{u.email}</div></td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{u.banReason || '—'}</td>
-                      <td className="px-4 py-3 text-xs text-gray-400">{u.bannedAt ? timeAgo(u.bannedAt) : '—'}</td>
-                      <td className="px-4 py-3 text-right">
-                        <button onClick={() => handleUnban(u._id)} className="px-3 py-1 rounded text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-500 transition-colors">Unban</button>
+                    <tr key={u._id} className="admin-tr">
+                      <td className="admin-td"><div className="text-sm font-medium text-ink">{u.name}</div><div className="text-xs text-ink-faint">{u.email}</div></td>
+                      <td className="admin-td text-ink-soft">{u.banReason || '—'}</td>
+                      <td className="admin-td text-ink-faint">{u.bannedAt ? timeAgo(u.bannedAt) : '—'}</td>
+                      <td className="admin-td text-right">
+                        <button onClick={() => handleUnban(u._id)} className="px-3 py-1 rounded text-xs font-medium text-white bg-success hover:bg-success/80 transition-colors">Unban</button>
                       </td>
                     </tr>
                   ))}
@@ -187,23 +168,23 @@ export default function AdminModeration() {
 
           {/* Suspended users */}
           {suspended.length > 0 && (
-            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-              <div className="px-4 py-3 border-b border-gray-100 bg-amber-50">
-                <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide">Suspended ({suspended.length})</p>
+            <div className="admin-card-surface">
+              <div className="admin-card-header bg-warning/5">
+                <p className="text-xs font-semibold text-warning uppercase tracking-wide">Suspended ({suspended.length})</p>
               </div>
               <table className="w-full">
-                <thead><tr className="border-b border-gray-100 bg-gray-50">
-                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-500 uppercase">User</th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-500 uppercase">Expires in</th>
-                  <th className="px-4 py-2.5 text-right text-[10px] font-semibold text-gray-500 uppercase">Action</th>
+                <thead><tr className="admin-thead-row">
+                  <th className="admin-th">User</th>
+                  <th className="admin-th">Expires in</th>
+                  <th className="admin-th text-right">Action</th>
                 </tr></thead>
                 <tbody>
                   {suspended.map(u => (
-                    <tr key={u._id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50">
-                      <td className="px-4 py-3"><div className="text-sm font-medium text-gray-900">{u.name}</div><div className="text-xs text-gray-500">{u.email}</div></td>
-                      <td className="px-4 py-3 text-sm text-amber-600 font-medium">{until(u.suspendedUntil)}</td>
-                      <td className="px-4 py-3 text-right">
-                        <button onClick={() => handleUnsuspend(u._id)} className="px-3 py-1 rounded text-xs font-medium text-white bg-amber-600 hover:bg-amber-500 transition-colors">Lift</button>
+                    <tr key={u._id} className="admin-tr">
+                      <td className="admin-td"><div className="text-sm font-medium text-ink">{u.name}</div><div className="text-xs text-ink-faint">{u.email}</div></td>
+                      <td className="admin-td text-sm text-warning font-medium">{until(u.suspendedUntil)}</td>
+                      <td className="admin-td text-right">
+                        <button onClick={() => handleUnsuspend(u._id)} className="px-3 py-1 rounded text-xs font-medium text-white bg-warning hover:bg-warning/80 transition-colors">Lift</button>
                       </td>
                     </tr>
                   ))}
@@ -213,42 +194,42 @@ export default function AdminModeration() {
           )}
 
           {banned.length === 0 && suspended.length === 0 && !loading && (
-            <div className="bg-white border border-gray-200 rounded-lg p-12 text-center">
-              <p className="text-sm text-gray-500">No banned or suspended users</p>
+            <div className="admin-card-surface">
+              <div className="admin-empty">No banned or suspended users</div>
             </div>
           )}
 
           {/* Moderation log */}
-          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-            <div className="px-4 py-3 border-b border-gray-100">
-              <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Moderation Log</p>
+          <div className="admin-card-surface">
+            <div className="admin-card-header">
+              <p className="text-xs font-semibold text-ink-soft uppercase tracking-wide">Moderation Log</p>
             </div>
-            <div className="divide-y divide-gray-100">
+            <div className="divide-y divide-border">
               {loading ? (
-                <div className="p-8 text-center text-sm text-gray-400">Loading…</div>
+                <div className="p-8 text-center text-sm text-ink-faint">Loading…</div>
               ) : logs.length === 0 ? (
-                <div className="p-8 text-center text-sm text-gray-400">No moderation actions yet</div>
+                <div className="p-8 text-center text-sm text-ink-faint">No moderation actions yet</div>
               ) : logs.map(log => (
-                <div key={log._id} className="px-4 py-3 hover:bg-gray-50">
+                <div key={log._id} className="px-4 py-3 hover:bg-mist transition-colors">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-gray-100 text-gray-700 mr-2">{ACTION_LABELS[log.action] ?? log.action}</span>
-                      <span className="text-sm text-gray-800">{log.reason || '—'}</span>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-mist text-ink-soft mr-2">{ACTION_LABELS[log.action] ?? log.action}</span>
+                      <span className="text-sm text-ink">{log.reason || '—'}</span>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-xs text-gray-500">{log.moderatorId?.name ?? 'System'}</p>
-                      <p className="text-[10px] text-gray-400">{timeAgo(log.createdAt)}</p>
+                      <p className="text-xs text-ink-faint">{log.moderatorId?.name ?? 'System'}</p>
+                      <p className="text-[10px] text-ink-faint">{timeAgo(log.createdAt)}</p>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
             {total > 15 && (
-              <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
-                <span className="text-xs text-gray-500">Page {page} · {total} entries</span>
+              <div className="admin-pagination">
+                <span>Page {page} · {total} entries</span>
                 <div className="flex gap-2">
-                  <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="px-3 py-1 text-xs rounded border border-gray-200 hover:bg-gray-50 disabled:opacity-30">← Prev</button>
-                  <button onClick={() => setPage(p => p + 1)} disabled={logs.length < 15} className="px-3 py-1 text-xs rounded border border-gray-200 hover:bg-gray-50 disabled:opacity-30">Next →</button>
+                  <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="admin-pagination-btn">← Prev</button>
+                  <button onClick={() => setPage(p => p + 1)} disabled={logs.length < 15} className="admin-pagination-btn">Next →</button>
                 </div>
               </div>
             )}
@@ -256,60 +237,52 @@ export default function AdminModeration() {
         </>
       ) : (
         /* Escalated community posts */
-        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-100 bg-red-50/50">
-            <p className="text-xs font-semibold text-red-700 uppercase tracking-wide">Escalated Posts ({escalatedPosts.length})</p>
+        <div className="admin-card-surface">
+          <div className="admin-card-header bg-danger/5">
+            <p className="text-xs font-semibold text-danger uppercase tracking-wide">Escalated Posts ({escalatedPosts.length})</p>
           </div>
           {escalatedLoading ? (
-            <div className="p-8 text-center text-sm text-gray-400">Loading escalated posts…</div>
+            <div className="p-8 text-center text-sm text-ink-faint">Loading escalated posts…</div>
           ) : escalatedPosts.length === 0 ? (
-            <div className="p-12 text-center text-sm text-gray-500">No escalated posts requiring attention</div>
+            <div className="admin-empty">No escalated posts requiring attention</div>
           ) : (
-            <div className="divide-y divide-gray-100">
+            <div className="divide-y divide-border">
               {escalatedPosts.map(post => (
-                <div key={post._id} className="p-4 hover:bg-gray-50 space-y-2">
+                <div key={post._id} className="p-4 hover:bg-mist transition-colors space-y-2">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <h3 className="text-sm font-semibold text-gray-900">{post.title}</h3>
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        Posted by <span className="font-medium text-gray-600">{post.author}</span> ({post.authorEmail}) · {timeAgo(post.createdAt)}
+                      <h3 className="text-sm font-semibold text-ink">{post.title}</h3>
+                      <p className="text-xs text-ink-faint mt-0.5">
+                        Posted by <span className="font-medium text-ink-soft">{post.author}</span> ({post.authorEmail}) · {timeAgo(post.createdAt)}
                       </p>
                     </div>
-                    <div className="text-right text-[10px] text-red-600 font-medium shrink-0 bg-red-50 px-2 py-0.5 rounded border border-red-100">
+                    <div className="text-right text-[10px] text-danger font-medium shrink-0 bg-danger/10 px-2 py-0.5 rounded border border-danger/20">
                       Escalated {timeAgo(post.escalatedAt)}
                     </div>
                   </div>
-                  
+
                   {post.escalationReason && (
-                    <div className="text-xs bg-gray-50 border border-gray-150 p-2 rounded text-gray-600 italic">
+                    <div className="text-xs bg-mist border border-border p-2 rounded text-ink-soft italic">
                       Reason: {post.escalationReason}
                     </div>
                   )}
 
-                  <p className="text-xs text-gray-600 line-clamp-2">{post.body}</p>
+                  <p className="text-xs text-ink-soft line-clamp-2">{post.body}</p>
 
                   <div className="flex items-center justify-between pt-2">
-                    <span className="text-xs text-gray-500">{post.commentCount} comment{post.commentCount === 1 ? '' : 's'}</span>
+                    <span className="text-xs text-ink-faint">{post.commentCount} comment{post.commentCount === 1 ? '' : 's'}</span>
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => {
-                          const outcome = prompt('Enter resolution details (e.g. "Answered in thread", "Created official FAQ"):');
-                          if (outcome !== null) {
-                            handleResolveEscalated(post._id, outcome);
-                          }
+                          const outcome = prompt('Enter resolution details:');
+                          if (outcome !== null) handleResolveEscalated(post._id, outcome);
                         }}
-                        className="px-3 py-1 rounded text-xs font-medium text-white bg-gray-900 hover:bg-gray-800 transition-colors"
-                      >
-                        Resolve
-                      </button>
+                        className="admin-btn-primary px-3 py-1 text-xs"
+                      >Resolve</button>
                       <button
-                        onClick={() => {
-                          setDismissModal({ post, reason: '' });
-                        }}
-                        className="px-3 py-1 rounded text-xs font-medium text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 transition-colors"
-                      >
-                        Dismiss
-                      </button>
+                        onClick={() => setDismissModal({ post, reason: '' })}
+                        className="admin-btn-outline px-3 py-1 text-xs"
+                      >Dismiss</button>
                     </div>
                   </div>
                 </div>
@@ -321,37 +294,18 @@ export default function AdminModeration() {
 
       {/* Dismiss Modal */}
       {dismissModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/30 backdrop-blur-sm" onClick={() => setDismissModal(null)}>
-          <div className="w-full max-w-sm bg-white rounded-xl border border-gray-200 shadow-sm" onClick={e => e.stopPropagation()}>
-            <div className="px-5 py-4 border-b border-gray-100">
-              <p className="text-sm font-semibold text-gray-900">Dismiss Escalation</p>
-            </div>
-            <div className="px-5 py-4 space-y-3">
-              <p className="text-xs text-gray-500">Dismissing will remove this post from the escalation queue. It will remain unanswered.</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setDismissModal(null)}>
+          <div className="w-full max-w-sm admin-modal-panel" onClick={e => e.stopPropagation()}>
+            <div className="admin-modal-header"><p className="text-sm font-semibold text-ink">Dismiss Escalation</p></div>
+            <div className="admin-modal-body space-y-3">
+              <p className="text-xs text-ink-faint">Dismissing will remove this post from the escalation queue. It will remain unanswered.</p>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Reason (required)</label>
-                <textarea
-                  rows={3}
-                  value={dismissModal.reason}
-                  onChange={e => setDismissModal({ ...dismissModal, reason: e.target.value })}
-                  placeholder="Reason for dismissal…"
-                  className="w-full px-3 py-2 rounded-md text-sm text-gray-800 bg-gray-50 border border-gray-200 outline-none focus:border-gray-400 resize-none"
-                />
+                <label className="admin-label">Reason (required)</label>
+                <textarea rows={3} value={dismissModal.reason} onChange={e => setDismissModal({ ...dismissModal, reason: e.target.value })} placeholder="Reason for dismissal…" className="admin-textarea" />
               </div>
               <div className="flex gap-2 justify-end">
-                <button onClick={() => setDismissModal(null)} className="px-4 py-2 rounded-md text-sm text-gray-500 border border-gray-200 hover:bg-gray-50">Cancel</button>
-                <button
-                  onClick={() => {
-                    if (dismissModal.reason.trim()) {
-                      handleDismissEscalated(dismissModal.post._id, dismissModal.reason);
-                      setDismissModal(null);
-                    }
-                  }}
-                  disabled={!dismissModal.reason.trim()}
-                  className="px-4 py-2 rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-500 disabled:opacity-40"
-                >
-                  Dismiss
-                </button>
+                <button onClick={() => setDismissModal(null)} className="admin-btn-outline">Cancel</button>
+                <button onClick={() => { if (dismissModal.reason.trim()) { handleDismissEscalated(dismissModal.post._id, dismissModal.reason); setDismissModal(null); } }} disabled={!dismissModal.reason.trim()} className="admin-btn-danger">Dismiss</button>
               </div>
             </div>
           </div>
@@ -360,18 +314,17 @@ export default function AdminModeration() {
 
       {/* Warn Modal */}
       {warnModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/30 backdrop-blur-sm" onClick={() => setWarnModal(null)}>
-          <div className="w-full max-w-sm bg-white rounded-xl border border-gray-200 shadow-sm" onClick={e => e.stopPropagation()}>
-            <div className="px-5 py-4 border-b border-gray-100"><p className="text-sm font-semibold text-gray-900">Warn {warnModal.name}</p></div>
-            <div className="px-5 py-4 space-y-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setWarnModal(null)}>
+          <div className="w-full max-w-sm admin-modal-panel" onClick={e => e.stopPropagation()}>
+            <div className="admin-modal-header"><p className="text-sm font-semibold text-ink">Warn {warnModal.name}</p></div>
+            <div className="admin-modal-body space-y-3">
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Reason</label>
-                <textarea rows={3} value={warnReason} onChange={e => setWarnReason(e.target.value)} placeholder="Describe the violation…"
-                  className="w-full px-3 py-2 rounded-md text-sm text-gray-800 bg-gray-50 border border-gray-200 outline-none focus:border-gray-400 resize-none" />
+                <label className="admin-label">Reason</label>
+                <textarea rows={3} value={warnReason} onChange={e => setWarnReason(e.target.value)} placeholder="Describe the violation…" className="admin-textarea" />
               </div>
               <div className="flex gap-2 justify-end">
-                <button onClick={() => setWarnModal(null)} className="px-4 py-2 rounded-md text-sm text-gray-500 border border-gray-200 hover:bg-gray-50">Cancel</button>
-                <button onClick={handleWarn} disabled={!warnReason} className="px-4 py-2 rounded-md text-sm font-medium text-white bg-gray-900 hover:bg-gray-700 disabled:opacity-40">Send Warning</button>
+                <button onClick={() => setWarnModal(null)} className="admin-btn-outline">Cancel</button>
+                <button onClick={handleWarn} disabled={!warnReason} className="admin-btn-primary">Send Warning</button>
               </div>
             </div>
           </div>
@@ -380,27 +333,26 @@ export default function AdminModeration() {
 
       {/* Suspend Modal */}
       {suspendModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/30 backdrop-blur-sm" onClick={() => setSuspendModal(null)}>
-          <div className="w-full max-w-sm bg-white rounded-xl border border-gray-200 shadow-sm" onClick={e => e.stopPropagation()}>
-            <div className="px-5 py-4 border-b border-gray-100"><p className="text-sm font-semibold text-gray-900">Suspend {suspendModal.name}</p></div>
-            <div className="px-5 py-4 space-y-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setSuspendModal(null)}>
+          <div className="w-full max-w-sm admin-modal-panel" onClick={e => e.stopPropagation()}>
+            <div className="admin-modal-header"><p className="text-sm font-semibold text-ink">Suspend {suspendModal.name}</p></div>
+            <div className="admin-modal-body space-y-3">
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Duration</label>
+                <label className="admin-label">Duration</label>
                 <div className="flex gap-2">
                   {['1h','6h','24h','3d','7d'].map(d => (
                     <button key={d} onClick={() => setSuspendDuration(d)}
-                      className={`px-3 py-1.5 rounded-md text-xs border ${suspendDuration === d ? 'border-gray-900 bg-gray-100 text-gray-900' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>{d}</button>
+                      className={`px-3 py-1.5 rounded-md text-xs border transition-colors ${suspendDuration === d ? 'border-accent bg-accent/10 text-accent' : 'border-border text-ink-soft hover:bg-mist'}`}>{d}</button>
                   ))}
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Reason</label>
-                <textarea rows={2} value={suspendReason} onChange={e => setSuspendReason(e.target.value)} placeholder="Reason for suspension…"
-                  className="w-full px-3 py-2 rounded-md text-sm text-gray-800 bg-gray-50 border border-gray-200 outline-none focus:border-gray-400 resize-none" />
+                <label className="admin-label">Reason</label>
+                <textarea rows={2} value={suspendReason} onChange={e => setSuspendReason(e.target.value)} placeholder="Reason for suspension…" className="admin-textarea" />
               </div>
               <div className="flex gap-2 justify-end">
-                <button onClick={() => setSuspendModal(null)} className="px-4 py-2 rounded-md text-sm text-gray-500 border border-gray-200 hover:bg-gray-50">Cancel</button>
-                <button onClick={handleSuspend} disabled={!suspendReason} className="px-4 py-2 rounded-md text-sm font-medium text-white bg-amber-600 hover:bg-amber-500 disabled:opacity-40">Suspend</button>
+                <button onClick={() => setSuspendModal(null)} className="admin-btn-outline">Cancel</button>
+                <button onClick={handleSuspend} disabled={!suspendReason} className="admin-btn-warn">Suspend</button>
               </div>
             </div>
           </div>
@@ -409,19 +361,18 @@ export default function AdminModeration() {
 
       {/* Ban Modal */}
       {banModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/30 backdrop-blur-sm" onClick={() => setBanModal(null)}>
-          <div className="w-full max-w-sm bg-white rounded-xl border border-gray-200 shadow-sm" onClick={e => e.stopPropagation()}>
-            <div className="px-5 py-4 border-b border-gray-100"><p className="text-sm font-semibold text-red-700">Permanently Ban {banModal.name}</p></div>
-            <div className="px-5 py-4 space-y-3">
-              <p className="text-xs text-gray-500">This will permanently ban the user. They will not be able to access their account.</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setBanModal(null)}>
+          <div className="w-full max-w-sm admin-modal-panel" onClick={e => e.stopPropagation()}>
+            <div className="admin-modal-header"><p className="text-sm font-semibold text-danger">Permanently Ban {banModal.name}</p></div>
+            <div className="admin-modal-body space-y-3">
+              <p className="text-xs text-ink-faint">This will permanently ban the user. They will not be able to access their account.</p>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Reason (required)</label>
-                <textarea rows={3} value={banReason} onChange={e => setBanReason(e.target.value)} placeholder="Detailed reason for permanent ban…"
-                  className="w-full px-3 py-2 rounded-md text-sm text-gray-800 bg-gray-50 border border-gray-200 outline-none focus:border-gray-400 resize-none" />
+                <label className="admin-label">Reason (required)</label>
+                <textarea rows={3} value={banReason} onChange={e => setBanReason(e.target.value)} placeholder="Detailed reason for permanent ban…" className="admin-textarea" />
               </div>
               <div className="flex gap-2 justify-end">
-                <button onClick={() => setBanModal(null)} className="px-4 py-2 rounded-md text-sm text-gray-500 border border-gray-200 hover:bg-gray-50">Cancel</button>
-                <button onClick={handleBan} disabled={!banReason} className="px-4 py-2 rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-500 disabled:opacity-40">Permanently Ban</button>
+                <button onClick={() => setBanModal(null)} className="admin-btn-outline">Cancel</button>
+                <button onClick={handleBan} disabled={!banReason} className="admin-btn-danger">Permanently Ban</button>
               </div>
             </div>
           </div>

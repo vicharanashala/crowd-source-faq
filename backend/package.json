@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "tsx server.ts",
-    "dev": "lsof -ti :6767 | xargs kill -9 2>/dev/null; sleep 1 && tsx watch server.ts",
+    "dev": "tsx watch server.ts",
     "build": "tsc",
     "migrate": "tsx scripts/addIndexes.ts",
     "create:vector-index": "tsx scripts/createVectorIndex.ts",

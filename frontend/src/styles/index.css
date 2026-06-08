@@ -1844,3 +1844,189 @@ select option {
 .animate-slide-up {
   animation: slide-up 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   ADMIN PANEL — Reusable dark-mode-ready component classes
+   All classes use theme CSS variables so they auto-adapt to
+   both light and dark modes without any dark: prefix juggling.
+   ══════════════════════════════════════════════════════════════════ */
+@layer components {
+  /* ── Table structures ─────────────────────────────────────────── */
+  .admin-table-wrap {
+    @apply bg-card border border-border rounded-xl overflow-hidden;
+  }
+  .admin-thead-row {
+    @apply bg-mist border-b border-border;
+  }
+  .admin-th {
+    @apply px-3 py-2.5 text-left text-[10px] font-semibold text-ink-faint uppercase tracking-widest whitespace-nowrap;
+  }
+  .admin-td {
+    @apply px-3 py-3 text-sm text-ink;
+  }
+  .admin-tr {
+    @apply border-b border-border/50 last:border-0 hover:bg-mist transition-colors;
+  }
+
+  /* ── Card surfaces ────────────────────────────────────────────── */
+  .admin-card-surface {
+    @apply bg-card border border-border rounded-xl overflow-hidden;
+  }
+  .admin-card-header {
+    @apply px-4 py-3 border-b border-border;
+  }
+  .admin-stat-mini {
+    @apply bg-bg-secondary border border-border rounded-lg;
+  }
+
+  /* ── Form controls ────────────────────────────────────────────── */
+  .admin-input {
+    @apply w-full px-3 py-2 rounded-md text-sm text-ink bg-bg-secondary border border-border outline-none focus:border-accent transition-colors;
+    &::placeholder { color: rgb(var(--text-muted-rgb)); }
+  }
+  .admin-textarea {
+    @apply w-full px-3 py-2 rounded-md text-sm text-ink bg-bg-secondary border border-border outline-none focus:border-accent transition-colors resize-none;
+    &::placeholder { color: rgb(var(--text-muted-rgb)); }
+  }
+  .admin-select {
+    @apply px-2.5 py-1.5 rounded-md text-sm text-ink bg-bg-secondary border border-border outline-none focus:border-accent transition-colors;
+  }
+  .admin-search-input {
+    @apply w-full pl-8 pr-3 py-1.5 rounded-md text-sm text-ink bg-bg-secondary border border-border outline-none focus:border-accent transition-colors;
+    &::placeholder { color: rgb(var(--text-muted-rgb)); }
+  }
+  .admin-label {
+    @apply block text-xs font-medium text-ink-soft mb-1;
+  }
+
+  /* ── Modal structures ─────────────────────────────────────────── */
+  .admin-modal-panel {
+    background: var(--modal-bg);
+    border: 1px solid var(--modal-border);
+    @apply rounded-xl shadow-float;
+  }
+  .admin-modal-header {
+    border-bottom: 1px solid var(--modal-border);
+    @apply px-5 py-4 flex items-center justify-between;
+  }
+  .admin-modal-body {
+    @apply px-5 py-4;
+  }
+  .admin-modal-footer {
+    border-top: 1px solid var(--modal-border);
+    @apply px-5 py-4 flex flex-wrap gap-2;
+  }
+
+  /* ── Pagination ───────────────────────────────────────────────── */
+  .admin-pagination {
+    @apply flex items-center justify-between px-4 py-3 border-t border-border text-sm text-ink-faint;
+  }
+  .admin-pagination-btn {
+    @apply px-3 py-1 rounded-md text-sm text-ink-soft hover:bg-mist disabled:opacity-30 transition-colors;
+  }
+
+  /* ── Empty state ──────────────────────────────────────────────── */
+  .admin-empty {
+    @apply py-12 text-center text-sm text-ink-faint;
+  }
+
+  /* ── Buttons ──────────────────────────────────────────────────── */
+  .admin-btn-primary {
+    @apply px-4 py-2 rounded-md text-sm font-medium disabled:opacity-40 transition-colors;
+    background: rgb(var(--accent-rgb));
+    color: rgb(var(--accent-text-rgb));
+  }
+  .admin-btn-primary:hover:not(:disabled) {
+    background: rgb(var(--accent-hover-rgb));
+  }
+  .admin-btn-ghost {
+    @apply px-4 py-2 rounded-md text-sm text-ink-faint hover:text-ink hover:bg-mist transition-colors;
+  }
+  .admin-btn-outline {
+    @apply px-4 py-2 rounded-md text-sm border border-border text-ink-soft hover:bg-mist disabled:opacity-40 transition-colors;
+  }
+  .admin-btn-danger {
+    @apply px-4 py-2 rounded-md text-sm font-medium text-white bg-danger hover:bg-danger/80 disabled:opacity-40 transition-colors;
+  }
+  .admin-btn-warn {
+    @apply px-4 py-2 rounded-md text-sm font-medium text-white bg-warning hover:bg-warning/80 disabled:opacity-40 transition-colors;
+  }
+  .admin-btn-success {
+    @apply px-4 py-2 rounded-md text-sm font-medium text-white bg-success hover:bg-success/80 disabled:opacity-50 transition-colors;
+  }
+  .admin-btn-sm-outline {
+    @apply px-2.5 py-1 rounded-md text-[10px] border border-border text-ink-soft hover:border-border-medium hover:text-ink transition-colors;
+  }
+
+  /* ── Toast notifications ──────────────────────────────────────── */
+  .admin-toast-success {
+    @apply bg-success/10 border border-success/20 text-success;
+  }
+  .admin-toast-warn {
+    @apply bg-warning/10 border border-warning/20 text-warning;
+  }
+  .admin-toast-error {
+    @apply bg-danger/10 border border-danger/20 text-danger;
+  }
+
+  /* ── Tab bar ──────────────────────────────────────────────────── */
+  .admin-tab-bar {
+    @apply flex rounded-lg border border-border overflow-hidden text-xs font-medium shrink-0;
+  }
+  .admin-tab {
+    @apply px-4 py-2 transition-colors text-ink-soft hover:bg-mist;
+  }
+  .admin-tab-active {
+    background: rgb(var(--accent-rgb));
+    color: rgb(var(--accent-text-rgb));
+  }
+
+  /* ── Status badge base ────────────────────────────────────────── */
+  .admin-badge {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium border;
+  }
+  .admin-badge-approved {
+    background: var(--tag-high-bg);
+    color: var(--tag-high-text);
+    border-color: var(--tag-high-bg);
+  }
+  .admin-badge-pending {
+    background: var(--tag-medium-bg);
+    color: var(--tag-medium-text);
+    border-color: var(--tag-medium-bg);
+  }
+  .admin-badge-rejected {
+    background: var(--danger-bg);
+    color: rgb(var(--danger-rgb));
+    border-color: var(--danger-bg);
+  }
+  .admin-badge-admin {
+    background: rgba(139, 92, 246, 0.14);
+    color: #c4b5fd;
+    border-color: rgba(139, 92, 246, 0.25);
+  }
+  .admin-badge-moderator {
+    background: rgba(34, 211, 238, 0.12);
+    color: #67e8f9;
+    border-color: rgba(34, 211, 238, 0.20);
+  }
+  .admin-badge-user {
+    background: rgba(59, 130, 246, 0.12);
+    color: #93c5fd;
+    border-color: rgba(59, 130, 246, 0.20);
+  }
+  .admin-badge-default {
+    background: rgba(var(--border-rgb) / 0.4);
+    color: rgb(var(--text-muted-rgb));
+    border-color: rgba(var(--border-rgb) / 0.6);
+  }
+
+  /* Light-mode badge overrides — richer tints on white backgrounds */
+  :root .admin-badge-approved { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
+  :root .admin-badge-pending  { background: #fffbeb; color: #92400e; border-color: #fde68a; }
+  :root .admin-badge-rejected { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
+  :root .admin-badge-admin    { background: #f5f3ff; color: #5b21b6; border-color: #ddd6fe; }
+  :root .admin-badge-moderator{ background: #ecfeff; color: #155e75; border-color: #a5f3fc; }
+  :root .admin-badge-user     { background: #eff6ff; color: #1e40af; border-color: #bfdbfe; }
+  :root .admin-badge-default  { background: #f9fafb; color: #374151; border-color: #e5e7eb; }
+}

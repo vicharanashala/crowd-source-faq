@@ -1,8 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import adminApi from '../utils/adminApi';
 import { friendlyError } from '../../utils/api';
-import Badge from '../components/common/Badge';
-import { AdminCard, AdminStatCard } from '../components/ui';
+import { AdminStatCard } from '../components/ui';
 
 interface AuditStat {
   totalFaqs: number;

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import adminApi from '../utils/adminApi';
 import { friendlyError } from '../../utils/api';
 
@@ -35,21 +35,21 @@ interface QueueItem {
 }
 
 const lifecycleConfig: Record<string, { label: string; class: string }> = {
-  open:               { label: 'Open', class: 'bg-gray-100 text-gray-600 border-gray-200' },
-  answered:           { label: 'Answered', class: 'bg-blue-50 text-blue-700 border-blue-200' },
-  community_accepted: { label: 'Community Approved', class: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-  ai_validated:       { label: 'AI Validated', class: 'bg-purple-50 text-purple-700 border-purple-200' },
-  admin_accepted:     { label: 'Admin Approved', class: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
-  converted_to_faq:   { label: 'Official FAQ', class: 'bg-stone-100 text-stone-700 border-stone-300' },
-  pending_review:     { label: 'Pending Review', class: 'bg-amber-50 text-amber-700 border-amber-200' },
-  update_requested:   { label: 'Update Requested', class: 'bg-red-50 text-red-700 border-red-200' },
+  open:               { label: 'Open',              class: 'bg-border/40 text-ink-faint border-border' },
+  answered:           { label: 'Answered',           class: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
+  community_accepted: { label: 'Community Approved', class: 'bg-success/10 text-success border-success/20' },
+  ai_validated:       { label: 'AI Validated',       class: 'bg-purple-500/10 text-purple-400 border-purple-500/20' },
+  admin_accepted:     { label: 'Admin Approved',     class: 'bg-[rgba(99,102,241,0.12)] text-[#a5b4fc] border-[rgba(99,102,241,0.2)]' },
+  converted_to_faq:   { label: 'Official FAQ',       class: 'bg-accent/10 text-accent border-accent/20' },
+  pending_review:     { label: 'Pending Review',     class: 'bg-warning/10 text-warning border-warning/20' },
+  update_requested:   { label: 'Update Requested',   class: 'bg-danger/10 text-danger border-danger/20' },
 };
 
 const trustConfig: Record<string, { label: string; class: string }> = {
-  high:   { label: 'Official', class: 'bg-stone-100 text-stone-700 border-stone-300' },
-  expert: { label: 'Admin Approved', class: 'bg-blue-50 text-blue-700 border-blue-200' },
-  medium: { label: 'Community Approved', class: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-  low:    { label: 'Community', class: 'bg-amber-50 text-amber-700 border-amber-200' },
+  high:   { label: 'Official',           class: 'bg-accent/10 text-accent border-accent/20' },
+  expert: { label: 'Admin Approved',     class: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
+  medium: { label: 'Community Approved', class: 'bg-success/10 text-success border-success/20' },
+  low:    { label: 'Community',          class: 'bg-warning/10 text-warning border-warning/20' },
 };
 
 const VALID_CATEGORIES = ['General', 'Internship', 'Offer Letter', 'NOC', 'Project', 'Certificate', 'Team', 'HR', 'IT', 'Other'];
@@ -99,16 +99,13 @@ export default function FaqReview() {
     setActioning(item._id);
     try {
       if ((item as any).isReportedFAQ) {
-        // reported FAQ re-verification
         await adminApi.put(`/admin/faq/${item._id}`, {});
       } else {
-        // Approve existing FAQ or promote to expert then official
         const faqId = item.existingFaq?._id;
         if (faqId) {
           await adminApi.post(`/admin/faqs/${faqId}/promote`, { targetLevel: 'expert' });
           await adminApi.post(`/admin/faqs/${faqId}/promote`, { targetLevel: 'high' });
         } else {
-          // Create FAQ from post then promote
           await adminApi.post(`/admin/community-promotions/${item._id}/ai-review`);
         }
       }
@@ -136,7 +133,6 @@ export default function FaqReview() {
     if (!mergeTarget.trim()) return;
     setActioning(item._id);
     try {
-      // Mark as merged: update the lifecycle, update FAQ tags
       await adminApi.patch(`/admin/faqs/${item.existingFaq?._id ?? item._id}`, {
         tags: item.aiGeneratedFaq?.tags ?? item.tags,
       });
@@ -179,7 +175,7 @@ export default function FaqReview() {
         <button
           onClick={handleAIReviewBatch}
           disabled={aiBatchLoading}
-          className="text-xs px-4 py-2 rounded-lg bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 disabled:opacity-50 transition-colors"
+          className="text-xs px-4 py-2 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/20 hover:bg-purple-500/20 disabled:opacity-50 transition-colors"
         >
           {aiBatchLoading ? 'Running AI...' : 'Run AI Batch Review'}
         </button>
@@ -188,170 +184,162 @@ export default function FaqReview() {
       {loading ? (
         <div className="text-center py-12 text-ink-faint">Loading...</div>
       ) : queue.length === 0 ? (
-        <div className="text-center py-12 text-ink-faint border rounded-xl">
+        <div className="admin-empty border border-border rounded-xl">
           No community-promoted FAQs to review yet.
         </div>
       ) : (
         <>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left py-3 px-4 font-semibold text-ink-faint">Question</th>
-                  <th className="text-left py-3 px-4 font-semibold text-ink-faint">Stage</th>
-                  <th className="text-left py-3 px-4 font-semibold text-ink-faint">AI Confidence</th>
-                  <th className="text-left py-3 px-4 font-semibold text-ink-faint">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {queue.map((item) => {
-                  const lcCfg = lc[item.lifecycle?.status ?? 'community_accepted'] ?? lc['community_accepted'];
-                  const ai = item.aiGeneratedFaq;
-                  const hasDuplicate = !!ai?.duplicateOf;
-                  return (
-                    <tr key={item._id} className="border-b border-border/50 hover:bg-cream/50 transition-colors">
-                      <td className="py-3 px-4 max-w-xs">
-                        <div className="font-medium text-ink truncate" title={item.title}>{item.title}</div>
-                        <div className="text-xs text-ink-faint mt-0.5 truncate">
-                          by {item.author?.name ?? 'unknown'} · {(item as any).isReportedFAQ ? `${item.commentCount} report(s)` : `${item.upvotes} upvotes`}
-                        </div>
-                        {(item as any).isReportedFAQ && item.body && (
-                          <div className="text-xs text-red-600 bg-red-50/50 rounded-lg p-2 mt-1 border border-red-100/50 break-words whitespace-pre-wrap">
-                            <strong>Reason:</strong> {item.body}
+          <div className="admin-table-wrap">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="admin-thead-row">
+                    <th className="admin-th">Question</th>
+                    <th className="admin-th">Stage</th>
+                    <th className="admin-th">AI Confidence</th>
+                    <th className="admin-th">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {queue.map((item) => {
+                    const lcCfg = lc[item.lifecycle?.status ?? 'community_accepted'] ?? lc['community_accepted'];
+                    const ai = item.aiGeneratedFaq;
+                    const hasDuplicate = !!ai?.duplicateOf;
+                    return (
+                      <tr key={item._id} className="admin-tr">
+                        <td className="admin-td max-w-xs">
+                          <div className="font-medium text-ink truncate" title={item.title}>{item.title}</div>
+                          <div className="text-xs text-ink-faint mt-0.5 truncate">
+                            by {item.author?.name ?? 'unknown'} · {(item as any).isReportedFAQ ? `${item.commentCount} report(s)` : `${item.upvotes} upvotes`}
                           </div>
-                        )}
-                        {ai && (
-                          <div className="flex gap-1 mt-1 flex-wrap">
-                            {(ai.tags ?? []).map(tag => (
-                              <span key={tag} className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded border border-blue-100">{tag}</span>
-                            ))}
-                          </div>
-                        )}
-                        {hasDuplicate && (
-                          <div className="text-[10px] text-amber-600 mt-0.5">Duplicate flagged</div>
-                        )}
-                      </td>
-                      <td className="py-3 px-4">
-                        {(item as any).isReportedFAQ ? (
-                          <span className="text-xs text-ink-soft">Reported FAQ</span>
-                        ) : (
-                          <span className={`text-[10px] px-2 py-0.5 rounded border font-medium ${lcCfg.class}`}>
-                            {lcCfg.label}
-                          </span>
-                        )}
-                        {ai && (
-                          <div className="flex items-center gap-1">
-                            <div className="w-12 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                              <div className="h-full bg-purple-500 rounded-full" style={{ width: `${ai.confidenceScore}%` }} />
+                          {(item as any).isReportedFAQ && item.body && (
+                            <div className="text-xs text-danger bg-danger/10 rounded-lg p-2 mt-1 border border-danger/20 break-words whitespace-pre-wrap">
+                              <strong>Reason:</strong> {item.body}
                             </div>
-                            <span className="text-xs text-ink-faint">{ai.confidenceScore}%</span>
+                          )}
+                          {ai && (
+                            <div className="flex gap-1 mt-1 flex-wrap">
+                              {(ai.tags ?? []).map(tag => (
+                                <span key={tag} className="text-[10px] px-1.5 py-0.5 bg-blue-500/10 text-blue-400 rounded border border-blue-500/20">{tag}</span>
+                              ))}
+                            </div>
+                          )}
+                          {hasDuplicate && (
+                            <div className="text-[10px] text-warning mt-0.5">Duplicate flagged</div>
+                          )}
+                        </td>
+                        <td className="admin-td">
+                          {(item as any).isReportedFAQ ? (
+                            <span className="text-xs text-ink-soft">Reported FAQ</span>
+                          ) : (
+                            <span className={`text-[10px] px-2 py-0.5 rounded border font-medium ${lcCfg.class}`}>
+                              {lcCfg.label}
+                            </span>
+                          )}
+                        </td>
+                        <td className="admin-td">
+                          {ai && (
+                            <div className="flex items-center gap-1">
+                              <div className="w-12 h-1.5 bg-border rounded-full overflow-hidden">
+                                <div className="h-full bg-purple-400 rounded-full" style={{ width: `${ai.confidenceScore}%` }} />
+                              </div>
+                              <span className="text-xs text-ink-faint">{ai.confidenceScore}%</span>
+                            </div>
+                          )}
+                          {(ai?.hallucinationFlags?.length ?? 0) > 0 && (
+                            <div className="text-[10px] text-danger mt-0.5">{ai!.hallucinationFlags!.length} hallucination flags</div>
+                          )}
+                          {(ai?.grammarIssues?.length ?? 0) > 0 && (
+                            <div className="text-[10px] text-warning mt-0.5">{ai!.grammarIssues!.length} grammar issues</div>
+                          )}
+                        </td>
+                        <td className="admin-td">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {((item as any).isReportedFAQ || item.lifecycle?.status === 'ai_validated') && (
+                              <>
+                                <button
+                                  onClick={() => handleApprove(item)}
+                                  disabled={actioning === item._id}
+                                  className="text-xs px-3 py-1 rounded-lg bg-success/10 text-success border border-success/20 hover:bg-success/20 disabled:opacity-50 transition-colors"
+                                >
+                                  {actioning === item._id ? '...' : (item as any).isReportedFAQ ? '✓ Verify' : '✓ Approve'}
+                                </button>
+                                <button
+                                  onClick={() => { setViewItem(item); setEditData(ai ?? { question: item.title, answer: item.answer ?? '', category: (item as any).category || 'General', tags: item.tags || [], confidenceScore: 0, hallucinationFlags: [], grammarIssues: [] }); }}
+                                  className="text-xs px-3 py-1 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20 transition-colors"
+                                >
+                                  Edit
+                                </button>
+                              </>
+                            )}
+                            {item.lifecycle?.status === 'community_accepted' && hasDuplicate && (
+                              <button
+                                onClick={() => setMergeTarget(item._id)}
+                                className="text-xs px-3 py-1 rounded-lg bg-warning/10 text-warning border border-warning/20 hover:bg-warning/20 transition-colors"
+                              >
+                                Merge
+                              </button>
+                            )}
+                            {!(item as any).isReportedFAQ && (
+                              <>
+                                <button
+                                  onClick={() => { setViewItem(item); setEditData(null); }}
+                                  className="text-xs px-3 py-1 rounded-lg border border-border text-ink-soft hover:bg-mist transition-colors"
+                                >
+                                  View
+                                </button>
+                                <button
+                                  onClick={() => setObjectModal(item._id)}
+                                  className="text-xs px-3 py-1 rounded-lg bg-danger/10 text-danger border border-danger/20 hover:bg-danger/20 transition-colors"
+                                >
+                                  Object
+                                </button>
+                              </>
+                            )}
                           </div>
-                        )}
-                      </td>
-                      <td className="py-3 px-4">
-                        {(ai?.hallucinationFlags?.length ?? 0) > 0 && (
-                          <div className="text-[10px] text-red-500 mt-0.5">{ai!.hallucinationFlags!.length} hallucination flags</div>
-                        )}
-                        {(ai?.grammarIssues?.length ?? 0) > 0 && (
-                          <div className="text-[10px] text-amber-500 mt-0.5">{ai!.grammarIssues!.length} grammar issues</div>
-                        )}
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {((item as any).isReportedFAQ || item.lifecycle?.status === 'ai_validated') && (
-                            <>
-                              <button
-                                onClick={() => handleApprove(item)}
-                                disabled={actioning === item._id}
-                                className="text-xs px-3 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 disabled:opacity-50 transition-colors btn-verify-reported"
-                              >
-                                {actioning === item._id ? '...' : (item as any).isReportedFAQ ? '✓ Verify' : '✓ Approve'}
-                              </button>
-                              <button
-                                onClick={() => { setViewItem(item); setEditData(ai ?? { question: item.title, answer: item.answer ?? '', category: (item as any).category || 'General', tags: item.tags || [], confidenceScore: 0, hallucinationFlags: [], grammarIssues: [] }); }}
-                                className="text-xs px-3 py-1 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 disabled:opacity-50 transition-colors btn-edit-reported"
-                              >
-                                Edit
-                              </button>
-                            </>
-                          )}
-                          {item.lifecycle?.status === 'community_accepted' && hasDuplicate && (
-                            <button
-                              onClick={() => setMergeTarget(item._id)}
-                              className="text-xs px-3 py-1 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 disabled:opacity-50 transition-colors"
-                            >
-                              Merge
-                            </button>
-                          )}
-                          {!(item as any).isReportedFAQ && (
-                            <>
-                              <button
-                                onClick={() => { setViewItem(item); setEditData(null); }}
-                                className="text-xs px-3 py-1 rounded-lg border border-border hover:bg-cream transition-colors"
-                              >
-                                View
-                              </button>
-                              <button
-                                onClick={() => setObjectModal(item._id)}
-                                className="text-xs px-3 py-1 rounded-lg bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition-colors"
-                              >
-                                Object
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-4 mt-6">
-              <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="px-3 py-1 text-sm rounded-lg border border-border hover:bg-cream disabled:opacity-40 transition-colors"
-              >
-                Previous
-              </button>
-              <span className="text-sm text-ink-faint">Page {page} of {totalPages}</span>
-              <button
-                onClick={() => setPage(p => p + 1)}
-                disabled={page >= totalPages}
-                className="px-3 py-1 text-sm rounded-lg border border-border hover:bg-cream disabled:opacity-40 transition-colors"
-              >
-                Next
-              </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-          )}
+
+            {totalPages > 1 && (
+              <div className="admin-pagination">
+                <span>Page {page} of {totalPages} · {total} items</span>
+                <div className="flex gap-1">
+                  <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="admin-pagination-btn">← Prev</button>
+                  <button onClick={() => setPage(p => p + 1)} disabled={page >= totalPages} className="admin-pagination-btn">Next →</button>
+                </div>
+              </div>
+            )}
+          </div>
         </>
       )}
 
       {/* View / Edit Modal */}
       {viewItem && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 overflow-y-auto py-8">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4">
-            <div className="flex items-center justify-between p-6 border-b border-border">
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 backdrop-blur-sm overflow-y-auto py-8">
+          <div className="admin-modal-panel w-full max-w-2xl mx-4">
+            <div className="admin-modal-header">
               <h2 className="text-lg font-semibold text-ink">Review Details</h2>
               <button onClick={() => { setViewItem(null); setEditData(null); }} className="text-ink-faint hover:text-ink transition-colors">✕</button>
             </div>
 
-            <div className="p-6 space-y-5">
+            <div className="admin-modal-body space-y-5">
               {/* Stage + badges */}
               <div className="flex flex-wrap items-center gap-2">
                 <span className={`text-xs px-2 py-0.5 rounded border font-medium ${lc[viewItem.lifecycle?.status ?? 'community_accepted']?.class ?? lc['community_accepted'].class}`}>
                   {lc[viewItem.lifecycle?.status ?? 'community_accepted']?.label}
                 </span>
                 {viewItem.aiGeneratedFaq?.duplicateOf && (
-                  <span className="text-xs px-2 py-0.5 rounded border bg-amber-50 text-amber-700 border-amber-200 font-medium">
+                  <span className="text-xs px-2 py-0.5 rounded border bg-warning/10 text-warning border-warning/20 font-medium">
                     Duplicate flagged
                   </span>
                 )}
                 {viewItem.existingFaq && (
-                  <span className={`text-xs px-2 py-0.5 rounded border font-medium ${tc[viewItem.existingFaq.trustLevel]?.class ?? 'bg-gray-50 text-gray-600 border-gray-200'}`}>
+                  <span className={`text-xs px-2 py-0.5 rounded border font-medium ${tc[viewItem.existingFaq.trustLevel]?.class ?? 'bg-border/40 text-ink-faint border-border'}`}>
                     {tc[viewItem.existingFaq.trustLevel]?.label ?? viewItem.existingFaq.trustLevel}
                   </span>
                 )}
@@ -364,7 +352,7 @@ export default function FaqReview() {
                 <div className="text-sm text-ink-faint mt-1">{viewItem.body?.slice(0, 300)}{viewItem.body?.length > 300 ? '…' : ''}</div>
                 <div className="flex flex-wrap gap-1 mt-2">
                   {(viewItem.tags ?? []).map(tag => (
-                    <span key={tag} className="text-[10px] px-1.5 py-0.5 bg-gray-50 text-gray-600 rounded border border-gray-200">{tag}</span>
+                    <span key={tag} className="text-[10px] px-1.5 py-0.5 bg-mist text-ink-faint rounded border border-border">{tag}</span>
                   ))}
                 </div>
               </div>
@@ -373,7 +361,7 @@ export default function FaqReview() {
               {viewItem.answer && (
                 <div>
                   <div className="text-xs font-semibold text-ink-faint uppercase tracking-wide mb-1">Accepted Answer</div>
-                  <div className="text-sm text-ink bg-emerald-50 rounded-xl p-3 border border-emerald-100">{viewItem.answer}</div>
+                  <div className="text-sm text-ink bg-success/10 rounded-xl p-3 border border-success/20">{viewItem.answer}</div>
                   <div className="text-xs text-ink-faint mt-1">by {viewItem.author?.name ?? 'unknown'} · {viewItem.upvotes} upvotes</div>
                 </div>
               )}
@@ -384,45 +372,45 @@ export default function FaqReview() {
                   <div className="flex items-center justify-between mb-1">
                     <div className="text-xs font-semibold text-ink-faint uppercase tracking-wide">AI Generated FAQ</div>
                     <div className="flex items-center gap-1">
-                      <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-purple-500 rounded-full" style={{ width: `${viewItem.aiGeneratedFaq.confidenceScore}%` }} />
+                      <div className="w-16 h-1.5 bg-border rounded-full overflow-hidden">
+                        <div className="h-full bg-purple-400 rounded-full" style={{ width: `${viewItem.aiGeneratedFaq.confidenceScore}%` }} />
                       </div>
                       <span className="text-xs text-ink-faint">{viewItem.aiGeneratedFaq.confidenceScore}% conf.</span>
                     </div>
                   </div>
                   {editData ? (
                     <div className="space-y-2">
-                      <input value={editData.question} onChange={e => setEditData({ ...editData, question: e.target.value })} className="w-full border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30" placeholder="Question..." />
-                      <textarea value={editData.answer} onChange={e => setEditData({ ...editData, answer: e.target.value })} className="w-full border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 resize-none" rows={4} placeholder="Answer..." />
-                      <select value={editData.category} onChange={e => setEditData({ ...editData, category: e.target.value })} className="w-full border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30">
+                      <input value={editData.question} onChange={e => setEditData({ ...editData, question: e.target.value })} className="admin-input" placeholder="Question..." />
+                      <textarea value={editData.answer} onChange={e => setEditData({ ...editData, answer: e.target.value })} className="admin-textarea" rows={4} placeholder="Answer..." />
+                      <select value={editData.category} onChange={e => setEditData({ ...editData, category: e.target.value })} className="admin-select w-full">
                         {VALID_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
-                      <input value={editData.tags?.join(', ')} onChange={e => setEditData({ ...editData, tags: e.target.value.split(',').map(t => t.trim()).filter(Boolean) })} className="w-full border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30" placeholder="Tags (comma separated)..." />
+                      <input value={editData.tags?.join(', ')} onChange={e => setEditData({ ...editData, tags: e.target.value.split(',').map(t => t.trim()).filter(Boolean) })} className="admin-input" placeholder="Tags (comma separated)..." />
                       <div className="flex gap-2">
-                        <button onClick={() => setEditData(null)} className="px-3 py-1.5 text-xs rounded-lg border border-border hover:bg-cream transition-colors">Cancel</button>
-                        <button onClick={() => handleEditSave(viewItem)} disabled={actioning === viewItem._id} className="px-3 py-1.5 text-xs rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors">
+                        <button onClick={() => setEditData(null)} className="admin-btn-ghost text-xs px-3 py-1.5">Cancel</button>
+                        <button onClick={() => handleEditSave(viewItem)} disabled={actioning === viewItem._id} className="admin-btn-primary text-xs px-3 py-1.5">
                           {actioning === viewItem._id ? '...' : 'Save Changes'}
                         </button>
                       </div>
                     </div>
                   ) : (
-                    <div className="bg-purple-50 rounded-xl p-3 border border-purple-100 space-y-2">
+                    <div className="bg-purple-500/10 rounded-xl p-3 border border-purple-500/20 space-y-2">
                       <div className="font-medium text-sm text-ink">{viewItem.aiGeneratedFaq.question}</div>
                       <div className="text-sm text-ink">{viewItem.aiGeneratedFaq.answer}</div>
                       <div className="text-xs text-ink-faint">{viewItem.aiGeneratedFaq.category} · {(viewItem.aiGeneratedFaq.tags ?? []).join(', ')}</div>
                       {(viewItem.aiGeneratedFaq.hallucinationFlags ?? []).length > 0 && (
                         <div className="mt-2">
-                          <div className="text-[10px] font-semibold text-red-500 uppercase mb-1">Hallucination flags</div>
+                          <div className="text-[10px] font-semibold text-danger uppercase mb-1">Hallucination flags</div>
                           {(viewItem.aiGeneratedFaq.hallucinationFlags ?? []).map((f, i) => (
-                            <div key={i} className="text-xs text-red-600 bg-red-50 rounded px-2 py-1 mb-0.5">⚠ {f}</div>
+                            <div key={i} className="text-xs text-danger bg-danger/10 rounded px-2 py-1 mb-0.5">⚠ {f}</div>
                           ))}
                         </div>
                       )}
                       {(viewItem.aiGeneratedFaq.grammarIssues ?? []).length > 0 && (
                         <div className="mt-2">
-                          <div className="text-[10px] font-semibold text-amber-600 uppercase mb-1">Grammar issues</div>
+                          <div className="text-[10px] font-semibold text-warning uppercase mb-1">Grammar issues</div>
                           {(viewItem.aiGeneratedFaq.grammarIssues ?? []).map((g, i) => (
-                            <div key={i} className="text-xs text-amber-600 bg-amber-50 rounded px-2 py-1 mb-0.5">✎ {g}</div>
+                            <div key={i} className="text-xs text-warning bg-warning/10 rounded px-2 py-1 mb-0.5">✎ {g}</div>
                           ))}
                         </div>
                       )}
@@ -430,7 +418,7 @@ export default function FaqReview() {
                   )}
                 </div>
               ) : (
-                <div className="text-sm text-amber-500 bg-amber-50 rounded-xl p-3 border border-amber-100">
+                <div className="text-sm text-warning bg-warning/10 rounded-xl p-3 border border-warning/20">
                   Pending AI review — click "Run AI Batch Review" or trigger individually
                 </div>
               )}
@@ -449,7 +437,7 @@ export default function FaqReview() {
                         <div className="pb-2">
                           <div className="font-medium text-ink">{h.from || '—'} → {h.to}</div>
                           <div className="text-ink-faint">{h.note ?? ''}</div>
-                          <div className="text-ink-subtle">{new Date(h.changedAt).toLocaleString()}</div>
+                          <div className="text-ink-faint/60">{new Date(h.changedAt).toLocaleString()}</div>
                         </div>
                       </div>
                     ))}
@@ -459,21 +447,21 @@ export default function FaqReview() {
             </div>
 
             {/* Modal actions */}
-            <div className="flex items-center justify-between p-6 border-t border-border">
+            <div className="admin-modal-footer justify-between">
               <div className="flex gap-2">
                 {viewItem.lifecycle?.status === 'ai_validated' && !editData && (
                   <>
-                    <button onClick={() => setEditData(viewItem.aiGeneratedFaq ?? { question: viewItem.title, answer: viewItem.answer ?? '', category: 'General', tags: viewItem.tags, confidenceScore: 0, hallucinationFlags: [], grammarIssues: [] })} className="px-3 py-1.5 text-xs rounded-lg bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors">Edit</button>
-                    <button onClick={() => handleApprove(viewItem)} disabled={actioning === viewItem._id} className="px-3 py-1.5 text-xs rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 disabled:opacity-50 transition-colors">
+                    <button onClick={() => setEditData(viewItem.aiGeneratedFaq ?? { question: viewItem.title, answer: viewItem.answer ?? '', category: 'General', tags: viewItem.tags, confidenceScore: 0, hallucinationFlags: [], grammarIssues: [] })} className="text-xs px-3 py-1.5 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20 transition-colors">Edit</button>
+                    <button onClick={() => handleApprove(viewItem)} disabled={actioning === viewItem._id} className="text-xs px-3 py-1.5 rounded-lg bg-success/10 text-success border border-success/20 hover:bg-success/20 disabled:opacity-50 transition-colors">
                       {actioning === viewItem._id ? '...' : '✓ Approve'}
                     </button>
                     {viewItem.aiGeneratedFaq?.duplicateOf && (
-                      <button onClick={() => setMergeTarget(viewItem._id)} className="px-3 py-1.5 text-xs rounded-lg bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-colors">Merge</button>
+                      <button onClick={() => setMergeTarget(viewItem._id)} className="text-xs px-3 py-1.5 rounded-lg bg-warning/10 text-warning border border-warning/20 hover:bg-warning/20 transition-colors">Merge</button>
                     )}
                   </>
                 )}
               </div>
-              <button onClick={() => { setViewItem(null); setEditData(null); }} className="px-4 py-1.5 text-sm rounded-lg border border-border hover:bg-cream transition-colors">Close</button>
+              <button onClick={() => { setViewItem(null); setEditData(null); }} className="admin-btn-ghost text-sm">Close</button>
             </div>
           </div>
         </div>
@@ -484,33 +472,40 @@ export default function FaqReview() {
         const item = queue.find(q => q._id === mergeTarget);
         if (!item) return null;
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-            <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md">
-              <h2 className="text-lg font-semibold text-ink mb-2">Merge Duplicate FAQ</h2>
-              <p className="text-sm text-ink-faint mb-4">
-                Merge <strong className="text-ink">{item.title}</strong> into an existing FAQ to avoid duplication.
-              </p>
-              {item.aiGeneratedFaq?.duplicateOf && (
-                <div className="text-xs bg-amber-50 text-amber-700 rounded-lg px-3 py-2 mb-4 border border-amber-100">
-                  AI flagged this as duplicate of FAQ: <span className="font-mono">{item.aiGeneratedFaq.duplicateOf}</span>
-                </div>
-              )}
-              <div className="text-xs font-semibold text-ink-faint uppercase tracking-wide mb-1">Tags to merge</div>
-              <div className="flex flex-wrap gap-1 mb-4">
-                {(item.aiGeneratedFaq?.tags ?? item.tags ?? []).map(tag => (
-                  <span key={tag} className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded border border-blue-100">{tag}</span>
-                ))}
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+            <div className="admin-modal-panel w-full max-w-md mx-4">
+              <div className="admin-modal-header">
+                <h2 className="text-lg font-semibold text-ink">Merge Duplicate FAQ</h2>
+                <button onClick={() => { setMergeTarget(''); setObjectReason(''); }} className="text-ink-faint hover:text-ink transition-colors">✕</button>
               </div>
-              <textarea
-                value={objectReason}
-                onChange={e => setObjectReason(e.target.value)}
-                placeholder="Merge target FAQ ID (MongoDB ObjectId)..."
-                className="w-full border border-border rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 resize-none font-mono"
-                rows={2}
-              />
-              <div className="flex items-center justify-end gap-3 mt-4">
-                <button onClick={() => { setMergeTarget(''); setObjectReason(''); }} className="px-4 py-2 text-sm rounded-lg border border-border hover:bg-cream transition-colors">Cancel</button>
-                <button onClick={() => handleMerge(item)} disabled={!objectReason.trim() || actioning === item._id} className="px-4 py-2 text-sm rounded-lg bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50 transition-colors">
+              <div className="admin-modal-body space-y-4">
+                <p className="text-sm text-ink-faint">
+                  Merge <strong className="text-ink">{item.title}</strong> into an existing FAQ to avoid duplication.
+                </p>
+                {item.aiGeneratedFaq?.duplicateOf && (
+                  <div className="text-xs bg-warning/10 text-warning rounded-lg px-3 py-2 border border-warning/20">
+                    AI flagged this as duplicate of FAQ: <span className="font-mono">{item.aiGeneratedFaq.duplicateOf}</span>
+                  </div>
+                )}
+                <div>
+                  <div className="admin-label">Tags to merge</div>
+                  <div className="flex flex-wrap gap-1">
+                    {(item.aiGeneratedFaq?.tags ?? item.tags ?? []).map(tag => (
+                      <span key={tag} className="text-[10px] px-1.5 py-0.5 bg-blue-500/10 text-blue-400 rounded border border-blue-500/20">{tag}</span>
+                    ))}
+                  </div>
+                </div>
+                <textarea
+                  value={objectReason}
+                  onChange={e => setObjectReason(e.target.value)}
+                  placeholder="Merge target FAQ ID (MongoDB ObjectId)..."
+                  className="admin-textarea font-mono"
+                  rows={2}
+                />
+              </div>
+              <div className="admin-modal-footer justify-end">
+                <button onClick={() => { setMergeTarget(''); setObjectReason(''); }} className="admin-btn-ghost">Cancel</button>
+                <button onClick={() => handleMerge(item)} disabled={!objectReason.trim() || actioning === item._id} className="admin-btn-warn">
                   {actioning === item._id ? '...' : 'Merge'}
                 </button>
               </div>
@@ -521,30 +516,30 @@ export default function FaqReview() {
 
       {/* Objection Modal */}
       {objectModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md">
-            <h2 className="text-lg font-semibold text-ink mb-4">Object to Promotion</h2>
-            <p className="text-sm text-ink-faint mb-4">
-              Provide a reason for your objection. This will prevent further auto-promotion of this content.
-            </p>
-            <textarea
-              value={objectReason}
-              onChange={e => setObjectReason(e.target.value)}
-              placeholder="Reason for objection..."
-              className="w-full border border-border rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 resize-none"
-              rows={3}
-            />
-            <div className="flex items-center justify-end gap-3 mt-4">
-              <button
-                onClick={() => { setObjectModal(null); setObjectReason(''); }}
-                className="px-4 py-2 text-sm rounded-lg border border-border hover:bg-cream transition-colors"
-              >
-                Cancel
-              </button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="admin-modal-panel w-full max-w-md mx-4">
+            <div className="admin-modal-header">
+              <h2 className="text-lg font-semibold text-ink">Object to Promotion</h2>
+              <button onClick={() => { setObjectModal(null); setObjectReason(''); }} className="text-ink-faint hover:text-ink transition-colors">✕</button>
+            </div>
+            <div className="admin-modal-body">
+              <p className="text-sm text-ink-faint mb-4">
+                Provide a reason for your objection. This will prevent further auto-promotion of this content.
+              </p>
+              <textarea
+                value={objectReason}
+                onChange={e => setObjectReason(e.target.value)}
+                placeholder="Reason for objection..."
+                className="admin-textarea"
+                rows={3}
+              />
+            </div>
+            <div className="admin-modal-footer justify-end">
+              <button onClick={() => { setObjectModal(null); setObjectReason(''); }} className="admin-btn-ghost">Cancel</button>
               <button
                 onClick={() => handleReject(objectModal)}
                 disabled={!objectReason.trim() || actioning === objectModal}
-                className="px-4 py-2 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
+                className="admin-btn-danger"
               >
                 {actioning === objectModal ? '...' : 'Submit Objection'}
               </button>

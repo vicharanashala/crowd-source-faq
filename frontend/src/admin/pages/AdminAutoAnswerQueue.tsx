@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import adminApi from '../utils/adminApi';
 import { friendlyError } from '../../utils/api';
 import Badge from '../components/common/Badge';
-import { AdminCard, AdminTable } from '../components/ui';
+import { AdminCard } from '../components/ui';
 
 interface QueuedPost {
   _id: string;
@@ -90,86 +90,6 @@ export default function AdminAutoAnswerQueue() {
     if (filter === 'all') return true;
     return p.aiAnswerStatus === filter;
   });
-
-  const columns = [
-    {
-      key: 'post',
-      label: 'Post',
-      render: (row: QueuedPost) => (
-        <div className="max-w-xs">
-          <p className="text-sm font-medium text-ink truncate">{row.title}</p>
-          {row.aiAnswerSource && (
-            <p className="text-[10px] text-ink-faint mt-0.5">
-              Source: {row.aiAnswerSource}
-            </p>
-          )}
-          {row.aiAnswerConfidence != null && (
-            <p className="text-[10px] text-ink-faint">
-              Confidence: <span className={row.aiAnswerConfidence >= 0.85 ? 'text-success' : 'text-warning'}>{Math.round(row.aiAnswerConfidence * 100)}%</span>
-            </p>
-          )}
-        </div>
-      ),
-    },
-    {
-      key: 'status',
-      label: 'Status',
-      render: (row: QueuedPost) => (
-        <Badge
-          status={row.aiAnswerStatus === 'escalated' ? 'rejected' : row.aiAnswerStatus === 'suggested' ? 'pending' : 'default'}
-          label={row.aiAnswerStatus ?? 'unknown'}
-          showDot={false}
-        />
-      ),
-      width: '120px',
-    },
-    {
-      key: 'age',
-      label: 'Queued',
-      render: (row: QueuedPost) => row.aiAnswerSuggestedAt
-        ? <span className="text-xs text-ink-soft">{new Date(row.aiAnswerSuggestedAt).toLocaleDateString()}</span>
-        : '—',
-      width: '100px',
-    },
-    {
-      key: 'actions',
-      label: 'Actions',
-      render: (row: QueuedPost) => (
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => setExpandedId(expandedId === row._id ? null : row._id)}
-            className="text-[11px] px-2.5 py-1 rounded-lg border border-border text-ink-soft hover:text-ink hover:bg-mist transition-all"
-          >
-            {expandedId === row._id ? 'Collapse' : 'View Answer'}
-          </button>
-          {actionLoading === row._id ? (
-            <span className="text-xs text-ink-faint animate-pulse px-2">…</span>
-          ) : (
-            <>
-              <button
-                onClick={() => handleAction(row._id, 'approve')}
-                className="text-[11px] px-2.5 py-1 rounded-lg bg-success/10 border border-success/20 text-success hover:bg-success/20 transition-all"
-              >
-                Approve
-              </button>
-              <button
-                onClick={() => handleAction(row._id, 'reject')}
-                className="text-[11px] px-2.5 py-1 rounded-lg bg-danger/10 border border-danger/20 text-danger hover:bg-danger/20 transition-all"
-              >
-                Reject
-              </button>
-              <button
-                onClick={() => handleAction(row._id, 'escalate')}
-                className="text-[11px] px-2.5 py-1 rounded-lg bg-warning/10 border border-warning/20 text-warning hover:bg-warning/20 transition-all"
-              >
-                Escalate
-              </button>
-            </>
-          )}
-        </div>
-      ),
-    },
-  ];
 
   return (
     <div className="space-y-5 max-w-5xl">
