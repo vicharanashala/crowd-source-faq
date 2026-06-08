@@ -59,6 +59,21 @@ export async function verifyAndLoadUser(
     return null;
   }
 
+  if (user.isBanned) {
+    res.status(403).json({ message: 'Account is banned.' });
+    return null;
+  }
+
+  if (user.isDeleted) {
+    res.status(403).json({ message: 'Account has been deleted.' });
+    return null;
+  }
+
+  if (user.suspendedUntil && user.suspendedUntil > new Date()) {
+    res.status(403).json({ message: `Account is suspended until ${user.suspendedUntil.toISOString()}.` });
+    return null;
+  }
+
   req.user = user as IUser;
   req.auth = decoded;
   return user as IUser;
