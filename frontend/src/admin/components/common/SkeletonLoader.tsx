@@ -1,9 +1,9 @@
-import React from 'react';
+import type { CSSProperties } from 'react';
 
-interface SkeletonProps { className?: string; style?: React.CSSProperties; }
+interface SkeletonProps { className?: string; style?: CSSProperties; }
 
-function Skeleton({ className = '', style = {} }: SkeletonProps) {
-  return <div className={`rounded ${className}`} style={{ background: 'linear-gradient(90deg, rgba(0,0,0,0.04) 25%, rgba(0,0,0,0.07) 50%, rgba(0,0,0,0.04) 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.8s infinite linear', ...style }} />;
+function Skeleton({ className = '', style }: SkeletonProps) {
+  return <div className={`rounded bg-mist animate-pulse ${className}`} style={style} />;
 }
 
 export function StatsCardSkeleton() {
