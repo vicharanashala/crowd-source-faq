@@ -34,6 +34,7 @@ import { getMetrics } from './utils/metrics.js';
 import { runWithContext } from './utils/requestContext.js';
 import { flushSearchLogs } from './controllers/searchController.js';
 import { jobQueue } from './utils/jobQueue.js';
+import { getCloudinaryConfig } from './utils/cloudinary.js';
 import * as Sentry from '@sentry/node';
 import { expressIntegration } from '@sentry/node';
 
@@ -252,6 +253,16 @@ function validateEnv(): void {
   const redirectUri = process.env.ZOOM_REDIRECT_URI;
   if (redirectUri !== undefined && !/^https?:\/\/.+/.test(redirectUri)) {
     errors.push('ZOOM_REDIRECT_URI must be a valid URL');
+  }
+
+  if (process.env.NODE_ENV !== 'development' && !process.env.ZOOM_WEBHOOK_SECRET_TOKEN) {
+    errors.push('ZOOM_WEBHOOK_SECRET_TOKEN is required in non-development environments');
+  }
+
+  try {
+    getCloudinaryConfig();
+  } catch (e: any) {
+    errors.push(e.message);
   }
 
   if (errors.length > 0) {
