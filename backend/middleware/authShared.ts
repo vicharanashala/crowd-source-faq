@@ -65,14 +65,13 @@ export async function verifyAndLoadUser(
 }
 
 /**
- * Standalone role guard — used by `authorize(...roles)`. Throws on failure
- * so the global error handler can format the response.
+ * Standalone role guard used by `authorize(...roles)`.
  */
-export function authorize(...allowedRoles: UserRole[]): (req: Request, _res: Response, next: NextFunction) => void {
-  return (req: Request, _res: Response, next: NextFunction): void => {
+export function authorize(...allowedRoles: UserRole[]): (req: Request, res: Response, next: NextFunction) => void {
+  return (req: Request, res: Response, next: NextFunction): void => {
     const role = (req as AuthedRequest).user?.role as UserRole | undefined;
     if (!role || !allowedRoles.includes(role)) {
-      next(new Error('Insufficient permissions.'));
+      res.status(403).json({ message: 'Insufficient permissions.' });
       return;
     }
     next();
