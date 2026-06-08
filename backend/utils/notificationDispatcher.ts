@@ -9,6 +9,7 @@
 
 import { Types } from 'mongoose';
 import Notification, { NotificationType } from '../models/Notification.js';
+import { logger } from './logger.js';
 
 // Note: a previous version of this file attempted to emit a real-time Socket.io
 // event after persisting a notification. Socket.io is not installed and no
@@ -121,9 +122,10 @@ export const dispatchNotification = async ({
       link,
       read: false,
     });
-  } catch {
+  } catch (err) {
     // Notifications are best-effort; surface errors only in environments
     // where you want alerting (staging / canary). In production the error is
-    // swallowed to avoid poisoning the parent operation.
+    // swallowed to avoid poisoning the parent operation, but we log a warning.
+    logger.warn(`[notificationDispatcher] Failed to create notification for ${recipientId}: ${(err as Error).message}`);
   }
 };

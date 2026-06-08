@@ -360,8 +360,9 @@ export const verifyEscalatedFAQ = async (req: Request<{ id: string }>, res: Resp
         faq.embedding = await generateEmbedding(
           `Section: ${faq.category}. Question: ${faq.question}. Answer: ${faq.answer}`
         );
-      } catch {
-        // Non-fatal — keep old embedding
+      } catch (err) {
+        // Non-fatal — log warning and keep old embedding
+        logger.warn(`[freshness] Failed to regenerate FAQ embedding for FAQ ${faq._id}: ${(err as Error).message}`);
       }
     }
 

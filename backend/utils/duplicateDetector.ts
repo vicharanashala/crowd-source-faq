@@ -145,7 +145,10 @@ async function getVectorCandidates(query: string, topK: number): Promise<Candida
     CommunityPost.find().select('_id title body').lean(),
   ]);
 
-  const queryEmb = await generateEmbedding(query).catch(() => null);
+  const queryEmb = await generateEmbedding(query).catch((err) => {
+    logger.warn(`[duplicateDetector] Failed to generate embedding for query '${query}': ${(err as Error).message}`);
+    return null;
+  });
   if (!queryEmb) return [];
 
   const faqCandidates = faqs
@@ -162,7 +165,10 @@ async function getVectorCandidates(query: string, topK: number): Promise<Candida
 
   const postCandidates: Candidate[] = [];
   for (const p of posts) {
-    const emb = await generateEmbedding(`${p.title} ${p.body ?? ''}`).catch(() => null);
+    const emb = await generateEmbedding(`${p.title} ${p.body ?? ''}`).catch((err) => {
+      logger.warn(`[duplicateDetector] Failed to generate embedding for post ${p._id}: ${(err as Error).message}`);
+      return null;
+    });
     if (!emb) continue;
     postCandidates.push({
       _id: p._id.toString(),
@@ -211,7 +217,8 @@ function parseAIMatches(raw: string, candidates: Candidate[]): DuplicateMatch[] 
       });
     }
     return matches.sort((a, b) => b.score - a.score).slice(0, 5);
-  } catch {
+  } catch (err) {
+    logger.warn(`[duplicateDetector] Failed to parse AI duplicate detection response JSON: ${(err as Error).message}. Raw response: ${raw.slice(0, 300)}`);
     return [];
   }
 }

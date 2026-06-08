@@ -265,7 +265,10 @@ export async function searchKnowledge(
   query: string,
   topK = 5
 ): Promise<KnowledgeMatch[]> {
-  const qEmb = await generateEmbedding(query).catch(() => null);
+  const qEmb = await generateEmbedding(query).catch((err) => {
+    logger.warn(`[knowledgeBase] Failed to generate embedding for query '${query}': ${(err as Error).message}`);
+    return null;
+  });
 
   const queryWords = query
     .toLowerCase()
@@ -354,7 +357,9 @@ export async function answerFromKnowledge(
     eventType: 'faq_match_found',
     link: `/community?post=${post._id}`,
     title: 'A matching FAQ answered your question!',
-  }).catch(() => {});
+  }).catch((err) => {
+    logger.warn(`[knowledgeBase] Failed to dispatch match notification to user ${post.author} for post ${post._id}: ${(err as Error).message}`);
+  });
 
   return { answered: true, answer: post.answer, knowledgeId: best._id };
 }

@@ -515,7 +515,8 @@ export async function getZoomPublicStats(_req: Request, res: Response): Promise<
       faqsPromoted,
     });
   } catch (err) {
-    // Don't 500 the homepage — return zeros and let the UI hide the section
+    // Don't 500 the homepage — return zeros and let the UI hide the section, but log warning
+    logger.warn(`[zoom] Failed to get homepage stats: ${(err as Error).message}`);
     res.json({ meetingsProcessed: 0, insightsExtracted: 0, knowledgeExtracted: 0, faqsPromoted: 0 });
   }
 }
@@ -627,8 +628,14 @@ export async function convertInsightToFAQ(req: Request, res: Response): Promise<
 
     // Async: generate embedding (non-blocking)
     generateEmbedding(faq.question).then(emb => {
-      if (emb) FAQ.findByIdAndUpdate(faq._id, { embedding: emb }).catch(() => {});
-    }).catch(() => {});
+      if (emb) {
+        FAQ.findByIdAndUpdate(faq._id, { embedding: emb }).catch((err) => {
+          logger.warn(`[zoom] Failed to save generated FAQ embedding for ${faq._id}: ${(err as Error).message}`);
+        });
+      }
+    }).catch((err) => {
+      logger.warn(`[zoom] Failed to generate embedding for FAQ ${faq._id}: ${(err as Error).message}`);
+    });
 
     insight.publishedFaqId = faq._id as mongoose.Types.ObjectId;
     await insight.save();
@@ -648,7 +655,8 @@ function isBlacklisted(topic: string): boolean {
   return raw.split(',').some((pattern) => {
     try {
       return new RegExp(pattern.trim(), 'i').test(topic);
-    } catch {
+    } catch (err) {
+      logger.warn(`[zoom] Invalid regex in blacklist pattern '${pattern}': ${(err as Error).message}`);
       return false;
     }
   });

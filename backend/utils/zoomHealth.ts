@@ -58,8 +58,9 @@ export async function getZoomHealth(): Promise<ZoomHealthStatus> {
   try {
     const { ZoomMeeting } = await import('../models/ZoomMeeting.js');
     failingMeetingsCount = await ZoomMeeting.countDocuments({ status: 'failed' });
-  } catch {
-    // Model might not be loaded yet — ignore
+  } catch (err) {
+    // Model might not be loaded yet — log warning and ignore
+    logger.warn(`[zoomHealth] Failed to count failing Zoom meetings: ${(err as Error).message}`);
   }
 
   const isDown = oauth === 'open' && api === 'open';

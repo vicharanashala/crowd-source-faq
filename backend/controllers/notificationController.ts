@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import Notification from '../models/Notification.js';
+import { logger } from '../utils/logger.js';
 
 export interface CreateNotificationParams {
   recipient: import('mongoose').Types.ObjectId;
@@ -14,8 +15,9 @@ export interface CreateNotificationParams {
 export const createNotification = async (params: CreateNotificationParams): Promise<void> => {
   try {
     await Notification.create(params);
-  } catch {
-    // Non-critical — swallow errors so notification failures don't break the parent operation
+  } catch (err) {
+    // Non-critical — log but don't break the parent operation
+    logger.warn(`[notification] Failed to create notification: ${(err as Error).message}`);
   }
 };
 

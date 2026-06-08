@@ -51,7 +51,8 @@ function looksEncrypted(value: string): boolean {
     // Minimum structure: salt(16) + iv(12) + at least 1 byte ciphertext + tag(16)
     if (buf.length < 45) return false;
     return true;
-  } catch {
+  } catch (err) {
+    console.warn(`[migrateZoomTokens] Error checking if value looks encrypted: ${(err as Error).message}`);
     return false;
   }
 }

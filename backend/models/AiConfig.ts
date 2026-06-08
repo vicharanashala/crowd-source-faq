@@ -17,6 +17,7 @@
 
 import mongoose, { Schema, type Document } from 'mongoose';
 import { encrypt, decrypt } from '../utils/crypto.js';
+import { logger } from '../utils/logger.js';
 
 export type AIProviderType = 'anthropic' | 'openai' | 'xai' | 'minimax' | 'gemini' | 'custom';
 
@@ -129,7 +130,9 @@ const aiConfigSchema = new Schema<IAiConfig>(
 // Only one active config at a time
 aiConfigSchema.pre('save', function (next) {
   if (this.isActive) {
-    AiConfig.updateMany({ _id: { $ne: this._id } }, { isActive: false }).catch(() => {});
+    AiConfig.updateMany({ _id: { $ne: this._id } }, { isActive: false }).catch((err) => {
+      logger.warn(`[AiConfig] Failed to deactivate other configurations on pre-save: ${(err as Error).message}`);
+    });
   }
   next();
 });
@@ -141,7 +144,8 @@ aiConfigSchema.methods.getApiKey = function (provider: AIProviderType): string |
   if (!cipher) return null;
   try {
     return decrypt(cipher);
-  } catch {
+  } catch (err) {
+    logger.warn(`[AiConfig] Failed to decrypt API key for provider ${provider}: ${(err as Error).message}`);
     return null;
   }
 };

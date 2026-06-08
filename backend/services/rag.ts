@@ -88,11 +88,17 @@ async function searchFaqs(embedding: number[], query: string, limit: number): Pr
             ],
           },
         } },
-      ]).toArray().catch(() => []),
+      ]).toArray().catch((err) => {
+        logger.warn(`[rag] searchFaqs aggregate vector search failed: ${(err as Error).message}`);
+        return [];
+      }),
     db.collection('yaksha_faq_faqs').find(
       { $text: { $search: query } },
       { projection: { score: { $meta: 'textScore' }, question: 1, answer: 1, category: 1, trustLevel: 1 } }
-    ).sort({ score: { $meta: 'textScore' } }).limit(limit).toArray().catch(() => []),
+    ).sort({ score: { $meta: 'textScore' } }).limit(limit).toArray().catch((err) => {
+      logger.warn(`[rag] searchFaqs text search failed: ${(err as Error).message}`);
+      return [];
+    }),
   ]);
 
   // Reciprocal Rank Fusion — same formula as the search controller.
@@ -140,11 +146,17 @@ async function searchCommunity(embedding: number[], query: string, limit: number
           limit,
         } },
         { $project: { _id: 1, title: 1, body: 1, status: 1, score: { $meta: 'vectorSearchScore' } } },
-      ]).toArray().catch(() => []),
+      ]).toArray().catch((err) => {
+        logger.warn(`[rag] searchCommunity aggregate vector search failed: ${(err as Error).message}`);
+        return [];
+      }),
     db.collection('yaksha_faq_communityposts').find(
       { $text: { $search: query } },
       { projection: { score: { $meta: 'textScore' }, title: 1, body: 1, status: 1 } }
-    ).sort({ score: { $meta: 'textScore' } }).limit(limit).toArray().catch(() => []),
+    ).sort({ score: { $meta: 'textScore' } }).limit(limit).toArray().catch((err) => {
+      logger.warn(`[rag] searchCommunity text search failed: ${(err as Error).message}`);
+      return [];
+    }),
   ]);
 
   const rrf = (k: number) => 1 / (60 + k);

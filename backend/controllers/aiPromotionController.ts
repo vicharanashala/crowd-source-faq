@@ -286,7 +286,8 @@ function parseCommunityReviewResponse(
       isDuplicate:   Boolean(parsed.isDuplicate),
       duplicateOfId: dupId,
     };
-  } catch {
+  } catch (err) {
+    logger.warn(`[aiPromotion] Failed to parse community review JSON response: ${(err as Error).message}. Raw response: ${raw.slice(0, 300)}`);
     return defaultReview();
   }
 }

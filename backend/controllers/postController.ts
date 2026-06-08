@@ -332,7 +332,9 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
     await post.populate('author', 'name');
 
     // Invalidate search cache so new post appears in community search immediately
-    await invalidateCache().catch(() => {});
+    await invalidateCache().catch((err) => {
+      logger.warn(`[post] Failed to invalidate cache on post creation: ${(err as Error).message}`);
+    });
 
     res.status(201).json({ post });
   } catch (error) {
@@ -366,7 +368,10 @@ export const toggleUpvote = async (req: Request, res: Response): Promise<void> =
 
     // Check if this upvote just crossed the promotion threshold
     if (!alreadyUpvoted) {
-      const { checkPromotionEligibility, startPromotionReview } = await import('../services/promotionService.js').catch(() => ({ checkPromotionEligibility: null, startPromotionReview: null }));
+      const { checkPromotionEligibility, startPromotionReview } = await import('../services/promotionService.js').catch((err) => {
+        logger.warn(`[post] Failed to dynamically import promotionService: ${(err as Error).message}`);
+        return { checkPromotionEligibility: null, startPromotionReview: null };
+      });
       if (checkPromotionEligibility && startPromotionReview) {
         try {
           const eligible = await checkPromotionEligibility(updated ?? post);
@@ -387,7 +392,9 @@ export const toggleUpvote = async (req: Request, res: Response): Promise<void> =
         recipientId: post.author,
         eventType: 'upvote',
         link: `/community?post=${post._id}`,
-      }).catch(() => {});
+      }).catch((err) => {
+        logger.warn(`[post] Failed to dispatch upvote notification: ${(err as Error).message}`);
+      });
       // Tea drop: your post was upvoted
       createTeaDrop({
         userId: post.author,
@@ -396,7 +403,9 @@ export const toggleUpvote = async (req: Request, res: Response): Promise<void> =
         postTitle: post.title,
         triggeredBy: req.user!._id,
         triggeredByName: req.user!.name,
-      }).catch(() => {});
+      }).catch((err) => {
+        logger.warn(`[post] Failed to create tea drop for upvote: ${(err as Error).message}`);
+      });
       // Award +2 points to post author for receiving question upvote (knowledge-lifecycle-design.md)
       const updatedAuthor = await User.findByIdAndUpdate(
         post.author,
@@ -407,7 +416,9 @@ export const toggleUpvote = async (req: Request, res: Response): Promise<void> =
         updatedAuthor.tier = calculateTier(updatedAuthor.points);
         await updatedAuthor.save();
         // Auto-award tier badges if threshold crossed
-        autoAwardBadges(post.author.toString()).catch(() => {});
+        autoAwardBadges(post.author.toString()).catch((err) => {
+          logger.warn(`[post] Failed to auto-award badges to ${post.author}: ${(err as Error).message}`);
+        });
       }
       await ReputationLog.create({
         userId: post.author,
@@ -468,7 +479,9 @@ export const resolvePost = async (req: Request, res: Response): Promise<void> =>
     await post.save();
 
     // Invalidate search cache so resolved answer reflects immediately
-    await invalidateCache().catch(() => {});
+    await invalidateCache().catch((err) => {
+      logger.warn(`[post] Failed to invalidate cache on post resolve: ${(err as Error).message}`);
+    });
 
     // ── Check if post is now eligible for FAQ promotion ───────────────────────
     const { checkPromotionEligibility, startPromotionReview } = await import('../services/promotionService.js');
@@ -488,7 +501,9 @@ export const resolvePost = async (req: Request, res: Response): Promise<void> =>
       eventType: 'post_resolved',
       link: `/community?post=${post._id}`,
       title: 'Your question was resolved!',
-    }).catch(() => {});
+    }).catch((err) => {
+      logger.warn(`[post] Failed to dispatch post resolved notification: ${(err as Error).message}`);
+    });
 
     // ── Tea drop: "your post was answered" ───────────────────────────────────
     // Only notify if the resolver is not the author themselves
@@ -501,7 +516,9 @@ export const resolvePost = async (req: Request, res: Response): Promise<void> =>
         triggeredBy: req.user!._id,
         triggeredByName: req.user!.name,
         content: answer.trim().slice(0, 200),
-      }).catch(() => {});
+      }).catch((err) => {
+        logger.warn(`[post] Failed to create tea drop for post answer: ${(err as Error).message}`);
+      });
     }
 
     res.json({ message: 'Post resolved.', post });
@@ -540,7 +557,9 @@ export const requestExpertHelp = async (req: Request, res: Response): Promise<vo
           message: `A student is waiting for help: "${post.title}"`,
           link: `/community?post=${post._id}`,
         })
-      ).catch(() => {})
+      ).catch((err) => {
+        logger.warn(`[post] Failed to notify mod/admin ${mod._id} on expert request: ${(err as Error).message}`);
+      })
     );
 
     await Promise.all(notificationPromises);
@@ -574,13 +593,17 @@ export const deletePost = async (req: Request, res: Response): Promise<void> => 
         postTitle,
         triggeredBy: req.user!._id,
         triggeredByName: req.user!.name,
-      }).catch(() => {});
+      }).catch((err) => {
+        logger.warn(`[post] Failed to create tea drop for deleted post: ${(err as Error).message}`);
+      });
     }
 
     await CommunityPost.findByIdAndDelete(req.params.id);
 
     // Invalidate search cache so deleted post is removed from results
-    await invalidateCache().catch(() => {});
+    await invalidateCache().catch((err) => {
+      logger.warn(`[post] Failed to invalidate cache on post delete: ${(err as Error).message}`);
+    });
 
     res.json({ message: 'Post deleted successfully.' });
   } catch (error) {
@@ -631,7 +654,9 @@ export const convertCommunityPostToFAQ = async (req: Request, res: Response): Pr
     await post.save();
 
     // Invalidate search cache so the new FAQ appears immediately
-    await invalidateCache().catch(() => {});
+    await invalidateCache().catch((err) => {
+      logger.warn(`[post] Failed to invalidate cache on FAQ conversion: ${(err as Error).message}`);
+    });
 
     res.status(201).json({ message: 'FAQ created from community post.', faq });
   } catch (error) {

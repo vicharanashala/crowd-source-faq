@@ -30,7 +30,8 @@ function decodeExpiry(token: string): Date {
   try {
     const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString('utf-8')) as { exp?: number };
     return new Date((payload.exp ?? Math.floor(Date.now() / 1000) + 7 * 86400) * 1000);
-  } catch {
+  } catch (err) {
+    logger.warn(`[auth] Failed to decode token expiry, using fallback (7 days): ${(err as Error).message}`);
     // Fallback: 7 days from now, matches the default expiresIn.
     return new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   }

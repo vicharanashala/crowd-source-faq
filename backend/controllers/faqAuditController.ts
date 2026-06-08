@@ -116,8 +116,9 @@ async function auditFAQ(faq: {
         knowledgeContext += `\n\n[Zoom Insight] ${ins.title}\n${insightText}`;
       }
     }
-  } catch (_) {
-    // ZoomInsight model may not exist in all deployments — skip silently
+  } catch (err) {
+    // ZoomInsight model may not exist in all deployments — log warning and skip
+    logger.warn(`[faqAudit] ZoomInsight retrieval skipped or model not registered: ${(err as Error).message}`);
   }
 
   // ── 3. Have GPT-4o mini compare FAQ answer against knowledge ────────────

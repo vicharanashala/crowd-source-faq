@@ -150,7 +150,8 @@ app.get('/api/health', async (req: Request, res: Response) => {
       await mongoose.connection.db!.admin().ping();
       dbStatus = 'connected';
     }
-  } catch {
+  } catch (err) {
+    logger.warn(`[server] Health check DB ping failed: ${(err as Error).message}`);
     dbStatus = 'error';
   }
   res.json({
@@ -321,7 +322,9 @@ if (process.env.NODE_ENV !== 'production') {
 // Graceful shutdown — flush pending work before exiting
 async function gracefulShutdown(signal: string): Promise<void> {
   logger.info(`[shutdown] Received ${signal}, starting graceful shutdown`);
-  Sentry.close(2000).catch(() => {}); // flush Sentry within 2s
+  Sentry.close(2000).catch((err) => {
+    logger.warn(`[shutdown] Sentry flush failed: ${(err as Error).message}`);
+  }); // flush Sentry within 2s
 
   // Stop accepting new jobs and wait for in-flight ones
   await jobQueue.flush(15_000);

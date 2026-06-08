@@ -21,8 +21,10 @@ const MAX_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
 function ensureLogDir(): void {
   try {
     mkdirSync(LOG_DIR, { recursive: true });
-  } catch {
-    // dir may already exist
+  } catch (err) {
+    if ((err as any).code !== 'EEXIST') {
+      console.warn(`[fileLogger] Failed to create log directory '${LOG_DIR}': ${(err as Error).message}`);
+    }
   }
 }
 
@@ -34,8 +36,8 @@ function rollLogFile(): void {
   );
   try {
     fs.renameSync(LOG_FILE, archivePath);
-  } catch {
-    // if rename fails, just write to the existing file
+  } catch (err) {
+    console.warn(`[fileLogger] Failed to roll log file to '${archivePath}': ${(err as Error).message}`);
   }
 }
 
@@ -46,8 +48,10 @@ function writeLine(line: string): void {
     if (stats.size >= MAX_SIZE_BYTES) {
       rollLogFile();
     }
-  } catch {
-    // file doesn't exist yet — that's fine
+  } catch (err) {
+    if ((err as any).code !== 'ENOENT') {
+      console.warn(`[fileLogger] Failed to stat log file: ${(err as Error).message}`);
+    }
   }
 
   fs.appendFile(LOG_FILE, line + '\n', (err) => {
@@ -59,7 +63,8 @@ function formatMeta(meta?: Record<string, unknown>): string {
   if (!meta || Object.keys(meta).length === 0) return '';
   try {
     return JSON.stringify(meta);
-  } catch {
+  } catch (err) {
+    console.warn(`[fileLogger] Failed to stringify metadata: ${(err as Error).message}`);
     return String(meta);
   }
 }

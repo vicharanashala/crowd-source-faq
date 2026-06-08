@@ -46,8 +46,9 @@ function scheduleFlush(): void {
     try {
       await SearchLog.insertMany(logs, { ordered: false });
       searchLogFlushes.inc();
-    } catch {
-      // silently discard failed batch inserts
+    } catch (err) {
+      // silently discard failed batch inserts, but log warning
+      logger.warn(`[search] Failed to flush buffered search logs to DB: ${(err as Error).message}`);
     } finally {
       searchLogFlushActive.dec();
     }
@@ -60,7 +61,9 @@ function bufferSearchLog(entry: Omit<PendingLog, 'createdAt'>): void {
     // Immediate flush when buffer is full
     if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
     const logs = pendingLogs.splice(0);
-    SearchLog.insertMany(logs, { ordered: false }).catch(() => {});
+    SearchLog.insertMany(logs, { ordered: false }).catch((err) => {
+      logger.warn(`[search] Failed to insert buffered search logs: ${(err as Error).message}`);
+    });
   } else {
     scheduleFlush();
   }
@@ -75,7 +78,9 @@ export async function flushSearchLogs(): Promise<void> {
   if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
   if (pendingLogs.length === 0) return;
   const logs = pendingLogs.splice(0);
-  await SearchLog.insertMany(logs, { ordered: false }).catch(() => {});
+  await SearchLog.insertMany(logs, { ordered: false }).catch((err) => {
+    logger.warn(`[search] Failed to insert search logs on immediate flush: ${(err as Error).message}`);
+  });
 }
 
 // Helper: Executes traditional MongoDB keyword search
