@@ -407,7 +407,7 @@ export default function ThreadDetail({ postId, onClose }: ThreadDetailProps) {
 
               {/* Share */}
               <button
-                onClick={() => { navigator.clipboard.writeText(window.location.href); setActionError('Link copied!'); setTimeout(() => setActionError(null), 2000); }}
+                onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/community?post=${post._id}`); setActionError('Post link copied to clipboard'); setTimeout(() => setActionError(null), 2000); }}
                 className="w-8 h-8 rounded-xl bg-mist text-ink-soft hover:bg-border hover:text-ink flex items-center justify-center transition-all"
                 title="Copy link"
               >
