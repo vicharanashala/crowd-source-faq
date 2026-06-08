@@ -382,6 +382,15 @@ export const toggleUpvote = async (req: Request, res: Response): Promise<void> =
 
     // Notify post author on new upvote only (self-votes and vote retractions send nothing)
     const isSelfVote = post.author.toString() === userId;
+    if (!isSelfVote && alreadyUpvoted) {
+      await User.findByIdAndUpdate(post.author, { $inc: { points: -2, reputation: -2 } });
+      await ReputationLog.deleteMany({
+        userId: post.author,
+        targetId: post._id as Types.ObjectId,
+        targetType: 'community_post',
+        action: 'upvote_received',
+      });
+    }
     if (!isSelfVote && !alreadyUpvoted) {
       dispatchNotification({
         recipientId: post.author,

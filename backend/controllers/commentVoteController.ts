@@ -37,6 +37,17 @@ export const toggleCommentUpvote = async (req: Request, res: Response): Promise<
     const isSelfVote = commentAuthorId.toString() === userId;
     const wasNewUpvote = !alreadyUpvoted;
 
+    // Reverse reputation when removing upvote
+    if (!isSelfVote && alreadyUpvoted) {
+      await User.findByIdAndUpdate(commentAuthorId, { $inc: { points: -5, reputation: -5 } });
+      await ReputationLog.deleteMany({
+        userId: commentAuthorId,
+        targetId: post._id as Types.ObjectId,
+        targetType: 'comment',
+        action: 'upvote_received',
+      });
+    }
+
     // Atomic $pull/$addToSet — avoids race-condition duplicates
     await CommunityPost.findOneAndUpdate(
       { _id: post._id, 'comments._id': new Types.ObjectId(commentId) },
