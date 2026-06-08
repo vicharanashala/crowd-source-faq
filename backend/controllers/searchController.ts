@@ -205,7 +205,15 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
     if (redisCached) {
       searchRequests.inc({ source: 'redis', cached: 'true' });
       searchResultsReturned.observe({ source: 'redis' }, redisCached.results.length);
-      res.json({ results: redisCached.results, total: redisCached.results.length, cached: true });
+      const cachedResults = redisCached.results as SearchResultItem[];
+      const topResult = cachedResults[0] || null;
+      bufferSearchLog({
+        query,
+        resultsCount: cachedResults.length,
+        topResultId: topResult?._id ?? null,
+        topResultSource: topResult?.source ?? null,
+      });
+      res.json({ results: cachedResults, total: cachedResults.length, cached: true });
       return;
     }
 
@@ -215,6 +223,13 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
       await setCachedResults(normalizedQuery, cachedResults);
       searchRequests.inc({ source: 'lru', cached: 'true' });
       searchResultsReturned.observe({ source: 'lru' }, cachedResults.length);
+      const topResult = cachedResults[0] || null;
+      bufferSearchLog({
+        query,
+        resultsCount: cachedResults.length,
+        topResultId: topResult?._id ?? null,
+        topResultSource: topResult?.source ?? null,
+      });
       res.json({ results: cachedResults, total: cachedResults.length, cached: true });
       return;
     }
