@@ -337,7 +337,7 @@ export const exportUserData = async (req: Request, res: Response): Promise<void>
   try {
     const [user, posts, notifications, notificationsCount] = await Promise.all([
       User.findById(userId).select('-password').lean(),
-      CommunityPost.find({ author: userId }).sort({ createdAt: -1 }).limit(500).lean(),
+      CommunityPost.find({ author: userId }).sort({ createdAt: -1 }).limit(500).select('-embedding').lean(),
       Notification.find({ recipient: userId }).sort({ createdAt: -1 }).limit(200).lean(),
       Notification.countDocuments({ recipient: userId }),
     ]);
