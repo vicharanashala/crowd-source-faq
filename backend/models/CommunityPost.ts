@@ -305,8 +305,8 @@ communityPostSchema.index({ title: 'text', body: 'text' });
 // Time-Trial activation scheduler
 communityPostSchema.index({ status: 1, timeTrialStatus: 1, createdAt: 1 });
 communityPostSchema.index({ status: 1, aiAnswerStatus: 1, createdAt: 1 });
-// Prevent duplicate upvotes: each user can only appear once in the upvotes array
-communityPostSchema.index({ upvotes: 1 }, { unique: true, sparse: true });
+// Index for upvote queries (uniqueness per-post is enforced by $addToSet in controller)
+communityPostSchema.index({ upvotes: 1 }, { sparse: true });
 // Promotion query indexes
 communityPostSchema.index({ eligibleForPromotion: 1, promotionPendingAt: 1 });
 communityPostSchema.index({ status: 1, eligibleForPromotion: 1 });
