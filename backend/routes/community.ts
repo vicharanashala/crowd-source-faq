@@ -65,6 +65,8 @@ router.post('/:id/comments/:commentId/upvote', protect, toggleCommentUpvote);
 router.post('/:id/comments/:commentId/downvote', protect, toggleCommentDownvote);
 router.patch('/:id/comments/:commentId/verify', protect, authorize('admin', 'moderator'), verifyComment);
 router.patch('/:id/comments/:commentId/accept-answer', protect, acceptCommentAnswer);
+router.patch('/:id/comments/:commentId', protect, updateComment);
+router.delete('/:id/comments/:commentId', protect, deleteComment);
 router.patch('/:id/comments/:commentId/dna', protect, authorize('admin', 'moderator'), setCommentDNA);
 router.delete('/:id/comments/:commentId/dna', protect, authorize('admin', 'moderator'), clearCommentDNA);
 router.patch('/:id/resolve', protect, validateBody(resolvePostSchema), resolvePost);
