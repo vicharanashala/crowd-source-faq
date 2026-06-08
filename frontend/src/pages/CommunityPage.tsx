@@ -34,6 +34,8 @@ export default function CommunityPage() {
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [toast, setToast] = useState('');
   const [error, setError] = useState('');
 
   const [filter, setFilter] = useState('all');
@@ -190,6 +192,15 @@ export default function CommunityPage() {
     return () => clearTimeout(timer);
   }, [search, runSemanticSearch]);
 
+  // Show success toast when a manual sync completes
+  useEffect(() => {
+    if (!loading && syncing) {
+      setSyncing(false);
+      setToast('Community content synced');
+      setTimeout(() => setToast(''), 2500);
+    }
+  }, [loading, syncing]);
+
   // When filter or sort changes — refresh posts (if no search active) or re-filter existing results
   useEffect(() => {
     if (search.trim()) {
@@ -219,6 +230,19 @@ export default function CommunityPage() {
 
   const handleCloseDetail = () => {
     setSelectedPostId(null);
+  };
+
+  const handleShareCommunity = async () => {
+    const url = window.location.origin + '/community';
+    try { await navigator.clipboard.writeText(url); } catch { /* ignore */ }
+    setToast('Community link copied');
+    setTimeout(() => setToast(''), 2500);
+  };
+
+  const handleSync = () => {
+    if (syncing || loading) return;
+    setSyncing(true);
+    fetchPosts(true);
   };
 
   const visible = (() => {
@@ -262,8 +286,9 @@ export default function CommunityPage() {
           <div className="flex items-center gap-2">
             {/* Share button */}
             <button
+              onClick={handleShareCommunity}
               className="w-9 h-9 rounded-xl border border-border bg-card flex items-center justify-center text-ink-faint hover:text-ink hover:border-accent/30 transition-all"
-              aria-label="Share"
+              aria-label="Share community link"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="18" cy="5" r="3"/>
@@ -273,17 +298,18 @@ export default function CommunityPage() {
                 <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
               </svg>
             </button>
-            {/* Synced Content button */}
+            {/* Sync Content button */}
             <button
-              onClick={handleAskQuestion}
-              id="ask-question-btn"
+              onClick={handleSync}
               className="btn-community-ask"
+              disabled={syncing}
+              aria-label="Sync community posts"
             >
-              <svg className="flex-shrink-0" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <svg className={`flex-shrink-0 transition-transform ${syncing ? 'animate-spin' : ''}`} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="23 4 23 10 17 10"/>
                 <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
               </svg>
-              <span className="hidden sm:inline">Synced Content</span>
+              <span className="hidden sm:inline">Sync Content</span>
               <span className="sm:hidden">Sync</span>
             </button>
           </div>
@@ -447,6 +473,12 @@ export default function CommunityPage() {
           onCreated={handlePostCreated}
           prefillTitle={createPrefillTitle}
         />
+      )}
+
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] px-4 py-2.5 bg-card border border-border rounded-xl text-xs text-ink font-medium shadow-float pointer-events-none">
+          {toast}
+        </div>
       )}
     </div>
   );

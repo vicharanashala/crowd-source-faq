@@ -49,13 +49,14 @@ router.get('/solved', getSolvedPosts);
 router.get('/answers/list', getAnswersList);
 router.get('/stats', getCommunityStats);
 
+// Protected non-parameterised routes must come BEFORE /:id to avoid the
+// wildcard swallowing "bookmarks" / "review-queue" as a post ID.
+router.get('/review-queue', protect, authorize('admin', 'moderator'), getReviewQueue);
+router.get('/bookmarks', protect, getBookmarks);
+
 router.get('/', getAllPosts);
 router.get('/:id', getPostById);
 router.get('/:id/related', getRelatedForPost);
-
-// Protected — user-specific or admin/moderator only
-router.get('/review-queue', protect, authorize('admin', 'moderator'), getReviewQueue);
-router.get('/bookmarks', protect, getBookmarks);
 
 router.post('/check-duplicate', protect, validateBody(checkDuplicateSchema), checkDuplicateController);
 router.post('/', protect, validateBody(createPostSchema), createPost);
