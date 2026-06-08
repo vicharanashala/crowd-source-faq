@@ -227,7 +227,7 @@ async function processPost(post: InstanceType<typeof CommunityPost>): Promise<vo
               {
                 from: post.lifecycle?.status ?? 'open',
                 to: 'answered',
-                changedBy: new (require('mongoose').Types.ObjectId)('000000000000000000000000'),
+                changedBy: new Types.ObjectId('000000000000000000000000'),
                 changedAt: new Date(),
                 note: `AI auto-answered from ${source}`,
               },
