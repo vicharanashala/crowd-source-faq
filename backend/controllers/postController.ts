@@ -82,11 +82,15 @@ export const getAllPosts = async (req: Request, res: Response): Promise<void> =>
 
     // Decode cursor to ObjectId for keyset pagination
     let cursorId: mongoose.Types.ObjectId | null = null;
-    if (cursor) {
+    if (cursor && sortParam !== 'popular') {
       try {
         const decoded = Buffer.from(cursor, 'base64').toString('utf8');
         cursorId = new mongoose.Types.ObjectId(decoded);
-        query._id = { $lt: cursorId };
+        if (sortParam === 'oldest') {
+          query._id = { $gt: cursorId };
+        } else {
+          query._id = { $lt: cursorId };
+        }
       } catch {
         res.status(400).json({ message: 'Invalid cursor.' });
         return;
