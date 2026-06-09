@@ -94,9 +94,9 @@ Four flagship capabilities define this platform:
 
 - **AI auto-answer pipeline for community posts** — A scheduler (every 24h) finds unanswered posts, searches the knowledge base, and either auto-posts an answer (≥0.85 confidence), queues for human review (0.60–0.84), or escalates (<0.60 or sensitive topics). Three AI providers compete: per-pipeline configurable. See [docs/PIPELINES.md#1-auto-answer-pipeline](docs/PIPELINES.md).
 
-- **FAQ audit pipeline** — re-evaluates approved FAQs against live knowledge every 6 hours, flags drift/contradictions/stale
+- **FAQ audit pipeline** — A scheduler (every 6h) re-evaluates approved FAQs against the live knowledge base (TranscriptKnowledge + ZoomInsights). Uses AI to judge correctness and emits verdicts: `correct` (≥0.80), `drift_detected` (0.60–0.79), `contradiction` (<0.60), or `stale` (no KB context + old + never verified). Flagged FAQs land in `/admin/faqs/review` with `reviewStatus='pending_review'`, `flagType='auto'`, and an incremented `reviewCycle`. See [docs/PIPELINES.md#2-faq-audit-pipeline](docs/PIPELINES.md).
 
-- **Soft-delete with anonymization** — user deletion preserves referential integrity and audit logs
+- **Soft-delete with anonymization** — Deleting a user never hard-deletes their records. The account is anonymized: `isDeleted=true`, `deletedAt` timestamp, `name` becomes `Deleted User`, `email` is rewritten to a non-routable placeholder, `password` is replaced with a random UUID to break login. All posts, comments, votes, reputation logs, and audit trail entries remain intact and queryable — preserving referential integrity, attribution history, and regulatory compliance.
 
 Other features:
 
