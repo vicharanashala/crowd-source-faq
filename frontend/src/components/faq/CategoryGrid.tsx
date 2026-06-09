@@ -36,6 +36,12 @@ export function CategoryCard({ name, items, onOpen }: CategoryCardProps) {
         backgroundImage: theme.gradient,
       };
 
+  // Per-category illustration recolor + soft glow (colors only)
+  const illustrationStyle: React.CSSProperties = {
+    '--illu-hue': isDark ? theme.illustrationHueDark : theme.illustrationHue,
+    '--illu-glow': isDark ? theme.illustrationGlowDark : theme.illustrationGlow,
+  } as React.CSSProperties;
+
   return (
     <button
       onClick={() => onOpen(name)}
@@ -47,6 +53,7 @@ export function CategoryCard({ name, items, onOpen }: CategoryCardProps) {
         src={theme.svgPath}
         alt=""
         className="faq-card-clay__illustration"
+        style={illustrationStyle}
         loading="lazy"
         aria-hidden="true"
       />
@@ -55,7 +62,14 @@ export function CategoryCard({ name, items, onOpen }: CategoryCardProps) {
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', position: 'relative', zIndex: 1 }}>
         <div
           className="faq-card-clay__badge"
-          style={{ backgroundColor: badgeBg, color: badgeColor }}
+          style={{
+            backgroundColor: badgeBg,
+            color: badgeColor,
+            // Soft colored glow on the icon chip (color change only)
+            boxShadow: isDark
+              ? `0 0 14px ${theme.illustrationGlowDark}`
+              : `0 2px 10px ${theme.illustrationGlow}`,
+          }}
         >
           {getCategoryIcon(name)}
         </div>

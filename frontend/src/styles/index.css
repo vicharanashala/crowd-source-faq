@@ -5,7 +5,9 @@
 /* ═══════════════════════════════════════════════════════════════
    THEME TOKENS — CSS custom properties
 
-   Light values are the existing palette (no visual change vs before).
+   Light values use a warm sage-green design system (Notion / Medium
+   knowledge-platform feel): ivory base #F5F1EA, sage primary #6B8F71,
+   hover #4C6B52, tint #E6F0E8, warm borders #DDD6C8, warm shadows.
    [data-theme="dark"] overrides the same variables with a premium
    dark palette (Linear / Vercel / Notion dark mode feel):
      - Deep charcoal base #0B0F0D
@@ -19,96 +21,97 @@
    ═══════════════════════════════════════════════════════════════ */
 :root {
   /* Core neutrals (RGB triples — supports bg-bg/82, text-ink/70 etc.) */
-  --bg-primary-rgb: 247 246 243;
-  --bg-secondary-rgb: 240 238 234;
-  --bg-card-rgb: 255 255 255;
-  --bg-card-hover-rgb: 250 249 246;
+  --bg-primary-rgb: 245 241 234;      /* #F5F1EA — warm ivory base */
+  --bg-secondary-rgb: 234 228 218;    /* #EAE4DA — secondary surface */
+  --bg-card-rgb: 255 255 255;         /* #FFFFFF — elevated cards only */
+  --bg-card-hover-rgb: 248 246 242;   /* #F8F6F2 — soft surface */
 
-  --text-primary-rgb: 31 31 31;
-  --text-secondary-rgb: 107 107 107;
-  --text-muted-rgb: 154 154 154;
+  --text-primary-rgb: 31 41 51;       /* #1F2933 */
+  --text-secondary-rgb: 75 85 99;     /* #4B5563 */
+  --text-muted-rgb: 156 163 175;      /* #9CA3AF */
 
-  --accent-rgb: 90 122 90;
-  --accent-hover-rgb: 74 106 90;
+  --accent-rgb: 107 143 113;          /* #6B8F71 — warm sage primary */
+  --accent-hover-rgb: 76 107 82;      /* #4C6B52 — hover / active */
   --accent-text-rgb: 255 255 255;
 
-  --border-rgb: 229 229 229;
-  --border-subtle-rgb: 229 229 229;
-  --border-medium-rgb: 200 200 200;
+  --border-rgb: 221 214 200;          /* #DDD6C8 — primary warm border */
+  --border-subtle-rgb: 234 228 218;   /* #EAE4DA — light border */
+  --border-medium-rgb: 201 192 174;
 
-  --icon-default-rgb: 154 154 154;
-  --icon-active-rgb: 90 122 90;
+  --icon-default-rgb: 156 163 175;
+  --icon-active-rgb: 107 143 113;
 
-  --success-rgb: 90 154 107;
+  --success-rgb: 76 107 82;           /* #4C6B52 — deep sage */
   --warning-rgb: 196 148 58;
   --danger-rgb: 220 74 74;
 
-  --nav-bg-rgb: 247 246 243;
-  --nav-text-rgb: 107 107 107;
-  --nav-active-rgb: 31 31 31;
-  --nav-border-rgb: 229 229 229;
+  --nav-bg-rgb: 245 241 234;
+  --nav-text-rgb: 75 85 99;
+  --nav-active-rgb: 31 41 51;
+  --nav-border-rgb: 221 214 200;
 
-  --section-title-rgb: 31 31 31;
+  --section-title-rgb: 31 41 51;
 
   /* Pre-tinted semantic colors (full rgba — no /<alpha-value>) */
-  --tag-high-bg: rgba(90, 154, 107, 0.1);
-  --tag-high-text: #5a9a6b;
-  --tag-medium-bg: rgba(196, 148, 58, 0.1);
-  --tag-medium-text: #c4943a;
-  --badge-solved-bg: rgba(90, 154, 107, 0.1);
-  --badge-solved-text: #5a9a6b;
-  --badge-open-bg: #f0eeea;
-  --badge-open-text: #6b6b6b;
+  --tag-high-bg: rgba(107, 143, 113, 0.14);
+  --tag-high-text: #4C6B52;
+  --tag-medium-bg: rgba(212, 160, 23, 0.12);
+  --tag-medium-text: #8A6914;
+  --badge-solved-bg: rgba(107, 143, 113, 0.14);
+  --badge-solved-text: #4C6B52;
+  --badge-open-bg: #EAE4DA;
+  --badge-open-text: #4B5563;
   --danger-bg: rgba(220, 74, 74, 0.08);
 
-  --pill-bg: #f0eeea;
-  --pill-border: #e5e5e5;
-  --pill-text: #6b6b6b;
-  --pill-active-bg: rgba(90, 122, 90, 0.08);
-  --pill-active-border: #5a7a5a;
-  --pill-active-text: #5a7a5a;
-  --pill-active-indicator: #5a7a5a;
+  --pill-bg: #F8F6F2;
+  --pill-border: #DDD6C8;
+  --pill-text: #4B5563;
+  --pill-active-bg: #E6F0E8;          /* soft sage background tint */
+  --pill-active-border: rgba(107, 143, 113, 0.25);
+  --pill-active-text: #4C6B52;
+  --pill-active-indicator: #6B8F71;
 
   --input-bg: #ffffff;
-  --input-border: #e5e5e5;
-  --input-placeholder: #9a9a9a;
-  --input-focus-border: #5a7a5a;
+  --input-border: #DDD6C8;
+  --input-placeholder: #9CA3AF;
+  --input-focus-border: #6B8F71;
 
-  --nav-active-indicator: #5a7a5a;
-  --section-icon: #5a7a5a;
-  --deco-stroke: rgba(184, 160, 128, 0.4);
+  --nav-active-indicator: #6B8F71;
+  --section-icon: #6B8F71;
+  --deco-stroke: rgba(107, 143, 113, 0.60);  /* sage — visible, still calm */
+  --deco-stroke-soft: #C9BFAC;
 
   --modal-bg: #ffffff;
-  --modal-border: #e5e5e5;
+  --modal-border: #DDD6C8;
   --dropdown-bg: #ffffff;
-  --dropdown-border: #e5e5e5;
-  --dropdown-hover: #f0eeea;
-  --overlay-bg: rgba(31, 31, 31, 0.4);
+  --dropdown-border: #DDD6C8;
+  --dropdown-hover: #F8F6F2;
+  --overlay-bg: rgba(31, 41, 51, 0.4);
 
-  --scrollbar-thumb: #d4d4d4;
+  --scrollbar-thumb: #CFC7B8;
   --scrollbar-track: transparent;
 
   /* Theme-toggle specific (light defaults) */
-  --toggle-pill-bg: #e8f5ee;
-  --toggle-pill-border: rgba(42, 122, 74, 0.25);
+  --toggle-pill-bg: #E6F0E8;
+  --toggle-pill-border: rgba(107, 143, 113, 0.30);
   --toggle-knob-bg: #ffffff;
-  --toggle-icon-color: #2a7a4a;
+  --toggle-icon-color: #4C6B52;
   --toggle-knob-x: 3px;
   --toggle-sun-opacity: 1;
   --toggle-sun-transform: rotate(0deg) scale(1);
   --toggle-moon-opacity: 0;
   --toggle-moon-transform: rotate(90deg) scale(0.5);
 
-  /* Shadows (light) — match the original light-mode shadow values
-     exactly so light mode remains 100% unchanged from before. */
-  --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.06);
-  --shadow-card-hover: 0 12px 40px rgba(0, 0, 0, 0.06);
-  --shadow-float: 0 8px 24px 0 rgba(0, 0, 0, 0.10);
-  --shadow-glow: 0 0 0 3px rgba(90, 122, 90, 0.12), 0 8px 32px rgba(0, 0, 0, 0.06);
-  --shadow-subtle: 0 2px 12px rgba(0, 0, 0, 0.04);
+  /* Shadows (light) — warm, soft, layered (rgba of #1F2933) */
+  --shadow-card: 0 4px 12px rgba(31, 41, 51, 0.04), 0 12px 32px rgba(31, 41, 51, 0.06);
+  --shadow-card-hover: 0 8px 20px rgba(31, 41, 51, 0.06), 0 20px 44px rgba(31, 41, 51, 0.09);
+  --shadow-float: 0 12px 32px rgba(31, 41, 51, 0.10);
+  --shadow-glow: 0 0 0 4px rgba(107, 143, 113, 0.12), 0 8px 32px rgba(31, 41, 51, 0.06);
+  --shadow-subtle: 0 2px 12px rgba(31, 41, 51, 0.04);
 
-  /* Body background (no gradient in light) */
-  --body-bg-image: none;
+  /* Body background — barely-there sage wash at the top (editorial calm) */
+  --body-bg-image:
+    radial-gradient(ellipse 80% 50% at 50% 0%, rgba(107, 143, 113, 0.05) 0%, transparent 60%);
 
   color-scheme: light;
 }
@@ -175,6 +178,7 @@
   --nav-active-indicator: #22C55E;
   --section-icon: #22C55E;
   --deco-stroke: rgba(34, 197, 94, 0.35);
+  --deco-stroke-soft: rgba(34, 197, 94, 0.18);
 
   --modal-bg: #121A18;
   --modal-border: rgba(255, 255, 255, 0.08);
@@ -333,9 +337,13 @@ select option {
     background-color: rgb(var(--bg-card-hover-rgb));
   }
 
-  /* ═════════ Search bar glow on focus (subtle green ring) ═════════ */
+  /* ═════════ Search bar glow on focus (subtle sage ring) ═════════
+     Light: soft sage halo per design system. Dark: unchanged ring. */
   .search-glow:focus-within {
     border-color: var(--input-focus-border);
+    box-shadow: 0 0 0 4px rgba(107, 143, 113, 0.12);
+  }
+  [data-theme="dark"] .search-glow:focus-within {
     box-shadow: 0 0 0 3px rgb(var(--accent-rgb) / 0.20);
   }
 
@@ -362,20 +370,24 @@ select option {
     opacity: 1;
   }
 
-  /* Primary Button (Get Started / Ask Question) */
+  /* Primary Button (Get Started / Ask Question)
+     Light: warm sage with a soft premium gradient. */
   .btn-primary {
-    background-color: #6e8f83;
+    background-color: #6B8F71;
+    background-image: linear-gradient(180deg, #76997C 0%, #6B8F71 100%);
     color: #ffffff;
-    box-shadow: none;
+    box-shadow: 0 1px 2px rgba(76, 107, 82, 0.20), 0 4px 12px rgba(31, 41, 51, 0.06);
     border: none;
   }
   .btn-primary:hover {
-    background-color: #5f7f73;
+    background-color: #4C6B52;
+    background-image: linear-gradient(180deg, #587A5E 0%, #4C6B52 100%);
     transform: none;
-    box-shadow: none;
+    box-shadow: 0 2px 4px rgba(76, 107, 82, 0.22), 0 6px 16px rgba(31, 41, 51, 0.08);
   }
   .btn-primary:active {
-    background-color: #55786d;
+    background-color: #435F49;
+    background-image: linear-gradient(180deg, #4C6B52 0%, #435F49 100%);
     transform: none;
   }
   
@@ -393,18 +405,22 @@ select option {
     background-color: #166534;
   }
 
-  /* Secondary Button (Search input) */
+  /* Secondary Button (Search input)
+     Light: warm sage — calm, premium, not loud. */
   .btn-secondary {
-    background-color: #e6efea;
-    color: #5f7f73;
-    box-shadow: none;
+    background-color: #6B8F71;
+    background-image: linear-gradient(180deg, #76997C 0%, #6B8F71 100%);
+    color: #ffffff;
+    box-shadow: 0 1px 2px rgba(76, 107, 82, 0.20), 0 4px 12px rgba(31, 41, 51, 0.06);
     border: none;
   }
   .btn-secondary:hover {
-    background-color: #dde9e3;
-    box-shadow: none;
+    background-color: #4C6B52;
+    background-image: linear-gradient(180deg, #587A5E 0%, #4C6B52 100%);
+    box-shadow: 0 2px 4px rgba(76, 107, 82, 0.22), 0 6px 16px rgba(31, 41, 51, 0.08);
   }
   [data-theme="dark"] .btn-secondary {
+    background-image: none;
     background-color: rgb(var(--accent-rgb));
     color: rgb(var(--accent-text-rgb));
     box-shadow: none;
@@ -417,12 +433,14 @@ select option {
   /* Ghost Button (Ask in Community) */
   .btn-ghost {
     background-color: transparent;
-    border: 1px solid #d6ded9;
-    color: #5f7f73;
+    border: 1px solid #DDD6C8;
+    color: #4C6B52;
     box-shadow: none;
   }
   .btn-ghost:hover {
-    background-color: #f3f7f5;
+    background-color: #E6F0E8;
+    border-color: rgba(107, 143, 113, 0.30);
+    color: #4C6B52;
   }
   [data-theme="dark"] .btn-ghost {
     background-color: transparent;
@@ -438,6 +456,21 @@ select option {
   .focus-glow:focus-visible {
     outline: none;
     box-shadow: 0 0 0 3px rgb(var(--accent-rgb) / 0.35);
+  }
+
+  /* Active category chip — light: soft sage tint (calm, editorial);
+     dark: keeps the previous solid green treatment. */
+  .faq-chip-active {
+    background-color: #E6F0E8;
+    color: #4C6B52;
+    border-color: rgba(107, 143, 113, 0.25);
+    box-shadow: 0 4px 12px rgba(31, 41, 51, 0.05);
+  }
+  [data-theme="dark"] .faq-chip-active {
+    background-color: rgb(34 197 94);
+    color: #0B0F0D;
+    border-color: rgba(34, 197, 94, 0.60);
+    box-shadow: 0 10px 26px rgba(34, 197, 94, 0.28);
   }
 
   /* In dark mode, override the flat .bg-accent if needed.
@@ -622,13 +655,13 @@ select option {
      Dark: dark charcoal glass with subtle green gradient.
      ═════════════════════════════════════════════════════════════ */
   .search-panel {
-    background-color: rgba(255, 255, 255, 0.7);
+    background-color: rgba(255, 255, 255, 0.75);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(0, 0, 0, 0.08);
+    border: 1px solid #DDD6C8;
     border-radius: 16px;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
-    background-image: linear-gradient(135deg, rgba(34, 197, 94, 0.05), rgba(255, 255, 255, 0.6));
+    box-shadow: 0 20px 50px rgba(31, 41, 51, 0.14);
+    background-image: linear-gradient(135deg, rgba(107, 143, 113, 0.06), rgba(255, 255, 255, 0.6));
   }
   [data-theme="dark"] .search-panel {
     background-color: rgba(18, 26, 24, 0.6);
@@ -647,15 +680,15 @@ select option {
      ═════════════════════════════════════════════════════════════ */
   .search-bar-input {
     background-color: #ffffff;
-    border: 1px solid rgba(0, 0, 0, 0.08);
-    color: #111827;
+    border: 1px solid #DDD6C8;
+    color: #1F2933;
   }
   .search-bar-input::placeholder {
-    color: #9ca3af;
+    color: #9CA3AF;
   }
   .search-bar-input:focus {
-    border-color: rgba(34, 197, 94, 0.4);
-    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
+    border-color: #6B8F71;
+    box-shadow: 0 0 0 4px rgba(107, 143, 113, 0.12);
     outline: none;
   }
   [data-theme="dark"] .search-bar-input {
@@ -678,18 +711,18 @@ select option {
      ═════════════════════════════════════════════════════════════ */
   .search-list-item {
     background: #ffffff;
-    color: #111827;
+    color: #1F2933;
     border: 1px solid transparent;
     transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
   }
   .search-list-item:hover {
-    background-color: rgba(0, 0, 0, 0.03);
-    color: #111827;
+    background-color: #F8F6F2;
+    color: #1F2933;
   }
   .search-list-item.active {
-    background-color: rgba(34, 197, 94, 0.08);
-    border: 1px solid rgba(34, 197, 94, 0.2);
-    color: #111827;
+    background-color: #E6F0E8;
+    border: 1px solid rgba(107, 143, 113, 0.25);
+    color: #1F2933;
   }
   [data-theme="dark"] .search-list-item {
     background: transparent;
@@ -712,23 +745,24 @@ select option {
      Dark: semi-transparent dark, green on hover.
      ═════════════════════════════════════════════════════════════ */
   .search-pill {
-    background-color: rgba(0, 0, 0, 0.04);
-    border: 1px solid rgba(0, 0, 0, 0.06);
-    color: #374151;
+    background-color: #F8F6F2;
+    border: 1px solid #EAE4DA;
+    color: #4B5563;
     transition: background-color 0.15s ease, color 0.15s ease;
   }
   .search-pill:hover {
-    background-color: rgba(34, 197, 94, 0.08);
-    color: #16A34A;
+    background-color: #E6F0E8;
+    color: #4C6B52;
   }
   [data-theme="dark"] .search-pill {
     background-color: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    color: #9FB3A8;
+    color: #E6F1EC;
   }
   [data-theme="dark"] .search-pill:hover {
-    background-color: rgba(34, 197, 94, 0.08);
-    color: #22C55E;
+    background-color: rgb(var(--accent-rgb));
+    border-color: rgb(var(--accent-rgb));
+    color: rgb(var(--accent-text-rgb));
   }
 
   /* ═════════════════════════════════════════════════════════════
@@ -738,7 +772,7 @@ select option {
      ═════════════════════════════════════════════════════════════ */
   .search-skeleton {
     background-color: rgba(255, 255, 255, 0.5);
-    border: 1px solid rgba(0, 0, 0, 0.06);
+    border: 1px solid #EAE4DA;
     border-radius: 16px;
   }
   [data-theme="dark"] .search-skeleton {
@@ -750,20 +784,21 @@ select option {
      Ask in Community (No Results block)
      ═════════════════════════════════════════════════════════════ */
   .ask-community-container {
-    background-color: #f4f7f5;
-    border-color: #e3ebe6;
+    background-color: #F8F6F2;
+    border-color: #EAE4DA;
   }
   .ask-community-container:hover {
-    background-color: #eef4f1;
+    background-color: #E6F0E8;
+    border-color: rgba(107, 143, 113, 0.20);
   }
   .ask-community-title {
-    color: #2f3e39;
+    color: #1F2933;
   }
   .ask-community-icon {
-    color: #2f3e39;
+    color: #1F2933;
   }
   .ask-community-action {
-    color: #5f7f73;
+    color: #4C6B52;
   }
 
   [data-theme="dark"] .ask-community-container {
@@ -795,9 +830,9 @@ select option {
     gap: 6px;
     padding: 6px 12px;
     border-radius: 9999px;
-    border: 1px solid rgba(0, 0, 0, 0.08);
-    background-color: #F3F4F6;
-    color: #374151;
+    border: 1px solid #EAE4DA;
+    background-color: #F8F6F2;
+    color: #4B5563;
     font-size: 13px;
     font-weight: 500;
     line-height: 1;
@@ -807,12 +842,12 @@ select option {
                 color 0.2s ease;
   }
   .search-popular-pill:hover {
-    background-color: rgba(22, 163, 74, 0.08);
-    border-color: rgba(22, 163, 74, 0.25);
-    color: #16A34A;
+    background-color: #E6F0E8;
+    border-color: rgba(107, 143, 113, 0.30);
+    color: #4C6B52;
   }
   .search-popular-pill:active {
-    background-color: rgba(22, 163, 74, 0.15);
+    background-color: rgba(107, 143, 113, 0.18);
   }
   .search-popular-pill .search-popular-icon {
     opacity: 0.5;
@@ -827,8 +862,8 @@ select option {
     margin-left: auto;
     padding: 1px 6px;
     border-radius: 9999px;
-    background-color: rgba(0, 0, 0, 0.06);
-    color: #6B7280;
+    background-color: #EAE4DA;
+    color: #4B5563;
     font-size: 11px;
     font-weight: 500;
     line-height: 1.4;
@@ -868,9 +903,9 @@ select option {
     min-height: 300px;
     border-radius: 16px;
     padding: 26px;
-    border: 1px solid rgba(0, 0, 0, 0.06);
+    border: 1px solid #DDD6C8;
     background-color: #ffffff;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 4px 12px rgba(31, 41, 51, 0.04), 0 12px 32px rgba(31, 41, 51, 0.06);
     overflow: hidden;
     cursor: pointer;
     text-align: left;
@@ -892,8 +927,10 @@ select option {
 
   .faq-card-clay:hover {
     transform: translateY(-4px);
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.08);
-    border-color: rgba(0, 0, 0, 0.10);
+    box-shadow: 0 8px 20px rgba(31, 41, 51, 0.06),
+                0 24px 48px rgba(31, 41, 51, 0.09),
+                0 0 0 1px rgba(107, 143, 113, 0.10);
+    border-color: rgba(107, 143, 113, 0.30);
   }
   .faq-card-clay:focus-visible {
     outline: none;
@@ -925,16 +962,22 @@ select option {
     opacity: 0.80;
     transform: rotate(-6deg) translateY(-2px);
     pointer-events: none;
-    filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.15))
-            saturate(0.82);
+    /* Light: per-category recolor (--illu-hue shifts the purple source
+       artwork), softened saturation, warm depth shadow, minimal glow */
+    filter: drop-shadow(0 5px 10px rgba(31, 41, 51, 0.10))
+            saturate(0.80)
+            hue-rotate(var(--illu-hue, 0deg))
+            drop-shadow(0 0 8px var(--illu-glow, rgba(107, 143, 113, 0.14)));
     transition: opacity 0.25s ease,
                 filter 0.25s ease;
     z-index: 0;
   }
   .faq-card-clay:hover .faq-card-clay__illustration {
-    opacity: 0.95;
-    filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.18))
-            saturate(0.88);
+    opacity: 0.92;
+    filter: drop-shadow(0 6px 12px rgba(31, 41, 51, 0.12))
+            saturate(0.88)
+            hue-rotate(var(--illu-hue, 0deg))
+            drop-shadow(0 0 10px var(--illu-glow, rgba(107, 143, 113, 0.18)));
   }
 
   /* Question count pill */
@@ -943,8 +986,8 @@ select option {
     font-weight: 500;
     padding: 3px 10px;
     border-radius: 9999px;
-    background-color: rgba(0, 0, 0, 0.04);
-    color: rgba(0, 0, 0, 0.40);
+    background-color: #F8F6F2;
+    color: #4B5563;
     letter-spacing: 0.01em;
     position: relative;
     z-index: 1;
@@ -955,7 +998,7 @@ select option {
     margin-top: 20px;
     font-size: 16px;
     font-weight: 650;
-    color: #1a1a1a;
+    color: #1F2933;
     line-height: 1.35;
     letter-spacing: -0.01em;
     position: relative;
@@ -968,7 +1011,7 @@ select option {
     margin-top: 8px;
     font-size: 13px;
     line-height: 1.55;
-    color: #888;
+    color: #4B5563;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -981,7 +1024,7 @@ select option {
   .faq-card-clay__questions-divider {
     margin-top: 16px;
     border: none;
-    border-top: 1px solid rgba(0, 0, 0, 0.04);
+    border-top: 1px solid #EAE4DA;
     position: relative;
     z-index: 1;
   }
@@ -991,7 +1034,7 @@ select option {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: rgba(0, 0, 0, 0.28);
+    color: #9CA3AF;
     position: relative;
     z-index: 1;
   }
@@ -1007,7 +1050,7 @@ select option {
   }
   .faq-card-clay__questions-list li {
     font-size: 12.5px;
-    color: rgba(0, 0, 0, 0.35);
+    color: #4B5563;
     line-height: 1.45;
     white-space: nowrap;
     overflow: hidden;
@@ -1038,10 +1081,10 @@ select option {
 
   /* ── Hover contrast boost (light mode) ── */
   .faq-card-clay:hover .faq-card-clay__title {
-    color: #0a0a0a;
+    color: #111827;
   }
   .faq-card-clay:hover .faq-card-clay__questions-list li {
-    color: rgba(0, 0, 0, 0.50);
+    color: #374151;
     opacity: 0.9;
   }
 
@@ -1063,20 +1106,25 @@ select option {
                 0 0 1px rgba(34, 197, 94, 0.15);
   }
 
-  /* SVG — environment-blended, consistent size */
+  /* SVG — environment-blended, consistent size.
+     Per-category recolor: --illu-hue shifts the purple source artwork
+     into the theme palette (emerald/gold/cyan); --illu-glow adds a
+     soft neon halo. Opacity lowered ~12% to reduce icon dominance. */
   [data-theme="dark"] .faq-card-clay__illustration {
-    opacity: 0.80;
+    opacity: 0.70;
     filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.40))
             brightness(0.9)
             saturate(0.85)
-            hue-rotate(-8deg);
+            hue-rotate(var(--illu-hue, -8deg))
+            drop-shadow(0 0 9px var(--illu-glow, rgba(34, 197, 94, 0.14)));
   }
   [data-theme="dark"] .faq-card-clay:hover .faq-card-clay__illustration {
-    opacity: 0.95;
+    opacity: 0.82;
     filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.45))
             brightness(0.95)
             saturate(0.88)
-            hue-rotate(-8deg);
+            hue-rotate(var(--illu-hue, -8deg))
+            drop-shadow(0 0 12px var(--illu-glow, rgba(34, 197, 94, 0.18)));
   }
 
   /* Text contrast — green-adapted tones */
@@ -1489,7 +1537,7 @@ select option {
   /* Glass morphism for navbar — light mode only (dark uses plain
      translucent dark instead, per the new spec) */
   .glass {
-    background-color: rgba(247, 246, 243, 0.82);
+    background-color: rgba(245, 241, 234, 0.82);
     backdrop-filter: blur(20px) saturate(1.8);
     -webkit-backdrop-filter: blur(20px) saturate(1.8);
   }

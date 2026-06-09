@@ -70,11 +70,11 @@ function CategoryPills({ categories, activeCategory, onSelect }: CategoryPillsPr
             onClick={() => onSelect('')}
             className={`flex items-center gap-2 px-4 py-2 rounded-full border text-xs font-semibold whitespace-nowrap transition-all duration-200 flex-shrink-0
               ${allActive
-                ? 'bg-accent text-accent-text border-accent/60 shadow-[0_10px_26px_rgba(90,122,90,0.25)]'
+                ? 'faq-chip-active'
                 : 'bg-card/80 text-ink border-border/70 hover:bg-cream hover:-translate-y-0.5 hover:shadow-subtle'
               }`}
           >
-            <span className={allActive ? 'text-accent-text' : 'text-ink-faint'}>
+            <span className={allActive ? 'text-current' : 'text-ink-faint'}>
               <IconGrid />
             </span>
             All
@@ -89,11 +89,11 @@ function CategoryPills({ categories, activeCategory, onSelect }: CategoryPillsPr
                 onClick={() => onSelect(name)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-full border text-xs font-semibold whitespace-nowrap transition-all duration-200 flex-shrink-0
                   ${isActive
-                    ? 'bg-accent text-accent-text border-accent/60 shadow-[0_10px_26px_rgba(90,122,90,0.25)]'
+                    ? 'faq-chip-active'
                     : 'bg-card/80 text-ink border-border/70 hover:bg-cream hover:-translate-y-0.5 hover:shadow-subtle'
                   }`}
               >
-                <span className={isActive ? 'text-accent-text' : tone.accent}>
+                <span className={isActive ? 'text-current' : tone.accent}>
                   {getCategoryIcon(name)}
                 </span>
                 {formatCategoryName(name)}
@@ -429,7 +429,7 @@ export default function FAQPage() {
                       <button
                         key={word.query + i}
                         onClick={() => handleWordClick(word.query)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border/70 text-xs font-medium text-ink hover:bg-accent hover:text-accent-text hover:border-accent transition-all duration-200 hover:-translate-y-0.5 hover:shadow-subtle group search-pill"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-all duration-200 hover:-translate-y-0.5 hover:shadow-subtle group search-pill"
                       >
                         <span className="text-ink-faint font-semibold text-[10px]">#{i + 1}</span>
                         {word.query}
