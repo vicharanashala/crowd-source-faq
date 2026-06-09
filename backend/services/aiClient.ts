@@ -15,6 +15,7 @@
 
 import AiConfig from '../models/AiConfig.js';
 import { generateEmbedding } from '../utils/embeddings.js';
+import { logger } from '../utils/logger.js';
 
 // ─── Provider definitions ───────────────────────────────────────────────────
 
@@ -152,9 +153,10 @@ export class AiClient {
     try {
       this.apiKey = this.loadApiKey();
       this.provider = this.detectProvider();
-    } catch {
+    } catch (err) {
       this.apiKey = '';
       this.provider = 'minimax';
+      logger.warn(`[aiClient] Constructor failed to load API key/detect provider: ${(err as Error).message}. Falling back to minimax.`);
     }
   }
 
@@ -345,7 +347,9 @@ export class AiClient {
     const estimatedCost = (tokensUsed / 1_000_000) * COST_PER_MILLION_TOKENS[config.provider];
 
     // Track usage in DB (best effort — don't block on this)
-    this.trackUsage(tokensUsed, estimatedCost).catch(() => {});
+    this.trackUsage(tokensUsed, estimatedCost).catch((err) => {
+      logger.warn(`[aiClient] Failed to track usage asynchronously: ${(err as Error).message}`);
+    });
 
     return { content, provider: config.provider, model, tokensUsed, estimatedCost, rawResponse: data };
   }
@@ -364,7 +368,9 @@ export class AiClient {
           },
         }
       );
-    } catch {}
+    } catch (err) {
+      logger.warn(`[aiClient] trackUsage failed to update AiConfig: ${(err as Error).message}`);
+    }
   }
 
   // ─── Feature: Duplicate detection ─────────────────────────────────────────
@@ -545,7 +551,8 @@ The answer should be direct and actionable. Do not add disclaimers.`;
       }
 
       return candidates.slice(0, topK);
-    } catch {
+    } catch (err) {
+      logger.warn(`[aiClient] Embedding fallback calculation in findDuplicatesByVector failed: ${(err as Error).message}`);
       return candidates.slice(0, topK);
     }
   }
@@ -576,7 +583,8 @@ function parseDuplicateResponse(
       results.push({ _id: id, score, reason });
     }
     return results.sort((a, b) => b.score - a.score).slice(0, 5);
-  } catch {
+  } catch (err) {
+    logger.warn(`[aiClient] Failed to parse duplicate response JSON: ${(err as Error).message}. Raw response: ${raw.slice(0, 300)}`);
     return [];
   }
 }
@@ -603,7 +611,8 @@ function parseKnowledgeResponse(
         };
       })
       .filter((x) => x.question.length > 10 && x.answer.length > 10);
-  } catch {
+  } catch (err) {
+    logger.warn(`[aiClient] Failed to parse knowledge extraction response JSON: ${(err as Error).message}. Raw response: ${raw.slice(0, 300)}`);
     return [];
   }
 }
@@ -623,7 +632,8 @@ function parseFAQResponse(
       category: String(parsed.category ?? 'General').trim(),
       confidence: Math.max(0, Math.min(1, Number(parsed.confidence ?? 0))),
     };
-  } catch {
+  } catch (err) {
+    logger.warn(`[aiClient] Failed to parse FAQ generation response JSON: ${(err as Error).message}. Raw response: ${raw.slice(0, 300)}`);
     return { question: '', answer: '', category: 'General', confidence: 0 };
   }
 }

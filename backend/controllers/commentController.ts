@@ -143,7 +143,9 @@ export const addComment = async (req: Request, res: Response): Promise<void> => 
             message: `You were the first to answer "${post.title}" during the Time-Trial challenge!`,
             link: `/community?post=${post._id}`,
           })
-        ).catch(() => {});
+        ).catch((err) => {
+          logger.warn(`[comment] Failed to send First Responder notification to ${req.user!._id}: ${(err as Error).message}`);
+        });
 
         // Award +20 points + First Responder badge to the winner
         const winner = await User.findById(req.user!._id);
@@ -174,7 +176,9 @@ export const addComment = async (req: Request, res: Response): Promise<void> => 
           message: `${req.user!.name} commented on "${post.title}": "${body.trim().slice(0, 80)}${body.trim().length > 80 ? '…' : ''}"`,
           link: `/community?post=${post._id}`,
         })
-      ).catch(() => {});
+      ).catch((err) => {
+        logger.warn(`[comment] Failed to notify post author ${post.author}: ${(err as Error).message}`);
+      });
 
       // ── Tea drop: "someone answered your post" ─────────────────────────────
       createTeaDrop({
@@ -185,7 +189,9 @@ export const addComment = async (req: Request, res: Response): Promise<void> => 
         triggeredBy: req.user!._id,
         triggeredByName: req.user!.name,
         content: body.trim().slice(0, 200),
-      }).catch(() => {});
+      }).catch((err) => {
+        logger.warn(`[comment] Failed to create tea drop for post author ${post.author}: ${(err as Error).message}`);
+      });
     }
 
     // Notify parent comment author
@@ -198,7 +204,9 @@ export const addComment = async (req: Request, res: Response): Promise<void> => 
           message: `${req.user!.name} replied: "${body.trim().slice(0, 80)}${body.trim().length > 80 ? '…' : ''}"`,
           link: `/community?post=${post._id}`,
         })
-      ).catch(() => {});
+      ).catch((err) => {
+        logger.warn(`[comment] Failed to notify parent comment author ${resolvedParent.author}: ${(err as Error).message}`);
+      });
     }
 
     res.status(201).json({ comment: newComment, total: post.comments.length });
@@ -366,7 +374,9 @@ export const acceptCommentAnswer = async (req: Request, res: Response): Promise<
       if (answerAuthor) {
         answerAuthor.tier = calculateTier(answerAuthor.points);
         await answerAuthor.save();
-        autoAwardBadges(answerAuthorId).catch(() => {});
+        autoAwardBadges(answerAuthorId).catch((err) => {
+          logger.warn(`[comment] Failed to auto-award badges to ${answerAuthorId}: ${(err as Error).message}`);
+        });
         await ReputationLog.create({
           userId: new Types.ObjectId(answerAuthorId),
           delta: 20,
@@ -397,7 +407,9 @@ export const acceptCommentAnswer = async (req: Request, res: Response): Promise<
         eventType: 'accepted_answer',
         link: `/community?post=${post._id}`,
         title: 'Your answer was accepted!',
-      }).catch(() => {});
+      }).catch((err) => {
+        logger.warn(`[comment] Failed to dispatch accepted answer notification to ${comment.author}: ${(err as Error).message}`);
+      });
 
       createTeaDrop({
         userId: comment.author,
@@ -407,7 +419,9 @@ export const acceptCommentAnswer = async (req: Request, res: Response): Promise<
         triggeredBy: req.user!._id,
         triggeredByName: req.user!.name,
         content: comment.body.slice(0, 200),
-      }).catch(() => {});
+      }).catch((err) => {
+        logger.warn(`[comment] Failed to create tea drop for accepted answer to ${comment.author}: ${(err as Error).message}`);
+      });
     }
 
     res.json({ message: 'Answer accepted.', post });

@@ -508,7 +508,9 @@ export const submitFeedback = async (req: Request<{ id: string }, {}, { helpful:
         // Recompute tier from atomic value
         updated.tier = calculateTier(updated.points);
         await updated.save();
-        autoAwardBadges(faq.createdBy.toString()).catch(() => {});
+        autoAwardBadges(faq.createdBy.toString()).catch((err) => {
+          logger.warn(`[faq] Failed to auto-award badges to ${faq.createdBy}: ${(err as Error).message}`);
+        });
         await ReputationLog.create({
           userId: faq.createdBy,
           delta: 2,

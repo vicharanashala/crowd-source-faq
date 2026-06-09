@@ -28,7 +28,7 @@ import FAQ from '../models/FAQ.js';
 import { TranscriptKnowledge } from '../models/TranscriptKnowledge.js';
 import Notification from '../models/Notification.js';
 import { logger } from '../utils/logger.js';
-import { searchKnowledge } from '../services/knowledgeBase.js';
+import { searchKnowledge, searchRelevantFaqs, searchRelevantCommunityPosts } from '../services/knowledgeBase.js';
 import { chatWithConfig, getPipelineProviderConfig } from '../utils/aiProvider.js';
 import { PipelineResult } from '../models/PipelineResult.js';
 import {
@@ -66,73 +66,161 @@ interface AnswerMatch {
 }
 
 /**
- * Search FAQ and knowledge base for the best answer to a given post.
- * Returns the best match or null if nothing relevant is found.
+ * Find the best answer for a community post by searching all three
+ * knowledge sources in parallel: FAQ, Community posts, and Transcript
+ * Knowledge. After gathering matches, we segregate by confidence:
+ *
+ *  - ≥ APPROVE_THRESHOLD (0.85) → return top match's answer verbatim
+ *  - ≥ SUGGEST_THRESHOLD (0.60) and we have at least one decent match →
+ *      generate a synthesized answer using the matched context
+ *  - below SUGGEST_THRESHOLD or nothing matched → return null (escalate)
+ *
+ * The three sources are queried in parallel (faster) and their scores are
+ * normalized onto the same 0-1 scale so they can be compared.
  */
 async function findBestAnswer(postTitle: string, postBody: string): Promise<AnswerMatch | null> {
   const queryText = `${postTitle} ${postBody}`.slice(0, 2000);
 
-  // ── 1. Try knowledge base semantic search (circuit-breaker fallback) ──────
-  try {
-    const rawMatches = await searchKnowledgeWithFallback(queryText, 3);
-    const matches = (rawMatches ?? []) as Exclude<Awaited<ReturnType<typeof searchKnowledge>>, null>;
-    if (matches && matches.length > 0) {
-      const top = matches[0];
-      const confidence = Math.min((top.score ?? 0.7) * 1.1, 0.95);
-      if (confidence >= SUGGEST_THRESHOLD) {
-        logger.info(`[autoAnswer] Knowledge match for "${postTitle.slice(0, 40)}": conf=${confidence.toFixed(2)}`);
-        return {
-          answer: top.answer.slice(0, MAX_ANSWER_CHARS),
-          confidence: Math.round(confidence * 100) / 100,
-          source: top.sourceTitle ?? top.source ?? 'Knowledge Base',
-          sourceId: top._id,
-          matchedQuestion: top.question,
-        };
-      }
+  // ── Fan out to all three sources in parallel ─────────────────────────────
+  const [kbRaw, faqMatches, communityMatches] = await Promise.all([
+    // Knowledge base — already circuit-breaker safe via searchKnowledgeWithFallback
+    searchKnowledgeWithFallback(queryText, 3).catch((err): null => {
+      logger.warn(`[autoAnswer] Knowledge base search failed: ${(err as Error).message}`);
+      return null;
+    }),
+    searchRelevantFaqs(queryText, 3).catch((err): Awaited<ReturnType<typeof searchRelevantFaqs>> => {
+      logger.warn(`[autoAnswer] FAQ search failed: ${(err as Error).message}`);
+      return [];
+    }),
+    searchRelevantCommunityPosts(queryText, 3).catch((err): Awaited<ReturnType<typeof searchRelevantCommunityPosts>> => {
+      logger.warn(`[autoAnswer] Community search failed: ${(err as Error).message}`);
+      return [];
+    }),
+  ]);
+
+  const kbMatches = (kbRaw ?? []) as Exclude<Awaited<ReturnType<typeof searchKnowledge>>, null>;
+
+  // ── 1. Best KB match — highest baseline confidence (curated transcript data) ──
+  let best: AnswerMatch | null = null;
+  if (kbMatches && kbMatches.length > 0) {
+    const top = kbMatches[0];
+    const confidence = Math.min((top.score ?? 0.7) * 1.1, 0.95);
+    if (confidence >= SUGGEST_THRESHOLD) {
+      logger.info(`[autoAnswer] KB match for "${postTitle.slice(0, 40)}": conf=${confidence.toFixed(2)}`);
+      best = {
+        answer: top.answer.slice(0, MAX_ANSWER_CHARS),
+        confidence: Math.round(confidence * 100) / 100,
+        source: top.sourceTitle ?? top.source ?? 'Knowledge Base',
+        sourceId: top._id,
+        matchedQuestion: top.question,
+      };
     }
-  } catch (err) {
-    logger.warn(`[autoAnswer] Knowledge base search failed: ${(err as Error).message}`);
   }
 
-  // ── 2. Try AI generation from recent FAQ context ─────────────────────────
+  // ── 2. Best FAQ match — if better than KB, take it ───────────────────────
+  if (faqMatches && faqMatches.length > 0) {
+    const top = faqMatches[0];
+    // FAQ vector scores are typically 0.4-0.85; remap to a more usable range.
+    const confidence = Math.min(top.score * 0.95, 0.93);
+    if (confidence >= SUGGEST_THRESHOLD && (!best || confidence > best.confidence)) {
+      logger.info(`[autoAnswer] FAQ match for "${postTitle.slice(0, 40)}": conf=${confidence.toFixed(2)}`);
+      best = {
+        answer: top.answer.slice(0, MAX_ANSWER_CHARS),
+        confidence: Math.round(confidence * 100) / 100,
+        source: 'FAQ',
+        sourceId: top._id,
+        matchedQuestion: top.question,
+      };
+    }
+  }
+
+  // ── 3. Best Community match — if better than both, take it ──────────────
+  if (communityMatches && communityMatches.length > 0) {
+    const top = communityMatches[0];
+    const confidence = Math.min(top.score * 0.9, 0.90);
+    if (confidence >= SUGGEST_THRESHOLD && (!best || confidence > best.confidence)) {
+      logger.info(`[autoAnswer] Community match for "${postTitle.slice(0, 40)}": conf=${confidence.toFixed(2)}`);
+      best = {
+        answer: top.answer.slice(0, MAX_ANSWER_CHARS),
+        confidence: Math.round(confidence * 100) / 100,
+        source: 'Community (prior Q&A)',
+        sourceId: top._id,
+        matchedQuestion: top.title,
+      };
+    }
+  }
+
+  // ── 4. If we have a strong match (≥ AUTO_APPROVE), return it ────────────
+  if (best && best.confidence >= AUTO_APPROVE_THRESHOLD) {
+    return best;
+  }
+
+  // ── 5. Otherwise: synthesize from gathered context ──────────────────────
+  // If we found at least one decent match (KB / FAQ / community), pass them
+  // all to the LLM as context. Otherwise fall back to "recent FAQs" so the
+  // LLM has something to work with.
   try {
-    const recentFaqs = await FAQ.find({ status: 'approved' })
-      .select('question answer')
-      .sort({ createdAt: -1 })
-      .limit(5);
+    const contextBlocks: string[] = [];
 
-    if (recentFaqs.length > 0) {
-      const context = recentFaqs
-        .map((f) => `Q: ${f.question}\nA: ${f.answer}`)
-        .join('\n\n');
+    for (const m of kbMatches.slice(0, 2)) {
+      contextBlocks.push(`[Knowledge] Q: ${m.question}\nA: ${m.answer.slice(0, 400)}`);
+    }
+    for (const m of faqMatches.slice(0, 2)) {
+      contextBlocks.push(`[FAQ] Q: ${m.question}\nA: ${m.answer.slice(0, 400)}`);
+    }
+    for (const m of communityMatches.slice(0, 2)) {
+      contextBlocks.push(`[Community Q&A] Q: ${m.title}\nA: ${m.answer.slice(0, 400)}`);
+    }
 
-      const messages = [
-        {
-          role: 'system',
-          content: `You are Yaksha's AI assistant. Answer the user's question concisely and accurately using the provided knowledge context. If the context doesn't contain enough information to give a complete answer, say so clearly. Keep answers under 300 words. Do not make up information not present in the context.`,
-        },
-        {
-          role: 'user',
-          content: `Context (recent FAQs):\n${context}\n\nUser question: ${postTitle}${postBody ? `\nDetails: ${postBody}` : ''}`,
-        },
-      ];
-
-      const cfg = await getPipelineProviderConfig('auto_answer');
-      const reply = await chatWithConfig(cfg, messages);
-      if (reply && reply.trim().length > 20) {
-        return {
-          answer: reply.trim().slice(0, MAX_ANSWER_CHARS),
-          confidence: 0.62, // conservative — generated, not matched
-          source: 'AI-generated (from FAQ context)',
-          sourceId: 'generated',
-        };
+    // Last-resort: top 5 most recent approved FAQs, in case none of the
+    // semantic searches found anything relevant.
+    if (contextBlocks.length === 0) {
+      const recentFaqs = await FAQ.find({ status: 'approved' })
+        .select('question answer')
+        .sort({ createdAt: -1 })
+        .limit(5);
+      for (const f of recentFaqs) {
+        contextBlocks.push(`[Recent FAQ] Q: ${f.question}\nA: ${f.answer.slice(0, 400)}`);
       }
+    }
+
+    if (contextBlocks.length === 0) return best; // no source of context at all
+
+    const context = contextBlocks.join('\n\n');
+    const messages = [
+      {
+        role: 'system',
+        content: `You are Yaksha's AI assistant. Answer the user's question concisely and accurately using the provided knowledge context (a mix of FAQ entries, prior community Q&A, and transcript knowledge). If the context doesn't contain enough information to give a complete answer, say so clearly. Keep answers under 300 words. Do not make up information not present in the context.`,
+      },
+      {
+        role: 'user',
+        content: `Context:\n${context}\n\nUser question: ${postTitle}${postBody ? `\nDetails: ${postBody}` : ''}`,
+      },
+    ];
+
+    const cfg = await getPipelineProviderConfig('auto_answer');
+    const reply = await chatWithConfig(cfg, messages);
+    if (reply && reply.trim().length > 20) {
+      // Boost confidence slightly when we had any relevant matches; otherwise
+      // the synthesized answer is unanchored and gets a low conservative score.
+      const hadRelevant = (kbMatches.length + faqMatches.length + communityMatches.length) > 0;
+      const conf = hadRelevant ? 0.72 : 0.62;
+      return {
+        answer: reply.trim().slice(0, MAX_ANSWER_CHARS),
+        confidence: conf,
+        source: hadRelevant
+          ? 'AI-generated (from KB/FAQ/Community context)'
+          : 'AI-generated (from recent FAQ context)',
+        sourceId: 'generated',
+      };
     }
   } catch (err) {
     logger.warn(`[autoAnswer] AI generation failed: ${(err as Error).message}`);
   }
 
-  return null;
+  // Return the best direct match even if it's below APPROVE — caller decides
+  // whether to queue (SUGGEST) or escalate (below SUGGEST).
+  return best;
 }
 // ─── Per-post processor ──────────────────────────────────────────────────────
 
@@ -227,7 +315,7 @@ async function processPost(post: InstanceType<typeof CommunityPost>): Promise<vo
               {
                 from: post.lifecycle?.status ?? 'open',
                 to: 'answered',
-                changedBy: new (require('mongoose').Types.ObjectId)('000000000000000000000000'),
+                changedBy: new Types.ObjectId('000000000000000000000000'),
                 changedAt: new Date(),
                 note: `AI auto-answered from ${source}`,
               },

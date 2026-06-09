@@ -114,7 +114,9 @@ export async function runUnansweredEscalationCheck(): Promise<void> {
       title: 'Unanswered question escalated',
       message: `${eligible.length} community question${eligible.length === 1 ? '' : 's'} ha${eligible.length === 1 ? 's' : 've'} been unanswered for ${UNANSWERED_ESCALATION_DAYS}+ days and need moderator attention.`,
       link: '/admin/moderation?tab=escalated',
-    }).catch(() => {}) // non-critical
+    }).catch((err) => {
+      logger.warn(`[escalation] Failed to notify mod/admin ${mod._id} on unanswered question escalation: ${(err as Error).message}`);
+    }) // non-critical
   );
 
   await Promise.all([

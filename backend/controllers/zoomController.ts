@@ -26,6 +26,7 @@ import { CircuitOpenError } from '../utils/circuitBreaker.js';
 import { sanitizeText } from '../utils/sanitize.js';
 import { logger } from '../utils/logger.js';
 import { getZoomHealth, recordZoomError } from '../utils/zoomHealth.js';
+import { scheduleRetry, manualRetry } from '../services/retryService.js';
 
 // ─── Webhook Signature Verification ─────────────────────────────────────────
 
@@ -357,7 +358,7 @@ async function processRecordingEvent(payload: ZoomWebhookPayload): Promise<void>
  * @param sourcing   — how the transcript entered the system
  * @param sourceType — carried forward to ZoomInsight as sourceType metadata
  */
-async function processTranscriptPayloadInternal(
+export async function processTranscriptPayloadInternal(
   meeting: InstanceType<typeof ZoomMeeting>,
   rawContent: string,
   sourcing: 'webhook' | 'manual_vtt' | 'manual_txt' | 'manual_raw',
@@ -445,12 +446,8 @@ async function processTranscriptPayloadInternal(
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    await ZoomMeeting.findByIdAndUpdate(meeting._id, {
-      status: 'failed',
-      errorMessage: msg,
-      processingCompletedAt: new Date(),
-      progress: { stage: 'failed', percent: 0, message: msg },
-    });
+    const stage = meeting.progress?.stage ?? 'unknown';
+    await scheduleRetry(meeting._id, msg, stage);
     recordZoomError(msg);
     throw err;
   }
@@ -515,7 +512,8 @@ export async function getZoomPublicStats(_req: Request, res: Response): Promise<
       faqsPromoted,
     });
   } catch (err) {
-    // Don't 500 the homepage — return zeros and let the UI hide the section
+    // Don't 500 the homepage — return zeros and let the UI hide the section, but log warning
+    logger.warn(`[zoom] Failed to get homepage stats: ${(err as Error).message}`);
     res.json({ meetingsProcessed: 0, insightsExtracted: 0, knowledgeExtracted: 0, faqsPromoted: 0 });
   }
 }
@@ -529,7 +527,7 @@ export async function listMeetings(req: Request, res: Response): Promise<void> {
   const status = req.query.status as string | undefined;
 
   const filter: Record<string, unknown> = {};
-  if (status && ['pending', 'processing', 'completed', 'failed'].includes(status)) {
+  if (status && ['pending', 'processing', 'completed', 'failed', 'dead_letter'].includes(status)) {
     filter.status = status;
   }
 
@@ -627,8 +625,14 @@ export async function convertInsightToFAQ(req: Request, res: Response): Promise<
 
     // Async: generate embedding (non-blocking)
     generateEmbedding(faq.question).then(emb => {
-      if (emb) FAQ.findByIdAndUpdate(faq._id, { embedding: emb }).catch(() => {});
-    }).catch(() => {});
+      if (emb) {
+        FAQ.findByIdAndUpdate(faq._id, { embedding: emb }).catch((err) => {
+          logger.warn(`[zoom] Failed to save generated FAQ embedding for ${faq._id}: ${(err as Error).message}`);
+        });
+      }
+    }).catch((err) => {
+      logger.warn(`[zoom] Failed to generate embedding for FAQ ${faq._id}: ${(err as Error).message}`);
+    });
 
     insight.publishedFaqId = faq._id as mongoose.Types.ObjectId;
     await insight.save();
@@ -648,10 +652,69 @@ function isBlacklisted(topic: string): boolean {
   return raw.split(',').some((pattern) => {
     try {
       return new RegExp(pattern.trim(), 'i').test(topic);
-    } catch {
+    } catch (err) {
+      logger.warn(`[zoom] Invalid regex in blacklist pattern '${pattern}': ${(err as Error).message}`);
       return false;
     }
   });
+}
+
+// ─── Admin: Dead-Letter Queue ─────────────────────────────────────────────────
+
+/**
+ * GET /api/zoom/dead-letter
+ * Returns a paginated list of meetings in the dead-letter queue.
+ */
+export async function listDeadLetterMeetings(req: Request, res: Response): Promise<void> {
+  const page = Math.max(1, parseInt(String(req.query.page ?? '1')));
+  const limit = Math.min(50, parseInt(String(req.query.limit ?? '20')));
+  const skip = (page - 1) * limit;
+
+  const [meetings, total] = await Promise.all([
+    ZoomMeeting.find({ status: 'dead_letter' })
+      .sort({ updatedAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .select('topic zoomMeetingId status retryCount maxRetries errorMessage failureHistory startTime updatedAt sourcing'),
+    ZoomMeeting.countDocuments({ status: 'dead_letter' }),
+  ]);
+
+  res.json({ meetings, total, page, limit, pages: Math.ceil(total / limit) });
+}
+
+/**
+ * POST /api/zoom/meetings/:id/retry
+ * Admin endpoint to manually retry a failed or dead-letter meeting.
+ * Resets retry state and re-queues for immediate processing.
+ */
+export async function retryMeeting(req: Request, res: Response): Promise<void> {
+  if (!req.user) {
+    res.status(401).json({ message: 'Not authorized' });
+    return;
+  }
+
+  const meeting = await ZoomMeeting.findById(req.params.id);
+  if (!meeting) {
+    res.status(404).json({ message: 'Meeting not found' });
+    return;
+  }
+
+  if (!['failed', 'dead_letter'].includes(meeting.status)) {
+    res.status(400).json({ message: `Cannot retry meeting with status '${meeting.status}'` });
+    return;
+  }
+
+  try {
+    await manualRetry(meeting._id.toString());
+    logger.info(`[Zoom] Admin ${(req.user as unknown as { _id: string })._id} manually retried meeting ${meeting._id}`);
+    res.json({
+      message: 'Meeting re-queued for processing.',
+      meetingId: meeting._id.toString(),
+      previousStatus: meeting.status,
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to retry meeting', error: (err as Error).message });
+  }
 }
 
 // ─── Types ───────────────────────────────────────────────────────────────────

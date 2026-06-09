@@ -13,6 +13,7 @@ interface ZoomStatus {
   connected: boolean;
   connectedAt?: string;
   zoomUserId?: string;
+  lastSyncedAt?: string;
 }
 
 export default function AccountPage() {
@@ -314,6 +315,23 @@ export default function AccountPage() {
     ? new Date(zoomStatus.connectedAt).toLocaleDateString()
     : null;
 
+  // Relative time label for last sync (issue #9)
+  const formatRelativeTime = (dateStr?: string): string | null => {
+    if (!dateStr) return null;
+    const diff = Date.now() - new Date(dateStr).getTime();
+    if (diff < 0) return 'just now';
+    const seconds = Math.floor(diff / 1000);
+    if (seconds < 60) return 'just now';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    if (days < 30) return `${days}d ago`;
+    return new Date(dateStr).toLocaleDateString();
+  };
+  const lastSyncedLabel = formatRelativeTime(zoomStatus?.lastSyncedAt);
+
   return (
     <div className="min-h-screen bg-bg">
       <Navbar />
@@ -545,6 +563,14 @@ export default function AccountPage() {
                       ? `Connected · since ${zoomConnectedAt}`
                       : 'Connect to auto-import meeting transcripts'}
                   </p>
+                  {zoomStatus?.connected && lastSyncedLabel && (
+                    <p className="text-[11px] text-ink-faint mt-0.5 flex items-center gap-1">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-500 shrink-0">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                      Last synced: {lastSyncedLabel}
+                    </p>
+                  )}
                 </div>
               </div>
 

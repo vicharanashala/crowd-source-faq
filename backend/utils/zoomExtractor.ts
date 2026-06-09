@@ -260,7 +260,8 @@ function parseExtractedItems(raw: string, segments: TranscriptSegment[]): Extrac
           transcript_snippet: (finalSnippet || String(item.transcript_snippet ?? '')).slice(0, 220),
         };
       });
-  } catch {
+  } catch (err) {
+    logger.warn(`[zoomExtractor] Failed to parse AI extractions response JSON: ${(err as Error).message}. Raw response snippet: ${raw.slice(0, 300)}`);
     return [];
   }
 }

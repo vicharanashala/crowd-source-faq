@@ -88,11 +88,17 @@ async function searchFaqs(embedding: number[], query: string, limit: number): Pr
             ],
           },
         } },
-      ]).toArray().catch(() => []),
+      ]).toArray().catch((err) => {
+        logger.warn(`[rag] searchFaqs aggregate vector search failed: ${(err as Error).message}`);
+        return [];
+      }),
     db.collection('yaksha_faq_faqs').find(
       { $text: { $search: query } },
       { projection: { score: { $meta: 'textScore' }, question: 1, answer: 1, category: 1, trustLevel: 1 } }
-    ).sort({ score: { $meta: 'textScore' } }).limit(limit).toArray().catch(() => []),
+    ).sort({ score: { $meta: 'textScore' } }).limit(limit).toArray().catch((err) => {
+      logger.warn(`[rag] searchFaqs text search failed: ${(err as Error).message}`);
+      return [];
+    }),
   ]);
 
   // Reciprocal Rank Fusion — same formula as the search controller.
@@ -140,11 +146,17 @@ async function searchCommunity(embedding: number[], query: string, limit: number
           limit,
         } },
         { $project: { _id: 1, title: 1, body: 1, status: 1, score: { $meta: 'vectorSearchScore' } } },
-      ]).toArray().catch(() => []),
+      ]).toArray().catch((err) => {
+        logger.warn(`[rag] searchCommunity aggregate vector search failed: ${(err as Error).message}`);
+        return [];
+      }),
     db.collection('yaksha_faq_communityposts').find(
       { $text: { $search: query } },
       { projection: { score: { $meta: 'textScore' }, title: 1, body: 1, status: 1 } }
-    ).sort({ score: { $meta: 'textScore' } }).limit(limit).toArray().catch(() => []),
+    ).sort({ score: { $meta: 'textScore' } }).limit(limit).toArray().catch((err) => {
+      logger.warn(`[rag] searchCommunity text search failed: ${(err as Error).message}`);
+      return [];
+    }),
   ]);
 
   const rrf = (k: number) => 1 / (60 + k);
@@ -205,12 +217,27 @@ ${question}
 ANSWER (cite sources inline):`;
 }
 
+/** File/image attachment passed in from the controller. */
+export interface RagAttachment {
+  /** Image (vision-capable) or text (read as part of context). */
+  kind: 'image' | 'text';
+  mimeType: string;
+  /** For images: base64-encoded data. For text: UTF-8 string content. */
+  data: string;
+  /** Original filename, shown to the model. */
+  filename: string;
+}
+
 /**
  * Main entry — runs the full RAG pipeline. Returns the answer + the
  * sources the LLM saw, in citation order. The caller (controller) just
  * forwards this as JSON.
+ *
+ * When `attachments` is provided, text files have their content inlined
+ * into the prompt and images are sent as multi-part content (vision input)
+ * to the LLM. Both Anthropic and OpenAI support this.
  */
-export async function runRag(question: string): Promise<RagResult> {
+export async function runRag(question: string, attachments: RagAttachment[] = []): Promise<RagResult> {
   const t0 = Date.now();
   const embedding = await generateEmbedding(question);
   logger.info('rag.embedding.done', { ms: Date.now() - t0 });
@@ -277,6 +304,19 @@ export async function runRag(question: string): Promise<RagResult> {
   const context = buildContext(sources);
   const prompt = buildPrompt(question, context);
 
+  // Build the user-message content. When there are attachments we send a
+  // multi-part content array (text + image parts) instead of a plain string.
+  // Text-file attachments are inlined into the prompt itself so the LLM sees
+  // them as part of the question context.
+  const attachmentNote = attachments.length > 0
+    ? `\n\n[Attached files (${attachments.length}): ${attachments.map((a) => a.filename).join(', ')}]`
+    : '';
+  const textAttachments = attachments
+    .filter((a) => a.kind === 'text')
+    .map((a) => `\n\n--- Attached file: ${a.filename} ---\n${a.data}\n--- end ---`)
+    .join('');
+  const imageAttachments = attachments.filter((a) => a.kind === 'image');
+
   // Call the LLM. We use the same provider resolution as duplicate detection
   // and knowledge extraction so the same AI key chain powers the assistant.
   // If the AI fails (provider down / 403 / rate-limited), we still return
@@ -286,9 +326,9 @@ export async function runRag(question: string): Promise<RagResult> {
   try {
     const cfg = await resolveProviderAsync();
     const t1 = Date.now();
-    answer = await chatCompletion(cfg, prompt);
+    answer = await chatCompletion(cfg, prompt + attachmentNote + textAttachments, imageAttachments);
     model = cfg.model;
-    logger.info('rag.completion.done', { ms: Date.now() - t1, model: cfg.model, sources: sources.length });
+    logger.info('rag.completion.done', { ms: Date.now() - t1, model: cfg.model, sources: sources.length, attachments: attachments.length });
   } catch (llmErr) {
     logger.warn('rag.completion.failed', { error: (llmErr as Error).message });
     answer = sources[0]?.snippet ?? '';
@@ -300,16 +340,47 @@ export async function runRag(question: string): Promise<RagResult> {
 /**
  * Tiny chat completion helper — same shape as the one in knowledgeBase
  * but lifted here so the RAG pipeline doesn't pull in extra imports.
+ *
+ * When `images` is non-empty, the user message is sent as a multi-part
+ * content array (text + image parts). The exact shape depends on the
+ * provider: Anthropic uses `{type:'image', source:{type:'base64',...}}`,
+ * OpenAI-compatible uses `{type:'image_url', image_url:{url:'data:...'}}`.
  */
 async function chatCompletion(
   cfg: { apiKey: string; baseURL: string; model: string; provider: string; needsAnthropicVersion: boolean; authHeader: 'x-api-key' | 'Authorization' },
-  prompt: string
+  prompt: string,
+  images: RagAttachment[] = []
 ): Promise<string> {
   const authValue = cfg.provider === 'anthropic' ? cfg.apiKey : `Bearer ${cfg.apiKey}`;
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     [cfg.authHeader]: authValue,
   };
+
+  // Build the user message content. If no images, send the prompt as a
+  // plain string (cheaper, works with every model). If images are present,
+  // send a content array — the prompt becomes the first text part.
+  const buildContent = (): unknown => {
+    if (images.length === 0) return prompt;
+    if (cfg.provider === 'anthropic') {
+      return [
+        { type: 'text', text: prompt },
+        ...images.map((img) => ({
+          type: 'image' as const,
+          source: { type: 'base64' as const, media_type: img.mimeType, data: img.data },
+        })),
+      ];
+    }
+    // OpenAI-compatible (openai, xai, minimax) — all use image_url with a data URI.
+    return [
+      { type: 'text', text: prompt },
+      ...images.map((img) => ({
+        type: 'image_url' as const,
+        image_url: { url: `data:${img.mimeType};base64,${img.data}` },
+      })),
+    ];
+  };
+
   if (cfg.needsAnthropicVersion) {
     headers['anthropic-version'] = '2023-06-01';
     const res = await fetch(`${cfg.baseURL}/messages`, {
@@ -317,7 +388,7 @@ async function chatCompletion(
       headers,
       body: JSON.stringify({
         model: cfg.model,
-        messages: [{ role: 'user', content: prompt }],
+        messages: [{ role: 'user', content: buildContent() }],
         max_tokens: 800,
       }),
     });
@@ -325,12 +396,13 @@ async function chatCompletion(
     const data = (await res.json()) as { content?: Array<{ text?: string }> };
     return data.content?.[0]?.text ?? '';
   }
+
   const res = await fetch(`${cfg.baseURL}/chat/completions`, {
     method: 'POST',
     headers,
     body: JSON.stringify({
       model: cfg.model,
-      messages: [{ role: 'user', content: prompt }],
+      messages: [{ role: 'user', content: buildContent() }],
       max_tokens: 800,
       temperature: 0.2,
     }),

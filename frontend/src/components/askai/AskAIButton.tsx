@@ -33,6 +33,17 @@ interface Source { kind: 'knowledge'|'faq'|'community'; title: string; snippet: 
 interface AskResponse { question: string; answer: string; sources: Source[]; relevantCount: number; sourceCount: number; model: string; aiFailed: boolean; }
 interface ChatMessage { id: string; role: 'user'|'assistant'; content: string; sources?: Source[]; loading?: boolean; error?: string; }
 
+/** File/image attachment queued in the chat composer. */
+interface PendingAttachment {
+  /** Local object URL for previews (images only) — released on remove/send. */
+  previewUrl: string;
+  /** Image (vision input) or text (read into the prompt). */
+  kind: 'image' | 'text';
+  filename: string;
+  /** Bytes — kept so we can append to FormData on send. */
+  file: File;
+}
+
 type PanelState = 'collapsed' | 'minimized' | 'expanded';
 const STATE_KEY = 'yaksha_chat_state';
 function readPersistedState(): PanelState {
@@ -117,7 +128,10 @@ export default function AskAIButton() {
   const [isLoading, setIsLoading] = useState(false);
   const [anonCount, setAnonCount] = useState(() => isAuthenticated ? 0 : readAnonCount());
   const [unreadCount, setUnreadCount] = useState(0);
+  const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
+  const [attachError, setAttachError] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -157,23 +171,103 @@ export default function AskAIButton() {
   }, [messages, panel]);
   useEffect(() => { if (panel !== 'collapsed') setUnreadCount(0); }, [panel]);
 
+  // ── File / image attachment handlers ──────────────────────────────────────
+  // Accept images and text-ish files. 10 MB per file, max 4 files.
+  // Mirrors the backend multer limits in routes/askAi.ts.
+  const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+  const MAX_ATTACHMENTS = 4;
+  const ACCEPT_ATTR = 'image/png,image/jpeg,image/gif,image/webp,.txt,.md,.csv,.json';
+
+  const classifyFile = (file: File): 'image' | 'text' | null => {
+    if (file.type.startsWith('image/')) return 'image';
+    if (/^(text\/(plain|markdown|csv))|application\/(json|octet-stream)$/.test(file.type)) return 'text';
+    // Browser may report empty mime for .md / .csv — fall back to extension.
+    const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+    if (['txt', 'md', 'csv', 'json', 'log'].includes(ext)) return 'text';
+    return null;
+  };
+
+  const handleFilesSelected = (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
+    setAttachError(null);
+    const next: PendingAttachment[] = [...attachments];
+    for (const f of Array.from(fileList)) {
+      if (next.length >= MAX_ATTACHMENTS) {
+        setAttachError(`Up to ${MAX_ATTACHMENTS} files at a time.`);
+        break;
+      }
+      if (f.size > MAX_ATTACHMENT_BYTES) {
+        setAttachError(`${f.name} is over the 10 MB limit.`);
+        continue;
+      }
+      const kind = classifyFile(f);
+      if (!kind) {
+        setAttachError(`${f.name}: unsupported file type.`);
+        continue;
+      }
+      next.push({
+        kind,
+        filename: f.name,
+        file: f,
+        previewUrl: kind === 'image' ? URL.createObjectURL(f) : '',
+      });
+    }
+    setAttachments(next);
+  };
+
+  const removeAttachment = (idx: number) => {
+    setAttachments((curr) => {
+      const target = curr[idx];
+      if (target?.previewUrl) URL.revokeObjectURL(target.previewUrl);
+      return curr.filter((_, i) => i !== idx);
+    });
+  };
+
+  // Clean up object URLs on unmount or panel close.
+  useEffect(() => {
+    return () => { attachments.forEach((a) => { if (a.previewUrl) URL.revokeObjectURL(a.previewUrl); }); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const send = useCallback(async () => {
     const q = query.trim();
-    if (q.length < 3 || isLoading) return;
+    // Need at least a question OR an attachment to send.
+    if ((q.length < 3 && attachments.length === 0) || isLoading) return;
     if (!isAuthenticated && readAnonCount() >= ANON_AI_LIMIT) { openModal('signin'); return; }
-    const userMsg: ChatMessage = { id: `u-${Date.now()}`, role: 'user', content: q };
+    const hasAttachments = attachments.length > 0;
+    const displayContent = q || (hasAttachments ? '(attachment)' : '');
+    const userMsg: ChatMessage = { id: `u-${Date.now()}`, role: 'user', content: displayContent };
     const aiMsg: ChatMessage = { id: `a-${Date.now()}`, role: 'assistant', content: '', loading: true };
     setMessages(m => [...m, userMsg, aiMsg]);
     setQuery('');
+    // Detach the pending attachments (and their object URLs) into the message
+    // send — we keep local state empty after the call returns.
+    const sending = attachments.slice();
+    setAttachments([]);
     setIsLoading(true);
     try {
-      const res = await api.post<AskResponse>('/ask-ai', { question: q });
+      let res;
+      if (hasAttachments) {
+        // Multipart upload — let the browser set the boundary + Content-Type.
+        const fd = new FormData();
+        fd.append('question', q);
+        for (const a of sending) fd.append('files', a.file, a.filename);
+        res = await api.post<AskResponse>('/ask-ai', fd, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+      } else {
+        res = await api.post<AskResponse>('/ask-ai', { question: q });
+      }
       setMessages(m => m.map(msg => msg.id === aiMsg.id ? { ...msg, content: res.data.answer, sources: res.data.sources, loading: false } : msg));
       if (!isAuthenticated) { const next = bumpAnonCount(); setAnonCount(next); if (next === ANON_AI_LIMIT) setTimeout(() => openModal('signin'), 1500); }
+      // Release any preview URLs we held.
+      sending.forEach((a) => { if (a.previewUrl) URL.revokeObjectURL(a.previewUrl); });
     } catch (err: unknown) {
       setMessages(m => m.map(msg => msg.id === aiMsg.id ? { ...msg, content: '', loading: false, error: friendlyError(err, 'Search failed. Please try again.') } : msg));
+      // Put the attachments back so the user can retry without re-adding.
+      setAttachments(sending);
     } finally { setIsLoading(false); }
-  }, [query, isLoading, isAuthenticated, openModal]);
+  }, [query, isLoading, isAuthenticated, openModal, attachments]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } };
   const reset = () => { setMessages([]); setQuery(''); };
@@ -247,13 +341,62 @@ export default function AskAIButton() {
           )}
           {messages.map(m => <MessageBubble key={m.id} m={m} onNav={handleSourceNav} />)}
         </div>
+        {/* Hidden file input — triggered by the + button below. */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={ACCEPT_ATTR}
+          multiple
+          className="hidden"
+          onChange={(e) => { handleFilesSelected(e.target.files); e.target.value = ''; }}
+        />
         <div className="flex-shrink-0 border-t border-border bg-card px-3 py-3">
+          {/* Attachment previews row — only shown when attachments exist. */}
+          {(attachments.length > 0 || attachError) && (
+            <div className="mb-2">
+              {attachments.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {attachments.map((a, i) => (
+                    <div key={`${a.filename}-${i}`} className="group relative flex items-center gap-1.5 pl-1.5 pr-2 py-1 rounded-lg border border-border bg-bg text-[11px] text-ink-soft max-w-[180px]">
+                      {a.kind === 'image' && a.previewUrl ? (
+                        <img src={a.previewUrl} alt={a.filename} className="w-7 h-7 rounded object-cover flex-shrink-0" />
+                      ) : (
+                        <div className="w-7 h-7 rounded bg-accent/10 border border-accent/20 flex items-center justify-center text-accent flex-shrink-0">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
+                        </div>
+                      )}
+                      <span className="truncate" title={a.filename}>{a.filename}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeAttachment(i)}
+                        title="Remove"
+                        aria-label={`Remove ${a.filename}`}
+                        className="ml-0.5 w-4 h-4 rounded-full text-ink-faint hover:text-danger hover:bg-danger/10 flex items-center justify-center flex-shrink-0 transition-colors"
+                      >×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {attachError && (
+                <p className="text-[10px] text-danger mt-1.5 px-1">{attachError}</p>
+              )}
+            </div>
+          )}
           <div className="flex items-end gap-2">
-            <div className="shrink-0 w-9 h-9 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center text-accent"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isLoading || attachments.length >= MAX_ATTACHMENTS || quotaExhausted}
+              title="Attach an image or text file"
+              aria-label="Attach a file"
+              className="shrink-0 w-9 h-9 rounded-full bg-accent/10 border border-accent/20 text-accent hover:bg-accent/15 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+            </button>
             <div className="flex-1">
               <textarea ref={inputRef} value={query} onChange={e => setQuery(e.target.value)} onKeyDown={handleKeyDown} placeholder={quotaExhausted ? 'Sign in to continue...' : 'Ask the FAQ Assistant...'} rows={1} disabled={quotaExhausted} className="w-full bg-bg rounded-2xl border border-border px-4 py-2.5 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:border-accent/50 focus:ring-2 focus:ring-accent/15 resize-none leading-6 max-h-[120px] disabled:opacity-50 disabled:cursor-not-allowed transition-all" />
             </div>
-            <button onClick={send} disabled={query.trim().length < 3 || isLoading || quotaExhausted} title="Send (Enter)" className="shrink-0 w-9 h-9 rounded-full bg-accent hover:bg-accent-hover active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-md shadow-accent/25 flex items-center justify-center" aria-label="Send message"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button>
+            <button onClick={send} disabled={(query.trim().length < 3 && attachments.length === 0) || isLoading || quotaExhausted} title="Send (Enter)" className="shrink-0 w-9 h-9 rounded-full bg-accent hover:bg-accent-hover active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-md shadow-accent/25 flex items-center justify-center" aria-label="Send message"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg></button>
           </div>
           <p className="text-[10px] text-ink-faint text-center mt-2">Powered by RAG &#183; Search FAQ, Wiki, and Community knowledge</p>
         </div>

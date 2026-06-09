@@ -8,7 +8,7 @@
  * All knowledge entries have vector embeddings for semantic search.
  */
 
-import { Types } from 'mongoose';
+import mongoose, { Types } from 'mongoose';
 import { TranscriptKnowledge, type KnowledgeStatus, type KnowledgeSource } from '../models/TranscriptKnowledge.js';
 import { ZoomMeeting } from '../models/ZoomMeeting.js';
 import CommunityPost from '../models/CommunityPost.js';
@@ -261,11 +261,149 @@ export interface KnowledgeMatch {
   reason?: string; // optional reason for why this matched
 }
 
+/**
+ * Semantic search over the FAQ collection. Returns the top-K FAQs that
+ * semantically match the query, scored by vector similarity. Used by the
+ * auto-answer pipeline to find relevant FAQs for a community post.
+ *
+ * Failures are non-fatal: returns []. Callers can fall back to other
+ * sources (Knowledge base, Community posts) on empty/error.
+ */
+export interface FaqMatch {
+  _id: string;
+  question: string;
+  answer: string;
+  tags: string[];
+  score: number;
+}
+
+export async function searchRelevantFaqs(query: string, topK = 5): Promise<FaqMatch[]> {
+  const qEmb = await generateEmbedding(query).catch((err) => {
+    logger.warn(`[knowledgeBase] FAQ search: embedding failed: ${(err as Error).message}`);
+    return null;
+  });
+  if (!qEmb) return [];
+
+  // Find candidates via keyword overlap first (cheap, narrows the search),
+  // then re-rank with the embedding. If keyword search yields nothing, fall
+  // back to a $vectorSearch over the whole FAQ collection.
+  const queryWords = query.toLowerCase().split(/\s+/).filter((w) => w.length >= 4);
+  const keywordFilter = queryWords.length > 0
+    ? { $or: [
+        { question: { $regex: queryWords.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), $options: 'i' } },
+        { answer: { $regex: queryWords.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), $options: 'i' } },
+      ] }
+    : {};
+
+  let candidates: Array<Record<string, unknown>> = [];
+  try {
+    const db = mongoose.connection.db;
+    if (db) {
+      // Vector search over the whole FAQ collection (most relevant, no keyword gate).
+      const vectorHits = await db.collection('yaksha_faq_faqs').aggregate([
+        { $vectorSearch: {
+            index: 'vector_index',
+            path: 'embedding',
+            queryVector: qEmb,
+            numCandidates: topK * 20,
+            limit: topK,
+          } },
+        { $project: { _id: 1, question: 1, answer: 1, tags: 1, score: { $meta: 'vectorSearchScore' } } },
+      ]).toArray();
+      candidates = vectorHits as Array<Record<string, unknown>>;
+    }
+  } catch (vecErr) {
+    logger.warn(`[knowledgeBase] FAQ vector search failed: ${(vecErr as Error).message}`);
+  }
+
+  // Fallback: keyword-only if vector search returned nothing.
+  if (candidates.length === 0 && Object.keys(keywordFilter).length > 0) {
+    candidates = (await FAQ.find({ ...keywordFilter, status: 'approved' })
+      .select('question answer tags')
+      .limit(topK)
+      .lean()) as unknown as Array<Record<string, unknown>>;
+    // Assign a synthetic score based on keyword match length.
+    for (const c of candidates) {
+      const text = `${c.question ?? ''} ${c.answer ?? ''}`.toLowerCase();
+      const hits = queryWords.filter((w) => text.includes(w)).length;
+      c.score = Math.min(0.5 + hits * 0.1, 0.85);
+    }
+  }
+
+  return candidates.map((c) => ({
+    _id: String(c._id),
+    question: String(c.question ?? ''),
+    answer: String(c.answer ?? ''),
+    tags: Array.isArray(c.tags) ? (c.tags as string[]) : [],
+    score: Number(c.score ?? 0),
+  }));
+}
+
+/**
+ * Semantic search over the Community posts collection. Returns the top-K
+ * community posts (by question + answer) that semantically match the query.
+ * Used by the auto-answer pipeline to surface prior community Q&A that may
+ * already answer a new post.
+ */
+export interface CommunityMatch {
+  _id: string;
+  title: string;
+  answer: string;
+  tags: string[];
+  score: number;
+}
+
+export async function searchRelevantCommunityPosts(query: string, topK = 5): Promise<CommunityMatch[]> {
+  const qEmb = await generateEmbedding(query).catch((err) => {
+    logger.warn(`[knowledgeBase] Community search: embedding failed: ${(err as Error).message}`);
+    return null;
+  });
+  if (!qEmb) return [];
+
+  let candidates: Array<Record<string, unknown>> = [];
+  try {
+    const db = mongoose.connection.db;
+    if (db) {
+      const vectorHits = await db.collection('yaksha_faq_communityposts').aggregate([
+        { $vectorSearch: {
+            index: 'vector_index',
+            path: 'embedding',
+            queryVector: qEmb,
+            numCandidates: topK * 20,
+            limit: topK,
+          } },
+        // Prefer posts with an accepted answer — those are the "answered" ones
+        // most likely to help a sibling post.
+        { $match: { 'answer.0': { $exists: true } } },
+        { $project: { _id: 1, title: 1, body: 1, answer: 1, tags: 1, score: { $meta: 'vectorSearchScore' } } },
+      ]).toArray();
+      candidates = vectorHits as Array<Record<string, unknown>>;
+    }
+  } catch (vecErr) {
+    logger.warn(`[knowledgeBase] Community vector search failed: ${(vecErr as Error).message}`);
+  }
+
+  return candidates.map((c) => ({
+    _id: String(c._id),
+    title: String(c.title ?? ''),
+    // `answer` is the accepted answer (an array of embedded comment docs)
+    // — we pull the body text out and join if there are multiple accepted.
+    answer: Array.isArray(c.answer)
+      ? (c.answer as Array<Record<string, unknown>>).map((a) => String(a.body ?? a.text ?? '')).join('\n\n').trim()
+      : String(c.answer ?? ''),
+    tags: Array.isArray(c.tags) ? (c.tags as string[]) : [],
+    score: Number(c.score ?? 0),
+  }));
+}
+
 export async function searchKnowledge(
   query: string,
   topK = 5
 ): Promise<KnowledgeMatch[]> {
-  const qEmb = await generateEmbedding(query).catch(() => null);
+  const qEmb = await generateEmbedding(query).catch((err) => {
+    logger.warn(`[knowledgeBase] Failed to generate embedding for query '${query}': ${(err as Error).message}`);
+    return null;
+  });
 
   const queryWords = query
     .toLowerCase()
@@ -354,7 +492,9 @@ export async function answerFromKnowledge(
     eventType: 'faq_match_found',
     link: `/community?post=${post._id}`,
     title: 'A matching FAQ answered your question!',
-  }).catch(() => {});
+  }).catch((err) => {
+    logger.warn(`[knowledgeBase] Failed to dispatch match notification to user ${post.author} for post ${post._id}: ${(err as Error).message}`);
+  });
 
   return { answered: true, answer: post.answer, knowledgeId: best._id };
 }

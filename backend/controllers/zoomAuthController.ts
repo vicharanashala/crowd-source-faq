@@ -187,10 +187,27 @@ export async function zoomStatus(req: Request, res: Response): Promise<void> {
 
   const hasCredentials = !!(process.env.ZOOM_CLIENT_ID && process.env.ZOOM_CLIENT_SECRET);
 
+  // Query the latest successfully completed ZoomMeeting for this user
+  // to surface "Last synced" on the frontend connection card (issue #9).
+  let lastSyncedAt: Date | null = null;
+  if (user?.zoomConnected) {
+    const latestMeeting = await ZoomMeeting.findOne(
+      { userId: user._id, status: 'completed' },
+      { processingCompletedAt: 1, updatedAt: 1 },
+    )
+      .sort({ processingCompletedAt: -1 })
+      .lean();
+
+    lastSyncedAt = latestMeeting?.processingCompletedAt
+      ?? (latestMeeting as any)?.updatedAt
+      ?? null;
+  }
+
   res.json({
-    connected:   user?.zoomConnected ?? false,
-    connectedAt: user?.zoomConnectedAt,
-    zoomUserId:  user?.zoomUserId,
+    connected:    user?.zoomConnected ?? false,
+    connectedAt:  user?.zoomConnectedAt,
+    zoomUserId:   user?.zoomUserId,
+    lastSyncedAt,
     hasCredentials,
   });
 }

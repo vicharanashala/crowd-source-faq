@@ -2,7 +2,7 @@ import mongoose, { Document, Schema as MongooseSchema, Types } from 'mongoose';
 
 // ─── Enums ────────────────────────────────────────────────────────────────────
 
-export type ZoomMeetingStatus = 'pending' | 'processing' | 'completed' | 'failed';
+export type ZoomMeetingStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'dead_letter';
 export type ZoomInsightType   = 'FAQ' | 'Announcement';
 
 /**
@@ -84,6 +84,19 @@ export interface IZoomMeeting extends Document {
   manualUploadedBy?: Types.ObjectId;
   /** Real-time processing stage for UI progress bar */
   progress: { stage: 'queued' | 'parsing' | 'extracting' | 'embedding' | 'storing' | 'done' | 'failed'; percent: number; message: string };
+
+  // ── Retry / DLQ ──────────────────────────────────────────────────────────
+  /** Number of retry attempts so far (0 on first try) */
+  retryCount: number;
+  /** Per-meeting retry cap (default 3, allows manual override) */
+  maxRetries: number;
+  /** When the next automatic retry should fire (exponential backoff) */
+  nextRetryAt?: Date;
+  /** Timestamp of the most recent retry attempt */
+  lastRetryAt?: Date;
+  /** Append-only audit log of each failure */
+  failureHistory: Array<{ attempt: number; error: string; timestamp: Date; stage: string }>;
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -188,7 +201,7 @@ const zoomMeetingSchema = new MongooseSchema<IZoomMeeting>(
     },
     status: {
       type: String,
-      enum: ['pending', 'processing', 'completed', 'failed'] as ZoomMeetingStatus[],
+      enum: ['pending', 'processing', 'completed', 'failed', 'dead_letter'] as ZoomMeetingStatus[],
       default: 'pending',
     },
     errorMessage: String,
@@ -219,6 +232,17 @@ const zoomMeetingSchema = new MongooseSchema<IZoomMeeting>(
       percent: { type: Number, default: 0, min: 0, max: 100 },
       message: { type: String, default: 'Queued for processing' },
     },
+    // ── Retry / DLQ ────────────────────────────────────────────────────────
+    retryCount:    { type: Number, default: 0 },
+    maxRetries:    { type: Number, default: 3 },
+    nextRetryAt:   { type: Date },
+    lastRetryAt:   { type: Date },
+    failureHistory: [{
+      attempt:   { type: Number, required: true },
+      error:     { type: String, required: true },
+      timestamp: { type: Date, required: true },
+      stage:     { type: String, required: true },
+    }],
   },
   { timestamps: true }
 );
@@ -228,6 +252,8 @@ const zoomMeetingSchema = new MongooseSchema<IZoomMeeting>(
 zoomMeetingSchema.index({ userId: 1, zoomMeetingId: 1 }, { unique: true });
 zoomMeetingSchema.index({ userId: 1, status: 1, startTime: -1 });
 zoomMeetingSchema.index({ status: 1, startTime: -1 });
+// Retry scheduler: efficiently find retryable failed meetings
+zoomMeetingSchema.index({ status: 1, nextRetryAt: 1, retryCount: 1 });
 
 zoomInsightSchema.index({ meetingId: 1 });
 zoomInsightSchema.index({ status: 1, type: 1 });

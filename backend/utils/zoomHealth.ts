@@ -33,6 +33,8 @@ export interface ZoomHealthStatus {
     entries: number;
   };
   failingMeetingsCount: number;
+  deadLetterCount: number;
+  pendingRetryCount: number;
   lastErrorAt: string | null;
   lastErrorMessage: string | null;
 }
@@ -55,11 +57,19 @@ export async function getZoomHealth(): Promise<ZoomHealthStatus> {
     : '100%';
 
   let failingMeetingsCount = 0;
+  let deadLetterCount = 0;
+  let pendingRetryCount = 0;
   try {
     const { ZoomMeeting } = await import('../models/ZoomMeeting.js');
     failingMeetingsCount = await ZoomMeeting.countDocuments({ status: 'failed' });
-  } catch {
-    // Model might not be loaded yet — ignore
+    deadLetterCount = await ZoomMeeting.countDocuments({ status: 'dead_letter' });
+    pendingRetryCount = await ZoomMeeting.countDocuments({
+      status: 'failed',
+      nextRetryAt: { $exists: true, $lte: new Date() },
+    });
+  } catch (err) {
+    // Model might not be loaded yet — log warning and ignore
+    logger.warn(`[zoomHealth] Failed to count failing Zoom meetings: ${(err as Error).message}`);
   }
 
   const isDown = oauth === 'open' && api === 'open';
@@ -83,6 +93,8 @@ export async function getZoomHealth(): Promise<ZoomHealthStatus> {
       entries: 0, // not exposed to avoid leaking internals
     },
     failingMeetingsCount,
+    deadLetterCount,
+    pendingRetryCount,
     lastErrorAt: _lastError?.at.toISOString() ?? null,
     lastErrorMessage: _lastError?.message ?? null,
   };

@@ -46,8 +46,9 @@ function scheduleFlush(): void {
     try {
       await SearchLog.insertMany(logs, { ordered: false });
       searchLogFlushes.inc();
-    } catch {
-      // silently discard failed batch inserts
+    } catch (err) {
+      // silently discard failed batch inserts, but log warning
+      logger.warn(`[search] Failed to flush buffered search logs to DB: ${(err as Error).message}`);
     } finally {
       searchLogFlushActive.dec();
     }
@@ -60,7 +61,17 @@ function bufferSearchLog(entry: Omit<PendingLog, 'createdAt'>): void {
     // Immediate flush when buffer is full
     if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
     const logs = pendingLogs.splice(0);
-    SearchLog.insertMany(logs, { ordered: false }).catch(() => {});
+searchLogFlushActive.inc();
+    SearchLog.insertMany(logs, { ordered: false })
+      .then(() => {
+        searchLogFlushes.inc();
+      })
+      .catch((err) => {
+        logger.warn(`[search] Failed to insert buffered search logs: ${(err as Error).message}`);
+      })
+      .finally(() => {
+        searchLogFlushActive.dec();
+      });
   } else {
     scheduleFlush();
   }
@@ -75,7 +86,15 @@ export async function flushSearchLogs(): Promise<void> {
   if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
   if (pendingLogs.length === 0) return;
   const logs = pendingLogs.splice(0);
-  await SearchLog.insertMany(logs, { ordered: false }).catch(() => {});
+searchLogFlushActive.inc();
+  try {
+    await SearchLog.insertMany(logs, { ordered: false });
+    searchLogFlushes.inc();
+  } catch (err) {
+    logger.warn(`[search] Failed to insert search logs on immediate flush: ${(err as Error).message}`);
+  } finally {
+    searchLogFlushActive.dec();
+  }
 }
 
 // Helper: Executes traditional MongoDB keyword search
@@ -186,7 +205,15 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
     if (redisCached) {
       searchRequests.inc({ source: 'redis', cached: 'true' });
       searchResultsReturned.observe({ source: 'redis' }, redisCached.results.length);
-      res.json({ results: redisCached.results, total: redisCached.results.length, cached: true });
+      const cachedResults = redisCached.results as SearchResultItem[];
+      const topResult = cachedResults[0] || null;
+      bufferSearchLog({
+        query,
+        resultsCount: cachedResults.length,
+        topResultId: topResult?._id ?? null,
+        topResultSource: topResult?.source ?? null,
+      });
+      res.json({ results: cachedResults, total: cachedResults.length, cached: true });
       return;
     }
 
@@ -196,6 +223,13 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
       await setCachedResults(normalizedQuery, cachedResults);
       searchRequests.inc({ source: 'lru', cached: 'true' });
       searchResultsReturned.observe({ source: 'lru' }, cachedResults.length);
+      const topResult = cachedResults[0] || null;
+      bufferSearchLog({
+        query,
+        resultsCount: cachedResults.length,
+        topResultId: topResult?._id ?? null,
+        topResultSource: topResult?.source ?? null,
+      });
       res.json({ results: cachedResults, total: cachedResults.length, cached: true });
       return;
     }

@@ -14,6 +14,7 @@
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import jwt from 'jsonwebtoken';
 import { type Request, type Response } from 'express';
+import { logger } from './logger.js';
 
 // ─── Shared key extractors ────────────────────────────────────────────────────
 
@@ -24,7 +25,10 @@ function userOrIp(req: Request): string {
     try {
       const decoded = jwt.verify(auth.slice(7), process.env.JWT_SECRET!) as { id: string };
       return `uid:${decoded.id}`;
-    } catch { /* fall through to IP */ }
+    } catch (err) {
+      logger.warn(`[rateLimit] JWT verification failed for rate limiting key: ${(err as Error).message}`);
+      /* fall through to IP */
+    }
   }
   return `ip:${ipKeyGenerator(req.ip ?? 'unknown')}`;
 }

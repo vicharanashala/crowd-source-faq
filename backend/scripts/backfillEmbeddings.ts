@@ -34,7 +34,10 @@ async function main() {
       await faqColl.updateOne({ _id: faq._id }, { $set: { embedding } });
       fp++;
       process.stdout.write(`\r  FAQs: ${fp}   `);
-    } catch { fe++; }
+    } catch (err) {
+      fe++;
+      console.error(`\n  [backfill] Failed to generate embedding for FAQ ${faq._id}: ${(err as Error).message}`);
+    }
   }
   console.log(`\n  ✓ ${fp} FAQs${fe ? `, ${fe} errors` : ''}`);
 
@@ -48,7 +51,10 @@ async function main() {
       await commColl.updateOne({ _id: post._id }, { $set: { embedding } });
       cp++;
       process.stdout.write(`\r  Posts: ${cp}   `);
-    } catch { ce++; }
+    } catch (err) {
+      ce++;
+      console.error(`\n  [backfill] Failed to generate embedding for Post ${post._id}: ${(err as Error).message}`);
+    }
   }
   console.log(`\n  ✓ ${cp} posts${ce ? `, ${ce} errors` : ''}`);
 

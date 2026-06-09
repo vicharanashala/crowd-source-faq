@@ -14,6 +14,7 @@ import crypto from 'crypto';
 import User from '../models/User.js';
 import { encrypt, decrypt } from './crypto.js';
 import { zoomOAuthCircuit, zoomApiCircuit, CircuitOpenError } from './circuitBreaker.js';
+import { logger } from './logger.js';
 
 // ─── Config ─────────────────────────────────────────────────────────────────
 
@@ -137,7 +138,8 @@ export function verifyOAuthState(state: string): string | null {
     if (!/^[a-f0-9]{24}$/i.test(userId)) return null;
 
     return userId;
-  } catch {
+  } catch (err) {
+    logger.warn(`[zoomOAuth] State verification failed for state token: ${(err as Error).message}`);
     return null;
   }
 }

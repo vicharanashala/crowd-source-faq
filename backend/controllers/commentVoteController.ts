@@ -17,6 +17,7 @@ import User, { calculateTier } from '../models/User.js';
 import ReputationLog from '../models/ReputationLog.js';
 import { autoAwardBadges } from './reputationController.js';
 import { createTeaDrop } from './teaNotificationController.js';
+import { logger } from '../utils/logger.js';
 
 // ─── toggleCommentUpvote ───────────────────────────────────────────────────────
 // POST /api/community/:id/comments/:commentId/upvote
@@ -36,6 +37,17 @@ export const toggleCommentUpvote = async (req: Request, res: Response): Promise<
     const commentAuthorId = comment.author;
     const isSelfVote = commentAuthorId.toString() === userId;
     const wasNewUpvote = !alreadyUpvoted;
+
+    // Reverse reputation when removing upvote
+    if (!isSelfVote && alreadyUpvoted) {
+      await User.findByIdAndUpdate(commentAuthorId, { $inc: { points: -5, reputation: -5 } });
+      await ReputationLog.deleteMany({
+        userId: commentAuthorId,
+        targetId: post._id as Types.ObjectId,
+        targetType: 'comment',
+        action: 'upvote_received',
+      });
+    }
 
     // Atomic $pull/$addToSet — avoids race-condition duplicates
     await CommunityPost.findOneAndUpdate(
@@ -61,7 +73,9 @@ export const toggleCommentUpvote = async (req: Request, res: Response): Promise<
         postTitle: post.title,
         triggeredBy: req.user!._id,
         triggeredByName: req.user!.name,
-      }).catch(() => {});
+      }).catch((err) => {
+        logger.warn(`[commentVote] Failed to create tea drop for comment author ${commentAuthorId}: ${(err as Error).message}`);
+      });
 
       // Award +5 points to comment author for receiving answer upvote
       const updatedCommentAuthor = await User.findByIdAndUpdate(
@@ -72,7 +86,9 @@ export const toggleCommentUpvote = async (req: Request, res: Response): Promise<
       if (updatedCommentAuthor) {
         updatedCommentAuthor.tier = calculateTier(updatedCommentAuthor.points);
         await updatedCommentAuthor.save();
-        autoAwardBadges(commentAuthorId.toString()).catch(() => {});
+        autoAwardBadges(commentAuthorId.toString()).catch((err) => {
+          logger.warn(`[commentVote] Failed to auto-award badges to ${commentAuthorId}: ${(err as Error).message}`);
+        });
         await ReputationLog.create({
           userId: commentAuthorId,
           delta: 5,

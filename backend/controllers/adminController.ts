@@ -6,6 +6,7 @@ import AdminLog from '../models/AdminLog.js';
 import CommunityPost from '../models/CommunityPost.js';
 import { invalidateCache } from '../utils/cache.js';
 import { sanitizeHtml } from '../utils/sanitize.js';
+import { logger } from '../utils/logger.js';
 import FreshReviewVote from '../models/FreshReviewVote.js';
 import { generateEmbedding } from '../utils/embeddings.js';
 
@@ -18,7 +19,9 @@ export const logAction = async (
 ): Promise<void> => {
   try {
     await AdminLog.create({ adminId, action, targetId, targetType, details });
-  } catch (_) {}
+  } catch (err) {
+    logger.warn(`[adminLog] Failed to log action '${action}': ${(err as Error).message}`);
+  }
 };
 
 // GET /api/admin/stats

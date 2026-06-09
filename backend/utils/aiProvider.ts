@@ -17,6 +17,7 @@
  */
 
 import AiConfig from '../models/AiConfig.js';
+import { logger } from './logger.js';
 
 export type AIProvider = 'anthropic' | 'openai' | 'xai' | 'minimax' | 'gemini' | 'custom';
 
@@ -104,7 +105,9 @@ export async function getPipelineProviderConfig(pipeline: string): Promise<Provi
     try {
       const config = await AiConfig.findOne({ isActive: true });
       dbActive = config?.activeProvider;
-    } catch {}
+    } catch (err) {
+      logger.warn(`[aiProvider] Failed to find active AiConfig in getPipelineProviderConfig: ${(err as Error).message}`);
+    }
 
     if (dbActive && hasKey(dbActive)) {
       provider = dbActive;
@@ -229,8 +232,9 @@ async function loadDbOverrides(): Promise<DbOverrides> {
     };
     _cache = { value: v, expiresAt: Date.now() + CACHE_TTL_MS };
     return v;
-  } catch {
-    // DB unavailable — return empty overrides so we fall back to env
+  } catch (err) {
+    // DB unavailable — log warning and return empty overrides so we fall back to env
+    logger.warn(`[aiProvider] Failed to load DbOverrides from AiConfig (using env fallbacks): ${(err as Error).message}`);
     return {
       anthropic: { apiKey: '', baseURL: '', model: '' },
       openai:    { apiKey: '', baseURL: '', model: '' },

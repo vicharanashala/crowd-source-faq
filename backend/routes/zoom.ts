@@ -21,6 +21,8 @@ import {
   convertInsightToFAQ,
   uploadTranscript,
   getMeetingProgress,
+  listDeadLetterMeetings,
+  retryMeeting,
 } from '../controllers/zoomController.js';
 
 const router = Router();
@@ -54,10 +56,12 @@ router.use(protect, authorize('admin'));
 router.get('/meetings', listMeetings);
 router.get('/meetings/:id', getMeeting);
 router.get('/meetings/:id/progress', getMeetingProgress);
+router.post('/meetings/:id/retry', retryMeeting);
 router.get('/insights', listInsights);
 router.put('/insights/:id', updateInsight);
 router.post('/insights/:id/convert-to-faq', convertInsightToFAQ);
 router.post('/upload-transcript', upload.single('file'), uploadTranscript);
 router.get('/health', getZoomHealthStatus);
+router.get('/dead-letter', listDeadLetterMeetings);
 
 export default router;

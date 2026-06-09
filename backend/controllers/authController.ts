@@ -30,7 +30,8 @@ function decodeExpiry(token: string): Date {
   try {
     const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString('utf-8')) as { exp?: number };
     return new Date((payload.exp ?? Math.floor(Date.now() / 1000) + 7 * 86400) * 1000);
-  } catch {
+  } catch (err) {
+    logger.warn(`[auth] Failed to decode token expiry, using fallback (7 days): ${(err as Error).message}`);
     // Fallback: 7 days from now, matches the default expiresIn.
     return new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   }
@@ -312,11 +313,30 @@ export const deleteUser = async (req: Request, res: Response): Promise<void> => 
       res.status(404).json({ message: 'User not found.' });
       return;
     }
-    await User.findByIdAndDelete(req.params.id);
+
+    // Soft delete & anonymize to prevent orphaned data crashes
+    target.isDeleted = true;
+    target.deletedAt = new Date();
+    target.name = 'Deleted User';
+    target.email = `deleted-${target._id}@yaksha.invalid`;
+    target.password = uuidv4(); // Re-randomize password to break login
+    target.avatar = undefined;
+    target.zoomConnected = false;
+    target.zoomAccessToken = undefined;
+    target.zoomRefreshToken = undefined;
+    target.totpEnabled = false;
+    target.totpSecret = undefined;
+
+    await target.save();
+
+    // Clean up private data that shouldn't persist
+    await Notification.deleteMany({ recipient: target._id });
+
     logger.audit?.('user_deleted', {
       adminId: req.user._id.toString(),
       targetId: req.params.id,
       requestId: (req as Request & { id: string }).id,
+      mode: 'soft_anonymize'
     });
     res.json({ message: 'User deleted successfully.' });
   } catch (error) {
@@ -337,7 +357,7 @@ export const exportUserData = async (req: Request, res: Response): Promise<void>
   try {
     const [user, posts, notifications, notificationsCount] = await Promise.all([
       User.findById(userId).select('-password').lean(),
-      CommunityPost.find({ author: userId }).sort({ createdAt: -1 }).limit(500).lean(),
+      CommunityPost.find({ author: userId }).sort({ createdAt: -1 }).limit(500).select('-embedding').lean(),
       Notification.find({ recipient: userId }).sort({ createdAt: -1 }).limit(200).lean(),
       Notification.countDocuments({ recipient: userId }),
     ]);

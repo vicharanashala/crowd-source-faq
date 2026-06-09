@@ -132,15 +132,48 @@ export const answerFromKnowledgeController = async (req: Request, res: Response)
 // result into the shape the frontend AskAIButton consumes (sources → { kind,
 // title, snippet, score, href, id }).
 
-// Public — anonymous users get 5 free searches per browser (enforced on the
-// client via localStorage); logged-in users are unlimited. Backend abuse
+// Public — anonymous users get 5 free searches per browser (enforced on
+// the client via localStorage); logged-in users are unlimited. Backend abuse
 // protection lives in the per-IP rate limiter mounted on this route.
+//
+// Multipart uploads (file/image attachments) are accepted; multer runs on
+// this route only when Content-Type is multipart/form-data, so plain JSON
+// requests pass through unchanged. Attachments are read into memory
+// (capped at 10 MB each, max 4 files) and passed to runRag() as multi-part
+// content — text files inlined into the prompt, images sent as vision input.
 export const askAIController = async (req: Request, res: Response): Promise<void> => {
   try {
-    const question = String((req.body as { question?: string })?.question ?? '').trim();
+    // For multipart requests, the question is a form field; for JSON, it's in body.
+    const body = (req.body ?? {}) as { question?: string };
+    const question = String(body.question ?? '').trim();
     if (question.length < 3) {
       res.status(400).json({ message: 'Question must be at least 3 characters' });
       return;
+    }
+
+    // Parse uploaded files (if any) into RagAttachment shape. The multer
+    // fileFilter in routes/askAi.ts has already validated mime types; we
+    // just translate to the structure runRag expects.
+    type MulterFile = { fieldname: string; originalname: string; mimetype: string; buffer: Buffer; size: number };
+    const files: MulterFile[] = (req as Request & { files?: MulterFile[] }).files ?? [];
+    const attachments: { kind: 'image' | 'text'; mimeType: string; data: string; filename: string }[] = [];
+    for (const f of files) {
+      if (f.mimetype.startsWith('image/')) {
+        attachments.push({
+          kind: 'image',
+          mimeType: f.mimetype,
+          data: f.buffer.toString('base64'),
+          filename: f.originalname,
+        });
+      } else {
+        // Text-ish: read as UTF-8. Cap at 50 KB of inlined text per file
+        // to keep the prompt bounded; the rest is dropped with a marker.
+        const MAX_TEXT = 50 * 1024;
+        const raw = f.buffer.toString('utf-8');
+        const truncated = raw.length > MAX_TEXT;
+        const data = truncated ? `${raw.slice(0, MAX_TEXT)}\n[...truncated...]` : raw;
+        attachments.push({ kind: 'text', mimeType: f.mimetype, data, filename: f.originalname });
+      }
     }
 
     // Minimum-relevance thresholds per source type, because RRF scores (FAQ /
@@ -159,7 +192,7 @@ export const askAIController = async (req: Request, res: Response): Promise<void
     let result: { answer: string; sources: Array<{ id: string; type: string; title: string; snippet: string; url: string; score: number }>; model: string };
     let aiFailed = false;
     try {
-      result = await runRag(question);
+      result = await runRag(question, attachments);
     } catch (ragErr) {
       // AI provider is down / rate-limited / unauthorized. The vector + text
       // searches inside runRag also failed because they're the same call.
@@ -182,7 +215,7 @@ export const askAIController = async (req: Request, res: Response): Promise<void
       };
       aiFailed = true;
     }
-    logger.info('[askAI] rag.completed', { ms: Date.now() - t0, sourceCount: result.sources.length, aiFailed });
+    logger.info('[askAI] rag.completed', { ms: Date.now() - t0, sourceCount: result.sources.length, attachments: attachments.length, aiFailed });
 
     // Translate RagSource → SourceHit shape for the frontend.
     const sources = result.sources.map((s) => ({

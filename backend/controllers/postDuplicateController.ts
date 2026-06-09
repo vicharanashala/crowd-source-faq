@@ -123,7 +123,10 @@ export async function checkDuplicate(
 
   // 1. FAQ hybrid search (vector + text)
   try {
-    const queryEmbedding = await generateEmbedding(query).catch(() => null);
+    const queryEmbedding = await generateEmbedding(query).catch((err) => {
+      logger.warn(`[postDuplicate] Failed to generate embedding for duplicate check query: ${(err as Error).message}`);
+      return null;
+    });
     const vectorThreshold = isShortQuery
       ? DUPLICATE_SHORT_QUERY_THRESHOLD
       : DUPLICATE_VECTOR_THRESHOLD;
