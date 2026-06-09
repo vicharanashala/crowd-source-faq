@@ -18,7 +18,11 @@ import { logger } from './logger.js';
 
 // ─── Shared key extractors ────────────────────────────────────────────────────
 
-/** Extract user ID from JWT in Authorization header, fall back to client IP. */
+/**
+ * Choose a rate-limit key for requests.
+ * - If a Bearer JWT is present and verifies, we key by the user id.
+ * - If not (missing/invalid token), we key by the client IP instead.
+ */
 function userOrIp(req: Request): string {
   const auth = req.headers.authorization;
   if (auth?.startsWith('Bearer ')) {
@@ -33,7 +37,10 @@ function userOrIp(req: Request): string {
   return `ip:${ipKeyGenerator(req.ip ?? 'unknown')}`;
 }
 
-/** Always use client IP — for unauthenticated routes. */
+/**
+ * Rate-limit key that is always the client IP.
+ * Used for endpoints where there is no reliable logged-in identity.
+ */
 function ipOnly(req: Request): string {
   return `ip:${ipKeyGenerator(req.ip ?? 'unknown')}`;
 }
@@ -49,6 +56,12 @@ interface LimiterConfig {
   message?: string;
 }
 
+/**
+ * Factory: builds a configured express-rate-limit middleware.
+ *
+ * It limits “how many requests are allowed per unique key” inside a
+ * time window (windowMs).
+ */
 export function createIdentityLimiter(config: LimiterConfig) {
   return rateLimit({
     windowMs: config.windowMs,

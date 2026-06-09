@@ -46,6 +46,10 @@ Output: [{"id": "...", "score": 0.92, "reason": "Both ask about..."}]`;
 
 // ─── AI call ─────────────────────────────────────────────────────────────────
 
+/**
+ * Make a single “AI judgment” call to decide which candidates are duplicates.
+ * Returns the raw text response (expected to be JSON array).
+ */
 async function aiChat(userQuestion: string, candidateList: string): Promise<string> {
   const cfg = await resolveProviderAsync();
 
@@ -57,9 +61,9 @@ async function aiChat(userQuestion: string, candidateList: string): Promise<stri
   const messages = cfg.needsAnthropicVersion
     ? [{ role: 'user' as const, content: SYSTEM_PROMPT + '\n\n' + userContent }]
     : [
-        { role: 'system' as const, content: SYSTEM_PROMPT },
-        { role: 'user' as const, content: userContent },
-      ];
+      { role: 'system' as const, content: SYSTEM_PROMPT },
+      { role: 'user' as const, content: userContent },
+    ];
 
   const body: Record<string, unknown> = {
     model: cfg.model,
