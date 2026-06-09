@@ -156,88 +156,138 @@ export interface CategoryTheme {
   ctaColor: string;
   ctaColorDark: string;
   svgPath: string;
+  /** Light mode — hue-rotation applied to the (purple-source) illustration */
+  illustrationHue: string;
+  /** Light mode — soft colored glow for icon + illustration */
+  illustrationGlow: string;
+  /** Dark mode only — hue-rotation applied to the (purple-source) illustration */
+  illustrationHueDark: string;
+  /** Dark mode only — soft neon glow color for icon + illustration */
+  illustrationGlowDark: string;
 }
+
+// ── Light-mode icon color presets (warm sage design system) ─────
+// Source illustrations are purple (~281°); hue-rotate shifts them.
+// Icons use the system's main colors; CTA text uses deeper shades
+// for accessible contrast.
+const LIGHT_ICON_SAGE = {
+  gradient: 'linear-gradient(180deg, rgba(107,143,113,0.05) 0%, rgba(255,255,255,1) 100%)',
+  badgeBg: '#E6F0E8',
+  badgeColor: '#6B8F71',
+  ctaColor: '#4C6B52',
+  illustrationHue: '-151deg',   // purple → warm sage (#6B8F71)
+  illustrationGlow: 'rgba(107,143,113,0.16)',
+};
+const LIGHT_ICON_GOLD = {
+  gradient: 'linear-gradient(180deg, rgba(212,160,23,0.05) 0%, rgba(255,255,255,1) 100%)',
+  badgeBg: 'rgba(212,160,23,0.14)',
+  badgeColor: '#D4A017',
+  ctaColor: '#8A6914',
+  illustrationHue: '120deg',    // purple → warm gold (#D4A017–#E6C65B)
+  illustrationGlow: 'rgba(230,198,91,0.18)',
+};
+const LIGHT_ICON_SKY = {
+  gradient: 'linear-gradient(180deg, rgba(95,168,211,0.05) 0%, rgba(255,255,255,1) 100%)',
+  badgeBg: 'rgba(95,168,211,0.14)',
+  badgeColor: '#5FA8D3',
+  ctaColor: '#2E6E96',
+  illustrationHue: '-79deg',    // purple → soft sky blue (#5FA8D3)
+  illustrationGlow: 'rgba(95,168,211,0.16)',
+};
+const LIGHT_ICON_TEAL = {
+  gradient: 'linear-gradient(180deg, rgba(76,140,120,0.05) 0%, rgba(255,255,255,1) 100%)',
+  badgeBg: 'rgba(76,140,120,0.14)',
+  badgeColor: '#4C8C78',
+  ctaColor: '#3A6B5C',
+  illustrationHue: '-120deg',   // purple → deep teal green (#4C8C78)
+  illustrationGlow: 'rgba(76,140,120,0.16)',
+};
+
+// ── Dark-mode icon color presets (icons/illustrations only) ─────
+// Source illustrations are purple (~281°); hue-rotate shifts them.
+const DARK_ICON_EMERALD = {
+  badgeBgDark: 'rgba(34,197,94,0.12)',
+  badgeColorDark: '#4ADE80',
+  illustrationHueDark: '-139deg',   // purple → emerald (#22C55E–#4ADE80)
+  illustrationGlowDark: 'rgba(74,222,128,0.18)',
+};
+const DARK_ICON_GOLD = {
+  badgeBgDark: 'rgba(245,158,11,0.12)',
+  badgeColorDark: '#FCD34D',
+  illustrationHueDark: '120deg',    // purple → gold/amber (#F59E0B–#FCD34D)
+  illustrationGlowDark: 'rgba(252,211,77,0.16)',
+};
+const DARK_ICON_CYAN = {
+  badgeBgDark: 'rgba(6,182,212,0.12)',
+  badgeColorDark: '#67E8F9',
+  illustrationHueDark: '-92deg',    // purple → cyan (#06B6D4–#67E8F9)
+  illustrationGlowDark: 'rgba(103,232,249,0.16)',
+};
+const DARK_ICON_TEAL = {
+  badgeBgDark: 'rgba(20,184,166,0.12)',
+  badgeColorDark: '#2DD4BF',
+  illustrationHueDark: '-108deg',   // purple → teal green (#14B8A6)
+  illustrationGlowDark: 'rgba(45,212,191,0.16)',
+};
 
 const CATEGORY_THEMES: Record<string, CategoryTheme> = {
   green: {
-    gradient: 'linear-gradient(135deg, rgba(34,197,94,0.05) 0%, rgba(34,197,94,0.02) 100%)',
+    // About Internship — warm sage
     gradientDark: 'linear-gradient(135deg, rgba(16,185,129,0.03), rgba(16,185,129,0.008))',
-    badgeBg: 'rgba(34,197,94,0.10)',
-    badgeBgDark: 'rgba(34,197,94,0.12)',
-    badgeColor: '#2d9f5a',
-    badgeColorDark: '#5ec07e',
-    ctaColor: '#2d9f5a',
     ctaColorDark: '#5ec07e',
     svgPath: '/book.svg',
+    ...LIGHT_ICON_SAGE,
+    ...DARK_ICON_EMERALD,
   },
   blue: {
-    gradient: 'linear-gradient(135deg, rgba(59,130,246,0.05) 0%, rgba(59,130,246,0.02) 100%)',
+    // Phases / courses — soft sky blue
     gradientDark: 'linear-gradient(135deg, rgba(16,185,129,0.03), rgba(16,185,129,0.008))',
-    badgeBg: 'rgba(59,130,246,0.10)',
-    badgeBgDark: 'rgba(59,130,246,0.12)',
-    badgeColor: '#3b7dd8',
-    badgeColorDark: '#6da3e8',
-    ctaColor: '#3b7dd8',
     ctaColorDark: '#6da3e8',
     svgPath: '/folder.svg',
+    ...LIGHT_ICON_SKY,
+    ...DARK_ICON_EMERALD,
   },
   yellow: {
-    gradient: 'linear-gradient(135deg, rgba(202,138,4,0.05) 0%, rgba(202,138,4,0.02) 100%)',
+    // Chat / Yaksha — warm gold
     gradientDark: 'linear-gradient(135deg, rgba(16,185,129,0.03), rgba(16,185,129,0.008))',
-    badgeBg: 'rgba(202,138,4,0.10)',
-    badgeBgDark: 'rgba(202,138,4,0.12)',
-    badgeColor: '#b08a28',
-    badgeColorDark: '#d4b04a',
-    ctaColor: '#b08a28',
     ctaColorDark: '#d4b04a',
     svgPath: '/chat.svg',
+    ...LIGHT_ICON_GOLD,
+    ...DARK_ICON_EMERALD,
   },
   purple: {
-    gradient: 'linear-gradient(135deg, rgba(139,92,204,0.05) 0%, rgba(139,92,204,0.02) 100%)',
+    // Vibe / platform — warm sage (no purple icons)
     gradientDark: 'linear-gradient(135deg, rgba(16,185,129,0.03), rgba(16,185,129,0.008))',
-    badgeBg: 'rgba(139,92,204,0.10)',
-    badgeBgDark: 'rgba(139,92,204,0.12)',
-    badgeColor: '#8b5cc8',
-    badgeColorDark: '#a88ad8',
-    ctaColor: '#8b5cc8',
     ctaColorDark: '#a88ad8',
     svgPath: '/monitor.svg',
+    ...LIGHT_ICON_SAGE,
+    ...DARK_ICON_EMERALD,
   },
   teal: {
-    gradient: 'linear-gradient(135deg, rgba(20,184,166,0.05) 0%, rgba(20,184,166,0.02) 100%)',
+    // Team / project — deep teal green
     gradientDark: 'linear-gradient(135deg, rgba(16,185,129,0.03), rgba(16,185,129,0.008))',
-    badgeBg: 'rgba(20,184,166,0.10)',
-    badgeBgDark: 'rgba(20,184,166,0.12)',
-    badgeColor: '#1a9a8a',
-    badgeColorDark: '#4db8aa',
-    ctaColor: '#1a9a8a',
     ctaColorDark: '#4db8aa',
     svgPath: '/team.svg',
+    ...LIGHT_ICON_TEAL,
+    ...DARK_ICON_EMERALD,
   },
   orange: {
-    gradient: 'linear-gradient(135deg, rgba(234,120,40,0.05) 0%, rgba(234,120,40,0.02) 100%)',
+    // Timing / schedule — warm gold
     gradientDark: 'linear-gradient(135deg, rgba(16,185,129,0.03), rgba(16,185,129,0.008))',
-    badgeBg: 'rgba(234,120,40,0.10)',
-    badgeBgDark: 'rgba(234,120,40,0.12)',
-    badgeColor: '#c47828',
-    badgeColorDark: '#d89850',
-    ctaColor: '#c47828',
     ctaColorDark: '#d89850',
     svgPath: '/calender.svg',
+    ...LIGHT_ICON_GOLD,
+    ...DARK_ICON_EMERALD,
   },
 };
 
-// Fallback theme (neutral sage)
+// Fallback theme (shield — Code of Conduct / Security → soft sky blue)
 const FALLBACK_THEME: CategoryTheme = {
-  gradient: 'linear-gradient(135deg, rgba(90,122,90,0.05) 0%, rgba(90,122,90,0.02) 100%)',
   gradientDark: 'linear-gradient(135deg, rgba(16,185,129,0.03), rgba(16,185,129,0.008))',
-  badgeBg: 'rgba(90,122,90,0.10)',
-  badgeBgDark: 'rgba(90,122,90,0.12)',
-  badgeColor: '#5a8a5a',
-  badgeColorDark: '#7eb07e',
-  ctaColor: '#5a8a5a',
   ctaColorDark: '#7eb07e',
   svgPath: '/shield.svg',
+  ...LIGHT_ICON_SKY,
+  ...DARK_ICON_CYAN,
 };
 
 export const getCategoryTheme = (name: string = ''): CategoryTheme => {
@@ -248,10 +298,15 @@ export const getCategoryTheme = (name: string = ''): CategoryTheme => {
   if (key.includes('vibe') || key.includes('platform')) return CATEGORY_THEMES.purple;
   if (key.includes('team')) return CATEGORY_THEMES.teal;
   if (key.includes('timing') || key.includes('date') || key.includes('schedule')) return CATEGORY_THEMES.orange;
-  if (key.includes('noc') || key.includes('certificate')) return { ...CATEGORY_THEMES.green, svgPath: '/document.svg' };
+  if (key.includes('noc')) return { ...CATEGORY_THEMES.green, ...LIGHT_ICON_TEAL, ...DARK_ICON_TEAL, svgPath: '/document.svg' };
+  if (key.includes('certificate')) return { ...CATEGORY_THEMES.green, ...LIGHT_ICON_GOLD, ...DARK_ICON_GOLD, svgPath: '/document.svg' };
   if (key.includes('offer')) return { ...CATEGORY_THEMES.blue, svgPath: '/document.svg' };
   if (key.includes('project')) return { ...CATEGORY_THEMES.teal, svgPath: '/folder.svg' };
   if (key.includes('rosetta')) return { ...CATEGORY_THEMES.purple, svgPath: '/folder.svg' };
+  // Achievement-type categories — gold icons (illustration unchanged)
+  if (key.includes('cert') || key.includes('achievement')) return { ...FALLBACK_THEME, ...LIGHT_ICON_GOLD, ...DARK_ICON_GOLD, svgPath: FALLBACK_THEME.svgPath };
+  // Interviews — warm sage (illustration unchanged)
+  if (key.includes('interview')) return { ...FALLBACK_THEME, ...LIGHT_ICON_SAGE, ...DARK_ICON_EMERALD, svgPath: FALLBACK_THEME.svgPath };
   return FALLBACK_THEME;
 };
 

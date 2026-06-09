@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
+import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
-import SearchBar from '../components/search/SearchBar';
+import SearchBar from '../components/ui/SearchBar';
 import { FAQDoodles } from '../components/ui/PageDoodles';
-import axios from 'axios';
 import api, { friendlyError } from '../utils/api';
+import type { TrendingQuery } from '../types/ui';
 
 // Modular components
 import {
@@ -15,11 +16,10 @@ import {
   getCategoryTone,
   IconGrid,
   getQuestionTitle,
-  applyQuestionNumbers,
 } from '../components/faq/faqUtils';
 import SearchDropdown from '../components/faq/SearchDropdown';
 import SearchFeedback from '../components/faq/SearchFeedback';
-import CategoryCardGrid from '../components/faq/CategoryCardGrid';
+import CategoryGrid from '../components/faq/CategoryGrid';
 import QuestionList from '../components/faq/QuestionList';
 import QuestionDetail from '../components/faq/QuestionDetail';
 
@@ -43,7 +43,7 @@ function CategoryPills({ categories, activeCategory, onSelect }: CategoryPillsPr
 
   return (
     <div className="w-full">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-2">
         <p className="text-xs font-semibold text-ink-faint uppercase tracking-wide">
           Browse categories
         </p>
@@ -70,11 +70,11 @@ function CategoryPills({ categories, activeCategory, onSelect }: CategoryPillsPr
             onClick={() => onSelect('')}
             className={`flex items-center gap-2 px-4 py-2 rounded-full border text-xs font-semibold whitespace-nowrap transition-all duration-200 flex-shrink-0
               ${allActive
-                ? 'bg-accent text-accent-text border-accent/60 shadow-[0_10px_26px_rgba(90,122,90,0.25)]'
+                ? 'faq-chip-active'
                 : 'bg-card/80 text-ink border-border/70 hover:bg-cream hover:-translate-y-0.5 hover:shadow-subtle'
               }`}
           >
-            <span className={allActive ? 'text-accent-text' : 'text-ink-faint'}>
+            <span className={allActive ? 'text-current' : 'text-ink-faint'}>
               <IconGrid />
             </span>
             All
@@ -89,11 +89,11 @@ function CategoryPills({ categories, activeCategory, onSelect }: CategoryPillsPr
                 onClick={() => onSelect(name)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-full border text-xs font-semibold whitespace-nowrap transition-all duration-200 flex-shrink-0
                   ${isActive
-                    ? 'bg-accent text-accent-text border-accent/60 shadow-[0_10px_26px_rgba(90,122,90,0.25)]'
+                    ? 'faq-chip-active'
                     : 'bg-card/80 text-ink border-border/70 hover:bg-cream hover:-translate-y-0.5 hover:shadow-subtle'
                   }`}
               >
-                <span className={isActive ? 'text-accent-text' : tone.accent}>
+                <span className={isActive ? 'text-current' : tone.accent}>
                   {getCategoryIcon(name)}
                 </span>
                 {formatCategoryName(name)}
@@ -126,50 +126,17 @@ export default function FAQPage() {
   const [error, setError] = useState('');
   const [activeCategory, setActiveCategory] = useState('');
   const [activeQuestion, setActiveQuestion] = useState<FAQItem | null>(null);
-  const [searchQuery, setSearchQuery] = useState(() => {
-    const params = new URLSearchParams(window.location.search);
-    return params.get('search') || '';
-  });
+  const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<FAQItem[] | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
   const [sortOption, setSortOption] = useState('relevant');
   const [visibleCount, setVisibleCount] = useState(8);
   const searchBarRef = useRef<HTMLInputElement>(null);
+  const [trendingWords, setTrendingWords] = useState<TrendingQuery[]>([]);
 
   const [resultFaqId, setResultFaqId] = useState<string | undefined>(undefined);
   const { id: urlFaqId } = useParams<string>();
-  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-
-  // Two-way sync between `activeCategory` and the `?category=` URL param.
-  //
-  // Two effects would race on first mount — the first reads the URL and
-  // schedules a setActiveCategory, but the second sees the stale
-  // activeCategory='' and the old searchParams (still carrying the
-  // category), then strips it from the URL before the first effect's
-  // state update lands. Result: a deep link like /faq?category=NOC
-  // gets wiped to /faq on load, and a Maximum update depth warning.
-  //
-  // Combine into one effect with a ref guard so each render does at
-  // most ONE direction of sync.
-  const hasInitializedCategoryFromUrlRef = useRef(false);
-  useEffect(() => {
-    const fromUrl = searchParams.get('category') || '';
-    if (!hasInitializedCategoryFromUrlRef.current) {
-      // First render after mount: seed state from the URL.
-      hasInitializedCategoryFromUrlRef.current = true;
-      if (fromUrl) setActiveCategory(fromUrl);
-      return;
-    }
-    // Subsequent renders: push state to the URL, but only when it
-    // actually changed (otherwise we'd loop on every URLSearchParams
-    // identity change).
-    if (activeCategory === fromUrl) return;
-    const next = new URLSearchParams(searchParams);
-    if (activeCategory) next.set('category', activeCategory);
-    else next.delete('category');
-    setSearchParams(next, { replace: true });
-  }, [activeCategory, searchParams, setSearchParams]);
 
   // Scroll to top when a question detail is opened
   const scrollToTop = useCallback(() => {
@@ -184,42 +151,26 @@ export default function FAQPage() {
   }, [searchResults]);
 
   useEffect(() => {
-    // AbortController scoped to this mount. If the user navigates away
-    // (or React StrictMode unmounts the first instance in dev), the cleanup
-    // function below fires and aborts the in-flight request so we never
-    // call setTrendingWords on an unmounted component.
-    const controller = new AbortController();
-    const { signal } = controller;
-
-    api.get('/faq', { signal })
+    api.get('/faq')
       .then((res) => {
-        setGrouped(applyQuestionNumbers(res.data.grouped || {}));
+        setGrouped(res.data.grouped || {});
         setTotal(res.data.total || 0);
       })
       .catch((err: unknown) => {
-        if (axios.isCancel(err)) return; // expected on unmount — silent
         const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Failed to load FAQs. Please try again.';
         setError(message);
       })
       .finally(() => setLoading(false));
 
-    return () => controller.abort();
+    // Fetch trending queries for the word cloud
+    api.get('/search/trending')
+      .then((res) => setTrendingWords((res.data.trending || []).map((t: { query: string; count: number }) => ({ query: t.query, count: t.count }))))
+      .catch((err: unknown) => {
+        console.error(friendlyError(err, 'Failed to load trending queries.'));
+      });
   }, []);
 
   const categories = useMemo(() => Object.keys(grouped).sort(), [grouped]);
-
-  /**
-   * Sorted list of category names for the pill scroller. Sorted with
-   * the same numeric-aware comparator as CategoryCardGrid so the pill
-   * row and the card grid stay in lockstep ("10." after "9.", not
-   * lexicographic).
-   */
-  const quickFilterCategories = useMemo(
-    () => Object.entries(grouped)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([name, items]) => ({ name, count: items.length })),
-    [grouped],
-  );
 
   const flatQuestions = useMemo(() => (
     categories.flatMap((name) => (grouped[name] || []).map((item) => ({
@@ -267,11 +218,8 @@ export default function FAQPage() {
         }
       }
     }
-    // Not in cache — fetch directly from API. AbortController scoped to
-    // this effect so an unmount (or grouped arriving mid-request) doesn't
-    // fire setActiveQuestion on stale data.
-    const controller = new AbortController();
-    api.get(`/faq/${urlFaqId}`, { signal: controller.signal })
+    // Not in cache — fetch directly from API
+    api.get(`/faq/${urlFaqId}`)
       .then((res) => {
         const faq = res.data;
         if (faq && faq._id) {
@@ -279,14 +227,7 @@ export default function FAQPage() {
           setActiveCategory(faq.category || '');
         }
       })
-      .catch((err: unknown) => {
-        if (axios.isCancel(err)) return;
-        /* FAQ not found or access denied */
-        if ((err as { response?: { status?: number } })?.response?.status !== 404) {
-          console.warn('[FAQPage] direct FAQ fetch failed:', friendlyError(err, 'Could not load FAQ.'));
-        }
-      });
-    return () => controller.abort();
+      .catch(() => { /* FAQ not found or access denied */ });
   }, [urlFaqId, grouped]);
 
   useEffect(() => {
@@ -300,33 +241,11 @@ export default function FAQPage() {
     }
   }, [searchQuery]);
 
-  const activeCategoryItems = useMemo(
-    () => (activeCategory ? (grouped[activeCategory] || []) : []),
-    [activeCategory, grouped],
-  );
-  const activeCategoryMeta = useMemo(
-    () => getCategoryDescription(activeCategoryItems),
-    [activeCategoryItems],
-  );
+  const activeCategoryItems = activeCategory ? (grouped[activeCategory] || []) : [];
+  const activeCategoryMeta = getCategoryDescription(activeCategoryItems);
 
   const searchActive = searchQuery.trim().length >= 3 && Array.isArray(searchResults);
   const showDropdown = searchQuery.trim().length > 0 && !searchActive;
-
-  const retryFaqLoad = useCallback(() => {
-    setError('');
-    setLoading(true);
-    api.get('/faq')
-      .then((res) => {
-        setGrouped(applyQuestionNumbers(res.data.grouped || {}));
-        setTotal(res.data.total || 0);
-      })
-      .catch((err: unknown) => {
-        if (axios.isCancel(err)) return;
-        const m = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Failed to load FAQs.';
-        setError(m);
-      })
-      .finally(() => setLoading(false));
-  }, []);
 
   const dropdownItems = useMemo(() => {
     if (Array.isArray(searchResults) && searchQuery.trim().length >= 3) {
@@ -355,11 +274,7 @@ export default function FAQPage() {
     setError('');
     try {
       const res = await api.post('/search', { query: queryStr });
-      const enrichedResults = (res.data.results || []).map((r: FAQItem) => {
-        const match = flatQuestions.find(f => f._id === r._id);
-        return match ? { ...r, questionNumber: match.questionNumber } : r;
-      });
-      setSearchResults(enrichedResults);
+      setSearchResults(res.data.results || []);
     } catch {
       setSearchResults([]);
       setError('Search failed. Please try again.');
@@ -429,11 +344,12 @@ export default function FAQPage() {
   };
 
   return (
-    <div className="min-h-screen bg-bg text-ink flex flex-col">
+    <div className="min-h-screen bg-bg grid-bg relative">
       <FAQDoodles />
+      <Navbar />
 
-      <main className="max-w-[1200px] mx-auto px-4 sm:px-6 pt-[112px] sm:pt-[128px] pb-10 relative z-10">
-        <div className="mb-6 text-center">
+      <main className="max-w-[1200px] mx-auto px-4 sm:px-6 pt-20 sm:pt-24 pb-10 relative z-10">
+        <div className="mb-6 sm:mb-8 text-center">
           <h1 className="text-2xl sm:text-3xl font-serif text-ink tracking-tight">
             Intern FAQs — <span className="text-accent">solved</span>
           </h1>
@@ -453,7 +369,7 @@ export default function FAQPage() {
           />
         )}
 
-        <section className="relative mb-6">
+        <section className="relative mb-10 sm:mb-12">
           <div className={`relative max-w-3xl mx-auto ${showDropdown ? 'z-40' : 'z-20'}`}>
             <SearchBar
               ref={searchBarRef}
@@ -479,7 +395,7 @@ export default function FAQPage() {
             )}
           </div>
 
-          <div className={`mt-10 transition-all duration-300 ${
+          <div className={`mt-5 sm:mt-6 transition-all duration-300 ${
             showDropdown ? 'opacity-70 translate-y-1' : 'opacity-100'
           }`}>
             <CategoryPills
@@ -488,6 +404,43 @@ export default function FAQPage() {
               onSelect={handleCategoryOpen}
             />
           </div>
+
+          {/* Trending searches — top 10 queries from search logs (noise filtered) */}
+          {trendingWords.length > 0 && !showDropdown && !activeCategory && !activeQuestion && !searchActive && (() => {
+            // Filter out noise: very short queries, 1-word queries with low count,
+            // and queries that are obviously test/junk (e.g. "test", "meow")
+            const NOISE = new Set(['test', 'meow', 'awdawd', 'a', 'asdf', 'qwerty', 'hi', 'hello', 'hey']);
+            const cleaned = trendingWords
+              .filter((w) => {
+                const q = w.query.trim().toLowerCase();
+                if (NOISE.has(q)) return false;
+                if (q.length < 4) return false;
+                if (w.count < 2) return false;
+                return true;
+              })
+              .slice(0, 10);
+            if (cleaned.length === 0) return null;
+            return (
+              <div className="mt-5 transition-all duration-300">
+                <p className="text-xs font-semibold text-ink-faint uppercase tracking-wide mb-2">Trending searches</p>
+                <div className="bg-card/60 rounded-2xl border border-border/50 shadow-subtle p-4">
+                  <div className="flex flex-wrap gap-2">
+                    {cleaned.map((word, i) => (
+                      <button
+                        key={word.query + i}
+                        onClick={() => handleWordClick(word.query)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-all duration-200 hover:-translate-y-0.5 hover:shadow-subtle group search-pill"
+                      >
+                        <span className="text-ink-faint font-semibold text-[10px]">#{i + 1}</span>
+                        {word.query}
+                        <span className="text-ink-faint text-[10px]">({word.count})</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </section>
 
         {loading && (
@@ -502,7 +455,7 @@ export default function FAQPage() {
           <div className="rounded-2xl bg-danger-light border border-danger/15 p-6 text-center space-y-3">
             <p className="text-sm text-danger font-medium">{error}</p>
             <button
-              onClick={retryFaqLoad}
+              onClick={() => { setError(''); setLoading(true); api.get('/faq').then(res => { setGrouped(res.data.grouped || {}); setTotal(res.data.total || 0); }).catch((err: unknown) => { const m = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Failed to load FAQs.'; setError(m); }).finally(() => setLoading(false)); }}
               className="px-5 py-2 text-sm font-medium bg-danger text-accent-text rounded-full hover:bg-danger/90 transition-colors"
             >
               Retry
@@ -570,7 +523,7 @@ export default function FAQPage() {
                 <span className="w-9 h-9 rounded-xl bg-mist flex items-center justify-center text-ink-faint">
                   {getCategoryIcon(activeCategory)}
                 </span>
-                {activeCategoryItems[0]?.categoryNumber ? `${activeCategoryItems[0].categoryNumber}. ` : ''}{formatCategoryName(activeCategory)}
+                {formatCategoryName(activeCategory)}
               </h2>
               {activeCategoryMeta && (
                 <p className="mt-2 text-sm text-ink-soft max-w-2xl">
@@ -596,16 +549,11 @@ export default function FAQPage() {
         )}
 
         {!loading && !error && !activeQuestion && !searchActive && !activeCategory && (
-          <section className="max-w-6xl mx-auto">
-            {/* Category card grid — the "All" view. Each card is a clickable
-                tile that opens its category (same handler as the pill scroller
-                above). Sorting is handled inside CategoryCardGrid (numeric
-                order, not lexicographic) so "10." comes after "9." */}
-            <CategoryCardGrid
-              grouped={grouped}
-              onSelect={handleCategoryOpen}
-            />
-          </section>
+          <CategoryGrid
+            categories={categories}
+            grouped={grouped}
+            onOpen={handleCategoryOpen}
+          />
         )}
       </main>
 
