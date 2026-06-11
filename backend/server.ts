@@ -26,6 +26,7 @@ import publicFaqRoutes from './routes/publicFaq.js';
 import batchRoutes from './routes/batch.js';
 import supportRoutes from './routes/support.js';
 import featureFlagRoutes from './routes/featureFlag.js';
+import { documentRouter, documentAdminRouter } from './routes/documents.js';
 import { adminRouter as appSettingsAdminRouter, publicRouter as appSettingsPublicRouter } from './routes/appSettings.js';
 import { ingestFrontendLog } from './utils/http/fileLogger.js';
 import { logger } from './utils/http/logger.js';
@@ -35,6 +36,9 @@ import { runScheduledAutoAnswer, stopAutoAnswerScheduler } from './controllers/a
 import { runScheduledFAQAudit, stopFAQAuditScheduler } from './controllers/faqAuditController.js';
 import { retryFailedMeetings } from './services/retryService.js';
 import { runFreshnessCheck } from './controllers/freshnessController.js';
+import { startDocumentWorker, stopDocumentWorker, isDocumentQueueEnabled } from './utils/jobs/documentQueue.js';
+import { runPromotePopularDocumentInsights } from './controllers/documentPromotionController.js';
+import { shutdownTesseract } from './utils/documentExtractor.js';
 import { runPromotionCycle } from './services/promotionService.js';
 import { getMetrics } from './utils/http/metrics.js';
 import { runWithContext } from './utils/http/requestContext.js';
@@ -65,6 +69,16 @@ process.on('unhandledRejection', (reason) => {
 });
 
 const app = express();
+
+// Trust the first proxy hop (Vite dev server, ngrok, Cloudflare,
+// a single nginx in front, etc.). Without this, express-rate-limit
+// throws ERR_ERL_UNEXPECTED_X_FORWARDED_FOR on every request that
+// has X-Forwarded-For, AND can't accurately key by client IP. For
+// production behind a multi-hop chain, override with
+// `TRUST_PROXY_HOPS=2` etc., or set it to a specific IP / CIDR
+// list per the Express docs:
+//   https://expressjs.com/en/guide/behind-proxies.html
+app.set('trust proxy', process.env.TRUST_PROXY_HOPS ?? '1');
 
 // Database connection middleware to ensure connection on each request lazily
 app.use(async (req: Request, res: Response, next: NextFunction) => {
@@ -169,6 +183,8 @@ app.use('/api/public', publicFaqRoutes);
 app.use('/api/batches', batchRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/feature-flags', featureFlagRoutes);
+app.use('/api/documents',       documentRouter);
+app.use('/api/admin/documents', documentAdminRouter);
 
 // v1.65 — Global app settings (Golden Ticket cooldown, penalty
 // multiplier). Two routers: admin-only at /api/admin/settings and
@@ -370,6 +386,24 @@ if (process.env.NODE_ENV !== 'production') {
       retryFailedMeetings().catch((e: Error) => logger.error(`[retry] ${e.message}`));
     }, ZOOM_RETRY_INTERVAL_MS);
 
+    // Document processing — BullMQ worker + auto-promote cron.
+    // Both are no-ops if REDIS_TCP_URL is unset, so the rest of
+    // the app boots cleanly without a Redis. The upload controller
+    // returns 503 in that case.
+    const documentWorkerStarted = startDocumentWorker();
+    let documentPromoteInterval: NodeJS.Timeout | null = null;
+    if (documentWorkerStarted) {
+      const DOC_PROMOTE_INTERVAL_MS = parseInt(process.env.DOCUMENT_INSIGHT_AUTO_PROMOTE_INTERVAL_MS ?? '900000', 10); // 15 min default
+      documentPromoteInterval = setInterval(() => {
+        runPromotePopularDocumentInsights().catch((e: Error) =>
+          logger.error(`[documentPromotion] cron: ${e.message}`),
+        );
+      }, DOC_PROMOTE_INTERVAL_MS);
+      logger.info(`[server] document pipeline online (worker + auto-promote every ${DOC_PROMOTE_INTERVAL_MS / 1000}s)`);
+    } else {
+      logger.info('[server] document pipeline offline — set REDIS_TCP_URL to enable');
+    }
+
     // Clean up on shutdown
     const cleanup = () => {
       clearInterval(promotionInterval);
@@ -377,9 +411,12 @@ if (process.env.NODE_ENV !== 'production') {
       clearInterval(retentionInterval);
       clearInterval(retryInterval);
       clearInterval(popularityInterval);
+      if (documentPromoteInterval) clearInterval(documentPromoteInterval);
       stopEscalationScheduler();
       stopAutoAnswerScheduler();
       stopFAQAuditScheduler();
+      void stopDocumentWorker();
+      void shutdownTesseract();
     };
     process.on('SIGTERM', cleanup);
     process.on('SIGINT', cleanup);

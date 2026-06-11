@@ -28,6 +28,17 @@ export default function AccountPage() {
   const [transcriptMeetingId, setTranscriptMeetingId] = useState<string | null>(null);
   const [transcriptProgress, setTranscriptProgress] = useState<{ stage: string; percent: number; message: string } | null>(null);
   const [transcriptSelectedFile, setTranscriptSelectedFile] = useState<{ file: File; type: 'vtt' | 'txt' } | null>(null);
+
+  // ─── Document Upload (OCR + AI extraction) ─────────────────────
+  // Available to all logged-in users — admins can see the per-row
+  // review queue at /admin/document-insights. Mirrors the
+  // transcript-upload pattern: pick file → POST → poll for
+  // completion via listMyDocuments.
+  const [docUploading, setDocUploading] = useState(false);
+  const [docMsg, setDocMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+  const [docRecentId, setDocRecentId] = useState<string | null>(null);
+  const [docRecentStatus, setDocRecentStatus] = useState<string | null>(null);
+  const docRef = useRef<HTMLInputElement>(null);
   const [showProcessModal, setShowProcessModal] = useState(false);
   const transcriptRef = useRef<HTMLInputElement>(null);
   const transcriptPollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -148,6 +159,72 @@ export default function AccountPage() {
     setTranscriptMsg(null);
     if (transcriptRef.current) transcriptRef.current.value = '';
   }, []);
+
+  // ─── Document upload handlers ───────────────────────────────────
+  // File pick → POST /api/documents/upload (multipart) → poll
+  // /api/documents/my every 3s until the record hits 'completed'
+  // or 'failed'. Mirrors the transcript-upload polling pattern.
+  const docPollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    return () => { if (docPollRef.current) clearTimeout(docPollRef.current); };
+  }, []);
+
+  const pollDoc = useCallback((documentId: string) => {
+    api.get<{ items: Array<{ _id: string; status: string; insightsGenerated: number; fileName: string }> }>('/documents/my')
+      .then(res => {
+        const me = res.data.items.find(d => d._id === documentId);
+        if (!me) return;
+        setDocRecentStatus(me.status);
+        if (me.status === 'completed' || me.status === 'failed') {
+          if (me.status === 'completed') {
+            setDocMsg({ type: 'ok', text: `Extracted ${me.insightsGenerated} insight${me.insightsGenerated === 1 ? '' : 's'} — admin will review at /admin/document-insights.` });
+          } else {
+            setDocMsg({ type: 'err', text: 'Extraction failed. See server logs.' });
+          }
+          setDocUploading(false);
+          return;
+        }
+        docPollRef.current = setTimeout(() => pollDoc(documentId), 3000);
+      })
+      .catch(() => {
+        setDocMsg({ type: 'err', text: 'Lost connection while polling.' });
+        setDocUploading(false);
+      });
+  }, []);
+
+  const handleDocFilePicked = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setDocMsg(null);
+    setDocUploading(true);
+
+    const form = new FormData();
+    form.append('file', file);
+    form.append('title', file.name.replace(/\.[^.]+$/, ''));
+
+    api.post<{ document: { _id: string } }>('/documents/upload', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+      .then(res => {
+        setDocRecentId(res.data.document._id);
+        setDocRecentStatus('uploaded');
+        setDocMsg({ type: 'ok', text: 'Uploaded. OCR + AI extraction in progress…' });
+        pollDoc(res.data.document._id);
+      })
+      .catch((err) => {
+        const status = (err as { response?: { status?: number; data?: { message?: string } } })?.response?.status;
+        const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+        if (status === 503) {
+          setDocMsg({ type: 'err', text: 'Document processing is disabled on this server (no Redis).' });
+        } else if (msg) {
+          setDocMsg({ type: 'err', text: msg });
+        } else {
+          setDocMsg({ type: 'err', text: 'Upload failed.' });
+        }
+        setDocUploading(false);
+      });
+  };
 
   const zoomConnectedAt = zoomStatus?.connectedAt
     ? new Date(zoomStatus.connectedAt).toLocaleDateString()
@@ -435,6 +512,78 @@ export default function AccountPage() {
             )}
           </div>
         )}
+
+        {/* Document Upload — OCR + AI extraction. Any authed user
+            can submit images / PDFs / DOCX / XLSX. Admins review
+            the extracted insights at /admin/document-insights. */}
+        <div className="bg-card rounded-2xl border border-border p-6 space-y-4">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-accent">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="9" y1="15" x2="15" y2="15"/>
+              </svg>
+            </div>
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-ink">Upload Knowledge Document</h3>
+              <p className="text-[11px] text-ink-faint mt-0.5">
+                Drop an image, PDF, DOCX, or XLSX. We OCR + extract FAQ / Policy / HowTo insights
+                via AI. Admins review and promote at <code className="font-mono">/admin/document-insights</code>.
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <input
+              ref={docRef}
+              type="file"
+              accept="image/png,image/jpeg,image/jpg,image/webp,application/pdf,.pdf,.docx,.xlsx"
+              onChange={handleDocFilePicked}
+              className="hidden"
+              id="doc-upload"
+            />
+            <label
+              htmlFor="doc-upload"
+              className="flex items-center justify-center gap-2 px-3 py-3 rounded-xl border border-dashed border-accent/40 bg-accent/5 text-accent hover:bg-accent/10 hover:border-accent/60 text-xs font-semibold cursor-pointer transition-all"
+            >
+              {docUploading ? (
+                <>
+                  <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="9" strokeOpacity="0.25"/>
+                    <path d="M21 12a9 9 0 0 0-9-9" strokeLinecap="round"/>
+                  </svg>
+                  Processing{docRecentStatus ? ` — ${docRecentStatus.replace('_', ' ')}` : '…'}
+                </>
+              ) : (
+                <>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                  </svg>
+                  Choose file (max 25 MB)
+                </>
+              )}
+            </label>
+            <p className="text-[10px] text-ink-faint mt-1.5 text-center">
+              PNG · JPEG · PDF · DOCX · XLSX
+            </p>
+          </div>
+
+          {docMsg && (
+            <div className={`px-3 py-2 rounded-xl text-xs ${
+              docMsg.type === 'ok'
+                ? 'bg-emerald-50 border border-emerald-200 text-emerald-700'
+                : 'bg-red-50 border border-red-200 text-red-700'
+            }`}>
+              {docMsg.text}
+              {docMsg.type === 'ok' && docRecentStatus === 'completed' && docRecentId && (
+                <span className="block text-[10px] mt-1 text-ink-faint">
+                  Recent document id: <code className="font-mono">{docRecentId.slice(-8)}</code>
+                </span>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Logout */}
         <button

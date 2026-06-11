@@ -52,6 +52,7 @@ const NAV: NavGroup[] = [
     label: 'Data Sources',
     items: [
       { to: '/admin/zoom-meetings',  label: 'Zoom Meetings', icon: VideoIcon },
+      { to: '/admin/document-insights', label: 'Document Insights', icon: DocIcon },
     ],
   },
   {

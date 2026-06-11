@@ -34,6 +34,7 @@ const AdminLeaderboard = lazy(() => import('./admin/pages/AdminLeaderboard'));
 const AdminUnresolvedSearch = lazy(() => import('./admin/pages/AdminUnresolvedSearch'));
 const AdminZoomMeetings = lazy(() => import('./admin/pages/AdminZoomMeetings'));
 const AdminZoomInsights = lazy(() => import('./admin/pages/AdminZoomInsights'));
+const AdminDocumentInsights = lazy(() => import('./admin/pages/AdminDocumentInsights'));
 const AdminAISettings = lazy(() => import('./admin/pages/AdminAISettings'));
 const FaqReview = lazy(() => import('./admin/pages/FaqReview'));
 const AdminAutoAnswerQueue = lazy(() => import('./admin/pages/AdminAutoAnswerQueue'));
@@ -161,6 +162,7 @@ function AppRoutes() {
         <Route path="/admin/unresolved-search" element={<AdminRoute><AdminLayout><AdminUnresolvedSearch /></AdminLayout></AdminRoute>} />
         <Route path="/admin/zoom-meetings" element={<AdminRoute><AdminLayout><AdminZoomMeetings /></AdminLayout></AdminRoute>} />
         <Route path="/admin/zoom-insights" element={<AdminRoute><AdminLayout><AdminZoomInsights /></AdminLayout></AdminRoute>} />
+        <Route path="/admin/document-insights" element={<AdminRoute><AdminLayout><AdminDocumentInsights /></AdminLayout></AdminRoute>} />
         <Route path="/admin/settings/ai" element={<AdminRoute><AdminLayout><AdminAISettings /></AdminLayout></AdminRoute>} />
         <Route path="/admin/faqs/review" element={<AdminRoute><AdminLayout><FaqReview /></AdminLayout></AdminRoute>} />
         <Route path="/admin/auto-answer" element={<AdminRoute><AdminLayout><AdminAutoAnswerQueue /></AdminLayout></AdminRoute>} />

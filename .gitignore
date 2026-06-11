@@ -181,3 +181,8 @@ frontend/vite.config.ts.timestamp-*
 tests/results/
 tests/reports/
 
+
+# Document OCR pipeline
+backend/eng.traineddata
+backend/tessdata/
+backend/.env.bak.*
