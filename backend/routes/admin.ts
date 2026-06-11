@@ -52,6 +52,12 @@ import {
   getEscalationHistory,
 } from '../controllers/escalationController.js';
 import {
+  listGoldenTickets,
+  resolveGoldenTicket,
+  rejectGoldenTicket,
+  banAndRejectGoldenTicket,
+} from '../controllers/goldenTicketAdminController.js';
+import {
   getAiConfig,
   updateAiConfig,
   resetAiUsage,
@@ -97,6 +103,14 @@ router.get('/community/escalated-posts',        getEscalatedPosts);
 router.post('/community/escalated-posts/:id/resolve',  resolveEscalatedPost);
 router.post('/community/escalated-posts/:id/dismiss',  dismissEscalatedPost);
 router.get('/community/escalation-history',     getEscalationHistory);
+
+// Golden Ticket admin workflow (v1.66) — separate from the
+// /api/support/requests inbox (which now hides isGolden=true by
+// default). Sort: by user's Spurti Points desc (priority triage).
+router.get('/golden-tickets',                      listGoldenTickets);
+router.post('/golden-tickets/:id/resolve',         resolveGoldenTicket);
+router.post('/golden-tickets/:id/reject',          rejectGoldenTicket);
+router.post('/golden-tickets/:id/ban',             banAndRejectGoldenTicket);
 
 // AI configuration management
 router.get('/ai/config',       getAiConfig);

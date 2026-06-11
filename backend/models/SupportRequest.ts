@@ -145,6 +145,13 @@ export interface ISupportRequest extends Document {
   internalNotes: ISupportInternalNote[];
   resolutionSummary: string;
   sessionAccessUrl: string;
+  // v1.66 — terminal-state timestamps + reason (set on
+  // admin Resolve / Reject). The status enum already includes
+  // 'Resolved' / 'Rejected' but we capture the wall-clock here
+  // for the admin audit log and the 48h-expiry display.
+  resolvedAt?: Date | null;
+  rejectedAt?: Date | null;
+  rejectionReason?: string;
 
   // Follow-up thread
   followUps: ISupportFollowUp[];
@@ -260,6 +267,10 @@ const supportRequestSchema = new MongooseSchema<ISupportRequest>(
     internalNotes:     { type: [internalNoteSubSchema], default: [] },
     resolutionSummary: { type: String, default: '', maxlength: 2000 },
     sessionAccessUrl:  { type: String, default: '', maxlength: 500 },
+    // v1.66 — terminal-state timestamps + reason (see interface).
+    resolvedAt:        { type: Date,    default: null },
+    rejectedAt:        { type: Date,    default: null },
+    rejectionReason:   { type: String,  default: '', maxlength: 2000 },
 
     followUps:      { type: [followUpSubSchema], default: [] },
     statusHistory:  { type: [statusHistorySubSchema], default: [] },

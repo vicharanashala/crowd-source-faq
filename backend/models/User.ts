@@ -68,7 +68,19 @@ export interface IUser extends Document {
   bannedBy?: mongoose.Types.ObjectId;
   suspendedUntil?: Date;
   isDeleted: boolean;
-    deletedAt?: Date;
+  deletedAt?: Date;
+  // v1.66 — Golden Ticket admin "Ban User + Reject" state. When
+  // set, the user is restricted from creating any new content
+  // (support tickets, golden tickets, community posts, answers,
+  // comments, document uploads) until that date. They can still
+  // log in, browse, and read. See `utils/banUtils.ts` for the
+  // gate logic. The auto-unban is implicit: content-creation
+  // endpoints check `goldenBannedUntil > now`. A cron in
+  // escalationController clears the field once expired.
+  goldenBannedUntil?: Date | null;
+  goldenBanReason?: string;
+  goldenBannedBy?: mongoose.Types.ObjectId | null;
+  goldenBannedAt?: Date | null;
     // Zoom OAuth (per-user)
     zoomConnected: boolean;
     zoomUserId?: string;
@@ -207,6 +219,21 @@ const userSchema = new MongooseSchema<IUser>(
     // rejection (one unified cooldown rule, no ban / no penalty).
     lastGoldenTicketAt:     { type: Date, default: null },
     lastGoldenRejectionAt:  { type: Date, default: null },
+
+    // v1.66 — Golden Ticket admin "Ban User + Reject" action. When
+    // set to a future date, the user is restricted from creating any
+    // new content (support tickets, golden tickets, community posts,
+    // answers, comments, document uploads) until that date. They can
+    // still log in, browse, and read. The auth middleware does NOT
+    // check this field — content-creation endpoints do, individually,
+    // via `assertCanCreateContent()`. The auto-unban is implicit (the
+    // check is `goldenBannedUntil > now`, not `isBanned: true`). A
+    // cron in escalationController clears the field once expired so
+    // the DB doesn't accumulate stale values.
+    goldenBannedUntil:  { type: Date, default: null },
+    goldenBanReason:    { type: String, default: '', maxlength: 500 },
+    goldenBannedBy:     { type: MongooseSchema.Types.ObjectId, ref: 'User', default: null },
+    goldenBannedAt:     { type: Date, default: null },
   },
   { timestamps: true }
 );
