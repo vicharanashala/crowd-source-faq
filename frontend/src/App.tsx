@@ -45,6 +45,7 @@ const AdminSupportTicket = lazy(() => import('./admin/pages/AdminSupportTicket')
 const AdminSupportGuidance = lazy(() => import('./admin/pages/AdminSupportGuidance'));
 const AdminSupportAnalytics = lazy(() => import('./admin/pages/AdminSupportAnalytics'));
 const AdminSupportCategories = lazy(() => import('./admin/pages/AdminSupportCategories'));
+const AdminGoldenTickets = lazy(() => import('./admin/pages/AdminGoldenTickets'));
 const AdminFeatures = lazy(() => import('./admin/pages/AdminFeatures'));
 const AdminLayout = lazy(() => import('./admin/components/layout/AdminLayout'));
 
@@ -174,6 +175,7 @@ function AppRoutes() {
         <Route path="/admin/support/analytics" element={<AdminRoute><AdminLayout><AdminSupportAnalytics /></AdminLayout></AdminRoute>} />
         <Route path="/admin/support/guidance" element={<AdminRoute><AdminLayout><AdminSupportGuidance /></AdminLayout></AdminRoute>} />
         <Route path="/admin/support/categories" element={<AdminRoute><AdminLayout><AdminSupportCategories /></AdminLayout></AdminRoute>} />
+        <Route path="/admin/golden-tickets" element={<AdminRoute><AdminLayout><AdminGoldenTickets /></AdminLayout></AdminRoute>} />
         <Route path="/admin/support/:id" element={<AdminRoute><AdminLayout><AdminSupportTicket /></AdminLayout></AdminRoute>} />
 
         {/* Feature flag toggles (admin only) */}
