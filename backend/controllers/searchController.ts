@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import mongoose, { Types } from 'mongoose';
 import SearchLog from '../models/SearchLog.js';
-import { generateEmbedding } from '../utils/ai/embeddings.js';
+import { generateEmbedding, generateQueryEmbedding } from '../utils/ai/embeddings.js';
 import { LRUCache } from 'lru-cache';
 import { httpLog } from '../utils/http/logger.js';
 import { getCachedResults, setCachedResults } from '../utils/http/cache.js';
@@ -246,7 +246,7 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
     }
 
     // 2. Compute AI Embedding for the search term
-    const embedding = await generateEmbedding(query);
+    const embedding = await generateQueryEmbedding(query);
 
     // 3. Execute Vector and Text searches in parallel across both collections for maximum speed
     const [faqVec, commVec, faqTxt, commTxt] = await Promise.all([

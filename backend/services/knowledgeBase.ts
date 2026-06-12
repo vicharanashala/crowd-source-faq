@@ -13,7 +13,7 @@ import { TranscriptKnowledge, type KnowledgeStatus, type KnowledgeSource } from 
 import { ZoomMeeting } from '../models/ZoomMeeting.js';
 import CommunityPost from '../models/CommunityPost.js';
 import FAQ from '../models/FAQ.js';
-import { generateEmbedding } from '../utils/ai/embeddings.js';
+import { generateEmbedding, generateQueryEmbedding } from '../utils/ai/embeddings.js';
 import { resolveProviderAsync } from '../utils/ai/aiProvider.js';
 import { dispatchNotification } from '../utils/http/notificationDispatcher.js';
 import { logger } from '../utils/http/logger.js';
@@ -278,7 +278,7 @@ export interface FaqMatch {
 }
 
 export async function searchRelevantFaqs(query: string, topK = 5): Promise<FaqMatch[]> {
-  const qEmb = await generateEmbedding(query).catch((err) => {
+  const qEmb = await generateQueryEmbedding(query).catch((err) => {
     logger.warn(`[knowledgeBase] FAQ search: embedding failed: ${(err as Error).message}`);
     return null;
   });
@@ -354,7 +354,7 @@ export interface CommunityMatch {
 }
 
 export async function searchRelevantCommunityPosts(query: string, topK = 5): Promise<CommunityMatch[]> {
-  const qEmb = await generateEmbedding(query).catch((err) => {
+  const qEmb = await generateQueryEmbedding(query).catch((err) => {
     logger.warn(`[knowledgeBase] Community search: embedding failed: ${(err as Error).message}`);
     return null;
   });
@@ -400,7 +400,7 @@ export async function searchKnowledge(
   query: string,
   topK = 5
 ): Promise<KnowledgeMatch[]> {
-  const qEmb = await generateEmbedding(query).catch((err) => {
+  const qEmb = await generateQueryEmbedding(query).catch((err) => {
     logger.warn(`[knowledgeBase] Failed to generate embedding for query '${query}': ${(err as Error).message}`);
     return null;
   });

@@ -1,6 +1,6 @@
 import mongoose, { Types } from 'mongoose';
 import CommunityPost, { ICommunityPost } from '../models/CommunityPost.js';
-import { generateEmbedding } from '../utils/ai/embeddings.js';
+import { generateEmbedding, generateQueryEmbedding } from '../utils/ai/embeddings.js';
 import { Request, Response } from 'express';
 import { computeRRF, applySearchThreshold, type SearchResultItem } from '../utils/http/search.js';
 import { communityLog } from '../utils/http/logger.js';
@@ -92,7 +92,7 @@ export const searchCommunityPosts = async (req: Request, res: Response): Promise
       return;
     }
 
-    const embedding = await generateEmbedding(q);
+    const embedding = await generateQueryEmbedding(q);
 
     const [vectorResults, textResults] = await Promise.all([
       runVectorSearch(embedding, 10),

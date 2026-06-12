@@ -8,7 +8,7 @@
 
 import FAQ from '../../models/FAQ.js';
 import CommunityPost from '../../models/CommunityPost.js';
-import { generateEmbedding } from './embeddings.js';
+import { generateEmbedding, generateQueryEmbedding } from './embeddings.js';
 import { resolveProviderAsync } from './aiProvider.js';
 import { logger } from '../http/logger.js';
 
@@ -164,7 +164,7 @@ async function getVectorCandidates(query: string, topK: number): Promise<Candida
     CommunityPost.find().select('_id title body embedding').lean(),
   ]);
 
-  const queryEmb = await generateEmbedding(query).catch((err) => {
+  const queryEmb = await generateQueryEmbedding(query).catch((err) => {
     logger.warn(`[duplicateDetector] Failed to generate embedding for query '${query}': ${(err as Error).message}`);
     return null;
   });

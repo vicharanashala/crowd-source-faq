@@ -15,7 +15,7 @@
 import { Request, Response } from 'express';
 import FAQ from '../models/FAQ.js';
 import CommunityPost from '../models/CommunityPost.js';
-import { generateEmbedding } from '../utils/ai/embeddings.js';
+import { generateEmbedding, generateQueryEmbedding } from '../utils/ai/embeddings.js';
 import { detectDuplicatesWithAI } from '../utils/ai/duplicateDetector.js';
 import { resolveProviderAsync } from '../utils/ai/aiProvider.js';
 import { communityLog } from '../utils/http/logger.js';
@@ -124,7 +124,7 @@ export async function checkDuplicate(
 
   // 1. FAQ hybrid search (vector + text)
   try {
-    const queryEmbedding = await generateEmbedding(query).catch((err) => {
+    const queryEmbedding = await generateQueryEmbedding(query).catch((err) => {
       communityLog.warn(`[postDuplicate] Failed to generate embedding for duplicate check query: ${(err as Error).message}`);
       return null;
     });

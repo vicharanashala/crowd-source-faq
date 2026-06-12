@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import mongoose, { Types } from 'mongoose';
 import FAQ, { type IFAQ } from '../models/FAQ.js';
-import { generateEmbedding } from '../utils/ai/embeddings.js';
+import { generateEmbedding, generateQueryEmbedding } from '../utils/ai/embeddings.js';
 import { adminLog } from '../utils/http/logger.js';
 import { invalidateCache } from '../utils/http/cache.js';
 import { createTeaDropsForFAQ } from './teaNotificationController.js';
@@ -454,7 +454,7 @@ export const checkFAQMatch = async (req: Request<{}, {}, CheckFAQMatchBody>, res
     }
 
     // Generate embedding for the user's question
-    const embedding = await generateEmbedding(query.trim());
+    const embedding = await generateQueryEmbedding(query.trim());
 
     // Run vector search against the FAQ collection
     const mongoose = (await import('mongoose')).default;

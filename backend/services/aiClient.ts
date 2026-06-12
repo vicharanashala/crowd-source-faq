@@ -14,7 +14,7 @@
  */
 
 import AiConfig from '../models/AiConfig.js';
-import { generateEmbedding } from '../utils/ai/embeddings.js';
+import { generateEmbedding, generateQueryEmbedding } from '../utils/ai/embeddings.js';
 import { logger } from '../utils/http/logger.js';
 
 // ─── Provider definitions ───────────────────────────────────────────────────
@@ -525,7 +525,7 @@ The answer should be direct and actionable. Do not add disclaimers.`;
     if (!candidates.length) return candidates;
 
     try {
-      const queryEmb = await generateEmbedding(query);
+      const queryEmb = await generateQueryEmbedding(query);
 
       if (candidates[0]?.source === 'faq') {
         const { default: FAQ } = await import('../models/FAQ.js');

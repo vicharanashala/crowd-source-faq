@@ -16,7 +16,7 @@
  */
 
 import mongoose from 'mongoose';
-import { generateEmbedding } from '../utils/ai/embeddings.js';
+import { generateEmbedding, generateQueryEmbedding } from '../utils/ai/embeddings.js';
 import { resolveProviderAsync } from '../utils/ai/aiProvider.js';
 import { searchKnowledge } from './knowledgeBase.js';
 import { logger } from '../utils/http/logger.js';
@@ -239,7 +239,7 @@ export interface RagAttachment {
  */
 export async function runRag(question: string, attachments: RagAttachment[] = []): Promise<RagResult> {
   const t0 = Date.now();
-  const embedding = await generateEmbedding(question);
+  const embedding = await generateQueryEmbedding(question);
   logger.info('rag.embedding.done', { ms: Date.now() - t0 });
 
   // Fan out — 3 sources, top-K each, in parallel.
