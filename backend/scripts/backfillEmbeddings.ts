@@ -15,7 +15,9 @@
  * around the 101st doc.
  */
 
-import 'dotenv/config';
+import dotenv from 'dotenv';
+dotenv.config();
+dotenv.config({ path: '.env.local' });
 import mongoose from 'mongoose';
 import { generateEmbedding, EMBEDDING_DIM, MODEL_SLUG } from '../utils/ai/embeddings.js';
 
@@ -84,7 +86,11 @@ async function main() {
 
   console.log('\n✅ Backfill complete!');
   await mongoose.disconnect();
-  process.exit(fp + cp > 0 ? 0 : 1);
+  // Don't process.exit — let the event loop drain so
+  // the @huggingface/transformers native runtime can
+  // clean up without aborting. The loop is empty now
+  // (no pending I/O, no keep-alive sockets) so the
+  // process will exit naturally on next tick.
 }
 
 main().catch((err) => { console.error((err as Error).message); process.exit(1); });
