@@ -181,3 +181,10 @@ frontend/vite.config.ts.timestamp-*
 tests/results/
 tests/reports/
 
+
+# v1.68 — test/OCR artifacts that should never be committed
+# .env.bak.* is created by some env-saving script; eng.traineddata
+# is a 5MB Tesseract language model that the user shouldn't ship
+# in git (regenerate locally with tesseract-ocr-*-eng).
+*.traineddata
+.env.bak.*

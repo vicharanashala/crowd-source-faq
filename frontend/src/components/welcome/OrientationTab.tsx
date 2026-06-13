@@ -9,8 +9,15 @@ interface Orientation {
   description: string;
   videoUrl: string;
   transcript: string;
-  completionThreshold?: number;
-  createdAt: string;
+  // v1.68 — onboarding CMS (PR #62) added the transcript
+  // AI assistant tab; the schema sets this to true when
+  // the orientation has a non-empty transcript. Frontend
+  // gates the "Transcript AI Active" badge on this flag
+  // (OrientationTab.tsx:322).
+  transcriptAvailable: boolean;
+  completionThreshold: number;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 interface TranscriptLine {

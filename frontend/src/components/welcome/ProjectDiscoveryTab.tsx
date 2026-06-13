@@ -2,27 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
-import ProjectSelectionModal from './ProjectSelectionModal';
-
-interface Project {
-  projectName: string;
-  mentorName?: string;
-  mentor?: { _id: string; name: string };
-  description: string;
-  status: string;
-  resources: string[];
-  skills?: string[];
-  problemStatement?: string;
-  whyMatters?: string;
-  outcomes?: string;
-  difficulty?: 'Beginner Friendly' | 'Intermediate' | 'Advanced';
-  weeklyCommitment?: string;
-  techStack?: string[];
-  deliverables?: string[];
-  teamSize?: string;
-  capacity?: number;
-  selectedCount?: number;
-}
+import ProjectSelectionModal, { type Project } from './ProjectSelectionModal';
 
 export default function ProjectDiscoveryTab() {
   const [projects, setProjects] = useState<Project[]>([]);

@@ -225,6 +225,7 @@ export default function ProjectTimelineTab() {
       cardStatus: cardStatus as 'locked' | 'completed' | 'in-progress',
       estimatedTime: step.estimatedTime || '-',
       lastUpdated: new Date().toLocaleDateString(),
+      extraBadge: undefined,  // explicit undefined so the inferred union type matches the projectStep shape (TimelineCardHeader expects ReactNode)
       icon: ICON_PALETTE[step.icon] || ICON_PALETTE['document'],
       content: (
         <div className="space-y-5 text-left">
@@ -300,7 +301,7 @@ export default function ProjectTimelineTab() {
     status: (user?.projectAssigned ? 'current' : 'upcoming') as 'current' | 'upcoming',
     cardStatus: user?.projectAssigned ? 'in-progress' as const : 'locked' as const,
     estimatedTime: user?.projectAssigned ? 'Ongoing' : '-',
-    lastUpdated: user?.projectAssignedAt ? new Date(user.projectAssignedAt as string).toLocaleDateString() : '-',
+    lastUpdated: user?.projectAssignedAt ? user.projectAssignedAt.toLocaleDateString() : '-',
     extraBadge: user?.projectAssigned ? (
       <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold bg-accent/10 text-accent border border-accent/20">
         <span className="relative flex h-2 w-2">
