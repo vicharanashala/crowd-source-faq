@@ -20,6 +20,9 @@ export interface Batch {
   startDate: string;
   endDate: string;
   isActive: boolean;
+  /** True for the single batch the BatchContext should auto-pick on
+   *  cold start. Enforced unique by a partial index on the model. */
+  isDefault?: boolean;
   faqCount: number;
 }
 
@@ -108,9 +111,14 @@ export function BatchProvider({ children }: BatchProviderProps): React.ReactElem
     }
 
     if (!picked) {
-      // Cold-start default: prefer a non-empty batch so the home page
-      // actually has data to show.
-      picked = batches.find((b) => b.faqCount > 0) ?? batches[0];
+      // Cold-start default: prefer a batch explicitly flagged
+      // `isDefault: true` (admin can promote one from /admin/batches);
+      // then a non-empty batch so the home page actually has data;
+      // then the first batch as a last resort.
+      picked =
+        batches.find((b) => b.isDefault)
+        ?? batches.find((b) => b.faqCount > 0)
+        ?? batches[0];
     } else if (picked.faqCount === 0) {
       // The stored / deep-linked batch is empty AND a non-empty alternative
       // exists — auto-promote to the non-empty one so the page isn't a

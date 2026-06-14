@@ -44,7 +44,7 @@ function applyTheme(theme: Theme) {
   } catch {}
 }
 
-export default function Navbar() {
+export default function Navbar({ showProgramSwitcher: _showProgramSwitcher = false }: { showProgramSwitcher?: boolean } = {}) {
   const [theme, setTheme] = useState<Theme>(() => {
     if (typeof window === 'undefined') return 'system';
     const stored = localStorage.getItem('theme');
