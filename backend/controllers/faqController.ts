@@ -71,6 +71,8 @@ interface GroupedFAQs {
     source?: string;
     trustLevel?: string;
     sourceType?: string;
+    popularityScore?: number;
+    guestViewCount?: number;
     // Freshness system — required for the public FreshnessBadge
     reviewStatus?: IFAQ['reviewStatus'];
     lastVerifiedDate?: IFAQ['lastVerifiedDate'];
@@ -170,6 +172,9 @@ export const getAllFAQs = async (req: Request<{}, {}, {}, GetAllFAQsQuery>, res:
         source: 'faq',
         trustLevel: faq.trustLevel,
         sourceType: faq.sourceType,
+        // Ranking signals — let the discovery UI surface the top FAQs per category.
+        popularityScore: faq.popularityScore,
+        guestViewCount: faq.guestViewCount,
         // Freshness system — required for the public FreshnessBadge
         reviewStatus: faq.reviewStatus,
         lastVerifiedDate: faq.lastVerifiedDate,

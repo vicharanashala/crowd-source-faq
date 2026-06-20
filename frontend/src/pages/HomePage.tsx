@@ -24,7 +24,6 @@ import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
-import UserActiveProgramIndicator from '../components/layout/UserActiveProgramIndicator';
 import SearchBar from '../components/search/SearchBar';
 import { HomeDoodles } from '../components/ui/PageDoodles';
 import api, { friendlyError } from '../utils/api';
@@ -86,7 +85,7 @@ function formatShortDate(dateStr?: string): string {
 // ═══════════════════════════════════════════════════════════════════════════
 //  Sidebar helper — list item used in the full "Browse all categories" section
 // ═══════════════════════════════════════════════════════════════════════════
-function CategoryListItem({
+function BrowseCategoryRow({
   name,
   count,
   onSelect,
@@ -95,64 +94,170 @@ function CategoryListItem({
   count: number;
   onSelect: () => void;
 }): React.ReactElement {
-  const tone = getCategoryTone(name);
   return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className="group flex items-center justify-between gap-3 py-3 px-3 -mx-3 rounded-xl hover:bg-cream/60 transition-colors text-left"
-    >
-      <span className="flex items-center gap-2.5 min-w-0">
-        <span className={`shrink-0 ${tone.accent}`}>{getCategoryIcon(name)}</span>
-        <span className="text-sm font-medium text-ink group-hover:text-accent transition-colors line-clamp-1">
+    <li>
+      <button
+        type="button"
+        onClick={onSelect}
+        className="group w-full flex items-center justify-between py-2.5 px-2 -mx-2 rounded-xl hover:bg-cream/60 transition-colors duration-150"
+      >
+        <span className="text-sm font-medium text-ink group-hover:text-accent transition-colors line-clamp-1 text-left">
           {formatCategoryName(name)}
         </span>
-      </span>
-      <span className="flex items-center gap-2 text-[11px] text-ink-faint shrink-0">
-        <span className="tabular-nums">{count}</span>
-        <svg className="text-ink-faint group-hover:text-accent transition-colors" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="m9 18 6-6-6-6" />
-        </svg>
-      </span>
-    </button>
+        <span className="flex items-center gap-2 text-[11px] text-ink-faint">
+          <span className="tabular-nums">{count}</span>
+          <svg className="text-ink-faint group-hover:text-accent transition-colors" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="m9 18 6-6-6-6" />
+          </svg>
+        </span>
+      </button>
+    </li>
   );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  Compact category icon button (the 8-icon sidebar grid)
+//  All-Categories accordion card
+//  Collapsed → category name + count. Expanded → a small per-category search
+//  box, the top 3 most-searched FAQs (by popularity), and a link to the full
+//  FAQ section. Typing in the box filters this category's FAQs locally.
 // ═══════════════════════════════════════════════════════════════════════════
-function CategoryIconGrid({
-  categories,
-  grouped,
-  onSelect,
+const TOP_PER_CATEGORY = 3;
+
+function AllCategoryCard({
+  name,
+  count,
+  items,
+  topItems,
+  expanded,
+  onToggle,
+  onOpenQuestion,
+  onViewAll,
 }: {
-  categories: string[];
-  grouped: Record<string, FAQItem[]>;
-  onSelect: (name: string) => void;
-}): React.ReactElement | null {
-  if (categories.length === 0) return null;
-  const visible = categories.slice(0, 8);
+  name: string;
+  count: number;
+  items: FAQItem[];
+  topItems: FAQItem[];
+  expanded: boolean;
+  onToggle: () => void;
+  onOpenQuestion: (item: FAQItem) => void;
+  onViewAll: () => void;
+}): React.ReactElement {
+  const panelId = `cat-panel-${name.replace(/\s+/g, '-')}`;
+  const [query, setQuery] = useState('');
+
+  // Fallback ordering when the live ranking endpoint hasn't loaded:
+  // popularity, then guest views.
+  const ranked = useMemo(() => (
+    [...items].sort((a, b) => (
+      (Number(b.popularityScore) || 0) - (Number(a.popularityScore) || 0)
+      || (Number(b.guestViewCount) || 0) - (Number(a.guestViewCount) || 0)
+    ))
+  ), [items]);
+
+  // Default view = top-N by live opens + search hits (from the backend).
+  // If that feed is empty, fall back to the popularity ordering above.
+  const top = (topItems && topItems.length > 0 ? topItems : ranked).slice(0, TOP_PER_CATEGORY);
+
+  const q = query.trim().toLowerCase();
+  const visible = q
+    ? ranked.filter((it) => getQuestionTitle(it).toLowerCase().includes(q))
+    : top;
+
   return (
-    <div className="grid grid-cols-4 gap-2.5">
-      {visible.map((cat) => {
-        const tone = getCategoryTone(cat);
-        return (
-          <button
-            key={cat}
-            type="button"
-            onClick={() => onSelect(cat)}
-            className="group flex flex-col items-center gap-1.5 p-2.5 rounded-xl bg-cream/50 border border-border/60 hover:bg-card hover:border-accent/30 hover:-translate-y-0.5 transition-all duration-200"
-            title={formatCategoryName(cat)}
-          >
-            <span className={`shrink-0 ${tone.accent} group-hover:scale-110 transition-transform`}>
-              {getCategoryIcon(cat)}
+    <div className="bg-card rounded-2xl border border-border overflow-hidden scroll-mt-32">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full flex items-center justify-between p-5 hover:bg-cream/40 transition-colors text-left"
+        aria-expanded={expanded}
+        aria-controls={panelId}
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="shrink-0 w-9 h-9 rounded-xl bg-cream text-accent flex items-center justify-center">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M3 7h18M3 12h18M3 17h12" />
+            </svg>
+          </span>
+          <div className="min-w-0">
+            <h3 className="font-serif text-lg text-ink leading-snug truncate">{formatCategoryName(name)}</h3>
+            <p className="text-xs text-ink-soft mt-0.5">{count} {count === 1 ? 'FAQ' : 'FAQs'}</p>
+          </div>
+        </div>
+        <span className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-ink-faint transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="m9 18 6-6-6-6" />
+          </svg>
+        </span>
+      </button>
+
+      {expanded && (
+        <div id={panelId} className="border-t border-border/60 px-5 pt-4 pb-2">
+          {/* Per-category search box */}
+          <div className="relative mb-1">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint pointer-events-none">
+              <svg width="15" height="15" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                <circle cx="7.5" cy="7.5" r="5.5" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M13 13L16 16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
             </span>
-            <span className="text-[10px] font-semibold text-ink-soft group-hover:text-ink line-clamp-1 leading-tight text-center w-full">
-              {formatCategoryName(cat).replace(/^\d+\.\s*/, '').slice(0, 14)}
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={`Search in ${formatCategoryName(name)}…`}
+              className="w-full pl-9 pr-3 py-2 rounded-xl border border-border/70 bg-cream/50 text-sm text-ink placeholder-ink-faint focus:outline-none focus:border-accent/50 focus:bg-card transition-colors"
+              autoComplete="off"
+            />
+          </div>
+
+          {/* Top-3 (or filtered) FAQ rows */}
+          <div className="divide-y divide-border/40">
+            {visible.length === 0 ? (
+              <p className="text-xs text-ink-soft py-3">
+                {q ? 'No matches in this category.' : 'No questions in this category yet.'}
+              </p>
+            ) : (
+              visible.map((item) => (
+                <button
+                  key={item._id}
+                  type="button"
+                  onClick={() => onOpenQuestion({ ...item, category: name })}
+                  className="group w-full text-left flex items-start gap-3 py-3"
+                >
+                  <span className="shrink-0 mt-1.5 w-1.5 h-1.5 rounded-full bg-accent/40 group-hover:bg-accent transition-colors" aria-hidden="true" />
+                  <span className="flex-1 min-w-0 text-sm text-ink group-hover:text-accent transition-colors line-clamp-2">
+                    {getQuestionTitle(item)}
+                  </span>
+                  <svg className="shrink-0 mt-1 text-ink-faint group-hover:text-accent transition-colors" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="m9 18 6-6-6-6" />
+                  </svg>
+                </button>
+              ))
+            )}
+          </div>
+
+          {/* Footer — caption + link to the full FAQ section */}
+          <div className="mt-1 pt-3 border-t border-border/60 flex items-center justify-between gap-3">
+            <span className="text-[11px] text-ink-faint">
+              {q
+                ? `${visible.length} ${visible.length === 1 ? 'match' : 'matches'}`
+                : count > TOP_PER_CATEGORY
+                  ? `Top ${TOP_PER_CATEGORY} of ${count}`
+                  : `${count} ${count === 1 ? 'FAQ' : 'FAQs'}`}
             </span>
-          </button>
-        );
-      })}
+            <button
+              type="button"
+              onClick={onViewAll}
+              className="text-xs text-accent font-medium hover:underline inline-flex items-center gap-1"
+            >
+              Open in FAQ section
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="m9 18 6-6-6-6" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -163,62 +268,55 @@ function CategoryIconGrid({
 function NumberedFaqRow({
   rank,
   item,
-  rightMeta,
+  meta,
   onOpen,
 }: {
   rank: number;
   item: FAQItem;
-  rightMeta?: React.ReactNode;
+  meta?: React.ReactNode;
   onOpen: (item: FAQItem) => void;
 }): React.ReactElement {
   const verified = item.reviewStatus === 'verified';
   return (
-    <button
-      type="button"
-      onClick={() => onOpen(item)}
-      className="group w-full text-left flex items-start gap-3 py-3 px-3 -mx-3 rounded-xl hover:bg-cream/60 transition-colors"
-    >
-      {/* Rank circle */}
-      <span className="shrink-0 w-6 h-6 rounded-md bg-cream text-[11px] font-semibold text-ink-faint flex items-center justify-center tabular-nums mt-0.5 border border-border/60 group-hover:bg-card group-hover:text-accent transition-colors">
-        {rank}
-      </span>
+    <li>
+      <button
+        type="button"
+        onClick={() => onOpen(item)}
+        className="group w-full text-left flex items-start gap-3 py-2.5 px-2 -mx-2 rounded-xl hover:bg-cream/60 transition-colors duration-150"
+      >
+        <span className="shrink-0 w-6 h-6 rounded-md bg-cream text-ink-soft text-[11px] font-semibold flex items-center justify-center mt-0.5 tabular-nums">
+          {rank}
+        </span>
 
-      <div className="flex-1 min-w-0">
-        <h3 className="text-sm font-medium text-ink group-hover:text-accent transition-colors leading-snug line-clamp-2">
-          {getQuestionTitle(item)}
-        </h3>
-        {item.answer && (
-          <p className="text-xs text-ink-soft mt-1 line-clamp-1 leading-relaxed">
-            {item.answer}
-          </p>
-        )}
-        <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
-          {item.category && (
-            <span className="text-[11px] text-ink-faint bg-mist px-1.5 py-0.5 rounded-md">
-              {formatCategoryName(item.category).replace(/^\d+\.\s*/, '')}
-            </span>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-sm font-medium text-ink leading-snug line-clamp-2 group-hover:text-accent transition-colors">
+            {getQuestionTitle(item)}
+          </h3>
+          {item.answer && (
+            <p className="text-xs text-ink-soft mt-1 line-clamp-1">
+              {item.answer}
+            </p>
           )}
-          {verified && (
-            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-success-light text-success flex items-center gap-0.5">
-              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-              Verified
-            </span>
-          )}
-          {item.sourceType === 'zoom_transcript' && (
-            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-cyan-50 text-cyan-700 dark:bg-cyan-500/10 dark:text-cyan-300 border border-cyan-200/40">
-              From Zoom
-            </span>
-          )}
+          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+            {item.category && (
+              <span className="text-[11px] text-ink-faint bg-mist px-1.5 py-0.5 rounded">
+                {formatCategoryName(item.category).replace(/^\d+\.\s*/, '')}
+              </span>
+            )}
+            {verified && (
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-success/15 text-success">
+                Verified
+              </span>
+            )}
+            {meta}
+          </div>
         </div>
-      </div>
 
-      {/* Right-aligned meta (views · read time / date) */}
-      <div className="shrink-0 text-right text-[11px] text-ink-faint whitespace-nowrap mt-0.5">
-        {rightMeta}
-      </div>
-    </button>
+        <svg className="shrink-0 mt-1.5 text-ink-faint group-hover:text-accent transition-colors" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="m9 18 6-6-6-6" />
+        </svg>
+      </button>
+    </li>
   );
 }
 
@@ -227,14 +325,14 @@ function NumberedFaqRow({
 // ═══════════════════════════════════════════════════════════════════════════
 function NumberedSkeletonRow({ rank }: { rank: number }): React.ReactElement {
   return (
-    <div className="flex items-start gap-3 py-3 px-3 -mx-3">
+    <li className="flex items-start gap-3 py-2.5 px-2 -mx-2">
       <span className="shrink-0 w-6 h-6 rounded-md bg-mist animate-pulse flex items-center justify-center text-[11px] tabular-nums text-transparent">{rank}</span>
       <div className="flex-1">
         <div className="h-3 bg-mist rounded animate-pulse w-4/5 mb-1.5" />
         <div className="h-2.5 bg-mist rounded animate-pulse w-full mb-1" />
         <div className="h-2.5 bg-mist rounded animate-pulse w-2/3" />
       </div>
-    </div>
+    </li>
   );
 }
 
@@ -257,6 +355,8 @@ export default function HomePage() {
   const [recentPublicFaqs, setRecentPublicFaqs] = useState<PublicPopularFaq[]>([]);
   const [recentLoading, setRecentLoading] = useState(true);
   const [trendingWords, setTrendingWords] = useState<TrendingQuery[]>([]);
+  // Per-category top FAQs ranked by live opens + search hits (dynamic).
+  const [topByCategory, setTopByCategory] = useState<Record<string, FAQItem[]>>({});
 
   // ── UI state ─────────────────────────────────────────────────────────────
   const [activeCategory, setActiveCategory] = useState('');
@@ -266,6 +366,7 @@ export default function HomePage() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [sortOption, setSortOption] = useState('relevant');
   const [visibleCount, setVisibleCount] = useState(8);
+  const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
 
   const searchBarRef = useRef<HTMLInputElement>(null);
   const allCategoriesRef = useRef<HTMLDivElement>(null);
@@ -280,6 +381,15 @@ export default function HomePage() {
 
   const scrollToAllCategories = useCallback(() => {
     allCategoriesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
+
+  const toggleCategory = useCallback((name: string) => {
+    setExpandedCats((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
   }, []);
 
   // ── Fetch all data sources dynamically when batchId changes ──────────────
@@ -317,6 +427,11 @@ export default function HomePage() {
       .catch(() => { /* non-fatal */ })
       .finally(() => { if (mounted) setRecentLoading(false); });
 
+    // /api/public/category-top-faqs — per-category top 3 by opens + search hits
+    api.get('/public/category-top-faqs', { params: { limit: 3, batchId } })
+      .then((res) => { if (mounted) setTopByCategory(res.data?.grouped || {}); })
+      .catch(() => { /* non-fatal — falls back to popularityScore ordering */ });
+
     // /api/search/trending — for trending queries
     api.get('/search/trending', { params: { batchId } })
       .then((res) => { if (mounted) setTrendingWords((res.data.trending || []).map((t: { query: string; count: number }) => ({ query: t.query, count: t.count }))); })
@@ -326,7 +441,14 @@ export default function HomePage() {
   }, [batchId]);
 
   // ── Derived data ─────────────────────────────────────────────────────────
-  const categories = useMemo(() => Object.keys(grouped).sort(), [grouped]);
+  // Order by FAQ count (desc), tie-break alphabetically — matches the
+  // discovery layout where the busiest categories surface first.
+  const categories = useMemo(() => (
+    Object.keys(grouped).sort((a, b) => {
+      const diff = (grouped[b]?.length ?? 0) - (grouped[a]?.length ?? 0);
+      return diff !== 0 ? diff : a.localeCompare(b);
+    })
+  ), [grouped]);
 
   const flatQuestions = useMemo(() => (
     categories.flatMap((name) => (grouped[name] || []).map((item) => ({
@@ -403,7 +525,9 @@ export default function HomePage() {
   const activeCategoryMeta = getCategoryDescription(activeCategoryItems);
 
   const searchActive = searchQuery.trim().length >= 3 && Array.isArray(searchResults);
-  const showDropdown = searchQuery.trim().length > 0 && !searchActive;
+  // Keep the inline dropdown open the whole time the user is searching — results
+  // (with answers) surface right under the search bar instead of swapping the page.
+  const showDropdown = searchQuery.trim().length > 0;
 
   const dropdownItems = useMemo(() => {
     if (Array.isArray(searchResults) && searchQuery.trim().length >= 3) {
@@ -489,7 +613,7 @@ export default function HomePage() {
   };
 
   // True when the user is browsing the discovery landing (nothing selected)
-  const showDiscovery = !loading && !error && !activeQuestion && !searchActive && !activeCategory;
+  const showDiscovery = !loading && !error && !activeQuestion && !activeCategory;
 
   // ── Render ──────────────────────────────────────────────────────────────
   return (
@@ -498,101 +622,108 @@ export default function HomePage() {
       <Navbar />
 
       <main className="max-w-[1200px] mx-auto px-4 sm:px-6 pt-[112px] sm:pt-[128px] pb-10 relative z-10">
-        {/* Active program pill (v1.69) */}
-        <div className="flex justify-center">
-          <UserActiveProgramIndicator />
-        </div>
+        {/* ─── HERO (badge · eyebrow · title · stats · search · pills) ─── */}
+        <section className="relative pt-2 sm:pt-4 pb-2 text-center" aria-label="Page header">
+          {/* Icon badge */}
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-accent/10 text-accent mb-3 relative z-10">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="9.5" />
+              <path d="M9.5 9a2.5 2.5 0 1 1 4 2c-1 0.7-1.5 1.2-1.5 2.5" />
+              <path d="M12 17.5h.01" />
+            </svg>
+          </div>
 
-        {/* ─── HERO ──────────────────────────────────────────────────── */}
-        <section className="text-center pt-3 pb-2 relative">
-          <h1 className="font-serif text-3xl sm:text-4xl md:text-[3.2rem] leading-[1.1] tracking-tight text-ink mt-3">
+          {/* Program eyebrow */}
+          {currentBatch?.name && (
+            <p className="text-[11px] uppercase tracking-[0.18em] font-semibold text-accent relative z-10">
+              {currentBatch.name}
+            </p>
+          )}
+
+          <h1 className="font-serif text-[1.75rem] sm:text-4xl md:text-5xl lg:text-[3.2rem] leading-[1.15] tracking-tight text-ink mb-6 mt-1.5 relative z-10">
             Ask. Discover. Get{' '}
             <span className="doodle-underline font-serif" style={{ fontWeight: 700 }}>Solved.</span>
+            <svg className="inline-block ml-2 align-middle" width="24" height="18" viewBox="0 0 24 18" style={{ opacity: 0.18 }} aria-hidden="true">
+              <path d="M2 12 Q6 4 12 9 Q18 14 22 6" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+            </svg>
           </h1>
-          <p className="text-sm sm:text-base text-ink-soft mt-4 max-w-xl mx-auto leading-relaxed">
+
+          <p className="text-sm sm:text-base text-ink-soft max-w-lg leading-relaxed mx-auto px-2 relative z-10">
             Search your doubt or explore solved questions from the community.
           </p>
+
           {total > 0 && (
-            <p className="text-[11px] uppercase tracking-[0.18em] font-semibold text-ink-faint mt-3">
+            <p className="text-[11px] text-ink-faint mt-3 uppercase tracking-wider font-semibold relative z-10">
               {total} {total === 1 ? 'FAQ' : 'FAQs'} · {categories.length} categories
             </p>
           )}
-        </section>
 
-        {/* ─── SEARCH BAR ───────────────────────────────────────────── */}
-        <section className="relative max-w-2xl mx-auto mt-8 mb-4">
-          <div className={`relative ${showDropdown ? 'z-40' : 'z-20'}`}>
-            <SearchBar
-              ref={searchBarRef}
-              value={searchQuery}
-              onQueryChange={handleSearchChange}
-              onResults={(res) => setSearchResults(res as unknown as FAQItem[])}
-              onLoading={setSearchLoading}
-              onError={(err) => setError(err || '')}
-              placeholder="Ask anything about your internship..."
-              disableSuggestions={true}
-            />
-
-            {showDropdown && (
-              <SearchDropdown
-                query={searchQuery}
-                items={dropdownItems}
-                categories={categories}
-                onSelectQuestion={handleQuestionOpen}
-                onSelectCategory={handleCategoryOpen}
-                onClear={handleClearSearch}
-                loading={searchLoading}
+          {/* ─── SEARCH BAR ─── */}
+          <div className="mt-10 max-w-3xl mx-auto px-2">
+            <div className={`relative ${showDropdown ? 'z-40' : 'z-20'}`}>
+              <SearchBar
+                ref={searchBarRef}
+                value={searchQuery}
+                onQueryChange={handleSearchChange}
+                onResults={(res) => setSearchResults(res as unknown as FAQItem[])}
+                onLoading={setSearchLoading}
+                onError={(err) => setError(err || '')}
+                placeholder="Ask anything about your internship..."
+                disableSuggestions={true}
               />
-            )}
-          </div>
-        </section>
 
-        {/* ─── CATEGORY FILTER PILLS (clickable horizontal row) ─────── */}
-        {showDiscovery && categories.length > 0 && (
-          <nav
-            className="mt-3 max-w-5xl mx-auto px-1 flex flex-wrap justify-center gap-2"
-            aria-label="Filter by category"
-          >
-            <button
-              type="button"
-              onClick={() => handleCategoryOpen('')}
-              className={`px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-all duration-200 ${
-                !activeCategory
-                  ? 'bg-accent text-accent-text border-accent/60 shadow-[0_6px_18px_rgba(90,122,90,0.18)]'
-                  : 'bg-card text-ink border-border/70 hover:bg-cream hover:-translate-y-0.5'
-              }`}
+              {showDropdown && (
+                <SearchDropdown
+                  query={searchQuery}
+                  items={dropdownItems}
+                  categories={categories}
+                  onSelectQuestion={handleQuestionOpen}
+                  onSelectCategory={handleCategoryOpen}
+                  onClear={handleClearSearch}
+                  loading={searchLoading}
+                />
+              )}
+            </div>
+          </div>
+
+          {/* ─── CATEGORY FILTER PILLS ─── */}
+          {showDiscovery && categories.length > 0 && (
+            <nav
+              className="mt-6 max-w-4xl mx-auto px-2 flex flex-wrap justify-center gap-2 relative z-10"
+              aria-label="Filter by category"
             >
-              All
-            </button>
-            {categories.slice(0, 11).map((cat) => {
-              const isActive = activeCategory === cat;
-              const count = grouped[cat]?.length ?? 0;
-              return (
-                <button
-                  key={cat}
-                  type="button"
-                  onClick={() => handleCategoryOpen(cat)}
-                  className={`px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-all duration-200 ${
-                    isActive
-                      ? 'bg-accent text-accent-text border-accent/60 shadow-[0_6px_18px_rgba(90,122,90,0.18)]'
-                      : 'bg-card text-ink border-border/70 hover:bg-cream hover:-translate-y-0.5'
-                  }`}
-                >
-                  {formatCategoryName(cat)} · {count}
-                </button>
-              );
-            })}
-            {categories.length > 11 && (
               <button
                 type="button"
-                onClick={scrollToAllCategories}
-                className="px-3 py-1.5 rounded-full text-[11px] font-semibold border border-dashed border-border/70 text-ink-soft hover:text-ink hover:bg-cream transition-all duration-200"
+                onClick={() => handleCategoryOpen('')}
+                className={`px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-all duration-200 ${
+                  !activeCategory
+                    ? 'bg-accent text-accent-text border-accent/60'
+                    : 'bg-card text-ink border-border/70 hover:bg-cream'
+                }`}
               >
-                + {categories.length - 11} more
+                All
               </button>
-            )}
-          </nav>
-        )}
+              {categories.slice(0, 10).map((cat) => {
+                const isActive = activeCategory === cat;
+                const count = grouped[cat]?.length ?? 0;
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => handleCategoryOpen(cat)}
+                    className={`px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-all duration-200 ${
+                      isActive
+                        ? 'bg-accent text-accent-text border-accent/60'
+                        : 'bg-card text-ink border-border/70 hover:bg-cream'
+                    }`}
+                  >
+                    {formatCategoryName(cat)} · {count}
+                  </button>
+                );
+              })}
+            </nav>
+          )}
+        </section>
 
         {/* ─── LOADING / ERROR STATES ──────────────────────────────── */}
         {loading && (
@@ -632,32 +763,8 @@ export default function HomePage() {
           />
         )}
 
-        {/* ─── SEARCH RESULTS ───────────────────────────────────────── */}
-        {!loading && !error && !activeQuestion && searchActive && (
-          <section className="max-w-4xl mx-auto">
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-              <div>
-                <p className="text-xs font-semibold text-ink-faint uppercase tracking-wide">Search results</p>
-                <h2 className="text-lg font-semibold text-ink">Results for &quot;{searchQuery}&quot;</h2>
-              </div>
-              <button
-                onClick={handleClearSearch}
-                className="text-xs font-semibold text-ink-soft hover:text-ink transition-colors"
-              >
-                Clear search
-              </button>
-            </div>
-            <QuestionList
-              items={searchResults || []}
-              loading={searchLoading}
-              sortOption={sortOption}
-              onSortChange={setSortOption}
-              visibleCount={visibleCount}
-              onLoadMore={() => setVisibleCount((prev) => prev + 6)}
-              emptyMessage="No results yet. Try another keyword or browse a category."
-            />
-          </section>
-        )}
+        {/* Search results render inline in the dropdown under the search bar
+            (see SearchDropdown) — no full-page results view / redirect. */}
 
         {/* ─── CATEGORY VIEW ────────────────────────────────────────── */}
         {!loading && !error && !activeQuestion && !searchActive && activeCategory && (
@@ -706,182 +813,157 @@ export default function HomePage() {
         {/* ─── DISCOVERY LANDING ─────────────────────────────────────── */}
         {showDiscovery && (
           <>
-            <section className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-10">
-              {/* LEFT — main column */}
-              <div className="lg:col-span-2 space-y-12">
-                {/* ───── MOST POPULAR (Last 7 days, numbered) ───── */}
-                <section aria-labelledby="most-popular-heading">
-                  <div className="bg-card rounded-2xl border border-border p-5 sm:p-6 shadow-subtle">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="text-accent" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                        </svg>
-                        <h2 id="most-popular-heading" className="font-serif text-lg text-ink leading-none">Most Popular</h2>
-                        <span className="text-[10px] text-ink-faint uppercase tracking-wider font-semibold ml-1">Last 7 days</span>
-                      </div>
-                    </div>
-                    <div className="divide-y divide-border/40">
-                      {popularLoading
-                        ? [1, 2, 3, 4, 5].map((n) => <NumberedSkeletonRow key={n} rank={n} />)
-                        : popularFaqs.length === 0
-                          ? <p className="text-xs text-ink-soft py-3">No popular FAQs yet — once interns start viewing, they'll show up here.</p>
-                          : popularFaqs.slice(0, 5).map((item, idx) => (
-                              <NumberedFaqRow
-                                key={item._id}
-                                rank={idx + 1}
-                                item={item}
-                                rightMeta={
-                                  <span className="block">
-                                    {formatViews(item.guestViewCount)}
-                                    <span className="mx-1">·</span>
-                                    {formatReadTime(item.expectedReadMs)}
-                                  </span>
-                                }
-                                onOpen={handleQuestionOpen}
-                              />
-                            ))
-                      }
-                    </div>
-                  </div>
-                </section>
-
-                {/* ───── RECENT FAQs (Newest, numbered) ───── */}
-                <section aria-labelledby="recent-faqs-heading">
-                  <div className="bg-card rounded-2xl border border-border p-5 sm:p-6 shadow-subtle">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="text-accent" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                          <circle cx="12" cy="12" r="10" />
-                          <polyline points="12 6 12 12 16 14" />
-                        </svg>
-                        <h2 id="recent-faqs-heading" className="font-serif text-lg text-ink leading-none">Recent FAQs</h2>
-                        <span className="text-[10px] text-ink-faint uppercase tracking-wider font-semibold ml-1">Newest</span>
-                      </div>
-                    </div>
-                    <div className="divide-y divide-border/40">
-                      {recentLoading
-                        ? [1, 2, 3, 4, 5].map((n) => <NumberedSkeletonRow key={n} rank={n} />)
-                        : recentPublicFaqs.length === 0
-                          ? <p className="text-xs text-ink-soft py-3">No recent FAQs yet.</p>
-                          : recentPublicFaqs.slice(0, 5).map((item, idx) => (
-                              <NumberedFaqRow
-                                key={item._id}
-                                rank={idx + 1}
-                                item={item}
-                                rightMeta={
-                                  <span className="block">
-                                    {formatShortDate(item.createdAt)}
-                                    {item.expectedReadMs ? <><span className="mx-1">·</span>{formatReadTime(item.expectedReadMs)}</> : null}
-                                  </span>
-                                }
-                                onOpen={handleQuestionOpen}
-                              />
-                            ))
-                      }
-                    </div>
-                  </div>
-                </section>
-
-                {/* ───── TOP SOLVED TODAY (4-card grid from community) ───── */}
-                <TopSolved />
-
-                {/* ───── FROM ZOOM MEETINGS ───── */}
-                <FromMeetings />
-
-                {/* ───── ALL FAQs (full live list, 141 questions) ───── */}
-                <section aria-labelledby="all-faqs-heading">
-                  <div className="flex items-center justify-between mb-5">
-                     <div className="flex items-center gap-2">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="text-accent" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-                      </svg>
-                      <h2 id="all-faqs-heading" className="font-serif text-xl text-ink">All FAQs</h2>
-                      <span className="text-[11px] uppercase tracking-wider font-semibold text-ink-faint">
-                        {total} questions
-                      </span>
-                    </div>
-                  </div>
-                  <QuestionList
-                    items={flatQuestions}
-                    loading={loading}
-                    sortOption={sortOption}
-                    onSortChange={setSortOption}
-                    visibleCount={visibleCount}
-                    onLoadMore={() => setVisibleCount((prev) => prev + 12)}
-                    emptyMessage="No FAQs yet."
-                  />
-                </section>
-              </div>
-
-              {/* RIGHT — sticky sidebar */}
-              <aside className="space-y-6 lg:sticky lg:top-28 lg:self-start">
-                {/* 4×2 icon grid — Browse Categories */}
-                <div className="bg-card rounded-2xl border border-border p-5 sm:p-6 shadow-subtle">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="text-accent" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <path d="M3 3h7v7H3z" />
-                        <path d="M14 3h7v7h-7z" />
-                        <path d="M14 14h7v7h-7z" />
-                        <path d="M3 14h7v7H3z" />
-                      </svg>
-                      <h3 className="font-serif text-lg text-ink">Browse Categories</h3>
-                    </div>
-                  </div>
-                  <CategoryIconGrid
-                    categories={categories}
-                    grouped={grouped}
-                    onSelect={handleCategoryOpen}
-                  />
-                  {categories.length > 8 && (
-                    <button
-                      type="button"
-                      onClick={scrollToAllCategories}
-                      className="block w-full text-center mt-4 text-xs text-accent font-medium hover:underline"
-                    >
-                      Browse all {categories.length} categories →
-                    </button>
-                  )}
-                </div>
-
-                {/* Trending Issues */}
-                <TrendingIssues />
-              </aside>
-            </section>
-
-            {/* ─── BROWSE ALL CATEGORIES — full-width section ────── */}
-            <section ref={allCategoriesRef} className="mt-14 scroll-mt-32" aria-labelledby="all-categories-heading">
-              <div className="bg-card rounded-2xl border border-border p-5 sm:p-8 shadow-subtle">
-                <div className="flex items-center justify-between mb-5">
-                  <div className="flex items-center gap-2">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="text-accent" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <path d="M4 6h16M4 12h16M4 18h10" />
+            {/* ─── 3-COLUMN: Most Popular · Recent FAQs · Browse Categories ─── */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4">
+              {/* ───── MOST POPULAR ───── */}
+              <section className="bg-card rounded-2xl border border-border p-6 flex flex-col h-full" aria-labelledby="most-popular-heading">
+                <header className="flex items-center justify-between mb-6 shrink-0">
+                  <div className="flex items-center gap-2 text-accent">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
+                      <polyline points="16 7 22 7 22 13" />
                     </svg>
-                    <h2 id="all-categories-heading" className="font-serif text-xl text-ink">Browse all categories</h2>
+                    <h2 id="most-popular-heading" className="font-serif text-lg text-ink leading-none">Most Popular</h2>
                   </div>
-                  <span className="text-[11px] uppercase tracking-wider font-semibold text-ink-faint">
-                    {categories.length} categories · {total} FAQs
-                  </span>
+                  <span className="text-[10px] text-ink-faint uppercase tracking-wider font-semibold">Last 7 days</span>
+                </header>
+                <div className="flex-1 flex flex-col">
+                  <ol className="space-y-0">
+                    {popularLoading
+                      ? [1, 2, 3, 4, 5].map((n) => <NumberedSkeletonRow key={n} rank={n} />)
+                      : popularFaqs.length === 0
+                        ? <p className="text-xs text-ink-soft py-3">No popular FAQs yet — once interns start viewing, they&apos;ll show up here.</p>
+                        : popularFaqs.slice(0, 5).map((item, idx) => (
+                            <NumberedFaqRow
+                              key={item._id}
+                              rank={idx + 1}
+                              item={item}
+                              meta={
+                                <>
+                                  <span className="text-[11px] text-ink-faint">{formatViews(item.guestViewCount)}</span>
+                                  <span className="text-[11px] text-ink-faint">· {formatReadTime(item.expectedReadMs)}</span>
+                                </>
+                              }
+                              onOpen={handleQuestionOpen}
+                            />
+                          ))
+                    }
+                  </ol>
                 </div>
-                {categories.length === 0 ? (
-                  <p className="text-sm text-ink-soft">No categories yet.</p>
-                ) : (
-                  <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-0.5">
-                    {categories.map((cat) => (
-                      <li key={cat}>
-                        <CategoryListItem
-                          name={cat}
-                          count={grouped[cat]?.length ?? 0}
-                          onSelect={() => handleCategoryOpen(cat)}
-                        />
-                      </li>
+              </section>
+
+              {/* ───── RECENT FAQs ───── */}
+              <section className="bg-card rounded-2xl border border-border p-6 flex flex-col h-full" aria-labelledby="recent-faqs-heading">
+                <header className="flex items-center justify-between mb-6 shrink-0">
+                  <div className="flex items-center gap-2 text-accent">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <circle cx="12" cy="12" r="9" />
+                      <polyline points="12 7 12 12 15.5 14" />
+                    </svg>
+                    <h2 id="recent-faqs-heading" className="font-serif text-lg text-ink leading-none">Recent FAQs</h2>
+                  </div>
+                  <span className="text-[10px] text-ink-faint uppercase tracking-wider font-semibold">Newest</span>
+                </header>
+                <div className="flex-1 flex flex-col">
+                  <ol className="space-y-0">
+                    {recentLoading
+                      ? [1, 2, 3, 4, 5].map((n) => <NumberedSkeletonRow key={n} rank={n} />)
+                      : recentPublicFaqs.length === 0
+                        ? <p className="text-xs text-ink-soft py-3">No recent FAQs yet.</p>
+                        : recentPublicFaqs.slice(0, 5).map((item, idx) => (
+                            <NumberedFaqRow
+                              key={item._id}
+                              rank={idx + 1}
+                              item={item}
+                              meta={
+                                <>
+                                  <span className="text-[11px] text-ink-faint">{formatShortDate(item.createdAt)}</span>
+                                  {item.expectedReadMs ? <span className="text-[11px] text-ink-faint">· {formatReadTime(item.expectedReadMs)}</span> : null}
+                                </>
+                              }
+                              onOpen={handleQuestionOpen}
+                            />
+                          ))
+                    }
+                  </ol>
+                </div>
+              </section>
+
+              {/* ───── BROWSE CATEGORIES ───── */}
+              <section className="bg-card rounded-2xl border border-border p-6 flex flex-col h-full" aria-labelledby="browse-categories-heading">
+                <header className="flex items-center justify-between mb-6 shrink-0">
+                  <div className="flex items-center gap-2 text-accent">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+                      <line x1="7" y1="7" x2="7.01" y2="7" />
+                    </svg>
+                    <h2 id="browse-categories-heading" className="font-serif text-lg text-ink leading-none">Browse Categories</h2>
+                  </div>
+                  <span className="text-[10px] text-ink-faint uppercase tracking-wider font-semibold">{categories.length} topics</span>
+                </header>
+                <div className="flex-1 flex flex-col">
+                  <ul className="space-y-0">
+                    {categories.slice(0, 8).map((cat) => (
+                      <BrowseCategoryRow
+                        key={cat}
+                        name={cat}
+                        count={grouped[cat]?.length ?? 0}
+                        onSelect={() => handleCategoryOpen(cat)}
+                      />
                     ))}
+                    {categories.length > 8 && (
+                      <li className="pt-2 border-t border-border/60 mt-2">
+                        <button
+                          type="button"
+                          onClick={scrollToAllCategories}
+                          className="text-xs text-accent font-medium hover:underline px-2"
+                        >
+                          + {categories.length - 8} more categories below
+                        </button>
+                      </li>
+                    )}
                   </ul>
-                )}
+                </div>
+              </section>
+            </div>
+
+            {/* ─── ALL CATEGORIES (accordion) ─── */}
+            <section ref={allCategoriesRef} id="all-categories" className="mt-16 scroll-mt-32" aria-labelledby="all-categories-heading">
+              <header className="flex items-baseline justify-between mb-8">
+                <h2 id="all-categories-heading" className="font-serif text-2xl text-ink">All Categories</h2>
+                <span className="text-xs text-ink-soft">{categories.length} topics</span>
+              </header>
+              {categories.length === 0 ? (
+                <p className="text-sm text-ink-soft">No categories yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {categories.map((cat) => (
+                    <AllCategoryCard
+                      key={cat}
+                      name={cat}
+                      count={grouped[cat]?.length ?? 0}
+                      items={grouped[cat] || []}
+                      topItems={topByCategory[cat] || []}
+                      expanded={expandedCats.has(cat)}
+                      onToggle={() => toggleCategory(cat)}
+                      onOpenQuestion={handleQuestionOpen}
+                      onViewAll={() => navigate(`/faq?category=${encodeURIComponent(cat)}`)}
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {/* ─── TOP SOLVED TODAY · TRENDING ISSUES ─── */}
+            <section className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-5 sm:gap-8 items-start mt-16">
+              <TopSolved />
+              <div className="lg:mt-14 mt-0">
+                <TrendingIssues />
               </div>
             </section>
+
+            {/* ─── FROM ZOOM MEETINGS ─── */}
+            <FromMeetings />
 
             {/* CTA — "Still have a question?" */}
             <CTA />

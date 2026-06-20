@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { Types } from 'mongoose';
 import FAQ from '../models/FAQ.js';
 import GuestEvent, { type GuestEventType } from '../models/GuestEvent.js';
+import SearchLog from '../models/SearchLog.js';
 import { communityLog } from '../utils/http/logger.js';
 import { LRUCache } from 'lru-cache';
 import { v4 as uuidv4 } from 'uuid';
@@ -27,12 +28,14 @@ const VIEW_DEDUP_WINDOW_MS = 30 * 60 * 1000; // 30 min
 const popularCache = new LRUCache<string, { faqs: unknown[]; generatedAt: string }>({ max: 16, ttl: 5 * 60 * 1000 });
 const recentCache = new LRUCache<string, { faqs: unknown[]; generatedAt: string }>({ max: 16, ttl: 5 * 60 * 1000 });
 const categoriesCache = new LRUCache<string, { categories: unknown[]; totalCategories: number }>({ max: 4, ttl: 5 * 60 * 1000 });
+const categoryTopCache = new LRUCache<string, { grouped: Record<string, unknown[]>; batchId: string | null; generatedAt: string }>({ max: 16, ttl: 5 * 60 * 1000 });
 
 // Invalidate all caches — call after a popularity recompute.
 export function invalidatePublicCaches(): void {
   popularCache.clear();
   recentCache.clear();
   categoriesCache.clear();
+  categoryTopCache.clear();
 }
 
 // ─── Cookie helpers ──────────────────────────────────────────────────────────
@@ -128,6 +131,90 @@ export async function getPopularFaqs(req: Request, res: Response): Promise<void>
   } catch (err) {
     communityLog.error(`[publicFaq] getPopularFaqs failed: ${(err as Error).message}`);
     res.status(500).json({ message: 'Failed to load popular FAQs.' });
+  }
+}
+
+// ─── GET /api/public/category-top-faqs ────────────────────────────────────────
+// Per-category top-N FAQs ranked by live engagement: how many people OPENED
+// them (guestViewCount) plus how many SEARCHES landed on them as the top hit
+// (SearchLog, last 30 days). Both signals update continuously, so the list
+// re-orders itself as usage shifts. Cached 5 min like the other read paths.
+
+// Window for counting search hits per FAQ.
+const SEARCH_HIT_WINDOW_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+// One search hit is weighted like this many opens when ranking.
+const SEARCH_HIT_WEIGHT = 3;
+
+export async function getCategoryTopFaqs(req: Request, res: Response): Promise<void> {
+  setGuestCookieIfMissing(req, res);
+
+  const limit = clampInt(req.query.limit, 1, 10, 3);
+  const batchId = parseBatchId(req.query.batchId);
+  if (req.query.batchId !== undefined && !batchId) {
+    res.status(400).json({ message: 'Invalid batchId.' });
+    return;
+  }
+  const courseId = parseCourseId(req.query.courseId);
+  if (req.query.courseId !== undefined && !courseId) {
+    res.status(400).json({ message: 'Invalid courseId.' });
+    return;
+  }
+
+  const cacheKey = `cattop:${batchId ?? 'all'}:${courseId ?? 'all'}:${limit}`;
+  const cached = categoryTopCache.get(cacheKey);
+  if (cached) {
+    res.json(cached);
+    return;
+  }
+
+  try {
+    // 1. Search signal — count searches whose TOP result was each FAQ.
+    const cutoff = new Date(Date.now() - SEARCH_HIT_WINDOW_MS);
+    const searchMatch: Record<string, unknown> = {
+      topResultSource: 'faq',
+      topResultId: { $ne: null },
+      createdAt: { $gte: cutoff },
+    };
+    if (batchId) searchMatch.batchId = batchId;
+    const searchAgg = await SearchLog.aggregate<{ _id: Types.ObjectId; searchCount: number }>([
+      { $match: searchMatch },
+      { $group: { _id: '$topResultId', searchCount: { $sum: 1 } } },
+    ]);
+    const searchMap = new Map(searchAgg.map((s) => [String(s._id), s.searchCount]));
+
+    // 2. Open signal — guestViewCount lives on the FAQ doc already.
+    const filter: Record<string, unknown> = { status: 'approved' };
+    if (batchId) filter.batchId = batchId;
+    if (courseId) filter.courseId = courseId;
+    const faqs = await FAQ.find(filter).select(PUBLIC_PROJECTION).lean();
+
+    // 3. Rank within each category by (opens + weighted search hits).
+    const grouped: Record<string, Array<Record<string, unknown>>> = {};
+    for (const f of faqs) {
+      const searchCount = searchMap.get(String(f._id)) ?? 0;
+      const opens = (f.guestViewCount as number) ?? 0;
+      const rankScore = opens + SEARCH_HIT_WEIGHT * searchCount;
+      const category = (f.category as string) ?? 'Uncategorized';
+      (grouped[category] ??= []).push({ ...shapeFaq(f), searchCount, rankScore });
+    }
+    for (const cat of Object.keys(grouped)) {
+      grouped[cat].sort((a, b) =>
+        (b.rankScore as number) - (a.rankScore as number)
+        || (b.guestViewCount as number) - (a.guestViewCount as number)
+      );
+      grouped[cat] = grouped[cat].slice(0, limit);
+    }
+
+    const payload = {
+      grouped,
+      batchId: batchId ? batchId.toString() : null,
+      generatedAt: new Date().toISOString(),
+    };
+    categoryTopCache.set(cacheKey, payload);
+    res.json(payload);
+  } catch (err) {
+    communityLog.error(`[publicFaq] getCategoryTopFaqs failed: ${(err as Error).message}`);
+    res.status(500).json({ message: 'Failed to load category top FAQs.' });
   }
 }
 

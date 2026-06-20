@@ -8,7 +8,7 @@
 // 4. DEFAULT STATE     → shows a grid of category-wise FAQ cards showing top questions.
 
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import UserActiveProgramIndicator from '../components/layout/UserActiveProgramIndicator';
@@ -58,6 +58,7 @@ export default function FAQPage() {
   const searchBarRef = useRef<HTMLInputElement>(null);
   const [resultFaqId, setResultFaqId] = useState<string | undefined>(undefined);
   const { id: urlFaqId } = useParams<string>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
   const scrollToTop = useCallback(() => {
@@ -142,6 +143,22 @@ export default function FAQPage() {
       sessionStorage.removeItem('yaksha_faq_highlight');
     }
   }, [grouped]);
+
+  // ── Deep-link to a category via ?category=... (from the home page) ───────
+  useEffect(() => {
+    if (!grouped || Object.keys(grouped).length === 0) return;
+    const cat = searchParams.get('category');
+    if (!cat) return;
+    if (grouped[cat]) {
+      setActiveCategory(cat);
+      setActiveQuestion(null);
+    }
+    // Consume the param so "back to all categories" works normally afterward.
+    setSearchParams((prev) => {
+      prev.delete('category');
+      return prev;
+    }, { replace: true });
+  }, [grouped, searchParams, setSearchParams]);
 
   // ── Search bookkeeping ──────────────────────────────────────────────────
   useEffect(() => {

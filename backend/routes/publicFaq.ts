@@ -3,6 +3,7 @@ import rateLimit from 'express-rate-limit';
 import {
   getPopularFaqs,
   getRecentFaqs,
+  getCategoryTopFaqs,
   getCategories,
   getPublicFaqById,
   searchPublicFaqs,
@@ -49,6 +50,7 @@ const searchLimiter = rateLimit({
 
 router.get('/popular-faqs', readLimiter, getPopularFaqs);
 router.get('/recent-faqs', readLimiter, getRecentFaqs);
+router.get('/category-top-faqs', readLimiter, getCategoryTopFaqs);
 router.get('/categories', readLimiter, getCategories);
 router.get('/search', searchLimiter, searchPublicFaqs);
 router.get('/faqs/:id', readLimiter, getPublicFaqById);
