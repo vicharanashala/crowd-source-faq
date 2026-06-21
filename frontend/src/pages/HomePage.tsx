@@ -3,7 +3,6 @@
 //
 //   HERO  →  "Ask. Discover. Get Solved."  +  stats
 //   SEARCH BAR  (big)
-//   CATEGORY FILTER PILLS  (clickable, with counts)
 //   TWO-COLUMN BODY
 //     left  →  Most Popular  +  Recent FAQs  +  Top Solved Today  +
 //              From Zoom Meetings  +  All FAQs (full 141)
@@ -684,44 +683,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* ─── CATEGORY FILTER PILLS ─── */}
-          {showDiscovery && categories.length > 0 && (
-            <nav
-              className="mt-6 max-w-4xl mx-auto px-2 flex flex-wrap justify-center gap-2 relative z-10"
-              aria-label="Filter by category"
-            >
-              <button
-                type="button"
-                onClick={() => handleCategoryOpen('')}
-                className={`px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-all duration-200 ${
-                  !activeCategory
-                    ? 'bg-accent text-accent-text border-accent/60'
-                    : 'bg-card text-ink border-border/70 hover:bg-cream'
-                }`}
-              >
-                All
-              </button>
-              {categories.slice(0, 10).map((cat) => {
-                const isActive = activeCategory === cat;
-                const count = grouped[cat]?.length ?? 0;
-                return (
-                  <button
-                    key={cat}
-                    type="button"
-                    onClick={() => handleCategoryOpen(cat)}
-                    className={`px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-all duration-200 ${
-                      isActive
-                        ? 'bg-accent text-accent-text border-accent/60'
-                        : 'bg-card text-ink border-border/70 hover:bg-cream'
-                    }`}
-                  >
-                    {formatCategoryName(cat)} · {count}
-                  </button>
-                );
-              })}
-            </nav>
-          )}
-        </section>
+          </section>
 
         {/* ─── LOADING / ERROR STATES ──────────────────────────────── */}
         {loading && (
