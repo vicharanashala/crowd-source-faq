@@ -18,7 +18,7 @@ import rateLimit, { ipKeyGenerator, type Store } from 'express-rate-limit';
 import jwt from 'jsonwebtoken';
 import { type Request, type Response } from 'express';
 import { logger } from '../http/logger.js';
-import { getRedisRateLimitStore } from './rateLimitRedis.js';
+import { createRedisRateLimitStore } from './rateLimitRedis.js';
 
 // ─── Shared key extractors ────────────────────────────────────────────────────
 
@@ -65,15 +65,24 @@ interface LimiterConfig {
  *
  * It limits “how many requests are allowed per unique key” inside a
  * time window (windowMs). When REDIS_TCP_URL is set, the store is
- * the Redis-backed RedisStore returned by getRedisRateLimitStore()
- * — limits are shared across all replicas hitting the same Redis.
+ * a Redis-backed RedisStore built by createRedisRateLimitStore() —
+ * limits are shared across all replicas hitting the same Redis.
  * Otherwise express-rate-limit uses its in-memory Map.
+ *
+ * Each call to this factory MUST receive its own Store instance.
+ * express-rate-limit v8 throws ERR_ERL_STORE_REUSE if the same Store
+ * is attached to more than one limiter, so we build a fresh RedisStore
+ * per call (keyed by config.keyPrefix) and share only the underlying
+ * IORedis connection across the whole process.
  */
 export function createIdentityLimiter(config: LimiterConfig) {
-  // Resolve the store once per limiter. The RedisStore is memoized
-  // inside rateLimitRedis.ts, so we don't open a new connection per
-  // limiter — just reuse the same one for all five pre-built limiters.
-  const store: Store | undefined = getRedisRateLimitStore();
+  // Build a fresh RedisStore per limiter. The IORedis client is shared
+  // inside rateLimitRedis.ts, so this opens no extra connections —
+  // it just wraps the same client in a new Store with a unique Redis
+  // key prefix (e.g. rl:login:…, rl:reg:…) so per-limiter counters
+  // stay isolated. When REDIS_TCP_URL is unset we get undefined and
+  // express-rate-limit falls back to its default MemoryStore.
+  const store: Store | undefined = createRedisRateLimitStore(config.keyPrefix ?? 'default');
   return rateLimit({
     windowMs: config.windowMs,
     max: config.max,
