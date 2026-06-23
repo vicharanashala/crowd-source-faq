@@ -1,23 +1,37 @@
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import { Request, Response } from 'express';
+import crypto from 'crypto';
+import mongoose from 'mongoose';
 import User, { IUser, UserRole } from './user.model.js';
 import CommunityPost from '../community/community-post.model.js';
 import Notification from '../notification/notification.model.js';
 import RevokedToken from './revoked-token.model.js';
+import RefreshToken from './refresh-token.model.js';
 import { registerSchema, loginSchema, changePasswordSchema } from '../../utils/auth/validation.js';
 import { sanitizeHtml } from '../../utils/http/sanitize.js';
 import { logger, authLog, securityLog } from '../../utils/http/logger.js';
+
+const hashToken = (token: string): string => {
+  return crypto.createHash('sha256').update(token).digest('hex');
+};
 
 // Helper: Generates a signed JWT using the user's ID, embedding a unique
 // `jti` so the token can be server-side revoked via RevokedToken.
 const generateToken = (id: string): { token: string; jti: string; expiresAt: Date } => {
   const secret = process.env.JWT_SECRET as string;
-  const expiresIn = (process.env.JWT_EXPIRES_IN ?? '7d') as string;
+  // Access tokens are short-lived (e.g. 15 minutes)
+  const expiresIn = (process.env.JWT_EXPIRES_IN ?? '15m') as string;
   const jti = uuidv4();
-  // jwt.sign returns the token; we also compute expiresAt locally so the
-  // /api/auth/logout handler can store a TTL index on the revoked entry
-  // that aligns exactly with the JWT's own expiration.
+  const token = jwt.sign({ id, jti }, secret, { expiresIn } as jwt.SignOptions);
+  const expiresAt = decodeExpiry(token);
+  return { token, jti, expiresAt };
+};
+
+const generateRefreshToken = (id: string): { token: string; jti: string; expiresAt: Date } => {
+  const secret = (process.env.JWT_REFRESH_SECRET ?? process.env.JWT_SECRET) as string;
+  const expiresIn = '7d';
+  const jti = uuidv4();
   const token = jwt.sign({ id, jti }, secret, { expiresIn } as jwt.SignOptions);
   const expiresAt = decodeExpiry(token);
   return { token, jti, expiresAt };
@@ -76,7 +90,17 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     }
 
     const user = await User.create({ name, email, password });
-    const { token } = generateToken(user._id.toString());
+    const { token, jti } = generateToken(user._id.toString());
+    const { token: refreshToken, jti: refreshJti, expiresAt: refreshExpiresAt } = generateRefreshToken(user._id.toString());
+
+    // Save refresh token to DB
+    await RefreshToken.create({
+      tokenHash: hashToken(refreshToken),
+      userId: user._id,
+      jti: refreshJti,
+      expiresAt: refreshExpiresAt,
+      revoked: false,
+    });
 
     authLog.info('register ok', { userId: user._id.toString(), email });
 
@@ -94,7 +118,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       projectSelectionLocked: user.projectSelectionLocked,
     };
 
-    res.status(201).json({ token, user: userResponse });
+    res.status(201).json({ token, refreshToken, user: userResponse });
   } catch (error) {
     authLog.error('register failed', { error: (error as Error).message });
     res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
@@ -148,7 +172,17 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       // creating content until goldenBannedUntil passes.
     }
 
-    const { token } = generateToken(user._id.toString());
+    const { token, jti } = generateToken(user._id.toString());
+    const { token: refreshToken, jti: refreshJti, expiresAt: refreshExpiresAt } = generateRefreshToken(user._id.toString());
+
+    // Save refresh token to DB
+    await RefreshToken.create({
+      tokenHash: hashToken(refreshToken),
+      userId: user._id,
+      jti: refreshJti,
+      expiresAt: refreshExpiresAt,
+      revoked: false,
+    });
 
     authLog.info('login ok', { userId: user._id.toString(), email, ip });
 
@@ -166,7 +200,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       projectSelectionLocked: user.projectSelectionLocked,
     };
 
-    res.json({ token, user: userResponse });
+    res.json({ token, refreshToken, user: userResponse });
   } catch (error) {
     authLog.error('login failed', { error: (error as Error).message });
     res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
@@ -516,10 +550,82 @@ export const logout = async (req: Request, res: Response): Promise<void> => {
       { upsert: true }
     );
 
+    // Also revoke the refresh token if provided
+    const { refreshToken } = req.body as { refreshToken?: string };
+    if (refreshToken) {
+      const hashed = hashToken(refreshToken);
+      await RefreshToken.updateOne({ tokenHash: hashed }, { $set: { revoked: true } });
+    }
+
     authLog.info('logout ok', { userId: req.user._id.toString() });
     res.json({ message: 'Logged out.' });
   } catch (error) {
     authLog.error('logout failed', { userId: req.user._id.toString(), error: (error as Error).message });
     res.status(500).json({ message: 'Logout failed.' });
+  }
+};
+
+// POST /api/auth/refresh
+export const refresh = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { refreshToken } = req.body as { refreshToken?: string };
+    if (!refreshToken) {
+      res.status(400).json({ message: 'Refresh token is required.' });
+      return;
+    }
+
+    const secret = (process.env.JWT_REFRESH_SECRET ?? process.env.JWT_SECRET) as string;
+    let decoded: { id: string; jti: string };
+    try {
+      decoded = jwt.verify(refreshToken, secret) as { id: string; jti: string };
+    } catch (err) {
+      authLog.warn(`[auth] Refresh token verification failed: ${(err as Error).message}`);
+      res.status(401).json({ message: 'Invalid or expired refresh token.' });
+      return;
+    }
+
+    const hashed = hashToken(refreshToken);
+    const tokenRecord = await RefreshToken.findOne({ tokenHash: hashed });
+
+    if (!tokenRecord) {
+      res.status(401).json({ message: 'Invalid refresh token.' });
+      return;
+    }
+
+    if (tokenRecord.revoked) {
+      // BREACH DETECTION: The token was already used (revoked) but presented again.
+      // Invalidate all tokens for this user to mitigate compromise.
+      securityLog.alert('Refresh token reuse detected (breach)! Revoking all user sessions.', {
+        userId: decoded.id,
+        jti: decoded.jti,
+        ip: (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ?? req.ip,
+      });
+
+      await RefreshToken.deleteMany({ userId: new mongoose.Types.ObjectId(decoded.id) });
+      res.status(403).json({ message: 'Session breach detected. Please log in again.' });
+      return;
+    }
+
+    // Rotate refresh token: mark current as revoked
+    tokenRecord.revoked = true;
+    await tokenRecord.save();
+
+    // Generate new pair
+    const { token: newAccessToken } = generateToken(decoded.id);
+    const { token: newRefreshToken, jti: newRefreshJti, expiresAt: newRefreshExpiresAt } = generateRefreshToken(decoded.id);
+
+    await RefreshToken.create({
+      tokenHash: hashToken(newRefreshToken),
+      userId: tokenRecord.userId,
+      jti: newRefreshJti,
+      expiresAt: newRefreshExpiresAt,
+      revoked: false,
+    });
+
+    authLog.info('Refresh token rotated', { userId: decoded.id });
+    res.json({ token: newAccessToken, refreshToken: newRefreshToken });
+  } catch (error) {
+    authLog.error('refresh token rotation failed', { error: (error as Error).message });
+    res.status(500).json({ message: 'Server error' });
   }
 };

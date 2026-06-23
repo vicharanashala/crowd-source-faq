@@ -80,6 +80,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .then((res) => setUser(res.data.user as User))
         .catch(() => {
           localStorage.removeItem('yaksha_token');
+          localStorage.removeItem('yaksha_refresh_token');
           localStorage.removeItem('yaksha_user');
           setUser(null);
         })
@@ -90,6 +91,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (e.key === 'yaksha_token') {
         if (!e.newValue) {
           // Token deleted in another tab (logout)
+          localStorage.removeItem('yaksha_refresh_token');
           setUser(null);
         } else {
           // Token updated in another tab (login)
@@ -98,6 +100,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             .then((res) => setUser(res.data.user as User))
             .catch(() => {
               localStorage.removeItem('yaksha_token');
+              localStorage.removeItem('yaksha_refresh_token');
               localStorage.removeItem('yaksha_user');
               setUser(null);
             })
@@ -122,8 +125,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = async (email: string, password: string): Promise<User> => {
     const res = await api.post('/auth/login', { email, password });
-    const { token, user: loggedInUser } = res.data as { token: string; user: User };
+    const { token, refreshToken, user: loggedInUser } = res.data as { token: string; refreshToken: string; user: User };
     localStorage.setItem('yaksha_token', token);
+    localStorage.setItem('yaksha_refresh_token', refreshToken);
     localStorage.setItem('yaksha_user', JSON.stringify(loggedInUser));
     setUser(loggedInUser);
     return loggedInUser;
@@ -135,8 +139,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // 403 if the gate is closed or the token doesn't match.
     const url = inviteToken ? `/auth/register?token=${encodeURIComponent(inviteToken)}` : '/auth/register';
     const res = await api.post(url, { name, email, password });
-    const { token, user: registeredUser } = res.data as { token: string; user: User };
+    const { token, refreshToken, user: registeredUser } = res.data as { token: string; refreshToken: string; user: User };
     localStorage.setItem('yaksha_token', token);
+    localStorage.setItem('yaksha_refresh_token', refreshToken);
     localStorage.setItem('yaksha_user', JSON.stringify(registeredUser));
     setUser(registeredUser);
     return registeredUser;
@@ -148,10 +153,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // either way, and the server-side blocklist will catch any reuse within
     // the JWT's natural expiry window if the call succeeded.
     const token = localStorage.getItem('yaksha_token');
+    const refreshToken = localStorage.getItem('yaksha_refresh_token');
     if (token) {
-      api.post('/auth/logout').catch(() => {});
+      api.post('/auth/logout', { refreshToken }).catch(() => {});
     }
     localStorage.removeItem('yaksha_token');
+    localStorage.removeItem('yaksha_refresh_token');
     localStorage.removeItem('yaksha_user');
     setUser(null);
   };

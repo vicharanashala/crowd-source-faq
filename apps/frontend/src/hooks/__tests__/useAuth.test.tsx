@@ -46,7 +46,7 @@ describe('useAuth', () => {
 
   it('login returns a User and stores token + user in localStorage', async () => {
     const fakeUser: User = { _id: 'user1', name: 'Alice', email: 'alice@example.com', role: 'user' };
-    mockApi.post.mockResolvedValueOnce({ data: { token: 'jwt-token-abc', user: fakeUser } });
+    mockApi.post.mockResolvedValueOnce({ data: { token: 'jwt-token-abc', refreshToken: 'refresh-token-abc', user: fakeUser } });
 
     const { result } = renderHook(() => useAuth(), { wrapper });
 
@@ -57,6 +57,7 @@ describe('useAuth', () => {
 
     expect(returnedUser).toMatchObject({ _id: 'user1', name: 'Alice' });
     expect(localStorage.getItem('yaksha_token')).toBe('jwt-token-abc');
+    expect(localStorage.getItem('yaksha_refresh_token')).toBe('refresh-token-abc');
     expect(localStorage.getItem('yaksha_user')).toContain('Alice');
     expect(result.current.isAuthenticated).toBe(true);
   });
@@ -71,13 +72,14 @@ describe('useAuth', () => {
     });
 
     expect(localStorage.getItem('yaksha_token')).toBeNull();
+    expect(localStorage.getItem('yaksha_refresh_token')).toBeNull();
   });
 
   // ─── register ──────────────────────────────────────────────────────────────
 
   it('register returns a User and stores token + user in localStorage', async () => {
     const fakeUser: User = { _id: 'user2', name: 'Bob', email: 'bob@example.com', role: 'user' };
-    mockApi.post.mockResolvedValueOnce({ data: { token: 'register-token', user: fakeUser } });
+    mockApi.post.mockResolvedValueOnce({ data: { token: 'register-token', refreshToken: 'register-refresh-token', user: fakeUser } });
 
     const { result } = renderHook(() => useAuth(), { wrapper });
 
@@ -88,6 +90,7 @@ describe('useAuth', () => {
 
     expect(returnedUser).toMatchObject({ _id: 'user2', name: 'Bob' });
     expect(localStorage.getItem('yaksha_token')).toBe('register-token');
+    expect(localStorage.getItem('yaksha_refresh_token')).toBe('register-refresh-token');
     expect(result.current.isAuthenticated).toBe(true);
   });
 
@@ -95,7 +98,7 @@ describe('useAuth', () => {
 
   it('logout clears user, isAuthenticated, and localStorage', async () => {
     const fakeUser: User = { _id: 'user1', name: 'Alice', email: 'alice@example.com', role: 'user' };
-    mockApi.post.mockResolvedValueOnce({ data: { token: 'jwt-token', user: fakeUser } });
+    mockApi.post.mockResolvedValueOnce({ data: { token: 'jwt-token', refreshToken: 'jwt-refresh-token', user: fakeUser } });
 
     const { result } = renderHook(() => useAuth(), { wrapper });
 
@@ -112,6 +115,7 @@ describe('useAuth', () => {
     expect(result.current.user).toBeNull();
     expect(result.current.isAuthenticated).toBe(false);
     expect(localStorage.getItem('yaksha_token')).toBeNull();
+    expect(localStorage.getItem('yaksha_refresh_token')).toBeNull();
     expect(localStorage.getItem('yaksha_user')).toBeNull();
   });
 

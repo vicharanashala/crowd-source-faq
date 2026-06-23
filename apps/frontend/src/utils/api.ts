@@ -1,4 +1,4 @@
-import axios, { type AxiosAdapter, type AxiosError, type InternalAxiosRequestConfig } from 'axios';
+import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
 
 // Get default adapter
 const defaultAdapter = axios.getAdapter(axios.defaults.adapter);
@@ -146,7 +146,7 @@ const SANITIZE_KEYS = new Set([
   'token', 'accessToken', 'refreshToken', 'authorization',
   'apiKey', 'api_key', 'x-api-key', 'x-api-token',
 ]);
-function sanitizeBody(body: unknown): unknown {
+function _sanitizeBody(body: unknown): unknown {
   if (!body || typeof body !== 'object') return body;
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(body as Record<string, unknown>)) {
@@ -200,6 +200,20 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 
   return config;
 });
+
+let isRefreshing = false;
+let failedQueue: Array<{ resolve: (token: string) => void; reject: (err: any) => void }> = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token!);
+    }
+  });
+  failedQueue = [];
+};
 
 // Response interceptor: debug log + 401 handling
 api.interceptors.response.use(
@@ -273,12 +287,73 @@ api.interceptors.response.use(
     }
 
     if (error.response && error.response.status === 401) {
+      // If the failed request was a refresh token request itself, abort immediately.
+      if (config && config.url && (config.url.endsWith('/auth/refresh') || config.url.includes('/auth/refresh'))) {
+        localStorage.removeItem('yaksha_token');
+        localStorage.removeItem('yaksha_refresh_token');
+        localStorage.removeItem('yaksha_user');
+        window.dispatchEvent(new CustomEvent('auth:logout'));
+        window.dispatchEvent(new CustomEvent('authmodal:open', {
+          detail: { tab: 'signin', prompt: 'Your session has expired. Please sign in again.' },
+        }));
+        return Promise.reject(error);
+      }
+
+      const refreshToken = localStorage.getItem('yaksha_refresh_token');
+      if (refreshToken && config) {
+        if (isRefreshing) {
+          return new Promise((resolve, reject) => {
+            failedQueue.push({
+              resolve: (token: string) => {
+                config.headers.Authorization = `Bearer ${token}`;
+                resolve(api(config));
+              },
+              reject: (err: any) => {
+                reject(err);
+              },
+            });
+          });
+        }
+
+        isRefreshing = true;
+        const refreshUrl = `${import.meta.env.VITE_API_URL || '/csfaq/api'}/auth/refresh`;
+
+        return axios.post(refreshUrl, { refreshToken })
+          .then((res) => {
+            const { token: newAccessToken, refreshToken: newRefreshToken } = res.data as { token: string; refreshToken: string };
+            localStorage.setItem('yaksha_token', newAccessToken);
+            localStorage.setItem('yaksha_refresh_token', newRefreshToken);
+
+            // Retry the original request
+            config.headers.Authorization = `Bearer ${newAccessToken}`;
+            processQueue(null, newAccessToken);
+            return api(config);
+          })
+          .catch((refreshError) => {
+            localStorage.removeItem('yaksha_token');
+            localStorage.removeItem('yaksha_refresh_token');
+            localStorage.removeItem('yaksha_user');
+
+            window.dispatchEvent(new CustomEvent('auth:logout'));
+            window.dispatchEvent(new CustomEvent('authmodal:open', {
+              detail: { tab: 'signin', prompt: 'Your session has expired. Please sign in again.' },
+            }));
+
+            processQueue(refreshError, null);
+            return Promise.reject(error);
+          })
+          .finally(() => {
+            isRefreshing = false;
+          });
+      }
+
       // Spec: "Never show raw auth/token errors to users." Any 401 means the
       // user tried a restricted action without (or with an expired) token —
       // pop the sign-in modal so they can fix it. The current page is
       // preserved so they land back where they were.
       const hadToken = !!localStorage.getItem('yaksha_token');
       localStorage.removeItem('yaksha_token');
+      localStorage.removeItem('yaksha_refresh_token');
       localStorage.removeItem('yaksha_user');
 
       const prompt = hadToken

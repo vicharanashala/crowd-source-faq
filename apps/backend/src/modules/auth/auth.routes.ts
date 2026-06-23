@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { login, register, getMe, getAllUsers, updateUserRole, deleteUser, updateProfile, changePassword, exportUserData, logout } from './auth.controller.js';
+import { login, register, getMe, getAllUsers, updateUserRole, deleteUser, updateProfile, changePassword, exportUserData, logout, refresh } from './auth.controller.js';
 import { protect, authorize } from '../../middleware/auth.js';
 import { loginLimiter, registerLimiter, passwordChangeLimiter } from '../../utils/auth/rateLimit.js';
 import { validateBody, registerSchema, loginSchema, updateProfileSchema, changePasswordSchema } from '../../utils/auth/validation.js';
@@ -24,6 +24,9 @@ router.get('/registration-status', publicGetRegistrationStatus);
 
 // POST /api/auth/login (Public) — rate-limited, validated
 router.post('/login', loginLimiter, validateBody(loginSchema), login);
+
+// POST /api/auth/refresh (Public) — rotates access + refresh tokens
+router.post('/refresh', refresh);
 
 // POST /api/auth/logout (Protected) — revokes the JWT carried by the request
 router.post('/logout', protect, logout);
