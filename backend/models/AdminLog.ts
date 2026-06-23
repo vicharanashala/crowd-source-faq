@@ -62,4 +62,14 @@ const adminLogSchema = new MongooseSchema(
   { timestamps: true }
 );
 
+// ─── Indexes ─────────────────────────────────────────────────────────────────
+
+// Paginated activity feed (GET /api/admin/activity-feed): sorts the entire
+// collection by -createdAt. Also used by the retention-policy cron
+// (retentionPolicy.ts cleanAdminLogs) which deletes by { createdAt: $lt }.
+// Without this index both operations are full collection scans that grow
+// linearly with platform usage (every FAQ approval, ban, and settings change
+// writes a row).
+adminLogSchema.index({ createdAt: -1 });
+
 export default mongoose.model<IAdminLog>('AdminLog', adminLogSchema, 'yaksha_faq_adminlogs');
