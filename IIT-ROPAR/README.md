@@ -64,60 +64,28 @@ Built with strict TypeScript, role-based JWT authentication, rate limiting, CSP 
 
 ---
 
-
 ## ✦ Features
-* **Yaksha AI Assistant** – Get instant, personalized answers for internship-related queries.
-* **Voice Support** – Interact with Yaksha using voice commands for hands-free assistance.
-* **Multi-Language Translation** – Translate FAQs into English, Hindi, Punjabi, and Spanish.
-* **Smart FAQ System** – Explore categorized FAQs with search, sorting, and popularity filters.
-* **Bookmarks & Quick Revisit** – Save important FAQs and continue from where you left off.
-* **Category-Based Navigation** – Browse topics like Internship, NOC, Certificates, Rosetta Journal, and Projects.
-* **FAQ Insights** – View category-wise FAQ counts and discover trending topics easily.
-* **Community Discussion Forum** – Ask questions, join discussions, and learn from peers.
-* **Community Contributions** – Submit answers and help build a collaborative knowledge base.
-* **Coordinator-Verified Answers** – Promote trusted community responses into official FAQs.
-* **Support Ticket System** – Raise, track, and manage issues with priorities and unique ticket IDs.
-* **Real-Time Notifications** – Stay updated on ticket status, replies, and important announcements.
-* **Admin Control Center** – Manage FAQs, users, tickets, analytics, and moderation from one dashboard.
-
 
 <br/>
 
+### 🤖 Yaksha — 3D AI Copilot
 
----
+<div align="center">
 
-### Yaksha AI Copilot Hub
-
-```mermaid
-%%{init: {'theme':'base'}}%%
-
-flowchart LR
-
-    subgraph HUB["AI Copilot Hub"]
-        A["How can Yaksha assist you?"]
-
-        subgraph CONTEXT["Supported Topics"]
-            B["NOC"]
-            C["Certificates"]
-            D["Rosetta Journal"]
-            E["Projects"]
-        end
-
-        Y["Yaksha AI<br/>Status: Active"]
-    end
-
-    A --> B
-    A --> C
-    A --> D
-    A --> E
-
-    B --> Y
-    C --> Y
-    D --> Y
-    E --> Y
-
-    classDef default fill:#1f1f1f,color:#ffffff,stroke:#666666,stroke-width:1px;
-    linkStyle default stroke:#999999,stroke-width:1.5px;
+```
+╭──────────────────────────────────────────────────────────────────╮
+│                      AI COPILOT HUB                              │
+│                                              ● 3D YAKSHA ACTIVE  │
+│                                                                  │
+│          ┌─────────────────────────────┐                         │
+│          │  How can Yaksha assist you? │                         │
+│          │  ┌─────────────────────┐    │    🤖                  │
+│          │  │ Ask about NOC,      │    │   ╭─╮                   │
+│          │  │ Certificates,       │    │  (◉ ◉)                 │
+│          │  │ Rosetta Journal...  │    │   ╰─╯                   │
+│          │  └─────────────────────┘    │    │                    │
+│          └─────────────────────────────┘  ══╧══                  │
+╰──────────────────────────────────────────────────────────────────╯
 ```
 
 </div>
@@ -134,8 +102,6 @@ Yaksha is the intelligence layer of the entire portal. A conversational AI assis
 
 <br/>
 
----
-
 ### 🎙️ Voice Assistant
 
 A dedicated voice interface — its own section in the navbar, separate from the chat.
@@ -146,9 +112,7 @@ A dedicated voice interface — its own section in the navbar, separate from the
 
 <br/>
 
----
-
-###  Intelligent FAQ System
+### ❓ Intelligent FAQ System
 
 Not a static page. A fully intelligent, multi-layered knowledge base purpose-built for internship workflows.
 
@@ -192,32 +156,23 @@ Not a static page. A fully intelligent, multi-layered knowledge base purpose-bui
 
 <br/>
 
----
+### 💬 Community Discussion Forum
 
-### Community Discussion Workflow
+When the FAQ doesn't have the answer, the community does — and the best answers become the next FAQ.
 
-```mermaid
-%%{init: {'theme':'base'}}%%
-
-flowchart TD
-
-    A["Student posts question"]
-    B["Discussion Thread"]
-    C["Peers and Coordinators respond"]
-    D["Coordinator reviews answers"]
-    E["Verified Answer"]
-    F["Promoted to Official FAQ"]
-    G["Knowledge loop closes"]
-
-    A --> B
-    C --> B
-    B --> D
-    D --> E
-    E --> F
-    F --> G
-
-    classDef default fill:#1f1f1f,color:#ffffff,stroke:#666666,stroke-width:1px;
-    linkStyle default stroke:#999999,stroke-width:1.5px;
+```
+  Student posts question
+          │
+          ▼
+  ┌───────────────────┐
+  │  Discussion Thread│  ◄── Peers + Coordinators respond
+  └───────────────────┘
+          │
+  Coordinator reviews
+          │
+     ┌────┴────┐
+     │ Verified│  ──────────────────────────►  Promoted to Official FAQ
+     └──────────┘                               (knowledge loop closes ♻️)
 ```
 
 | Feature | Description |
@@ -229,66 +184,30 @@ flowchart TD
 
 <br/>
 
----
+### 🎫 Support Ticket System
 
-### Support Ticket Workflow
+Structured, trackable, and fast — every issue resolved with full accountability.
 
-```mermaid
-%%{
-  init: {
-    "theme": "base",
-    "flowchart": {
-      "curve": "linear"
-    }
-  }
-}%%
-
-flowchart TD
-
-    A["Student raises ticket"]
-
-    B["Selects category"]
-    C["Sets priority"]
-    D["Describes issue"]
-
-    P["LOW"]
-    Q["MEDIUM"]
-    R["HIGH"]
-
-    E["Unique Ticket ID<br/>Assigned automatically"]
-
-    F["OPEN"]
-    G["IN PROGRESS"]
-    H["RESOLVED"]
-
-    I["Admin manages via Control Center"]
-
-    A --- B
-    A --- C
-    A --- D
-
-    C --- P
-    C --- Q
-    C --- R
-
-    B --- E
-    C --- E
-    D --- E
-
-    E --- F
-    F --- G
-    G --- H
-
-    H --- I
-
-    classDef default fill:#1f1f1f,color:#ffffff,stroke:#666666,stroke-width:1px;
-
-    linkStyle default stroke:#808080,stroke-width:2px;
 ```
-<br>
+  Student raises ticket
+    ├── Selects category
+    ├── Sets priority  ──  [ LOW ]  [ MEDIUM ]  [ HIGH ]
+    └── Describes issue
+               │
+               ▼
+       ┌───────────────┐
+       │ Unique Ticket │  ←  Assigned automatically
+       │     ID        │
+       └───────┬───────┘
+               │
+       ┌───────▼────────────────────────┐
+       │  OPEN  →  IN PROGRESS  →  RESOLVED  │
+       └─────────────────────────────────┘
+               │
+         Admin manages via Control Center
+```
 
-
----
+<br/>
 
 ### 🔔 Notification Center
 
@@ -298,8 +217,6 @@ Students are never out of the loop.
 - Triggers on: ticket status changes · coordinator replies · verified answer promotions
 
 <br/>
-
----
 
 ### 🛡️ Admin Control Center
 
@@ -316,84 +233,47 @@ Complete operational visibility for program coordinators — all from one protec
 
 ---
 
-## 🗺️ Architecture & Data Flow
+## 🗺️ System Architecture
 
-```mermaid
-flowchart TB
-
-    subgraph CLIENT["🖥️ Client Layer — React 19 + Vite 6"]
-        OVERVIEW["📊 Overview Dashboard"]
-        FAQ["❓ Intelligent FAQ"]
-        VOICE["🎙️ Voice Assistant"]
-        YAKSHA["🤖 Yaksha AI"]
-        COMMUNITY["💬 Community Forum"]
-        TICKETS["🎫 Support Tickets"]
-        NOTIFICATIONS["🔔 Notifications"]
-        ADMIN["🛡️ Admin Control Center"]
-
-        UI["Tailwind CSS v4<br/>Framer Motion<br/>React Router<br/>Axios"]
-    end
-
-    subgraph SERVER["⚙️ API Layer — Express.js + TypeScript"]
-        AUTH["/api/auth"]
-        FAQAPI["/api/faqs"]
-        CHAT["/api/chat"]
-        TICKETAPI["/api/tickets"]
-        COMMUNITYAPI["/api/community-answers"]
-        NOTIFYAPI["/api/notifications"]
-        ADMINAPI["/api/admin/logs"]
-        HEALTH["/api/health"]
-
-        SECURITY["🔐 JWT Auth<br/>Helmet<br/>CORS<br/>Rate Limiting<br/>Role Guards"]
-    end
-
-    subgraph AI["🧠 AI Layer"]
-        GEMINI["Google Gemini API"]
-    end
-
-    subgraph DATABASE["🗄️ Database Layer — Prisma ORM"]
-        USER["User"]
-        FAQDB["FAQ"]
-        TICKETDB["Ticket"]
-        ANSWER["CommunityAnswer"]
-        NOTIFICATION["Notification"]
-
-        STORAGE["SQLite (Dev)<br/>PostgreSQL Compatible (Prod)"]
-    end
-
-    OVERVIEW --> FAQAPI
-    FAQ --> FAQAPI
-    VOICE --> CHAT
-    YAKSHA --> CHAT
-    COMMUNITY --> COMMUNITYAPI
-    TICKETS --> TICKETAPI
-    NOTIFICATIONS --> NOTIFYAPI
-    ADMIN --> ADMINAPI
-
-    AUTH --> SECURITY
-    FAQAPI --> SECURITY
-    CHAT --> SECURITY
-    TICKETAPI --> SECURITY
-    COMMUNITYAPI --> SECURITY
-    NOTIFYAPI --> SECURITY
-    ADMINAPI --> SECURITY
-
-    CHAT --> GEMINI
-
-    SECURITY --> USER
-    SECURITY --> FAQDB
-    SECURITY --> TICKETDB
-    SECURITY --> ANSWER
-    SECURITY --> NOTIFICATION
-
-    USER --> STORAGE
-    FAQDB --> STORAGE
-    TICKETDB --> STORAGE
-    ANSWER --> STORAGE
-    NOTIFICATION --> STORAGE
+```
+╔══════════════════════════════════════════════════════════════════════════════════╗
+║                          REACT 19 CLIENT  (Vite 6)                               ║
+║                                                                                  ║
+║   ┌──────────┐  ┌────────────────┐  ┌──────────────────┐  ┌──────────────────┐   ║
+║   │ Overview │  │ Intelligent FAQ│  │  Voice Assistant │  │    Yaksha AI     │   ║
+║   └──────────┘  └────────────────┘  └──────────────────┘  └──────────────────┘   ║
+║   ┌───────────┐  ┌────────────────┐  ┌────────────────────────────────────────┐  ║
+║   │ Dashboard │  │ Control Center │  │   Notifications  ·  Community Forum    │  ║
+║   └───────────┘  └────────────────┘  └────────────────────────────────────────┘  ║
+║                                                                                  ║
+║         Tailwind CSS v4  ·  Framer Motion  ·  React Router  ·  Axios             ║
+╚══════════════════════════════╤═══════════════════════════════════════════════════╝
+                               │  HTTPS  ·  Authorization: Bearer <jwt>
+╔══════════════════════════════╧═══════════════════════════════════════════════════╗
+║                         EXPRESS SERVER  (TypeScript)                             ║
+║                                                                                  ║
+║   /api/auth              ─── 🔴 Rate limit: 100 req / 15 min                    ║
+║   /api/tickets           ─── 🔐 JWT  ·  role-aware (student / admin)            ║
+║   /api/faqs              ─── 🌐 Public GET  ·  🔐 Admin POST / PATCH           ║
+║   /api/chat              ─── 🔴 Rate limit: 15 req / min  ──────► Gemini API    ║
+║   /api/community-answers ─── 🔐 JWT  ·  contribution score tracking             ║
+║   /api/notifications     ─── 🔐 JWT  ·  per-user scoped                         ║
+║   /api/admin/logs        ─── 🔐 JWT  ·  requireAdmin guard                      ║
+║   /api/health            ─── 🌐 Public                                          ║
+║                                                                                 ║
+║         Helmet  ·  CORS  ·  express-rate-limit  ·  bcrypt  ·  JWT               ║
+╚══════════════════════════════╤═══════════════════════════════════════════════════╝
+                               │  Prisma ORM
+╔══════════════════════════════╧═══════════════════════════════════════════════════╗
+║                              DATABASE LAYER                                      ║
+║                                                                                  ║
+║      User  ·  Ticket  ·  FAQ  ·  CommunityAnswer  ·  Notification                ║
+║                                                                                  ║
+║              SQLite (development)  →  PostgreSQL-compatible (production)         ║
+╚══════════════════════════════════════════════════════════════════════════════════╝
 ```
 
----
+<br/>
 
 ---
 
@@ -467,15 +347,15 @@ IIT-ROPAR/
 
 ### Prerequisites
 
-Before you begin, ensure you have the following installed:
+<div align="center">
 
-| Requirement | Version | Source |
-|--------------|----------|---------|
-| Node.js | v18 or later | [nodejs.org](https://nodejs.org/) |
-| npm | v9 or later | Bundled with Node.js |
-| Gemini API Key | Free tier available | [Google AI Studio](https://aistudio.google.com/) |
+| Requirement | Version | Where |
+|:---:|:---:|:---:|
+| Node.js | v18 or higher | [nodejs.org](https://nodejs.org/) |
+| npm | v9 or higher | Bundled with Node 18+ |
+| Gemini API Key | Free tier | [aistudio.google.com](https://aistudio.google.com/) |
 
-> **Note:** npm is automatically installed with Node.js.
+</div>
 
 <br/>
 
@@ -701,62 +581,51 @@ model User {
   id                String            @id @default(cuid())
   name              String
   email             String            @unique
-  password          String            // bcrypt hashed; never stored in plaintext
-
+  password          String            // bcrypt hashed — never stored in plaintext
   studentId         String?
   college           String?
-
-  role              Role              @default(student)
+  role              Role              @default(student)  // student | admin
   isVerified        Boolean           @default(false)
   contributionScore Int               @default(0)
-
   tickets           Ticket[]
   answers           CommunityAnswer[]
   notifications     Notification[]
 }
 
 model Ticket {
-  id          String         @id @default(cuid())
+  id          String       @id @default(cuid())
   title       String
   description String
   category    String
-
-  priority    Priority
-  status      TicketStatus   @default(open)
-
-  ticketCode  String         @unique
-
+  priority    Priority                       // low | medium | high
+  status      TicketStatus @default(open)    // open | in_progress | resolved
+  ticketCode  String       @unique           // Unique ID shown to student
   userId      String
-  user        User           @relation(fields: [userId], references: [id])
-
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  user        User         @relation(fields: [userId], references: [id])
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 }
 
 model FAQ {
-  id         String    @id @default(cuid())
+  id         String  @id @default(cuid())
   question   String
   answer     String
-
-  category   String
-  views      Int       @default(0)
-
-  isOfficial Boolean   @default(true)
+  category   String  // Internship | NOC | Rosetta Journal | Certificates | Projects
+  views      Int     @default(0)
+  isOfficial Boolean @default(true)
 }
 
 model CommunityAnswer {
-  id           String    @id @default(cuid())
-  question     String
-  answer       String
-
-  isVerified   Boolean   @default(false)
-
-  authorId     String
-  author       User      @relation(fields: [authorId], references: [id])
-
-  createdAt    DateTime  @default(now())
+  id         String   @id @default(cuid())
+  question   String
+  answer     String
+  isVerified Boolean  @default(false)  // true = promoted to official FAQ
+  authorId   String
+  author     User     @relation(fields: [authorId], references: [id])
+  createdAt  DateTime @default(now())
 }
 ```
+
 <br/>
 
 ---
