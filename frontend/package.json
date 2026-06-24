@@ -19,6 +19,7 @@
     "@xenova/transformers": "^2.0.1",
     "axios": "^1.6.2",
     "framer-motion": "^12.40.0",
+    "lucide-react": "^1.21.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-is": "^19.2.6",

@@ -44,6 +44,7 @@ import { adminRouter as appSettingsAdminRouter, publicRouter as appSettingsPubli
 import adminCategoryClusterRoutes from './routes/adminCategoryCluster.js';
 import publicCategoryClusterRoutes from './routes/publicCategoryCluster.js';
 import healthRoutes from './routes/health.js';
+import alertsRoutes from './routes/alerts.js';
 import { ingestFrontendLog } from './utils/http/fileLogger.js';
 import { logger, startupLog, shutdownLog, cronLog, queueLog } from './utils/http/logger.js';
 import { startBot, stopBot } from './bot/discordBot.js';
@@ -68,6 +69,7 @@ import { jobQueue } from './utils/http/jobQueue.js';
 import { getCloudinaryConfig } from './utils/http/cloudinary.js';
 import { recomputePopularity } from './controllers/publicFaqController.js';
 import { clusterAllActiveBatches } from './utils/ai/categoryClusterer.js';
+import { runFrictionClusterer } from './utils/ai/frictionClusterer.js';
 import * as Sentry from '@sentry/node';
 import { expressIntegration } from '@sentry/node';
 
@@ -229,6 +231,7 @@ app.use('/api/welcome', welcomeRoutes);
 app.use('/api/admin/welcome', adminWelcomeRoutes);
 app.use('/api/admin/mentors', adminMentorRoutes);
 app.use('/api/admin/timeline-steps', adminTimelineRoutes);
+app.use('/api/alerts', alertsRoutes);
 
 // v1.65 — Global app settings (Golden Ticket cooldown, penalty
 // multiplier). Two routers: admin-only at /api/admin/settings and
@@ -450,6 +453,12 @@ if (process.env.NODE_ENV !== 'production') {
         logger.error(`[categoryClusterer] initial cluster: ${e.message}`)
       );
     }, 15_000);
+
+    // Friction Clusterer - every 10 minutes
+    const FRICTION_INTERVAL_MS = 10 * 60 * 1000;
+    const frictionInterval = setInterval(() => {
+      runFrictionClusterer().catch((e: Error) => logger.error(`[frictionClusterer] cron: ${e.message}`));
+    }, FRICTION_INTERVAL_MS);
 
     // Public FAQ popularity recompute — every 5 min, idempotent. Aggregates
     // GuestEvent metrics into the FAQ document and re-derives popularityScore

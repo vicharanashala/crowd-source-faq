@@ -32,6 +32,7 @@ interface PendingLog {
   userId: Types.ObjectId | null;
   createdAt: Date;
   batchId?: Types.ObjectId | null;
+  embedding?: number[];
 }
 
 const BATCH_FLUSH_INTERVAL_MS = 5_000; // flush every 5 seconds
@@ -321,6 +322,7 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
             topResultSource: 'knowledge',
             userId: userObjectId,
             batchId: batchIdObjectId,
+            embedding,
           });
           searchRequests.inc({ source: 'fresh', cached: 'false' });
           searchResultsReturned.observe({ source: 'fresh' }, final.length);
@@ -345,6 +347,7 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
       topResultSource: topResult?.source ?? null,
       userId: userObjectId,
       batchId: batchIdObjectId,
+      embedding,
     });
 
     searchRequests.inc({ source: 'fresh', cached: 'false' });

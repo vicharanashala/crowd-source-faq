@@ -66,7 +66,8 @@ const NAV: NavGroup[] = [
     label: 'System',
     items: [
       { to: '/admin/settings/ai',    label: 'AI Settings',   icon: BrainIcon },
-      { to: '/admin/features',      label: 'Feature Flags', icon: FlagIcon },
+      { to: '/admin/alerts',         label: 'Friction Alerts', icon: ShieldCheckIcon },
+      { to: '/admin/features',       label: 'Feature Flags', icon: FlagIcon },
       { to: '/admin/settings',       label: 'Settings',      icon: SettingsIcon },
     ],
   },

@@ -46,6 +46,7 @@ const AdminAISettings = lazy(() => import('./admin/pages/AdminAISettings'));
 const FaqReview = lazy(() => import('./admin/pages/FaqReview'));
 const AdminAutoAnswerQueue = lazy(() => import('./admin/pages/AdminAutoAnswerQueue'));
 const AdminFAQAudit = lazy(() => import('./admin/pages/AdminFAQAudit'));
+const AdminAlerts = lazy(() => import('./admin/pages/AdminAlerts'));
 const AdminBatches = lazy(() => import('./admin/pages/AdminBatches'));
 const AdminProgramSettingsPage = lazy(() => import('./admin/pages/AdminProgramSettingsPage'));
 const AdminDynamicCategoriesPage = lazy(() => import('./admin/pages/AdminDynamicCategoriesPage'));
@@ -212,6 +213,7 @@ function AppRoutes() {
         <Route path="/admin/projects" element={<AdminRoute><AdminLayout><AdminProjectsPage /></AdminLayout></AdminRoute>} />
         <Route path="/admin/auto-answer" element={<AdminRoute><AdminLayout><AdminAutoAnswerQueue /></AdminLayout></AdminRoute>} />
         <Route path="/admin/faq-audit" element={<AdminRoute><AdminLayout><AdminFAQAudit /></AdminLayout></AdminRoute>} />
+        <Route path="/admin/alerts" element={<AdminRoute><AdminLayout><AdminAlerts /></AdminLayout></AdminRoute>} />
         <Route path="/admin/batches" element={<AdminRoute><AdminLayout><AdminBatches /></AdminLayout></AdminRoute>} />
         {/* v1.69 — admin CRUD for courses within a program. */}
         <Route path="/admin/courses" element={<AdminRoute><AdminLayout><AdminCoursesPage /></AdminLayout></AdminRoute>} />

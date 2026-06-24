@@ -16,6 +16,8 @@ export interface ISearchLog extends Document {
   userId?: Types.ObjectId | null;
   /** v1.69 — Program this search was performed within. */
   batchId?: Types.ObjectId | null;
+  /** Embedding for the search query, used for predictive clustering. */
+  embedding?: number[];
 }
 
 // Schema designed to track user search behavior for analytics and trending topics
@@ -54,6 +56,10 @@ const searchLogSchema = new MongooseSchema(
       ref: 'Batch',
       default: null,
       index: true,
+    },
+    embedding: {
+      type: [Number],
+      default: [],
     },
   },
   { timestamps: true } // Automatically records exactly when the search happened via 'createdAt'
