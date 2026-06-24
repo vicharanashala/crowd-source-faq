@@ -88,9 +88,6 @@ export interface IUser extends Document {
     zoomRefreshToken?: string;
     zoomTokenExpiry?: Date;
     zoomConnectedAt?: Date;
-    // Admin 2FA / TOTP
-  totpEnabled: boolean;
-  totpSecret?: string; // AES-256-GCM encrypted
   // Bookmarked community posts — NOT used for reputation scoring
   bookmarks: MongooseSchema.Types.ObjectId[];
   // Denormalized counts for leaderboard trust score (updated on write, not computed per-request)
@@ -210,9 +207,6 @@ const userSchema = new MongooseSchema<IUser>(
     zoomTokenExpiry:  { type: Date },
     zoomConnectedAt:  { type: Date },
 
-    // Admin 2FA / TOTP
-    totpEnabled:   { type: Boolean, default: false },
-    totpSecret:    { type: String },   // AES-256-GCM encrypted; only stored after 2FA is set up
 
     // Bookmarked community posts — NOT used for reputation scoring.
     // v1.68 — schema fix: was double-nested

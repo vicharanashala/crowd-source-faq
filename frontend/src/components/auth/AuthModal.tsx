@@ -119,13 +119,20 @@ export default function AuthModal() {
 
   const handleLoginSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!loginForm.email || !loginForm.password) {
+    // Read directly from DOM first — browser autofill sets input values in the
+    // DOM without firing React's onChange, so loginForm state can be empty even
+    // when the user selected a saved credential. DOM values are always current.
+    const form = (e.currentTarget as HTMLFormElement);
+    const emailVal = (form.querySelector('input[name="email"]') as HTMLInputElement)?.value?.trim() || loginForm.email.trim();
+    const passwordVal = (form.querySelector('input[name="password"]') as HTMLInputElement)?.value || loginForm.password;
+
+    if (!emailVal || !passwordVal) {
       setError('Please enter your email and password.');
       return;
     }
     setLoading(true);
     try {
-      const loggedInUser: User = await login(loginForm.email.trim(), loginForm.password);
+      const loggedInUser: User = await login(emailVal, passwordVal);
       // v1.68 — smart routing after login:
       //   - if URL has ?next=/admin (came from /admin/login), honor it
       //   - else if the user is admin/moderator, send to /admin
@@ -154,6 +161,7 @@ export default function AuthModal() {
       setLoading(false);
     }
   };
+
 
   const handleRegisterSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -224,8 +232,8 @@ export default function AuthModal() {
             className="w-7 h-7 flex items-center justify-center rounded-full text-ink-faint hover:text-ink hover:bg-black/[0.04] transition-colors -mt-1 -mr-1"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
-              <line x1="6" y1="6" x2="18" y2="18"/>
-              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18" />
+              <line x1="18" y1="6" x2="6" y2="18" />
             </svg>
           </button>
         </div>
@@ -234,17 +242,15 @@ export default function AuthModal() {
         <div className="flex items-center gap-1 p-1 rounded-full bg-mist mb-5">
           <button
             onClick={() => { setTab('signin'); setError(''); }}
-            className={`flex-1 py-1.5 text-xs font-semibold rounded-full transition-colors ${
-              tab === 'signin' ? 'bg-card text-ink shadow-subtle' : 'text-ink-soft hover:text-ink'
-            }`}
+            className={`flex-1 py-1.5 text-xs font-semibold rounded-full transition-colors ${tab === 'signin' ? 'bg-card text-ink shadow-subtle' : 'text-ink-soft hover:text-ink'
+              }`}
           >
             Sign in
           </button>
           <button
             onClick={() => { setTab('register'); setError(''); }}
-            className={`flex-1 py-1.5 text-xs font-semibold rounded-full transition-colors ${
-              tab === 'register' ? 'bg-card text-ink shadow-subtle' : 'text-ink-soft hover:text-ink'
-            }`}
+            className={`flex-1 py-1.5 text-xs font-semibold rounded-full transition-colors ${tab === 'register' ? 'bg-card text-ink shadow-subtle' : 'text-ink-soft hover:text-ink'
+              }`}
           >
             Get started
           </button>

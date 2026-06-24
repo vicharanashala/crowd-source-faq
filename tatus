@@ -1,0 +1,21 @@
+warning: in the working copy of 'backend/utils/http/cache.ts', LF will be replaced by CRLF the next time Git touches it
+ backend/controllers/admin2faController.ts  | 274 [31m-----------------------------[m
+ backend/controllers/adminController.ts     |  23 [32m++[m[31m-[m
+ backend/controllers/authController.ts      |   8 [32m+[m[31m-[m
+ backend/controllers/faqController.ts       | 101 [32m+++++++++[m[31m--[m
+ backend/controllers/searchController.ts    |  17 [32m+[m[31m-[m
+ backend/controllers/zoomController.ts      |  15 [32m+[m[31m-[m
+ backend/middleware/authShared.ts           |   6 [32m+[m
+ backend/models/User.ts                     |   6 [31m-[m
+ backend/routes/admin.ts                    |  14 [32m+[m[31m-[m
+ backend/routes/auth.ts                     |   1 [32m+[m
+ backend/server.ts                          |   6 [32m+[m[31m-[m
+ backend/utils/ai/embeddings.ts             |   2 [32m+[m[31m-[m
+ backend/utils/http/cache.ts                | 120 [32m+++++++[m[31m------[m
+ backend/utils/http/sanitize.ts             |  12 [32m+[m[31m-[m
+ frontend/src/admin/pages/AdminLogin.tsx    |  30 [32m+++[m[31m-[m
+ frontend/src/components/auth/AuthModal.tsx |  26 [32m+[m[31m--[m
+ frontend/src/hooks/useAuth.tsx             |   2 [32m+[m[31m-[m
+ package-lock.json                          |  10 [32m+[m[31m-[m
+ package.json                               |   1 [32m+[m
+ 19 files changed, 283 insertions(+), 391 deletions(-)

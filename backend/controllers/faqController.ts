@@ -3,7 +3,7 @@ import mongoose, { Types } from 'mongoose';
 import FAQ, { type IFAQ } from '../models/FAQ.js';
 import { generateEmbedding, generateQueryEmbedding } from '../utils/ai/embeddings.js';
 import { adminLog } from '../utils/http/logger.js';
-import { invalidateCache } from '../utils/http/cache.js';
+import { invalidateCache, cacheGet, cacheSet, cacheAvailable, invalidateByPattern } from '../utils/http/cache.js';
 import { createTeaDropsForFAQ } from './teaNotificationController.js';
 import FreshReviewVote from '../models/FreshReviewVote.js';
 import FreshReviewLog, { type FreshReviewEventType } from '../models/FreshReviewLog.js';
@@ -37,6 +37,18 @@ async function logFreshEvent(
     await FreshReviewLog.create({ event, faqId, metadata });
   } catch (e) {
     adminLog.warn(`FreshReviewLog failed: ${(e as Error).message}`);
+  }
+}
+
+async function triggerAllCacheInvalidation(): Promise<void> {
+  try {
+    await invalidateCache();
+    await invalidateByPattern('faq:*');
+    await invalidateByPattern('stats:*');
+    await invalidateByPattern('trending:*');
+    invalidatePublicCaches();
+  } catch (err) {
+    adminLog.warn(`[cache] Invalidation trigger failed: ${(err as Error).message}`);
   }
 }
 
@@ -88,6 +100,16 @@ export const getAllFAQs = async (req: Request<{}, {}, {}, GetAllFAQsQuery>, res:
     const limit = Math.max(0, parseInt(limitVal)); // 0 = no limit (full grouped response)
     const category = req.query.category || '';
     const cursor = req.query.cursor;
+    const batchId = batchIdFromQuery(req) || '';
+
+    const cacheKey = `faq:all:${page}:${limit}:${category}:${cursor || ''}:${batchId}`;
+    if (cacheAvailable()) {
+      const cached = await cacheGet<any>(cacheKey);
+      if (cached) {
+        res.json(cached);
+        return;
+      }
+    }
 
     // Decode cursor to ObjectId for keyset pagination
     let cursorId: mongoose.Types.ObjectId | null = null;
@@ -145,14 +167,18 @@ export const getAllFAQs = async (req: Request<{}, {}, {}, GetAllFAQsQuery>, res:
         ? Buffer.from(results[results.length - 1]._id.toString()).toString('base64')
         : null;
 
-      res.json({
+      const responseData = {
         faqs: faqItems,
         total: totalCount,
         page,
         limit,
         hasMore,
         nextCursor,
-      });
+      };
+      if (cacheAvailable()) {
+        await cacheSet(cacheKey, responseData, 300); // 5 min TTL
+      }
+      res.json(responseData);
       return;
     }
 
@@ -179,7 +205,11 @@ export const getAllFAQs = async (req: Request<{}, {}, {}, GetAllFAQsQuery>, res:
       return acc;
     }, {});
 
-    res.json({ grouped, total: totalCount });
+    const responseData = { grouped, total: totalCount };
+    if (cacheAvailable()) {
+      await cacheSet(cacheKey, responseData, 300); // 5 min TTL
+    }
+    res.json(responseData);
   } catch (error) {
     res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
@@ -188,6 +218,15 @@ export const getAllFAQs = async (req: Request<{}, {}, {}, GetAllFAQsQuery>, res:
 // GET /api/faq/:id — Single FAQ
 export const getFAQById = async (req: Request<{ id: string }>, res: Response): Promise<void> => {
   try {
+    const cacheKey = `faq:id:${req.params.id}`;
+    if (cacheAvailable()) {
+      const cached = await cacheGet<any>(cacheKey);
+      if (cached) {
+        res.json(cached);
+        return;
+      }
+    }
+
     // 1. Fetch a specific FAQ by its ID, excluding embeddings
     const faq = await FAQ.findById(req.params.id).select('-embedding');
 
@@ -197,6 +236,9 @@ export const getFAQById = async (req: Request<{ id: string }>, res: Response): P
       return;
     }
 
+    if (cacheAvailable()) {
+      await cacheSet(cacheKey, faq, 600); // 10 min TTL
+    }
     res.json(faq);
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
@@ -214,6 +256,16 @@ export const getRecentFAQs = async (req: Request, res: Response): Promise<void> 
     const limit = Math.max(1, Math.min(20, parseInt(String(req.query.limit ?? '6'))));
     const source = String(req.query.source ?? '').trim();
     const since = String(req.query.since ?? '').trim();
+    const batchId = batchIdFromQuery(req) || '';
+
+    const cacheKey = `faq:recent:${limit}:${source}:${since}:${batchId}`;
+    if (cacheAvailable()) {
+      const cached = await cacheGet<any>(cacheKey);
+      if (cached) {
+        res.json(cached);
+        return;
+      }
+    }
 
     const filter: Record<string, unknown> = { status: 'approved' };
     if (source) filter.sourceType = source;
@@ -230,7 +282,11 @@ export const getRecentFAQs = async (req: Request, res: Response): Promise<void> 
       .limit(limit)
       .lean();
 
-    res.json({ faqs, count: faqs.length });
+    const responseData = { faqs, count: faqs.length };
+    if (cacheAvailable()) {
+      await cacheSet(cacheKey, responseData, 120); // 2 min TTL
+    }
+    res.json(responseData);
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
   }
@@ -244,6 +300,16 @@ export const getPaginatedFAQs = async (req: Request<{}, {}, {}, GetPaginatedFAQs
     const limit = Math.max(1, Math.min(100, parseInt(req.query.limit || '20')));
     const category = req.query.category || '';
     const cursor = req.query.cursor;
+    const batchId = batchIdFromQuery(req) || '';
+
+    const cacheKey = `faq:paginated:${page}:${limit}:${category}:${cursor || ''}:${batchId}`;
+    if (cacheAvailable()) {
+      const cached = await cacheGet<any>(cacheKey);
+      if (cached) {
+        res.json(cached);
+        return;
+      }
+    }
 
     // Decode cursor to ObjectId for keyset pagination
     let cursorId: mongoose.Types.ObjectId | null = null;
@@ -292,14 +358,18 @@ export const getPaginatedFAQs = async (req: Request<{}, {}, {}, GetPaginatedFAQs
       ? Buffer.from(results[results.length - 1]._id.toString()).toString('base64')
       : null;
 
-    res.json({
+    const responseData = {
       faqs: faqItems,
       total,
       page,
       limit,
       hasMore,
       nextCursor,
-    });
+    };
+    if (cacheAvailable()) {
+      await cacheSet(cacheKey, responseData, 300); // 5 min TTL
+    }
+    res.json(responseData);
   } catch (error) {
     res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
@@ -365,10 +435,8 @@ export const createFAQ = async (req: Request, res: Response): Promise<void> => {
       reviewCycle: 0,
     });
 
-    // Invalidate search cache so new FAQ appears in results immediately
-    await invalidateCache();
-    // Public page cache (popular/recent/categories) — newly-created FAQ may surface in < 5 min.
-    invalidatePublicCaches();
+    // Invalidate caches so updated/new FAQ reflects immediately
+    await triggerAllCacheInvalidation();
 
     // Fan out tea drops to all non-admin users
     createTeaDropsForFAQ(faq._id.toString(), question).catch((err) => adminLog.warn(`[faq] createTeaDropsForFAQ failed: ${(err as Error).message}`));
@@ -436,8 +504,8 @@ export const updateFAQ = async (req: Request<{ id: string }>, res: Response): Pr
 
     await faq.save();
 
-    // Invalidate search cache so updated FAQ reflects immediately
-    await invalidateCache();
+    // Invalidate caches so updated/new FAQ reflects immediately
+    await triggerAllCacheInvalidation();
 
     res.json({ message: 'FAQ updated successfully.', faq });
   } catch (error) {
@@ -454,8 +522,8 @@ export const deleteFAQ = async (req: Request<{ id: string }>, res: Response): Pr
       return;
     }
 
-    // Invalidate search cache so deleted FAQ is removed from results
-    await invalidateCache();
+    // Invalidate caches so updated/new FAQ reflects immediately
+    await triggerAllCacheInvalidation();
 
     res.json({ message: 'FAQ deleted successfully.' });
   } catch (error) {
@@ -588,6 +656,7 @@ export const submitFeedback = async (req: Request<{ id: string }, {}, { helpful:
         );
       }
     }
+    await triggerAllCacheInvalidation();
     res.json({ helpfulVotes: faq.helpfulVotes, unhelpfulVotes: faq.unhelpfulVotes });
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
@@ -633,6 +702,7 @@ export const reportFAQ = async (req: Request<{ id: string }, {}, { reason: strin
     faq.flagReason = reason.trim();
     faq.flaggedBy = req.user!._id;
     await faq.save();
+    await triggerAllCacheInvalidation();
 
     res.json({ message: 'Report submitted. Thank you for helping keep the FAQ accurate.' });
   } catch (error) {
@@ -676,6 +746,7 @@ export const createFAQSuggestion = async (req: Request<{ id: string }, {}, { sug
       createdAt: new Date(),
     });
     await faq.save();
+    await triggerAllCacheInvalidation();
     res.json({ message: 'Suggestion submitted successfully.' });
   } catch (error) {
     res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });

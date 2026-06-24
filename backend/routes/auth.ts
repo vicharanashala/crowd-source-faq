@@ -12,6 +12,7 @@ router.post('/register', registerLimiter, validateBody(registerSchema), register
 // POST /api/auth/login (Public) — rate-limited, validated
 router.post('/login', loginLimiter, validateBody(loginSchema), login);
 
+
 // POST /api/auth/logout (Protected) — revokes the JWT carried by the request
 router.post('/logout', protect, logout);
 
