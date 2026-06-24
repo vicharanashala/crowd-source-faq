@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  # Standalone Vector Database Service
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: faq-qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    restart: always
+
+  # FastAPI Backend Service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: faq-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - EMBEDDING_PROVIDER=gemini # Change to openai if preferred
+      - LLM_PROVIDER=gemini       # Change to openai if preferred
+      # Pass host API keys down to the container
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - CONFIDENCE_THRESHOLD=0.45
+    depends_on:
+      - qdrant
+    volumes:
+      - ./backend:/app
+    restart: always
+
+  # React Frontend Service
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: faq-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: always
+
+volumes:
+  qdrant_data:

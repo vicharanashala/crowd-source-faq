@@ -1,0 +1,835 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    /* Warm academic wheat/beige background, replacing washed-out cream */
+    @apply bg-[#f9f4e8];
+    color: #1c2333;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Headings default to the display serif for the academic register */
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: 'Fraunces', Georgia, serif;
+    letter-spacing: -0.01em;
+  }
+
+  /* Respect reduced-motion preferences for all the new motion work below */
+  @media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      transition-duration: 0.001ms !important;
+    }
+  }
+}
+
+@layer components {
+
+  /* ----------------------------------------------------------
+     URGENCY CARDS
+     Same left-border + tint pattern as before, recolored for
+     cream backgrounds (saturated neon tints don't read on
+     dark — these are warmer, slightly desaturated, and paired
+     with a soft paper card base instead of transparent black).
+     Added: gentle lift + shadow on hover (micro-interaction).
+  ---------------------------------------------------------- */
+  .urgency-critical {
+    @apply border-l-4 rounded-r-xl bg-white;
+    border-left-color: #c0392b;
+    background-image: linear-gradient(90deg, rgba(192, 57, 43, 0.07) 0%, rgba(255, 253, 249, 0) 18%);
+  }
+
+  .urgency-high {
+    @apply border-l-4 rounded-r-xl bg-white;
+    border-left-color: #b5762a;
+    background-image: linear-gradient(90deg, rgba(181, 118, 42, 0.08) 0%, rgba(255, 253, 249, 0) 18%);
+  }
+
+  .urgency-medium {
+    @apply border-l-4 rounded-r-xl bg-white;
+    border-left-color: #7a8c3d;
+    background-image: linear-gradient(90deg, rgba(122, 140, 61, 0.08) 0%, rgba(255, 253, 249, 0) 18%);
+  }
+
+  .urgency-low {
+    @apply border-l-4 rounded-r-xl bg-white;
+    border-left-color: #3f7a5c;
+    background-image: linear-gradient(90deg, rgba(63, 122, 92, 0.07) 0%, rgba(255, 253, 249, 0) 18%);
+  }
+
+  /* Hover micro-interaction shared by all urgency cards */
+  .urgency-critical,
+  .urgency-high,
+  .urgency-medium,
+  .urgency-low {
+    @apply shadow-card transition-all duration-200 ease-out;
+  }
+
+  .urgency-critical:hover,
+  .urgency-high:hover,
+  .urgency-medium:hover,
+  .urgency-low:hover {
+    @apply shadow-card-hover;
+    transform: translateY(-2px) translateX(1px);
+  }
+
+  /* Soft pulsing glow specifically for CRITICAL status — the one
+     urgency level that should visibly breathe to draw the eye,
+     per the brief. Others stay calm so the pulse means something. */
+  .urgency-critical {
+    animation: pulseGlow 2.2s ease-in-out infinite;
+  }
+
+  .urgency-critical:hover {
+    animation-play-state: paused;
+  }
+
+  /* ----------------------------------------------------------
+     BADGES — recolored for light backgrounds (solid-ish fill +
+     dark-enough text to pass contrast on cream, not the
+     translucent neon-on-black treatment).
+  ---------------------------------------------------------- */
+  .badge-critical {
+    @apply text-[11px] font-semibold uppercase tracking-wide;
+    background-color: rgba(192, 57, 43, 0.12);
+    color: #a8311f;
+    border: 1px solid rgba(192, 57, 43, 0.25);
+  }
+
+  .badge-high {
+    @apply text-[11px] font-semibold uppercase tracking-wide;
+    background-color: rgba(181, 118, 42, 0.14);
+    color: #8a5d1f;
+    border: 1px solid rgba(181, 118, 42, 0.28);
+  }
+
+  .badge-medium {
+    @apply text-[11px] font-semibold uppercase tracking-wide;
+    background-color: rgba(122, 140, 61, 0.14);
+    color: #5d6c2c;
+    border: 1px solid rgba(122, 140, 61, 0.28);
+  }
+
+  .badge-low {
+    @apply text-[11px] font-semibold uppercase tracking-wide;
+    background-color: rgba(63, 122, 92, 0.14);
+    color: #2c5c44;
+    border: 1px solid rgba(63, 122, 92, 0.28);
+  }
+
+  /* ----------------------------------------------------------
+     CARD SURFACE
+     Old: frosted dark glass (bg-white/5 + backdrop-blur on black).
+     New: warm paper surface with a hairline gold-tinted border —
+     same "elevated panel" role, academic-paper material instead
+     of glass.
+  ---------------------------------------------------------- */
+  .glass-card {
+    @apply bg-white border border-[#e2dccb] rounded-xl shadow-card transition-shadow duration-200;
+  }
+
+  .glass-card:hover {
+    @apply shadow-card-hover;
+  }
+
+  /* ----------------------------------------------------------
+     NAV BUTTONS
+     Same structure; recolored from white-on-black hover states
+     to ink-on-cream, with the gold accent for the active state.
+  ---------------------------------------------------------- */
+  .nav-btn {
+    @apply flex items-center gap-2 px-3 py-2 rounded-lg text-[#7c7260] transition-all duration-200 text-sm font-medium;
+  }
+
+  .nav-btn:hover {
+    @apply text-[#1c2333];
+    background-color: rgba(28, 35, 51, 0.05);
+  }
+
+  .nav-btn.active {
+    @apply text-[#1c2333] border;
+    background-color: rgba(201, 161, 59, 0.16);
+    border-color: rgba(201, 161, 59, 0.35);
+  }
+}
+
+@layer utilities {
+  .bg-white\/8 {
+    background-color: rgba(28, 35, 51, 0.05);
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ----------------------------------------------------------
+   KEYFRAMES
+   pulseGlow drives the critical-card breathing glow above.
+   Kept outside @layer so specificity/ordering is predictable
+   regardless of Tailwind's layer injection order.
+---------------------------------------------------------- */
+@keyframes pulseGlow {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(192, 57, 43, 0.30);
+  }
+
+  50% {
+    box-shadow: 0 0 0 7px rgba(192, 57, 43, 0);
+  }
+}
+
+
+.premium-hero {
+
+  position: relative;
+
+  margin: 40px 0 70px;
+
+  overflow: hidden;
+}
+
+.hero-label {
+
+  display: block;
+
+  font-family: Inter, sans-serif;
+
+  font-size: 13px;
+
+  font-weight: 700;
+
+  letter-spacing: 6px;
+
+  color: #D09A2B;
+
+  text-transform: uppercase;
+
+  margin-bottom: 18px;
+
+  animation: fadeUp .8s ease forwards;
+}
+
+.hero-description {
+  font-family: Inter, sans-serif;
+  font-size: 15px;
+  color: #5b5447;
+  margin-top: 24px;
+  max-width: 520px;
+  line-height: 1.6;
+  opacity: 0;
+  animation: fadeUp 0.8s ease forwards;
+  animation-delay: 1s;
+}
+
+.title-wrapper {
+
+  position: relative;
+
+  display: inline-block;
+}
+
+.premium-title {
+
+  margin: 0;
+
+  font-family: 'Cormorant Garamond', serif;
+
+  font-size: clamp(68px, 8vw, 120px);
+
+  font-weight: 700;
+
+  line-height: .92;
+
+  letter-spacing: -2px;
+
+  color: #0E2343;
+
+  overflow: hidden;
+}
+
+.premium-title span {
+  display: inline-block;
+  position: relative;
+  transform: translateY(120px);
+  opacity: 0;
+  animation: titleReveal 1.2s cubic-bezier(.18, .89, .32, 1.28) forwards;
+}
+
+/* Premium Gold Light Sweep — whole title, every 8s */
+.premium-title {
+  position: relative;
+}
+.premium-title::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -150%;
+  width: 70%;
+  height: 100%;
+  background: linear-gradient(120deg,
+      transparent,
+      rgba(201, 161, 59, 0.35),
+      transparent);
+  transform: skewX(-20deg);
+  animation: shine 8s infinite;
+  pointer-events: none;
+}
+
+.premium-subtitle {
+
+  margin-top: -8px;
+
+  margin-left: 12px;
+
+  font-family: Inter, sans-serif;
+
+  font-size: 22px;
+
+  letter-spacing: 18px;
+
+  font-weight: 500;
+
+  color: #B58A36;
+
+  text-transform: uppercase;
+
+  opacity: 0;
+
+  animation: subtitleReveal 1s ease forwards;
+
+  animation-delay: .8s;
+}
+
+/* Decorative Line */
+
+.title-wrapper::before {
+
+  content: "";
+
+  position: absolute;
+
+  left: -45px;
+
+  top: 50%;
+
+  width: 28px;
+
+  height: 2px;
+
+  background: #D09A2B;
+
+  transform: translateY(-50%);
+
+  opacity: .7;
+}
+
+/* Background Glow */
+
+.premium-hero::before {
+
+  content: "";
+
+  position: absolute;
+
+  width: 450px;
+
+  height: 450px;
+
+  background: radial-gradient(circle,
+      rgba(208, 154, 43, .15),
+      transparent 70%);
+
+  top: -180px;
+
+  left: -80px;
+
+  z-index: -1;
+
+  animation: floatGlow 8s ease-in-out infinite;
+}
+
+/* Animations */
+
+@keyframes titleReveal {
+
+  from {
+
+    transform: translateY(120px);
+
+    opacity: 0;
+
+  }
+
+  to {
+
+    transform: translateY(0);
+
+    opacity: 1;
+
+  }
+
+}
+
+@keyframes subtitleReveal {
+
+  from {
+
+    opacity: 0;
+
+    transform: translateY(30px);
+
+  }
+
+  to {
+
+    opacity: 1;
+
+    transform: translateY(0);
+
+  }
+
+}
+
+@keyframes shine {
+
+  0% {
+
+    left: -150%;
+
+  }
+
+  45% {
+
+    left: 180%;
+
+  }
+
+  100% {
+
+    left: 180%;
+
+  }
+
+}
+
+@keyframes floatGlow {
+
+  0%,
+  100% {
+
+    transform: translateY(0);
+
+  }
+
+  50% {
+
+    transform: translateY(-20px);
+
+  }
+
+}
+
+@keyframes fadeUp {
+
+  from {
+
+    opacity: 0;
+
+    transform: translateY(20px);
+
+  }
+
+  to {
+
+    opacity: 1;
+
+    transform: translateY(0);
+
+  }
+
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PREMIUM MICRO-INTERACTIONS CSS
+   WOW moments 3,4,8,11,15,16,18,19,23
+══════════════════════════════════════════════════════════════ */
+
+/* ── WOW 4: Golden Shimmer on Magnetic Buttons ── */
+.magnetic-btn {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.magnetic-btn-shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    120deg,
+    transparent 0%,
+    transparent 35%,
+    rgba(255,255,255,0.35) 50%,
+    transparent 65%,
+    transparent 100%
+  );
+  transform: translateX(-150%);
+  pointer-events: none;
+  z-index: 1;
+}
+.magnetic-btn:hover:not(:disabled) .magnetic-btn-shimmer {
+  transform: translateX(150%);
+  transition: transform 0.7s ease;
+}
+.magnetic-btn:hover:not(:disabled) {
+  box-shadow: 0 4px 14px -2px rgba(201, 161, 59, 0.25), 0 2px 6px rgba(28, 35, 51, 0.08);
+}
+.magnetic-btn-primary {
+  @apply bg-amber-500 hover:bg-amber-400 text-white text-xs font-semibold rounded-md;
+}
+.magnetic-btn-dark {
+  @apply w-full py-2.5 rounded-xl bg-[#1e2d3d] text-white text-sm font-semibold hover:bg-[#2a3d50] disabled:opacity-60;
+}
+
+/* ── WOW 11: Glass Navbar on Scroll ── */
+.navbar-glass {
+  background: rgba(30, 45, 61, 0.82) !important;
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15), 0 4px 12px rgba(0,0,0,0.08);
+}
+.navbar-solid {
+  background: #1e2d3d;
+  backdrop-filter: none;
+  box-shadow: none;
+}
+
+/* Sliding underline for active nav */
+.nav-underline {
+  transition: left 0.3s cubic-bezier(0.22, 1, 0.36, 1), width 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ── WOW 8: Search Focus Glow ── */
+.search-input-wrap {
+  transition: box-shadow 0.3s ease, border-color 0.3s ease;
+}
+.search-input-wrap:focus-within {
+  border-color: #c9a13b !important;
+  box-shadow: 0 0 0 3px rgba(201,161,59,0.12), 0 4px 16px -4px rgba(201,161,59,0.15);
+}
+.search-input-wrap:focus-within .search-icon-animate {
+  transform: scale(1.1) rotate(-8deg);
+  color: #c9a13b;
+}
+.search-icon-animate {
+  transition: transform 0.3s ease, color 0.3s ease;
+}
+
+/* ── WOW 15: Skeleton Loader ── */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    #f0ece4 25%,
+    #e8e2d6 37%,
+    #f0ece4 63%
+  );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.8s ease-in-out infinite;
+  border-radius: 8px;
+}
+@keyframes skeletonShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── WOW 18: Ambient Background ── */
+.ambient-bg {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+}
+.ambient-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.04;
+}
+.ambient-blob-1 {
+  width: 500px; height: 500px;
+  background: radial-gradient(circle, #c9a13b, transparent 70%);
+  top: -100px; left: -100px;
+  animation: ambientFloat1 25s ease-in-out infinite;
+}
+.ambient-blob-2 {
+  width: 400px; height: 400px;
+  background: radial-gradient(circle, #1e2d3d, transparent 70%);
+  bottom: -50px; right: -50px;
+  animation: ambientFloat2 30s ease-in-out infinite;
+}
+.ambient-blob-3 {
+  width: 350px; height: 350px;
+  background: radial-gradient(circle, #c9a13b, transparent 70%);
+  top: 40%; right: 20%;
+  animation: ambientFloat3 20s ease-in-out infinite;
+}
+@keyframes ambientFloat1 {
+  0%, 100% { transform: translate(0, 0); }
+  33% { transform: translate(30px, 20px); }
+  66% { transform: translate(-20px, 30px); }
+}
+@keyframes ambientFloat2 {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-25px, -20px); }
+}
+@keyframes ambientFloat3 {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(20px, -25px); }
+}
+
+/* ── WOW 19: Floating Particles ── */
+.floating-particle {
+  position: absolute;
+  border-radius: 50%;
+  background: #c9a13b;
+  bottom: -10px;
+  animation: floatParticle linear infinite;
+}
+@keyframes floatParticle {
+  0% { transform: translateY(0) scale(1); opacity: 0; }
+  10% { opacity: 0.04; }
+  90% { opacity: 0.04; }
+  100% { transform: translateY(-100vh) scale(0.5); opacity: 0; }
+}
+
+/* ── WOW 23: Micro Interaction States ── */
+button, a, [role="button"] {
+  transition: transform 0.15s ease, box-shadow 0.2s ease, opacity 0.15s ease;
+}
+button:active:not(:disabled), [role="button"]:active {
+  transform: scale(0.97);
+}
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+button:focus-visible, a:focus-visible, [role="button"]:focus-visible {
+  outline: 2px solid #c9a13b;
+  outline-offset: 2px;
+}
+
+/* ── WOW 14: Like sparkle ── */
+@keyframes popSparkle {
+  0% { transform: scale(0.8); }
+  50% { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+.vote-pop {
+  animation: popSparkle 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.sparkle-burst {
+  position: absolute;
+  width: 20px; height: 20px;
+  pointer-events: none;
+}
+.sparkle-burst::before,
+.sparkle-burst::after {
+  content: '';
+  position: absolute;
+  width: 3px; height: 3px;
+  border-radius: 50%;
+  background: #c9a13b;
+  animation: sparkleFly 0.5s ease-out forwards;
+}
+.sparkle-burst::before { top: 0; left: 50%; }
+.sparkle-burst::after { bottom: 0; right: 0; animation-delay: 0.05s; }
+@keyframes sparkleFly {
+  0% { transform: scale(0) translate(0, 0); opacity: 1; }
+  100% { transform: scale(1.5) translate(8px, -12px); opacity: 0; }
+}
+
+/* ── WOW 13: Login Success Checkmark ── */
+@keyframes checkDraw {
+  0% { stroke-dashoffset: 24; }
+  100% { stroke-dashoffset: 0; }
+}
+.check-animate {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+  animation: checkDraw 0.4s ease-out 0.1s forwards;
+}
+
+/* ── WOW 9: Document Cards ── */
+.doc-card {
+  position: relative;
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s ease, border-color 0.3s ease;
+  overflow: hidden;
+}
+.doc-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 10%;
+  right: 10%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #c9a13b, transparent);
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+.doc-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px -6px rgba(28, 35, 51, 0.1);
+}
+.doc-card:hover::after {
+  opacity: 1;
+}
+.doc-card:hover .doc-icon {
+  animation: iconFloat 2s ease-in-out infinite;
+}
+.doc-card .doc-arrow {
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), color 0.2s ease;
+}
+.doc-card:hover .doc-arrow {
+  transform: translateX(4px);
+}
+@keyframes iconFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+/* ── WOW 10: Timeline ── */
+.timeline-line {
+  transform-origin: top;
+  transition: transform 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.timeline-line-grow {
+  animation: lineGrow 1.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes lineGrow {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+.timeline-node-pulse {
+  animation: nodePulse 2.5s ease-in-out infinite;
+}
+@keyframes nodePulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(201, 161, 59, 0.3); }
+  50% { box-shadow: 0 0 0 8px rgba(201, 161, 59, 0); }
+}
+
+/* ── WOW 14: Dislike press ── */
+.vote-press-down {
+  animation: pressDown 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes pressDown {
+  0% { transform: scale(1); }
+  40% { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
+
+/* ── WOW 20: Premium Footer ── */
+.premium-footer {
+  background: linear-gradient(180deg, #faf6ef 0%, #f5f0e6 100%);
+  transition: background 0.5s ease;
+}
+.premium-footer:hover {
+  background: linear-gradient(180deg, #fbf8f2 0%, #f7f2e8 100%);
+}
+.footer-link {
+  position: relative;
+}
+.footer-link::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background: #c9a13b;
+  transition: width 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.footer-link:hover::after {
+  width: 100%;
+}
+.footer-social:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px -2px rgba(201, 161, 59, 0.2);
+}
+
+/* ── WOW 22: Empty States ── */
+.empty-state-icon {
+  animation: emptyFloat 4s ease-in-out infinite;
+}
+@keyframes emptyFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+/* ── WOW 8: Search placeholder fade ── */
+.search-input-wrap input::placeholder {
+  transition: opacity 0.3s ease;
+}
+.search-input-wrap:focus-within input::placeholder {
+  opacity: 0.4;
+}
+
+/* ── WOW 13: Login success button ── */
+.btn-success {
+  background: #2d6a4f !important;
+  transition: background 0.4s ease;
+}
+
+/* ── WOW 16: Responsive cursor feel ── */
+button:not(:disabled),
+a,
+[role="button"],
+.cursor-interactive {
+  cursor: pointer;
+}
+button:not(:disabled):hover,
+a:hover,
+[role="button"]:hover {
+  cursor: pointer;
+}
+
+/* ── Reduced Motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .magnetic-btn-shimmer,
+  .floating-particle,
+  .ambient-blob,
+  .skeleton,
+  .empty-state-icon,
+  .timeline-node-pulse,
+  .premium-title::after { animation: none !important; }
+  .magnetic-btn:hover:not(:disabled) .magnetic-btn-shimmer { transform: none; transition: none; }
+  .navbar-glass { transition: none; }
+  button, a, [role="button"] { transition: none; }
+  .doc-card:hover { transform: none; }
+  .doc-card:hover .doc-icon { animation: none; }
+  .footer-social:hover { transform: none; }
+}
