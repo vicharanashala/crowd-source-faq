@@ -1,0 +1,88 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String   @id @default(uuid())
+  email             String   @unique
+  password          String
+  name              String
+  studentId         String
+  college           String
+  role              String   @default("Student")
+  isVerified        Boolean  @default(false)
+  otp               String?
+  contributionScore Int      @default(100)
+  rosettaLogsCount  Int      @default(0)
+  nocStatus         String   @default("pending") // "verified" | "pending" | "none"
+  activeStreak      Int      @default(1)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  tickets           Ticket[]
+  answers           CommunityAnswer[]
+}
+
+model Ticket {
+  id             String   @id @default(uuid())
+  title          String
+  category       String
+  description    String
+  priority       String   // "Low" | "Medium" | "High"
+  status         String   @default("Open") // "Open" | "In Review" | "Resolved" | "Closed"
+  studentEmail   String
+  studentName    String
+  attachmentName String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user           User     @relation(fields: [studentEmail], references: [email])
+}
+
+model FAQ {
+  id          String   @id
+  category    String
+  question    String
+  answer      String
+  upvotes     Int      @default(0)
+  downvotes   Int      @default(0)
+  popularity  Int      @default(0)
+  tags        String   // comma separated tags
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model CommunityAnswer {
+  id           String   @id @default(uuid())
+  faqId        String
+  studentEmail String
+  studentName  String
+  answer       String
+  status       String   @default("Pending Review") // "Pending Review" | "Approved" | "Rejected"
+  createdAt    DateTime @default(now())
+
+  user         User     @relation(fields: [studentEmail], references: [email])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  email     String   // specific email or "all"
+  text      String
+  type      String   // "success" | "warning" | "info" | "error"
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model MailLog {
+  id        String   @id @default(uuid())
+  to        String
+  subject   String
+  body      String
+  status    String
+  timestamp DateTime @default(now())
+}

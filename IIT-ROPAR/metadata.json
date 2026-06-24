@@ -1,0 +1,6 @@
+{
+  "name": "IIT Ropar Support Portal",
+  "description": "AI-powered FAQ & Internship Support Portal for Vicharanashala Internship — IIT Ropar, featuring Yaksha AI assistant, dashboard, and document center.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

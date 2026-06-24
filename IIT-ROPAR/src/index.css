@@ -1,0 +1,356 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  
+  --color-brand-primary: #8b5cf6;
+  --color-brand-secondary: #06b6d4;
+
+  /* Centralized Theme custom colors */
+  --color-background: var(--background);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+}
+
+:root {
+  --background: #FAFAFA;
+  --card: #FFFFFF;
+  --foreground: #18181B;
+  --muted-foreground: #71717A;
+  --border: #E4E4E7;
+}
+
+.dark {
+  --background: #09090B;
+  --card: #18181B;
+  --foreground: #FAFAFA;
+  --muted-foreground: #A1A1AA;
+  --border: #27272A;
+}
+
+/* Custom Scrollbar styled for dark and light portals */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(244, 244, 245, 0.4);
+}
+.dark ::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.4);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(124, 58, 237, 0.2);
+  border-radius: 4px;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(139, 92, 246, 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(139, 92, 246, 0.6);
+}
+
+/* Base custom styles */
+body {
+  font-family: var(--font-sans);
+  background-color: var(--background) !important;
+  color: var(--foreground) !important;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+html:not(.dark) body {
+  background-color: #FAFAFA !important;
+}
+
+.dark body {
+  background-color: #09090B !important;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+}
+
+/* Glassmorphism Styles */
+.glass {
+  background: rgba(255, 255, 255, 0.8) !important;
+  backdrop-filter: blur(12px) !important;
+  border: 1px solid #E4E4E7 !important;
+  box-shadow: 0 4px 20px rgba(24, 24, 27, 0.02) !important;
+  transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.dark .glass {
+  background: rgba(24, 24, 27, 0.6) !important;
+  backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3) !important;
+}
+
+.accent-gradient {
+  background: linear-gradient(135deg, #7c3aed 0%, #2563eb 100%);
+}
+
+.dark .accent-gradient {
+  background: linear-gradient(135deg, #8B5CF6 0%, #3B82F6 100%);
+}
+
+.glow-text {
+  text-shadow: none;
+  color: #18181B;
+}
+
+.dark .glow-text {
+  text-shadow: 0 0 20px rgba(139, 92, 246, 0.4);
+  color: #ffffff;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Mesh background styling */
+.glass-glow {
+  background: radial-gradient(circle at 50% 50%, rgba(139, 92, 246, 0.06), transparent 60%);
+}
+.dark .glass-glow {
+  background: radial-gradient(circle at 50% 50%, rgba(139, 92, 246, 0.15), transparent 60%);
+}
+
+.cyan-glow {
+  background: radial-gradient(circle at 50% 50%, rgba(2, 132, 199, 0.03), transparent 50%);
+}
+.dark .cyan-glow {
+  background: radial-gradient(circle at 50% 50%, rgba(6, 182, 212, 0.12), transparent 50%);
+}
+
+/* Grid overlay backgrounds */
+.grid-bg-dark {
+  background-image: linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+.grid-bg-light {
+  background-image: linear-gradient(rgba(24, 24, 27, 0.03) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(24, 24, 27, 0.03) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* =========================================================================
+   BULLETPROOF GLOBAL CLASS MAPPER (LIGHT THEME OVERRIDES)
+   Enforces high-contrast, modern SaaS designs when dark mode is inactive
+   ========================================================================= */
+html:not(.dark) .bg-\[\#050505\],
+html:not(.dark) .bg-\[\#09090B\],
+html:not(.dark) .bg-\[\#05050C\],
+html:not(.dark) .bg-\[\#0A0A0C\],
+html:not(.dark) .bg-slate-950,
+html:not(.dark) .bg-slate-900 {
+  background-color: #FAFAFA !important;
+}
+
+html:not(.dark) .bg-\[\#0F0F12\],
+html:not(.dark) .bg-\[\#0A0A0F\],
+html:not(.dark) .bg-\[\#16161C\],
+html:not(.dark) .bg-[#0F0F12],
+html:not(.dark) .bg-[#0A0A0F],
+html:not(.dark) .bg-zinc-900,
+html:not(.dark) .bg-zinc-950 {
+  background-color: #FFFFFF !important;
+}
+
+/* Transparent overlays */
+html:not(.dark) .bg-\[\#0A0A0F\]\/80,
+html:not(.dark) .bg-\[\#0A0A0F\]\/90,
+html:not(.dark) .bg-\[\#0F0F12\]\/80,
+html:not(.dark) .bg-\[\#0F0F12\]\/95,
+html:not(.dark) .bg-slate-900\/40,
+html:not(.dark) .bg-\[\#050505\]\/40,
+html:not(.dark) .bg-\[\#050505\]\/80 {
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  backdrop-filter: blur(12px) !important;
+}
+
+/* Base card overlays and utility blocks */
+html:not(.dark) .bg-white\/\[0\.02\],
+html:not(.dark) .bg-white\/5,
+html:not(.dark) .bg-white\/10 {
+  background-color: rgba(24, 24, 27, 0.03) !important;
+}
+html:not(.dark) .hover\:bg-white\/10:hover,
+html:not(.dark) .hover\:bg-white\/5:hover {
+  background-color: rgba(24, 24, 27, 0.05) !important;
+}
+
+/* Inputs & Form Fields (Pure white with grey borders) */
+html:not(.dark) .bg-\[\#07070B\],
+html:not(.dark) .bg-\[\#07070C\],
+html:not(.dark) .bg-black\/30,
+html:not(.dark) .bg-black\/40,
+html:not(.dark) .bg-\[\#07070B\]\/50 {
+  background-color: #F4F4F5 !important;
+  color: #18181B !important;
+}
+
+html:not(.dark) input,
+html:not(.dark) select,
+html:not(.dark) textarea {
+  background-color: #FFFFFF !important;
+  color: #18181B !important;
+  border-color: #E4E4E7 !important;
+}
+html:not(.dark) input::placeholder,
+html:not(.dark) textarea::placeholder {
+  color: #71717A !important;
+}
+
+/* Borders mapping to soft light borders */
+html:not(.dark) .border-white\/5,
+html:not(.dark) .border-white\/10,
+html:not(.dark) .border-white\/15,
+html:not(.dark) .border-slate-800,
+html:not(.dark) .border-slate-700,
+html:not(.dark) .border-stone-800 {
+  border-color: #E4E4E7 !important;
+}
+
+html:not(.dark) .divide-white\/5 > :not([hidden]) ~ :not([hidden]),
+html:not(.dark) .divide-white\/10 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #E4E4E7 !important;
+}
+
+/* Typography Overrides to ensure legibility */
+html:not(.dark) .text-slate-100,
+html:not(.dark) .text-slate-50,
+html:not(.dark) .text-white {
+  color: #18181B !important;
+}
+
+html:not(.dark) .text-slate-200,
+html:not(.dark) .text-slate-300,
+html:not(.dark) .text-slate-350 {
+  color: #27272A !important; /* Charcoal dark */
+}
+
+html:not(.dark) .text-slate-400,
+html:not(.dark) .text-slate-450,
+html:not(.dark) .text-slate-500,
+html:not(.dark) .text-slate-600 {
+  color: #52525B !important; /* Soft gray description */
+}
+
+/* Forced headers to adopt Dark charcoal typography in light mode */
+html:not(.dark) h1,
+html:not(.dark) h2,
+html:not(.dark) h3,
+html:not(.dark) h4,
+html:not(.dark) h5,
+html:not(.dark) h6 {
+  color: #18181B !important;
+}
+
+/* Exclusions: Ensure colored backgrounds (like buttons & badges) keep their white text color */
+html:not(.dark) .accent-gradient,
+html:not(.dark) .bg-purple-600,
+html:not(.dark) .bg-purple-500,
+html:not(.dark) .bg-violet-600,
+html:not(.dark) .bg-violet-500,
+html:not(.dark) .bg-emerald-600,
+html:not(.dark) .bg-emerald-500,
+html:not(.dark) .bg-[#7C3AED],
+html:not(.dark) .bg-blue-600,
+html:not(.dark) .bg-blue-500,
+html:not(.dark) button[class*="bg-purple-"],
+html:not(.dark) button[class*="bg-emerald-"],
+html:not(.dark) button[class*="bg-blue-"] {
+  color: #FFFFFF !important;
+}
+
+html:not(.dark) .accent-gradient *,
+html:not(.dark) .bg-purple-600 *,
+html:not(.dark) .bg-purple-500 *,
+html:not(.dark) .bg-violet-600 *,
+html:not(.dark) .bg-violet-500 *,
+html:not(.dark) .bg-emerald-600 *,
+html:not(.dark) .bg-[#7C3AED] *,
+html:not(.dark) button[class*="bg-purple-"] * {
+  color: #FFFFFF !important;
+}
+
+html:not(.dark) button.text-white,
+html:not(.dark) .accent-gradient .text-white,
+html:not(.dark) button .text-white,
+html:not(.dark) .bg-purple-600 .text-white,
+html:not(.dark) .bg-purple-500 .text-white,
+html:not(.dark) .bg-[#7C3AED] .text-white {
+  color: #FFFFFF !important;
+}
+
+/* Progress bars layout high-contrast visibility rules */
+html:not(.dark) .bg-\[\#050505\] h-2,
+html:not(.dark) .bg-\[\#050505\].h-2,
+html:not(.dark) .w-full.bg-\[\#050505\] {
+  background-color: #E4E4E7 !important;
+}
+
+/* Text clipping colorful gradients in Light Mode */
+html:not(.dark) .bg-clip-text {
+  background-image: linear-gradient(to right, #4F46E5, #7C3AED, #0891B2) !important;
+}
+
+/* Table layout styling rules */
+html:not(.dark) table {
+  background-color: #FFFFFF !important;
+  border-color: #E4E4E7 !important;
+}
+html:not(.dark) th {
+  background-color: #F4F4F5 !important;
+  color: #52525B !important;
+  font-weight: 600 !important;
+}
+html:not(.dark) tr:hover {
+  background-color: rgba(244, 244, 245, 0.4) !important;
+}
+html:not(.dark) td {
+  border-bottom-color: #E4E4E7 !important;
+  color: #27272A !important;
+}
+
+/* Badge highlights inside SaaS Light Mode */
+html:not(.dark) .bg-purple-500\/10,
+html:not(.dark) .bg-purple-650\/10,
+html:not(.dark) .bg-purple-950\/15 {
+  background-color: #FAF5FF !important;
+  color: #7C3AED !important;
+  border-color: #E8D5FF !important;
+}
+html:not(.dark) .bg-emerald-500\/10,
+html:not(.dark) .bg-emerald-950\/15 {
+  background-color: #ECFDF5 !important;
+  color: #059669 !important;
+  border-color: #A7F3D0 !important;
+}
+html:not(.dark) .bg-cyan-500\/10,
+html:not(.dark) .bg-cyan-950\/15 {
+  background-color: #ECFEFF !important;
+  color: #0891B2 !important;
+  border-color: #A5F3FC !important;
+}
+html:not(.dark) .bg-amber-500\/10,
+html:not(.dark) .bg-amber-950\/15 {
+  background-color: #FFFBEB !important;
+  color: #D97706 !important;
+  border-color: #FDE68A !important;
+}
+html:not(.dark) .bg-red-500\/10 {
+  background-color: #FEF2F2 !important;
+  color: #DC2626 !important;
+  border-color: #FCA5A5 !important;
+}
