@@ -23,7 +23,8 @@ Four zero-touch pillars, in order of automation:
 - **Session Support** — student issue tracker with 4-step troubleshooting checklists, evidence uploads, admin follow-ups.
 - **Golden Tickets** — admin-promoted high-priority support requests with Spurti Points (SP) economy and 48h cooldown.
 - **Reputation system** — points, tier ladder (newcomer → knowledge_master), auto-awarded badges.
-- **Admin panel** — FAQs, users, golden tickets, support inbox, AI settings, feature flags, batches, categories.
+- **Predictive Friction Clusters (Zero-Day Support)** — An autonomous daemon that detects dense semantic clusters of unfulfilled search queries via DBSCAN and leverages LLMs to deploy global proactive alerts before support tickets surge.
+- **Admin panel** — FAQs, users, golden tickets, support inbox, AI settings, feature flags, batches, categories, friction alerts.
 - **Real-time observability** — tagged colored logs (`[ INFO ] [ cron ]` etc.), Discord ALERT webhook, optional Sentry.
 
 ---
