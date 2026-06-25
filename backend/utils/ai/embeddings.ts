@@ -157,7 +157,7 @@ async function getEmbedder(): Promise<FeatureExtractionPipeline> {
     // survives restarts and isn't pulled fresh each time.
     transformersEnv.cacheDir = './.cache/transformers';
     transformersEnv.allowLocalModels = true;
-    cachedEmbedder = await pipeline(
+    cachedEmbedder = await (pipeline as any)(
       'feature-extraction',
       MODEL_SLUG,
       { dtype: 'fp32' },

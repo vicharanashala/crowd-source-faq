@@ -9,9 +9,15 @@
  */
 export function sanitizeHtml(input: unknown): string {
   if (typeof input !== 'string') return '';
-  return input
-    .replace(/<[^>]*>/g, '')          // strip HTML tags
-    .replace(/[\x00-\x1F\x7F]/g, ''); // strip control characters
+  let str = input;
+  let previous;
+  do {
+    previous = str;
+    str = str.replace(/<[^<>]*>/g, '');
+  } while (str !== previous);
+  // Remove any unclosed tags at the end of the string to prevent unclosed tag injections
+  str = str.replace(/<[a-zA-Z/!][^<>]*$/g, '');
+  return str.replace(/[\x00-\x1F\x7F]/g, '');
 }
 
 /** Strip HTML tags and control characters from a string. */

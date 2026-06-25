@@ -5,7 +5,7 @@ import User, { IUser } from '../models/User.js';
 import SearchLog from '../models/SearchLog.js';
 import AdminLog from '../models/AdminLog.js';
 import CommunityPost from '../models/CommunityPost.js';
-import { invalidateCache } from '../utils/http/cache.js';
+import { invalidateCache, cacheGet, cacheSet, cacheAvailable } from '../utils/http/cache.js';
 import { sanitizeHtml } from '../utils/http/sanitize.js';
 import { adminLog } from '../utils/http/logger.js';
 import FreshReviewVote from '../models/FreshReviewVote.js';
@@ -32,11 +32,20 @@ export const logAction = async (
 // GET /api/admin/stats
 export const getStats = async (req: Request, res: Response): Promise<void> => {
   try {
+    const batchId = (req.query.batchId as string | undefined) ?? null;
+    const cacheKey = `stats:admin:${batchId || ''}`;
+    if (cacheAvailable()) {
+      const cached = await cacheGet<any>(cacheKey);
+      if (cached) {
+        res.json(cached);
+        return;
+      }
+    }
+
     const now = new Date();
     const todayStart = new Date(now.setHours(0, 0, 0, 0));
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
-    const batchId = (req.query.batchId as string | undefined) ?? null;
 
     const [
       totalFaqs,
@@ -80,7 +89,7 @@ export const getStats = async (req: Request, res: Response): Promise<void> => {
           ? '100'
           : '0';
 
-    res.json({
+    const responseData = {
       totalFaqs,
       pendingFaqs,
       approvedFaqs,
@@ -92,7 +101,13 @@ export const getStats = async (req: Request, res: Response): Promise<void> => {
       topCategory: topCategoryResult[0]?._id || 'N/A',
       newUsersThisWeek: usersThisWeek,
       trends: { faqs: parseFloat(faqTrend) },
-    });
+    };
+
+    if (cacheAvailable()) {
+      await cacheSet(cacheKey, responseData, 30); // 30 sec TTL
+    }
+
+    res.json(responseData);
   } catch (error) {
     res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }

@@ -28,13 +28,7 @@ import {
   triggerAIReview,
   triggerAIReviewBatch,
 } from '../controllers/aiPromotionController.js';
-import {
-  get2FAStatus,
-  setup2FA,
-  enable2FA,
-  disable2FA,
-  verify2FA,
-} from '../controllers/admin2faController';
+
 import {
   getUnresolvedSearches,
   resolveUnresolved,
@@ -85,12 +79,6 @@ router.get('/activity-feed', getActivityFeed);
 router.get('/user-activity-chart', getUserActivityChart);
 router.get('/community/posts', getCommunityPosts);
 
-// 2FA / TOTP management
-router.get('/2fa/status',  get2FAStatus);
-router.post('/2fa/setup',  setup2FA);
-router.post('/2fa/enable', enable2FA);
-router.post('/2fa/disable', disable2FA);
-router.post('/2fa/verify', verify2FA);
 
 // Unresolved search management
 router.get('/search/unresolved-list',         getUnresolvedSearches);

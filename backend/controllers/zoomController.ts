@@ -50,8 +50,19 @@ function verifyZoomSignature(req: Request): boolean {
   }
   const header = req.headers['x-zm-signature'] as string | undefined;
   if (!header) return false;
-  const expected = 'v0=' + crypto.createHmac('sha256', secret).update(JSON.stringify(req.body)).digest('hex');
-  return crypto.timingSafeEqual(Buffer.from(header), Buffer.from(expected));
+  
+  // Use rawBody buffer if available, falling back to JSON.stringify
+  const payloadStr = (req as any).rawBody 
+    ? (req as any).rawBody.toString('utf8') 
+    : JSON.stringify(req.body);
+
+  const expected = 'v0=' + crypto.createHmac('sha256', secret).update(payloadStr).digest('hex');
+  
+  const headerBuf = Buffer.from(header, 'utf8');
+  const expectedBuf = Buffer.from(expected, 'utf8');
+  if (headerBuf.length !== expectedBuf.length) return false;
+  
+  return crypto.timingSafeEqual(headerBuf, expectedBuf);
 }
 
 // ─── Webhook Validation ──────────────────────────────────────────────────────

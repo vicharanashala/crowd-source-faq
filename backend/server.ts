@@ -170,7 +170,11 @@ app.use(helmet({
 // noise without losing any signal.
 
 // 4. Body Parsing
-app.use(express.json()); // Parses incoming JSON payloads in the request body
+app.use(express.json({
+  verify: (req: any, _res, buf) => {
+    req.rawBody = buf;
+  }
+})); // Parses incoming JSON payloads in the request body
 
 // 4b. Minimal cookie parser — only needed for the public FAQ page's
 // guest-id cookie. Avoids adding cookie-parser as a runtime dep.

@@ -4,7 +4,7 @@ import SearchLog from '../models/SearchLog.js';
 import { generateEmbedding, generateQueryEmbedding } from '../utils/ai/embeddings.js';
 import { LRUCache } from 'lru-cache';
 import { httpLog } from '../utils/http/logger.js';
-import { getCachedResults, setCachedResults } from '../utils/http/cache.js';
+import { getCachedResults, setCachedResults, cacheGet, cacheSet, cacheAvailable } from '../utils/http/cache.js';
 import {
   computeRRF,
   applySearchThreshold,
@@ -362,6 +362,15 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
 export const getTrending = async (req: Request, res: Response): Promise<void> => {
   try {
     const rawBatchId = req.query.batchId || req.programContext?.batchId;
+    const cacheKey = `trending:${rawBatchId || ''}`;
+    if (cacheAvailable()) {
+      const cached = await cacheGet<{ trending: unknown[] }>(cacheKey);
+      if (cached) {
+        res.json(cached);
+        return;
+      }
+    }
+
     const batchIdObjectId = typeof rawBatchId === 'string' && Types.ObjectId.isValid(rawBatchId)
       ? new Types.ObjectId(rawBatchId)
       : null;
@@ -392,7 +401,11 @@ export const getTrending = async (req: Request, res: Response): Promise<void> =>
     );
 
     const trending = await SearchLog.aggregate(pipeline);
-    res.json({ trending });
+    const responseData = { trending };
+    if (cacheAvailable()) {
+      await cacheSet(cacheKey, responseData, 300); // 5 min TTL
+    }
+    res.json(responseData);
   } catch (error) {
     res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
