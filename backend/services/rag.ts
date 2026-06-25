@@ -61,33 +61,41 @@ async function searchFaqs(embedding: number[], query: string, limit: number): Pr
   const [vec, txt] = await Promise.all([
     db.collection('yaksha_faq_faqs')
       .aggregate([
-        { $vectorSearch: {
-          index: 'vector_index',
-          path: 'embedding',
-          queryVector: embedding,
-          numCandidates: limit * 10,
-          limit,
-        } },
-        { $project: {
-          _id: 1, question: 1, answer: 1, category: 1, trustLevel: 1,
-          score: { $meta: 'vectorSearchScore' },
-        } },
+        {
+          $vectorSearch: {
+            index: 'vector_index',
+            path: 'embedding',
+            queryVector: embedding,
+            numCandidates: limit * 10,
+            limit,
+          }
+        },
+        {
+          $project: {
+            _id: 1, question: 1, answer: 1, category: 1, trustLevel: 1,
+            score: { $meta: 'vectorSearchScore' },
+          }
+        },
         // Match the trust-level boost the search endpoint uses
-        { $addFields: {
-          score: {
-            $add: [
-              { $meta: 'vectorSearchScore' },
-              { $switch: {
-                branches: [
-                  { case: { $eq: ['$trustLevel', 'high'] },   then: 0.15 },
-                  { case: { $eq: ['$trustLevel', 'expert'] }, then: 0.07 },
-                  { case: { $eq: ['$trustLevel', 'medium'] }, then: 0.02 },
-                ],
-                default: 0,
-              } },
-            ],
-          },
-        } },
+        {
+          $addFields: {
+            score: {
+              $add: [
+                { $meta: 'vectorSearchScore' },
+                {
+                  $switch: {
+                    branches: [
+                      { case: { $eq: ['$trustLevel', 'high'] }, then: 0.15 },
+                      { case: { $eq: ['$trustLevel', 'expert'] }, then: 0.07 },
+                      { case: { $eq: ['$trustLevel', 'medium'] }, then: 0.02 },
+                    ],
+                    default: 0,
+                  }
+                },
+              ],
+            },
+          }
+        },
       ]).toArray().catch((err) => {
         logger.warn(`[rag] searchFaqs aggregate vector search failed: ${(err as Error).message}`);
         return [];
@@ -164,13 +172,15 @@ async function searchCommunity(embedding: number[], query: string, limit: number
   const [vec, txt] = await Promise.all([
     db.collection('yaksha_faq_communityposts')
       .aggregate([
-        { $vectorSearch: {
-          index: 'vector_index',
-          path: 'embedding',
-          queryVector: embedding,
-          numCandidates: limit * 10,
-          limit,
-        } },
+        {
+          $vectorSearch: {
+            index: 'vector_index',
+            path: 'embedding',
+            queryVector: embedding,
+            numCandidates: limit * 10,
+            limit,
+          }
+        },
         { $project: { _id: 1, title: 1, body: 1, status: 1, score: { $meta: 'vectorSearchScore' } } },
       ]).toArray().catch((err) => {
         logger.warn(`[rag] searchCommunity aggregate vector search failed: ${(err as Error).message}`);

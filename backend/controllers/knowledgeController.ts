@@ -183,17 +183,48 @@ export const askAIController = async (req: Request, res: Response): Promise<void
       }
     }
 
-    // Minimum-relevance thresholds per source type, because RRF scores (FAQ /
-    // community) max out around 0.020 while vector-search scores (knowledge)
-    // go up to 1.0. A single threshold either lets too much FAQ noise through
-    // or filters out the real KB hits. The numbers below are tuned against
-    // the live RRF and `searchKnowledge` ranges observed in practice.
-    const THRESHOLDS: Record<string, number> = {
-      faq: 0.025,        // top-rank RRF hit
-      community: 0.025,  // top-rank RRF hit
-      knowledge: 0.35,   // meaningful vector similarity
+    // ─── Relevance thresholds ─────────────────────────────────────────────────
+    // RRF formula: 1/(60 + rank). Max score for rank-1 single-list ≈ 0.0164.
+    // A result appearing in BOTH vector and text lists at rank-1 scores ≈ 0.033.
+    //
+    // HIGH_THRESHOLDS → confident direct answer (score ≥ this OR word overlap ≥ 60%)
+    // LOW_THRESHOLDS  → show as "related" suggestion (dimmed expandable card)
+    const HIGH_THRESHOLDS: Record<string, number> = {
+      faq: 0.012,        // rank-1 in either vector OR text list
+      community: 0.012,
+      knowledge: 0.35,   // meaningful vector cosine similarity
     };
-    const DEFAULT_THRESHOLD = 0.05;
+    const LOW_THRESHOLDS: Record<string, number> = {
+      faq: 0.005,
+      community: 0.005,
+      knowledge: 0.15,
+    };
+    const DEFAULT_HIGH = 0.012;
+    const DEFAULT_LOW  = 0.005;
+
+    // ─── Word-overlap ratio ───────────────────────────────────────────────────
+    // Count how many of the query's meaningful words appear in the source title.
+    // Ratio = matched / total_query_words.
+    // If ratio ≥ 60% → treat as a direct answer regardless of RRF score.
+    // "get", "upload", "submit" etc. are NOT stop words — they discriminate
+    // between "how to GET noc" vs "how to UPLOAD noc".
+    const STOP_WORDS = new Set([
+      'a', 'an', 'the', 'is', 'it', 'i', 'my', 'do',
+      'how', 'what', 'when', 'where', 'why', 'can', 'will', 'to', 'of',
+      'in', 'on', 'at', 'for', 'and', 'or', 'not', 'be', 'by', 'are',
+      'was', 'has', 'me', 'we', 'up',
+    ]);
+    const queryWords = question.toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .filter((w) => w.length > 2 && !STOP_WORDS.has(w));
+
+    function wordOverlapRatio(title: string): { count: number; ratio: number } {
+      if (!queryWords.length) return { count: 0, ratio: 0 };
+      const titleLower = title.toLowerCase().replace(/[^a-z0-9\s]/g, ' ');
+      const count = queryWords.filter((w) => titleLower.includes(w)).length;
+      return { count, ratio: count / queryWords.length };
+    }
 
     const t0 = Date.now();
     let result: { answer: string; sources: Array<{ id: string; type: string; title: string; snippet: string; url: string; score: number }>; model: string };
@@ -201,11 +232,6 @@ export const askAIController = async (req: Request, res: Response): Promise<void
     try {
       result = await runRag(question, attachments);
     } catch (ragErr) {
-      // AI provider is down / rate-limited / unauthorized. The vector + text
-      // searches inside runRag also failed because they're the same call.
-      // Fall back to keyword search only (knowledge base), which doesn't
-      // depend on the AI provider. This way the user still sees relevant
-      // sources and can click through to the full FAQ/post.
       adminLog.warn('[askAI] runRag failed, falling back to KB-only search', { error: (ragErr as Error).message });
       const kbMatches = await searchKnowledge(question, 6);
       result = {
@@ -224,7 +250,7 @@ export const askAIController = async (req: Request, res: Response): Promise<void
     }
     adminLog.info('[askAI] rag.completed', { ms: Date.now() - t0, sourceCount: result.sources.length, attachments: attachments.length, aiFailed });
 
-    // Translate RagSource → SourceHit shape for the frontend.
+    // Translate RagSource → SourceHit shape (with word overlap scores attached).
     const sources = result.sources.map((s) => ({
       kind: s.type,
       title: s.title,
@@ -232,40 +258,76 @@ export const askAIController = async (req: Request, res: Response): Promise<void
       score: Number(s.score.toFixed(4)),
       href: s.url,
       id: s.id,
+      ...wordOverlapRatio(s.title),
     }));
 
-    // Per-source-type threshold filter — strip the noise so the user (and
-    // the fallback snippet) see only genuinely relevant matches.
+    // ─── Classify each source ─────────────────────────────────────────────────
+    // relevant  → score ≥ HIGH threshold OR word overlap ratio ≥ 60% (direct answer)
+    // related   → score ≥ LOW threshold only (expandable suggestion card)
+    // noise     → below LOW threshold (excluded entirely)
+    const WORD_RATIO_THRESHOLD = 0.60;
+
     const relevantSources = sources.filter((s) => {
-      const t = (THRESHOLDS[s.kind] ?? DEFAULT_THRESHOLD);
-      return s.score >= t;
+      const high = HIGH_THRESHOLDS[s.kind] ?? DEFAULT_HIGH;
+      const isWordMatch = s.kind !== 'knowledge' && s.count >= 1 && s.ratio >= WORD_RATIO_THRESHOLD;
+      return s.score >= high || isWordMatch;
     });
 
-    // Re-rank: only the relevant sources, sorted by score desc.
-    const ranked = [...relevantSources].sort((a, b) => b.score - a.score);
+    const relatedSources = sources.filter((s) => {
+      const low  = LOW_THRESHOLDS[s.kind]  ?? DEFAULT_LOW;
+      const high = HIGH_THRESHOLDS[s.kind] ?? DEFAULT_HIGH;
+      const isWordMatch = s.kind !== 'knowledge' && s.count >= 1 && s.ratio >= WORD_RATIO_THRESHOLD;
+      const isRelevant  = s.score >= high || isWordMatch;
+      return !isRelevant && s.score >= low;
+    });
 
+    // Re-rank relevant sources: highest word ratio first, then score.
+    const ranked = [...relevantSources].sort((a, b) =>
+      (b.ratio - a.ratio) || (b.score - a.score)
+    );
+
+    // Sort related sources: most semantically close card first (auto-expands).
+    const sortedRelated = [...relatedSources].sort((a, b) =>
+      (b.ratio - a.ratio) || (b.score - a.score)
+    );
+
+    // ─── Build answer text ────────────────────────────────────────────────────
     let answer = result.answer;
-    if (relevantSources.length === 0) {
-      answer = "I couldn't find anything in the FAQs, community, or your team's Zoom knowledge base that clearly answers this. Try rephrasing the question, or post a new community question.";
+    let answerType: 'direct' | 'related' | 'none' = 'direct';
+
+    if (relevantSources.length === 0 && relatedSources.length === 0) {
+      // Nothing useful found at all
+      answerType = 'none';
+      answer = "I couldn't find anything matching your question in the FAQs, community, or Zoom knowledge base. Try rephrasing, or post a new community question.";
+    } else if (relevantSources.length === 0 && relatedSources.length > 0) {
+      // No direct match — show expandable related question cards
+      answerType = 'related';
+      answer = `Couldn't find a specific match for your question. Here are some related questions that might help — click any to see the answer:`;
     } else if (aiFailed || !result.answer || result.answer.trim().length < 10) {
-      // AI synthesis unavailable — show the top source's snippet directly
-      // and let the user click through to read the full entry.
+      // Have a direct match but AI synthesis is unavailable — show snippet
       const top = ranked[0];
       answer = top.snippet + (ranked.length > 1
         ? `\n\n(Showing the most relevant match — ${ranked.length} sources found. AI synthesis is temporarily unavailable; click a source card to read the full answer.)`
         : `\n\n(AI synthesis is temporarily unavailable; click the source below to read the full answer.)`);
     }
 
-    // Mark each source as relevant (above per-type threshold) so the
-    // frontend can dim/grey-out the noise.
+    // ─── Build source list for frontend ──────────────────────────────────────
+    // For 'related': only the expandable related cards (no direct sources).
+    // For 'direct': relevant sources first, then any related ones as extras.
+    const allDisplaySources = answerType === 'related'
+      ? sortedRelated.map((s) => ({ ...s, aboveThreshold: false }))
+      : [
+          ...relevantSources.map((s) => ({ ...s, aboveThreshold: true })),
+          ...sortedRelated.map((s)  => ({ ...s, aboveThreshold: false })),
+        ];
+
     res.json({
       question,
       answer,
-      sources: sources.map((s) => {
-        const t = (THRESHOLDS[s.kind] ?? DEFAULT_THRESHOLD);
-        return { ...s, aboveThreshold: s.score >= t };
-      }),
+      answerType,
+      sources: allDisplaySources,
       relevantCount: ranked.length,
+      relatedCount: relatedSources.length,
       sourceCount: sources.length,
       model: result.model,
       aiFailed,

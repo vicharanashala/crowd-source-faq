@@ -135,11 +135,33 @@ export default function AskAIButton() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const { isRecording, isProcessing, transcript, startRecording, stopRecording, resetTranscript } = useVoiceTranscription();
+  // Keep a ref to send() so the onSpeechEnd callback always has the latest
+  // version without being re-created on every render.
+  const sendRef = useRef<() => void>(() => {});
 
+  const { isRecording, isProcessing, transcript, startRecording, stopRecording, resetTranscript } = useVoiceTranscription({
+    // ── Zero-latency live display ─────────────────────────────────────────────
+    // Write directly to the textarea DOM node instead of going through React
+    // state. This means words appear the instant the browser fires the speech
+    // event, with no render cycle in between.
+    onInterimResult: (liveText) => {
+      if (inputRef.current) {
+        inputRef.current.value = liveText;
+        // Keep the auto-resize in sync with the injected content
+        inputRef.current.style.height = '24px';
+        inputRef.current.style.height = Math.min(120, inputRef.current.scrollHeight) + 'px';
+      }
+    },
+    onSpeechEnd: (finalText) => {
+      // Commit final transcript to React state, then auto-submit.
+      setQuery(finalText);
+      setTimeout(() => sendRef.current(), 60);
+    },
+  });
+
+  // Keep React query state in sync when transcript is committed (final).
+  // This ensures the send() function always reads the right value.
   useEffect(() => {
-    // Only populate the query when we have actual spoken text.
-    // The null sentinel from resetTranscript() must not overwrite a typed query.
     if (transcript && transcript.trim().length > 0) {
       setQuery(transcript.trim());
     }
@@ -281,6 +303,10 @@ export default function AskAIButton() {
       setAttachments(sending);
     } finally { setIsLoading(false); }
   }, [query, isLoading, isAuthenticated, openModal, attachments, resetTranscript]);
+
+  // Keep sendRef in sync so the onSpeechEnd callback always auto-submits
+  // using the latest send (which closes over fresh query / auth state).
+  useEffect(() => { sendRef.current = send; }, [send]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } };
   const reset = () => { setMessages([]); setQuery(''); };

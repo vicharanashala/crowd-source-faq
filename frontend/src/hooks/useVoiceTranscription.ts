@@ -1,131 +1,199 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 
 interface CustomWindow extends Window {
   SpeechRecognition?: new () => SpeechRecognition;
   webkitSpeechRecognition?: new () => SpeechRecognition;
 }
 
-// We use `string | null` instead of plain `string` so we can distinguish:
-//   null  → no recording session has completed yet (or was explicitly reset)
-//   ''    → session completed with no speech detected
-//   'foo' → session completed with transcript "foo"
-//
-// This is the key fix for the "need to refresh page" bug:
-// The AskAIButton useEffect watches [transcript]. If transcript stayed as the
-// same string between sessions (e.g., user said "Hello" twice), React saw no
-// state change and skipped the effect. By resetting to null before each new
-// session and then setting to the new string, the effect always fires.
+// After this many ms of silence (no new speech), auto-stop.
+const SILENCE_TIMEOUT_MS = 1200;
 
-export function useVoiceTranscription() {
-  const [isRecording, setIsRecording] = useState<boolean>(false);
-  const [isProcessing, setIsProcessing] = useState<boolean>(false);
-  const [transcript, setTranscript] = useState<string | null>(null);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
-  // Accumulate all final segments across the session (multi-sentence support)
-  const finalAccRef = useRef<string>('');
+export interface UseVoiceTranscriptionOptions {
+  /**
+   * Fires on EVERY interim result with the current live text.
+   * Use this to write directly to a DOM node (zero React render lag).
+   */
+  onInterimResult?: (liveText: string) => void;
+  /**
+   * Fired once when recognition ends with the final committed text.
+   * Use this to auto-submit the search.
+   */
+  onSpeechEnd?: (finalText: string) => void;
+  /**
+   * Fired when an error occurs, with a human-readable message.
+   */
+  onError?: (message: string) => void;
+}
 
-  const startRecording = (): void => {
-    const customWindow = window as unknown as CustomWindow;
-    const SpeechRecognitionCtor =
-      customWindow.SpeechRecognition || customWindow.webkitSpeechRecognition;
+export function useVoiceTranscription(options: UseVoiceTranscriptionOptions = {}) {
+  const [isRecording,   setIsRecording]   = useState(false);
+  const [isProcessing,  setIsProcessing]  = useState(false);
+  const [transcript,    setTranscript]    = useState<string | null>(null);
 
-    if (!SpeechRecognitionCtor) {
-      alert('Your browser does not support voice transcription. Please try Google Chrome.');
+  const recognitionRef   = useRef<SpeechRecognition | null>(null);
+  const micStreamRef     = useRef<MediaStream | null>(null);   // keep mic warm
+  const finalAccRef      = useRef('');
+  const silenceTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isRecordingRef   = useRef(false);  // sync ref (no stale closure)
+
+  // Stable callback refs
+  const onInterimResultRef = useRef(options.onInterimResult);
+  const onSpeechEndRef     = useRef(options.onSpeechEnd);
+  const onErrorRef         = useRef(options.onError);
+  useEffect(() => { onInterimResultRef.current = options.onInterimResult; }, [options.onInterimResult]);
+  useEffect(() => { onSpeechEndRef.current     = options.onSpeechEnd;     }, [options.onSpeechEnd]);
+  useEffect(() => { onErrorRef.current         = options.onError;         }, [options.onError]);
+
+  const clearSilenceTimer = () => {
+    if (silenceTimerRef.current) { clearTimeout(silenceTimerRef.current); silenceTimerRef.current = null; }
+  };
+
+  const stopAll = useCallback((commit = true) => {
+    clearSilenceTimer();
+    isRecordingRef.current = false;
+    if (recognitionRef.current) {
+      try { recognitionRef.current.abort(); } catch { /* ignore */ }
+      recognitionRef.current = null;
+    }
+    // Release the mic stream so the browser stops showing the red dot
+    if (micStreamRef.current) {
+      micStreamRef.current.getTracks().forEach(t => t.stop());
+      micStreamRef.current = null;
+    }
+    setIsRecording(false);
+    setIsProcessing(false);
+    if (commit) {
+      const final = finalAccRef.current.trim();
+      if (final) {
+        setTranscript(final);
+        setTimeout(() => onSpeechEndRef.current?.(final), 60);
+      }
+    }
+  }, []);
+
+  const startRecording = useCallback(async (): Promise<void> => {
+    const win = window as unknown as CustomWindow;
+    const Ctor = win.SpeechRecognition || win.webkitSpeechRecognition;
+
+    if (!Ctor) {
+      onErrorRef.current?.('Voice search requires Google Chrome or Microsoft Edge. Please switch browsers.');
       return;
     }
 
-    // Stop any lingering session before starting a new one — prevents ghost
-    // recognition instances that hold a stale ref and block the mic.
+    // ── Step 1: Request mic permission explicitly ─────────────────────────────
+    // This shows the browser permission prompt if not already granted, AND
+    // warms up the audio hardware so recognition starts faster.
+    try {
+      setIsProcessing(true);
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      // Keep the stream alive during the session so mic stays "warm"
+      micStreamRef.current = stream;
+    } catch (permErr) {
+      setIsProcessing(false);
+      const msg = (permErr as Error).name === 'NotAllowedError'
+        ? 'Microphone access was denied. Please allow microphone access in your browser and try again.'
+        : `Could not access microphone: ${(permErr as Error).message}`;
+      onErrorRef.current?.(msg);
+      return;
+    }
+
+    // Stop any existing recognition session
     if (recognitionRef.current) {
-      try { recognitionRef.current.stop(); } catch { /* ignore */ }
+      try { recognitionRef.current.abort(); } catch { /* ignore */ }
       recognitionRef.current = null;
     }
+    clearSilenceTimer();
 
-    // Reset to null so the AskAIButton effect always fires on the new result,
-    // even when the user says the exact same phrase as last time.
     setTranscript(null);
     finalAccRef.current = '';
-    setIsProcessing(true);
+    isRecordingRef.current = true;
+
+    // ── Step 2: Create and configure SpeechRecognition ───────────────────────
+    const r = new Ctor();
+    r.continuous      = true;   // keep listening across multiple sentences
+    r.interimResults  = true;   // fire onresult on every partial word
+    r.maxAlternatives = 1;      // fastest: don't compute alternatives
+    r.lang            = 'en-US';
+
+    r.onstart = () => {
+      setIsRecording(true);
+      setIsProcessing(false);
+    };
+
+    r.onresult = (event: SpeechRecognitionEvent) => {
+      // Reset silence timer: auto-stop after SILENCE_TIMEOUT_MS of no speech
+      clearSilenceTimer();
+      silenceTimerRef.current = setTimeout(() => {
+        if (isRecordingRef.current) stopAll(true);
+      }, SILENCE_TIMEOUT_MS);
+
+      // Build the live text (final segments + current interim)
+      let interim = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) {
+          finalAccRef.current += event.results[i][0].transcript + ' ';
+        } else {
+          interim += event.results[i][0].transcript;
+        }
+      }
+
+      const live = (finalAccRef.current + interim).trim();
+      // Zero-latency: write directly to DOM via callback (no React re-render)
+      if (live) onInterimResultRef.current?.(live);
+    };
+
+    r.onerror = (event: SpeechRecognitionErrorEvent) => {
+      console.error('[voice] error:', event.error, event.message);
+
+      if (event.error === 'no-speech') {
+        // Browser fired no-speech but we're still recording — just ignore,
+        // the recognition will keep listening (continuous = true handles this).
+        return;
+      }
+
+      const messages: Record<string, string> = {
+        'not-allowed'    : 'Microphone permission denied. Click the lock icon in your browser address bar and allow microphone access.',
+        'audio-capture'  : 'No microphone found. Please connect a microphone and try again.',
+        'network'        : 'Network error. Voice search needs an internet connection (audio is processed by the browser\'s speech service).',
+        'aborted'        : '',  // silent — triggered by our own abort()
+        'service-not-allowed': 'Speech recognition service is blocked. Try using HTTPS or check browser settings.',
+      };
+
+      const msg = messages[event.error] ?? `Voice error: ${event.error}`;
+      if (msg) onErrorRef.current?.(msg);
+
+      stopAll(true);
+    };
+
+    r.onend = () => {
+      // onend fires after abort() too — only commit if we weren't manually stopped
+      if (isRecordingRef.current) {
+        stopAll(true);
+      }
+    };
+
+    recognitionRef.current = r;
 
     try {
-      const recognition = new SpeechRecognitionCtor();
-      recognition.continuous = true;
-      // Returns text dynamically AS you speak (live preview while recording)
-      recognition.interimResults = true;
-      recognition.lang = 'en-US';
-
-      recognition.onresult = (event: SpeechRecognitionEvent) => {
-        let interimTranscript = '';
-
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            // Accumulate confirmed final sentences across the full session
-            finalAccRef.current += event.results[i][0].transcript;
-          } else {
-            interimTranscript += event.results[i][0].transcript;
-          }
-        }
-
-        // Show final + interim combined so the textarea updates in real-time
-        setTranscript(finalAccRef.current + interimTranscript || null);
-      };
-
-      recognition.onstart = () => {
-        setIsRecording(true);
-        setIsProcessing(false);
-      };
-
-      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-        console.error('Speech recognition error:', event.error);
-        setIsRecording(false);
-        setIsProcessing(false);
-        // Preserve whatever was captured before the error
-        if (finalAccRef.current) setTranscript(finalAccRef.current);
-      };
-
-      recognition.onend = () => {
-        setIsRecording(false);
-        setIsProcessing(false);
-        // Flush final accumulated text on natural end so AskAIButton picks it up
-        if (finalAccRef.current) setTranscript(finalAccRef.current);
-      };
-
-      recognitionRef.current = recognition;
-      recognition.start();
-    } catch (err) {
-      console.error('Failed to start voice stream:', err);
-      setIsProcessing(false);
+      r.start();
+    } catch (startErr) {
+      console.error('[voice] r.start() failed:', startErr);
+      onErrorRef.current?.(`Failed to start voice recognition: ${(startErr as Error).message}`);
+      stopAll(false);
     }
-  };
+  }, [stopAll]);
 
-  const stopRecording = (): void => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-    }
-    setIsRecording(false);
-  };
-
-  /** Call this after the query has been submitted to clear stale transcript. */
-  const resetTranscript = (): void => {
+  const stopRecording = useCallback(() => stopAll(true), [stopAll]);
+  const resetTranscript = useCallback(() => {
     setTranscript(null);
     finalAccRef.current = '';
-  };
+  }, []);
 
   // Cleanup on unmount
   useEffect(() => {
-    return () => {
-      if (recognitionRef.current) {
-        try { recognitionRef.current.stop(); } catch { /* ignore */ }
-      }
-    };
+    return () => stopAll(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return {
-    isRecording,
-    isProcessing,
-    transcript,
-    startRecording,
-    stopRecording,
-    resetTranscript,
-  };
+  return { isRecording, isProcessing, transcript, startRecording, stopRecording, resetTranscript };
 }
