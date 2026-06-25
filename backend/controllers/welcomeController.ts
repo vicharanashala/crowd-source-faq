@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import Project from '../models/Project.js';
 import Orientation from '../models/Orientation.js';
 import AiQuestion from '../models/AiQuestion.js';
+// @ts-ignore — openai v6+ ships its own .d.ts; resolution depends on moduleResolution setting
 import OpenAI from 'openai';
 
 // Fetch the most recent orientation video

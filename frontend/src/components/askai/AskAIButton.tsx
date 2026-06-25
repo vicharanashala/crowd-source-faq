@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api, { friendlyError } from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
 import { useAuthModal } from '../../context/AuthModalContext';
+import { useVoiceTranscription } from '../../hooks/useVoiceTranscription';
 
 const ANON_AI_LIMIT = 5;
 const ANON_AI_COUNT_KEY = 'yaksha_anon_ai_count';
@@ -25,13 +26,13 @@ function bumpAnonCount(): number {
     localStorage.setItem(ANON_AI_COUNT_KEY, String(next));
     if (!localStorage.getItem(ANON_AI_RESET_KEY))
       localStorage.setItem(ANON_AI_RESET_KEY, String(Date.now() + 86400000));
-  } catch {}
+  } catch { }
   return next;
 }
 
-interface Source { kind: 'knowledge'|'faq'|'community'; title: string; snippet: string; score: number; href: string; id: string; aboveThreshold?: boolean; }
+interface Source { kind: 'knowledge' | 'faq' | 'community'; title: string; snippet: string; score: number; href: string; id: string; aboveThreshold?: boolean; }
 interface AskResponse { question: string; answer: string; sources: Source[]; relevantCount: number; sourceCount: number; model: string; aiFailed: boolean; }
-interface ChatMessage { id: string; role: 'user'|'assistant'; content: string; sources?: Source[]; loading?: boolean; error?: string; }
+interface ChatMessage { id: string; role: 'user' | 'assistant'; content: string; sources?: Source[]; loading?: boolean; error?: string; }
 
 /** File/image attachment queued in the chat composer. */
 interface PendingAttachment {
@@ -47,9 +48,9 @@ interface PendingAttachment {
 type PanelState = 'collapsed' | 'minimized' | 'expanded';
 const STATE_KEY = 'yaksha_chat_state';
 function readPersistedState(): PanelState {
-  try { const v = localStorage.getItem(STATE_KEY); if (v === 'minimized' || v === 'expanded') return v; } catch {} return 'collapsed';
+  try { const v = localStorage.getItem(STATE_KEY); if (v === 'minimized' || v === 'expanded') return v; } catch { } return 'collapsed';
 }
-function persistState(s: PanelState) { try { localStorage.setItem(STATE_KEY, s); } catch {} }
+function persistState(s: PanelState) { try { localStorage.setItem(STATE_KEY, s); } catch { } }
 
 function SparkleIcon({ size = 24 }: { size?: number }) {
   return (
@@ -76,7 +77,7 @@ function SourceRow({ s, i, onNav }: { s: Source; i: number; onNav: (href: string
         </div>
         <p className="text-xs text-ink line-clamp-1">{s.title}</p>
       </div>
-      <svg className="w-3 h-3 text-ink-faint group-hover:text-accent group-hover:translate-x-0.5 transition-all shrink-0 mt-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+      <svg className="w-3 h-3 text-ink-faint group-hover:text-accent group-hover:translate-x-0.5 transition-all shrink-0 mt-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6" /></svg>
     </button>
   );
 }
@@ -134,6 +135,15 @@ export default function AskAIButton() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const { isRecording, isProcessing, transcript, startRecording, stopRecording, resetTranscript } = useVoiceTranscription();
+
+  useEffect(() => {
+    // Only populate the query when we have actual spoken text.
+    // The null sentinel from resetTranscript() must not overwrite a typed query.
+    if (transcript && transcript.trim().length > 0) {
+      setQuery(transcript.trim());
+    }
+  }, [transcript]);
 
   useEffect(() => { persistState(panel); }, [panel]);
   useEffect(() => { setAnonCount(isAuthenticated ? 0 : readAnonCount()); }, [isAuthenticated, panel]);
@@ -240,6 +250,9 @@ export default function AskAIButton() {
     const aiMsg: ChatMessage = { id: `a-${Date.now()}`, role: 'assistant', content: '', loading: true };
     setMessages(m => [...m, userMsg, aiMsg]);
     setQuery('');
+    // Reset the voice transcript so the next voice search always triggers the effect,
+    // even if the user speaks the exact same phrase again.
+    resetTranscript();
     // Detach the pending attachments (and their object URLs) into the message
     // send — we keep local state empty after the call returns.
     const sending = attachments.slice();
@@ -267,7 +280,7 @@ export default function AskAIButton() {
       // Put the attachments back so the user can retry without re-adding.
       setAttachments(sending);
     } finally { setIsLoading(false); }
-  }, [query, isLoading, isAuthenticated, openModal, attachments]);
+  }, [query, isLoading, isAuthenticated, openModal, attachments, resetTranscript]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } };
   const reset = () => { setMessages([]); setQuery(''); };
@@ -295,6 +308,8 @@ export default function AskAIButton() {
     ? 'fixed inset-4 sm:inset-6 md:inset-10 lg:inset-16'
     : 'fixed bottom-6 right-6 w-[380px] max-w-[calc(100vw-32px)]';
 
+
+
   return (
     <>
       {isExpanded && (<div className="search-overlay z-[59] transition-opacity duration-300" onClick={() => setPanel('minimized')} aria-hidden="true" />)}
@@ -310,20 +325,20 @@ export default function AskAIButton() {
           <div className="flex items-center gap-0.5">
             {!isAuthenticated && (<span className={`mr-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${quotaExhausted ? 'bg-danger/10 text-danger border-danger/20' : 'bg-mist text-ink-soft border-border'}`}>{Math.max(0, ANON_AI_LIMIT - anonCount)}/{ANON_AI_LIMIT}</span>)}
             {messages.length > 0 && (<button onClick={reset} title="Clear chat" className="px-2 py-1 rounded-md text-[10px] font-medium text-ink-faint hover:text-ink hover:bg-mist transition-colors">Clear</button>)}
-            <button onClick={() => setPanel(isExpanded ? 'minimized' : 'collapsed')} title={isExpanded ? 'Minimize' : 'Collapse'} className="w-7 h-7 rounded-md text-ink-faint hover:text-ink hover:bg-mist transition-colors flex items-center justify-center" aria-label="Minimize"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+            <button onClick={() => setPanel(isExpanded ? 'minimized' : 'collapsed')} title={isExpanded ? 'Minimize' : 'Collapse'} className="w-7 h-7 rounded-md text-ink-faint hover:text-ink hover:bg-mist transition-colors flex items-center justify-center" aria-label="Minimize"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12" /></svg></button>
             <button onClick={() => setPanel(isExpanded ? 'minimized' : 'expanded')} title={isExpanded ? 'Shrink' : 'Expand'} className="w-7 h-7 rounded-md text-ink-faint hover:text-ink hover:bg-mist transition-colors flex items-center justify-center" aria-label="Expand">
               {isExpanded
-                ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
-                : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+                ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" /><line x1="14" y1="10" x2="21" y2="3" /><line x1="3" y1="21" x2="10" y2="14" /></svg>
+                : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" /></svg>
               }
             </button>
-            <button onClick={() => setPanel('collapsed')} title="Close (Esc)" className="w-7 h-7 rounded-md text-ink-faint hover:text-danger hover:bg-danger/10 transition-colors flex items-center justify-center" aria-label="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+            <button onClick={() => setPanel('collapsed')} title="Close (Esc)" className="w-7 h-7 rounded-md text-ink-faint hover:text-danger hover:bg-danger/10 transition-colors flex items-center justify-center" aria-label="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg></button>
           </div>
         </div>
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-bg/40 min-h-0">
           {messages.length === 0 && quotaExhausted && (
             <div className="text-center py-8 space-y-3">
-              <div className="w-12 h-12 mx-auto rounded-2xl bg-accent/10 border border-accent/20 flex items-center justify-center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-accent"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+              <div className="w-12 h-12 mx-auto rounded-2xl bg-accent/10 border border-accent/20 flex items-center justify-center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-accent"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg></div>
               <p className="text-sm font-semibold text-ink">Sign in to continue</p>
               <p className="text-[11px] text-ink-soft max-w-xs mx-auto">You have used your {ANON_AI_LIMIT} free AI searches. Sign in for unlimited access.</p>
               <button onClick={() => openModal('signin')} className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-accent text-accent-text text-xs font-semibold hover:bg-accent-hover transition-colors">Sign in</button>
@@ -331,7 +346,7 @@ export default function AskAIButton() {
           )}
           {messages.length === 0 && !quotaExhausted && (
             <div className="text-center py-6 space-y-2.5">
-              <div className="w-12 h-12 mx-auto rounded-2xl bg-accent/10 border border-accent/20 flex items-center justify-center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-accent"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
+              <div className="w-12 h-12 mx-auto rounded-2xl bg-accent/10 border border-accent/20 flex items-center justify-center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-accent"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg></div>
               <p className="text-sm font-medium text-ink">How can I help?</p>
               <p className="text-[11px] text-ink-faint">I will search FAQs, Zoom transcripts, and community posts.</p>
               <div className="flex flex-wrap gap-1.5 justify-center pt-1">
@@ -395,6 +410,16 @@ export default function AskAIButton() {
             </button>
             <div className="flex-1">
               <textarea ref={inputRef} value={query} onChange={e => setQuery(e.target.value)} onKeyDown={handleKeyDown} placeholder={quotaExhausted ? 'Sign in to continue...' : 'Ask the FAQ Assistant...'} rows={1} disabled={quotaExhausted} className="w-full bg-bg rounded-2xl border border-border px-4 py-2.5 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:border-accent/50 focus:ring-2 focus:ring-accent/15 resize-none leading-6 max-h-[120px] disabled:opacity-50 disabled:cursor-not-allowed transition-all" />
+              <button
+                type="button"
+                onClick={isRecording ? stopRecording : startRecording}
+                disabled={isProcessing}
+                className={`p-2 rounded-full transition-all ${isRecording ? 'bg-red-500 text-white animate-pulse' : 'text-purple-600 hover:bg-purple-50'
+                  }`}
+                title={isRecording ? "Stop recording" : "Record with microphone"}
+              >
+                {isRecording ? '🛑' : '🎙️'}
+              </button>
             </div>
             <button onClick={send} disabled={(query.trim().length < 3 && attachments.length === 0) || isLoading || quotaExhausted} title="Send (Enter)" className="shrink-0 w-9 h-9 rounded-full bg-accent hover:bg-accent-hover active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-md shadow-accent/25 flex items-center justify-center" aria-label="Send message"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg></button>
           </div>

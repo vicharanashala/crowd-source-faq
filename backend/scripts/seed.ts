@@ -113,24 +113,31 @@ const seed = async () => {
       console.log(`  Found ${allFaqs.length} FAQs in faqs.json`);
 
       let inserted = 0, skipped = 0;
-      for (let i = 0; i < allFaqs.length; i++) {
-        const faq = allFaqs[i];
-        const existing = await FAQ.findOne({ question: faq.question });
-        if (existing) { skipped++; continue; }
+      const BATCH_SIZE = 15;
+      for (let i = 0; i < allFaqs.length; i += BATCH_SIZE) {
+        const batch = allFaqs.slice(i, i + BATCH_SIZE);
+        await Promise.all(batch.map(async (faq) => {
+          try {
+            const existing = await FAQ.findOne({ question: faq.question });
+            if (existing) { skipped++; return; }
 
-        const embedding = await generateEmbedding(`Section: ${faq.category ?? faq.section ?? 'General'}. Question: ${faq.question}. Answer: ${faq.answer}`);
-        await FAQ.create({
-          question: faq.question,
-          answer: faq.answer,
-          category: faq.category ?? faq.section ?? 'General',
-          embedding,
-          searchCount: 0,
-          // Tie every newly-seeded FAQ to the default program so the
-          // public home page actually has data to render.
-          batchId: defaultBatch._id,
-        });
-        inserted++;
-        if ((i + 1) % 10 === 0) console.log(`  Processed ${i + 1}/${allFaqs.length} (${inserted} inserted, ${skipped} skipped)`);
+            const embedding = await generateEmbedding(`Section: ${faq.category ?? faq.section ?? 'General'}. Question: ${faq.question}. Answer: ${faq.answer}`);
+            await FAQ.create({
+              question: faq.question,
+              answer: faq.answer,
+              category: faq.category ?? faq.section ?? 'General',
+              embedding,
+              searchCount: 0,
+              // Tie every newly-seeded FAQ to the default program so the
+              // public home page actually has data to render.
+              batchId: defaultBatch._id,
+            });
+            inserted++;
+          } catch (e: any) {
+            console.error(`  Error seeding FAQ "${faq.question}": ${e.message}`);
+          }
+        }));
+        console.log(`  Processed ${Math.min(i + BATCH_SIZE, allFaqs.length)}/${allFaqs.length} (${inserted} inserted, ${skipped} skipped)`);
       }
 
       console.log(`  ✓ ${inserted} inserted, ${skipped} skipped`);

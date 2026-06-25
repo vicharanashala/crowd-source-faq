@@ -71,11 +71,16 @@ import { clusterAllActiveBatches } from './utils/ai/categoryClusterer.js';
 import * as Sentry from '@sentry/node';
 import { expressIntegration } from '@sentry/node';
 
-// Load environment variables (.env + .env.local overrides)
-dotenv.config();
-dotenv.config({ path: '.env.local' });
+// Load environment variables
+// .env is loaded first as the base; .env.local is loaded second with override:true
+// so any variable set in .env.local always wins — this is how the local MongoDB URI
+// injected by run.sh into .env.local takes precedence over the placeholder in .env.
+dotenv.config({ path: '.env' });
+dotenv.config({ path: '.env.local', override: true });
 
 // Initialize Sentry
+// Cast needed because @sentry/node v10 moved `dsn` from BaseNodeOptions
+// to the parent Options<> type — the cast keeps runtime behaviour identical.
 Sentry.init({
   dsn: process.env.SENTRY_DSN,
   environment: process.env.NODE_ENV ?? 'development',
@@ -83,7 +88,7 @@ Sentry.init({
     expressIntegration(),
   ],
   tracesSampleRate: 0.1, // 10% of transactions sampled
-});
+} as Parameters<typeof Sentry.init>[0]);
 
 // Track unhandled promise rejections
 process.on('unhandledRejection', (reason) => {
@@ -144,8 +149,8 @@ app.use(cors({
 
     // Check if the origin is in our whitelist or is a dynamic Vercel preview branch
     // Vercel preview deployments — only in non-production
-  const isVercelPreview = process.env.NODE_ENV !== 'production' && origin.endsWith('.vercel.app');
-  if (allowedOrigins.indexOf(origin) !== -1 || isVercelPreview) {
+    const isVercelPreview = process.env.NODE_ENV !== 'production' && origin.endsWith('.vercel.app');
+    if (allowedOrigins.indexOf(origin) !== -1 || isVercelPreview) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
@@ -223,7 +228,7 @@ app.use('/api/courses', courseRoutes);
 app.use('/api', enrollmentRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/feature-flags', featureFlagRoutes);
-app.use('/api/documents',       documentRouter);
+app.use('/api/documents', documentRouter);
 app.use('/api/admin/documents', documentAdminRouter);
 app.use('/api/welcome', welcomeRoutes);
 app.use('/api/admin/welcome', adminWelcomeRoutes);
@@ -233,7 +238,7 @@ app.use('/api/admin/timeline-steps', adminTimelineRoutes);
 // v1.65 — Global app settings (Golden Ticket cooldown, penalty
 // multiplier). Two routers: admin-only at /api/admin/settings and
 // public-safe subset at /api/public/settings.
-app.use('/api/admin/settings',  appSettingsAdminRouter);
+app.use('/api/admin/settings', appSettingsAdminRouter);
 app.use('/api/public/settings', appSettingsPublicRouter);
 
 // 6. Health Check Endpoint
@@ -297,10 +302,16 @@ const PORT = process.env.PORT || 6767;
 function validateEnv(): void {
   const errors: string[] = [];
 
-  // Required: MONGODB_URI
-  const mongoUri = process.env.MONGODB_URI;
+  // Required: MONGODB_URI (or MONGO_URI / DATABASE_URL aliases)
+  // connectDB has a hardcoded local fallback, so a missing URI is only a warning
+  // in development — it will attempt mongodb://127.0.0.1:27017/crowd_source_faq.
+  const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI || process.env.DATABASE_URL;
   if (!mongoUri) {
-    errors.push('MONGODB_URI is required');
+    if (process.env.NODE_ENV === 'production') {
+      errors.push('MONGODB_URI is required in production');
+    } else {
+      logger.warn('[validateEnv] MONGODB_URI / MONGO_URI / DATABASE_URL not set — connectDB will use local fallback (mongodb://127.0.0.1:27017/crowd_source_faq). Set MONGODB_URI in backend/.env.local to suppress this warning.');
+    }
   } else if (!/^mongodb(\+srv)?:\/\/.+/.test(mongoUri)) {
     errors.push('MONGODB_URI must be a mongodb:// or mongodb+srv:// URL');
   }
@@ -349,7 +360,7 @@ function validateEnv(): void {
   }
 
   // Optional: Zoom OAuth (lazy — only validated when Zoom routes are first used)
-  const zoomClientId     = process.env.ZOOM_CLIENT_ID;
+  const zoomClientId = process.env.ZOOM_CLIENT_ID;
   const zoomClientSecret = process.env.ZOOM_CLIENT_SECRET;
   if (zoomClientId !== undefined && zoomClientSecret === undefined) {
     errors.push('ZOOM_CLIENT_SECRET is required when ZOOM_CLIENT_ID is provided');
@@ -521,7 +532,7 @@ async function gracefulShutdown(signal: string): Promise<void> {
   // every restart. The followup "shutdown complete" line is
   // INFO (so it doesn't double-ping).
   shutdownLog.alert('shutdown initiated', { signal });
-  Sentry.close(2000).catch((err) => {
+  Sentry.close(2000).catch((err: unknown) => {
     logger.warn(`[shutdown] Sentry flush failed: ${(err as Error).message}`);
   }); // flush Sentry within 2s
 

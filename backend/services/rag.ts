@@ -115,6 +115,32 @@ async function searchFaqs(embedding: number[], query: string, limit: number): Pr
     scoreMap.set(id, (scoreMap.get(id) ?? 0) + rrf(i));
     docs.set(id, d as Record<string, unknown>);
   });
+
+  // Local MongoDB fallback: $vectorSearch and $text indexes are Atlas-only.
+  // When both return empty (e.g., local 127.0.0.1 dev environment), fall back
+  // to a simple keyword regex search so the RAG pipeline still returns results.
+  if (scoreMap.size === 0) {
+    const keywords = query.trim().split(/\s+/).filter(Boolean);
+    const regexPattern = keywords.map((k) => `(?=.*${k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`).join('');
+    const regex = new RegExp(regexPattern, 'i');
+    const fallback = await db.collection('yaksha_faq_faqs').find(
+      { $or: [{ question: regex }, { answer: regex }, { category: regex }] },
+      { projection: { _id: 1, question: 1, answer: 1, category: 1, trustLevel: 1 } }
+    ).limit(limit).toArray().catch((err) => {
+      logger.warn(`[rag] searchFaqs keyword fallback failed: ${(err as Error).message}`);
+      return [];
+    });
+    logger.info(`[rag] searchFaqs used local keyword fallback — found ${fallback.length} results`);
+    return fallback.map((d, i) => ({
+      _id: d._id,
+      question: String(d.question ?? ''),
+      answer: String(d.answer ?? ''),
+      category: d.category as string | undefined,
+      trustLevel: d.trustLevel as string | undefined,
+      score: rrf(i), // assign RRF-equivalent score
+    }));
+  }
+
   return [...scoreMap.entries()]
     .sort((a, b) => b[1] - a[1])
     .slice(0, limit)
@@ -172,6 +198,29 @@ async function searchCommunity(embedding: number[], query: string, limit: number
     scoreMap.set(id, (scoreMap.get(id) ?? 0) + rrf(i));
     docs.set(id, d as Record<string, unknown>);
   });
+
+  // Local MongoDB fallback — mirrors the searchFaqs fallback above.
+  if (scoreMap.size === 0) {
+    const keywords = query.trim().split(/\s+/).filter(Boolean);
+    const regexPattern = keywords.map((k) => `(?=.*${k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`).join('');
+    const regex = new RegExp(regexPattern, 'i');
+    const fallback = await db.collection('yaksha_faq_communityposts').find(
+      { $or: [{ title: regex }, { body: regex }] },
+      { projection: { _id: 1, title: 1, body: 1, status: 1 } }
+    ).limit(limit).toArray().catch((err) => {
+      logger.warn(`[rag] searchCommunity keyword fallback failed: ${(err as Error).message}`);
+      return [];
+    });
+    logger.info(`[rag] searchCommunity used local keyword fallback — found ${fallback.length} results`);
+    return fallback.map((d, i) => ({
+      _id: d._id,
+      title: String(d.title ?? ''),
+      body: String(d.body ?? ''),
+      status: String(d.status ?? ''),
+      score: rrf(i),
+    }));
+  }
+
   return [...scoreMap.entries()]
     .sort((a, b) => b[1] - a[1])
     .slice(0, limit)
