@@ -85,6 +85,20 @@ function getRedis(): CacheClient | null {
 }
 
 function getLocalRedisClient(): CacheClient | null {
+  // v1.71 — guard against the "prod has no Redis container" footgun.
+  // Before this, prod would silently attempt redis://127.0.0.1:6379 on
+  // every cache miss (Upstash REST errors switch us to local fallback).
+  // Each attempt stalls the request for ~10s on ECONNREFUSED, which
+  // manifests as 502 from nginx via proxy_read_timeout. Now: only attempt
+  // the local fallback in dev, or when the operator has explicitly set
+  // REDIS_LOCAL_URL. In prod without that var we return null and the
+  // cache becomes a no-op — slower, but the site stays up.
+  const isDev = process.env.NODE_ENV === 'development';
+  const localUrlExplicit = !!process.env.REDIS_LOCAL_URL;
+  if (!isDev && !localUrlExplicit) {
+    logger.warn('[cache] Skipping local Redis fallback (NODE_ENV=production and REDIS_LOCAL_URL not set). Cache will be a no-op.');
+    return null;
+  }
   try {
     const localUrl = process.env.REDIS_LOCAL_URL || 'redis://127.0.0.1:6379';
     const localIo = new IORedis(localUrl, {

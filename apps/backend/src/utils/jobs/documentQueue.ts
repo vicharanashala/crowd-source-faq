@@ -46,6 +46,19 @@ let queueFailed = false;
 function getRedisUrl(): string {
   const config = loadConfig();
   const fallback = process.env.REDIS_LOCAL_TCP_URL || 'redis://127.0.0.1:6379';
+  // v1.71 — guard against the prod-has-no-Redis-container footgun. Without
+  // this, every failed BullMQ connection attempt in prod resolves to
+  // redis://127.0.0.1:6379 and stalls, with the failure handler logging
+  // noise while the HTTP server keeps responding slowly. In prod without
+  // REDIS_LOCAL_TCP_URL we return empty string, which causes
+  // buildConnectionOptions() to return null and startDocumentWorker() to
+  // disable the queue cleanly (uploads return 503, which is documented
+  // behaviour for "no queue configured").
+  const isDev = process.env.NODE_ENV === 'development';
+  const localUrlExplicit = !!process.env.REDIS_LOCAL_TCP_URL;
+  if (!isDev && !localUrlExplicit) {
+    return '';
+  }
   if (useLocalFallback) {
     return fallback;
   }

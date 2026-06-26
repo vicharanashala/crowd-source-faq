@@ -29,7 +29,12 @@ export function validateEnv(): void {
   }
   if (!process.env.DISCORD_ADMIN_PASSPHRASE) {
     if (process.env.NODE_ENV === 'production') {
-      errors.push('DISCORD_ADMIN_PASSPHRASE is required in production');
+      // v1.71 — downgraded from hard error to warning. The Discord admin
+      // command gate re-checks per request (see integrations/discord/), so a
+      // missing secret only disables the Discord admin surface, not the whole
+      // site. Hard-exiting here used to 502 the entire app when Infisical
+      // was missing a single optional secret.
+      logger.error('[validateEnv] DISCORD_ADMIN_PASSPHRASE not set — Discord admin commands will reject all requests until configured.');
     } else {
       logger.warn('[validateEnv] DISCORD_ADMIN_PASSPHRASE not set — falling back to "adminpassphrase" as default.');
     }
@@ -73,7 +78,12 @@ export function validateEnv(): void {
   }
 
   if (process.env.NODE_ENV !== 'development' && !process.env.ZOOM_WEBHOOK_SECRET_TOKEN) {
-    errors.push('ZOOM_WEBHOOK_SECRET_TOKEN is required in non-development environments');
+    // v1.71 — downgraded from hard error to warning. The Zoom webhook
+    // handler verifies the signature per-request (zoom.webhook.verifySignature
+    // in config); with no secret it will simply reject every Zoom callback,
+    // which is fail-closed behaviour. Hard-exiting the whole backend when
+    // Zoom isn't configured caused 502s on every page load.
+    logger.error('[validateEnv] ZOOM_WEBHOOK_SECRET_TOKEN not set — Zoom webhooks will be rejected until configured.');
   }
 
   // v1.71 — GCS image storage. Soft-check during the Cloudinary→GCS
@@ -96,4 +106,10 @@ export function validateEnv(): void {
     errors.forEach(e => logger.error(`  - ${e}`));
     process.exit(1);
   }
+
+  // v1.71 — Fingerprint log on successful validation. Makes "did the
+  // backend even start" instantly answerable from deploy logs without
+  // needing to grep for individual env var names. Counts only, never
+  // values, so safe to leave in prod logs.
+  logger.info(`[validateEnv] OK env=${process.env.NODE_ENV ?? 'development'} required_keys_present=${['MONGODB_URI','JWT_SECRET'].filter(k => process.env[k]).length}/2`);
 }
