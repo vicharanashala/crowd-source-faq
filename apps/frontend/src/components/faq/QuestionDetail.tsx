@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { FAQItem, getQuestionTitle, getAnswerText, formatDate, getCategoryIcon, formatCategoryName, TrustBadge } from './faqUtils';
 import ReportFAQButton from './ReportFAQButton';
 import FreshnessBadge from '../faq/FreshnessBadge';
@@ -11,7 +11,34 @@ interface QuestionDetailProps {
   backLabel?: string;
 }
 
+function getIntentLabel(title: string): string {
+  const q = title.toLowerCase();
+  if (/\b(when|date|deadline|timeline|schedule|last date)\b/.test(q)) return 'Timeline';
+  if (/\b(how|apply|submit|process|steps|procedure)\b/.test(q)) return 'Process';
+  if (/\b(who|contact|mentor|admin|coordinator)\b/.test(q)) return 'Contact';
+  if (/\b(what|which|where|why)\b/.test(q)) return 'Information';
+  return 'General';
+}
+
+function getPriorityLabel(item: FAQItem): string {
+  const title = getQuestionTitle(item).toLowerCase();
+  const answer = getAnswerText(item).toLowerCase();
+  const text = `${title} ${answer}`;
+  let score = 0;
+
+  if (/\b(deadline|urgent|last date|noc|certificate|registration|submit|approval)\b/.test(text)) score += 3;
+  if (/\b(when|how|required|missing|issue|problem|error|delay)\b/.test(text)) score += 2;
+  if ((item as any)?.reviewStatus === 'pending_review') score += 2;
+  if ((item as any)?.freshnessTier === 'volatile') score += 1;
+
+  if (score >= 5) return 'Critical';
+  if (score >= 3) return 'High';
+  if (score >= 1) return 'Medium';
+  return 'Low';
+}
+
 export default function QuestionDetail({ item, relatedItems, onBack, onSelectRelated, backLabel }: QuestionDetailProps) {
+  const [feedback, setFeedback] = useState<'yes' | 'no' | null>(null);
   const title = getQuestionTitle(item);
   const prefix = item.questionNumber ? `${item.questionNumber}. ` : '';
   const answer = getAnswerText(item);
@@ -19,6 +46,8 @@ export default function QuestionDetail({ item, relatedItems, onBack, onSelectRel
   const sourceLabel = item?.source ? (item.source === 'faq' ? 'FAQ' : 'Community') : '';
   const trustLevel = item?.trustLevel;
   const highlight = answer ? answer.split('. ').slice(0, 1).join('. ') : '';
+  const intentLabel = getIntentLabel(title);
+  const priorityLabel = getPriorityLabel(item);
 
   return (
     <div className="grid lg:grid-cols-[260px_1fr] gap-6">
@@ -34,7 +63,7 @@ export default function QuestionDetail({ item, relatedItems, onBack, onSelectRel
         </div>
 
         <div className="rounded-2xl border border-border/70 bg-card/80 p-4">
-          <p className="text-xs font-semibold text-ink-faint uppercase tracking-wide">Related questions</p>
+          <p className="text-xs font-semibold text-ink-faint uppercase tracking-wide">You may also need</p>
           <div className="mt-3 space-y-2">
             {relatedItems.length === 0 && (
               <p className="text-xs text-ink-soft">No related questions yet.</p>
@@ -64,6 +93,12 @@ export default function QuestionDetail({ item, relatedItems, onBack, onSelectRel
         </button>
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
+          <span className="px-2.5 py-1 rounded-full bg-mist text-[11px] font-semibold text-ink-soft">
+            Priority: {priorityLabel}
+          </span>
+          <span className="px-2.5 py-1 rounded-full bg-mist text-[11px] font-semibold text-ink-soft">
+            Intent: {intentLabel}
+          </span>
           {sourceLabel && (
             <span className="px-2.5 py-1 rounded-full bg-mist text-[11px] font-semibold text-ink-soft">
               {sourceLabel}
@@ -103,9 +138,36 @@ export default function QuestionDetail({ item, relatedItems, onBack, onSelectRel
           </div>
         )}
 
+        <div className="mt-6 rounded-xl border border-border/70 bg-mist/40 p-4">
+          <p className="text-[11px] font-semibold text-ink-faint uppercase tracking-wide">
+            Was this helpful?
+          </p>
+          <div className="mt-3 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setFeedback('yes')}
+              className="px-3 py-1.5 rounded-full border border-border/70 bg-card text-xs text-ink hover:border-accent/50 hover:text-accent transition-colors"
+            >
+              👍 Yes
+            </button>
+            <button
+              type="button"
+              onClick={() => setFeedback('no')}
+              className="px-3 py-1.5 rounded-full border border-border/70 bg-card text-xs text-ink hover:border-accent/50 hover:text-accent transition-colors"
+            >
+              👎 Needs update
+            </button>
+          </div>
+          {feedback && (
+            <p className="mt-2 text-xs text-ink-soft">
+              Thanks — this feedback will help admins identify FAQs that need improvement.
+            </p>
+          )}
+        </div>
+
         {relatedItems.length > 0 && (
           <div className="mt-6">
-            <p className="text-[11px] font-semibold text-ink-faint uppercase tracking-wide">Related questions</p>
+            <p className="text-[11px] font-semibold text-ink-faint uppercase tracking-wide">You may also need</p>
             <div className="mt-2 flex flex-wrap gap-2">
               {relatedItems.map((rel) => (
                 <button
