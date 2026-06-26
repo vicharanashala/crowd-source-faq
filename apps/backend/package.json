@@ -36,7 +36,6 @@
   },
   "dependencies": {
     "@google-cloud/storage": "^7.21.0",
-    "@huggingface/transformers": "^3.8.1",
     "@sentry/node": "^10.55.0",
     "@shamagama/types": "workspace:*",
     "@shamagama/utils": "workspace:*",

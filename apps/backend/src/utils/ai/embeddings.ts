@@ -7,11 +7,6 @@
  * Supports per-program overrides when batchId is supplied.
  */
 
-import {
-  pipeline,
-  FeatureExtractionPipeline,
-  env as transformersEnv,
-} from '@huggingface/transformers';
 import mongoose, { Types } from 'mongoose';
 import AiConfig from '../../modules/ai/ai-config.model.js';
 import { getConfig } from '../../config/runtimeConfig.js';
