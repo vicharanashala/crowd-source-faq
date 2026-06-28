@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import api, { friendlyError } from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
 import { useAuthModal } from '../../context/AuthModalContext';
-import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 
 const ANON_AI_LIMIT = 5;
 const ANON_AI_COUNT_KEY = 'yaksha_anon_ai_count';
@@ -82,7 +81,183 @@ function SourceRow({ s, i, onNav }: { s: Source; i: number; onNav: (href: string
   );
 }
 
-function MessageBubble({ m, onNav }: { m: ChatMessage; onNav: (href: string) => void }) {
+// ── AI Feedback Widget ───────────────────────────────────────────────────────
+// Rendered below each completed assistant message. Collects a star rating
+// and optional comment then POSTs to /api/admin/ai-feedback (public route).
+function AIFeedbackWidget({
+  messageId,
+  question,
+  aiAnswer,
+  sources,
+  onDismiss,
+  onSubmitted,
+}: {
+  messageId: string;
+  question: string;
+  aiAnswer: string;
+  sources: Source[];
+  onDismiss: (id: string) => void;
+  onSubmitted: (id: string) => void;
+}) {
+  const [rating, setRating] = useState(0);
+  const [hovered, setHovered] = useState(0);
+  const [comment, setComment] = useState('');
+  const [showComment, setShowComment] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
+  const [showThanks, setShowThanks] = useState(false);
+
+  // Pick the primary FAQ source if any
+  const faqSource = sources.find((s) => s.kind === 'faq');
+  const hasFaqSource = sources.some((s) => s.kind === 'faq');
+
+  const handleStarClick = (star: number) => {
+    setRating(star);
+    setShowComment(true);
+  };
+
+  const handleSubmit = async () => {
+    if (!rating || loading) return;
+    setLoading(true);
+    try {
+      await api.post('/admin/ai-feedback', {
+        question,
+        aiAnswer,
+        rating,
+        comment: comment.trim(),
+        faqId: faqSource?.id ?? undefined,
+        faqQuestion: faqSource?.title ?? '',
+        hasFaqSource,
+      });
+    } catch {
+      // Silently fail — feedback is best-effort
+    } finally {
+      setLoading(false);
+      setShowThanks(true);
+      // After 2.5 s mark fully done so parent hides widget
+      setTimeout(() => { setDone(true); onSubmitted(messageId); }, 2500);
+    }
+  };
+
+  const handleReportMissingFAQ = async () => {
+    try {
+      await api.post('/search/unresolved', {
+        query: question,
+        feedback: comment.trim() || 'AI answer was not helpful and no FAQ source was found.',
+      });
+    } catch {
+      // best-effort
+    }
+    setShowThanks(true);
+    setTimeout(() => { setDone(true); onSubmitted(messageId); }, 2500);
+  };
+
+  if (done) return null;
+
+  // Thank-you state
+  if (showThanks) {
+    return (
+      <div className="mt-2 rounded-xl border border-border bg-card px-3 py-2.5">
+        <p className="text-xs text-ink-soft text-center">Thanks for your feedback! 🙏</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-2 rounded-xl border border-border bg-card px-3 py-2.5 space-y-2">
+      {/* Dismiss */}
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-ink-faint">Rate this answer</p>
+        <button
+          type="button"
+          onClick={() => onDismiss(messageId)}
+          className="w-5 h-5 flex items-center justify-center rounded text-ink-faint hover:text-ink hover:bg-mist transition-colors"
+          title="Dismiss"
+        >
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+
+      {/* Stars */}
+      <div className="flex items-center gap-1">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <button
+            key={star}
+            type="button"
+            onClick={() => handleStarClick(star)}
+            onMouseEnter={() => setHovered(star)}
+            onMouseLeave={() => setHovered(0)}
+            className="text-lg leading-none transition-transform hover:scale-110"
+            title={`Rate ${star} out of 5`}
+          >
+            <span className={`${
+              star <= (hovered || rating)
+                ? 'text-amber-400'
+                : 'text-border-medium'
+            } transition-colors duration-100`}>
+              ★
+            </span>
+          </button>
+        ))}
+        {rating > 0 && (
+          <span className="ml-1 text-[10px] text-ink-faint">
+            {rating === 5 ? 'Perfect!' : rating === 4 ? 'Good' : rating === 3 ? 'OK' : rating === 2 ? 'Poor' : 'Bad'}
+          </span>
+        )}
+      </div>
+
+      {/* Comment (expands after star click) */}
+      {showComment && (
+        <div className="space-y-1.5">
+          <textarea
+            value={comment}
+            onChange={(e) => setComment(e.target.value.slice(0, 500))}
+            placeholder="What could be better? (optional)"
+            rows={2}
+            className="w-full text-xs bg-bg border border-border rounded-lg px-2.5 py-2 text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/20 resize-none transition-all"
+          />
+          <div className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={loading}
+              className="flex items-center gap-1 px-3 py-1 rounded-full bg-accent text-accent-text text-[11px] font-semibold hover:bg-accent/90 disabled:opacity-50 transition-colors"
+            >
+              {loading ? (
+                <><span className="w-2.5 h-2.5 rounded-full border border-white/40 border-t-white animate-spin inline-block" />Sending…</>
+              ) : 'Submit'}
+            </button>
+            {!hasFaqSource && rating <= 2 && (
+              <button
+                type="button"
+                onClick={handleReportMissingFAQ}
+                className="text-[10px] text-accent hover:text-accent/80 underline transition-colors"
+              >
+                Report as missing FAQ →
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MessageBubble({
+  m,
+  onNav,
+  onFeedback,
+}: {
+  m: ChatMessage;
+  onNav: (href: string) => void;
+  onFeedback?: {
+    question: string;
+    onDismiss: (id: string) => void;
+    onSubmitted: (id: string) => void;
+  };
+}) {
   if (m.role === 'user') {
     return (<div className="flex justify-end"><div className="max-w-[80%] px-3.5 py-2 rounded-2xl rounded-br-md bg-accent text-accent-text text-sm shadow-sm shadow-accent/20">{m.content}</div></div>);
   }
@@ -113,6 +288,16 @@ function MessageBubble({ m, onNav }: { m: ChatMessage; onNav: (href: string) => 
             {m.sources.map((s, i) => <SourceRow key={`${s.id}-${i}`} s={s} i={i} onNav={onNav} />)}
           </div>
         )}
+        {onFeedback && (
+          <AIFeedbackWidget
+            messageId={m.id}
+            question={onFeedback.question}
+            aiAnswer={m.content}
+            sources={m.sources ?? []}
+            onDismiss={onFeedback.onDismiss}
+            onSubmitted={onFeedback.onSubmitted}
+          />
+        )}
       </div>
     </div>
   );
@@ -131,16 +316,15 @@ export default function AskAIButton() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [attachError, setAttachError] = useState<string | null>(null);
+  // Track which message IDs have had feedback submitted or dismissed
+  const [submittedFeedback, setSubmittedFeedback] = useState<Set<string>>(new Set());
+  const [dismissedFeedback, setDismissedFeedback] = useState<Set<string>>(new Set());
+  // Track the user question that produced each assistant message (by assistant message ID)
+  const questionForMsg = useRef<Map<string, string>>(new Map());
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  // H36 — ref-mirrored attachments so the unmount cleanup can revoke
-  // the LATEST preview URLs, not just the empty array captured at mount.
-  const attachmentsRef = useRef<PendingAttachment[]>([]);
-  // H37 — in-flight ref so back-to-back Enter presses can't both pass the
-  // isLoading guard before `setIsLoading(true)` commits.
-  const sendInFlightRef = useRef(false);
 
   useEffect(() => { persistState(panel); }, [panel]);
   useEffect(() => { setAnonCount(isAuthenticated ? 0 : readAnonCount()); }, [isAuthenticated, panel]);
@@ -230,42 +414,30 @@ export default function AskAIButton() {
     });
   };
 
-  // H36 — keep attachmentsRef in sync so the unmount cleanup sees the
-  // latest URLs. Without this, the []-deps cleanup reads the FIRST
-  // render's empty array and leaks any URLs created later.
-  useEffect(() => { attachmentsRef.current = attachments; }, [attachments]);
-  useEffect(() => () => {
-    attachmentsRef.current.forEach((a) => { if (a.previewUrl) URL.revokeObjectURL(a.previewUrl); });
+  // Clean up object URLs on unmount or panel close.
+  useEffect(() => {
+    return () => { attachments.forEach((a) => { if (a.previewUrl) URL.revokeObjectURL(a.previewUrl); }); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // H38 — body scroll lock only when the panel is fully expanded. In the
-  // minimized corner state we leave scroll alone so the page stays usable
-  // behind the panel.
-  useBodyScrollLock(panel === 'expanded');
 
   const send = useCallback(async () => {
     const q = query.trim();
     // Need at least a question OR an attachment to send.
     if ((q.length < 3 && attachments.length === 0) || isLoading) return;
-    // H37 — guard with ref in addition to state. State guards race
-    // because the second invocation reads `isLoading` BEFORE the first
-    // call's `setIsLoading(true)` commits. Refs don't re-render.
     if (!isAuthenticated && readAnonCount() >= ANON_AI_LIMIT) { openModal('signin'); return; }
-    if (sendInFlightRef.current) return;
-    sendInFlightRef.current = true;
     const hasAttachments = attachments.length > 0;
     const displayContent = q || (hasAttachments ? '(attachment)' : '');
     const userMsg: ChatMessage = { id: `u-${Date.now()}`, role: 'user', content: displayContent };
     const aiMsg: ChatMessage = { id: `a-${Date.now()}`, role: 'assistant', content: '', loading: true };
-    // H37 — flip the spinner BEFORE the state mutations so the ref guard
-    // and the isLoading guard both see "in flight" on the next event tick.
-    setIsLoading(true);
+    // Map the assistant message ID to the user question so the widget can reference it
+    questionForMsg.current.set(aiMsg.id, q || displayContent);
     setMessages(m => [...m, userMsg, aiMsg]);
     setQuery('');
     // Detach the pending attachments (and their object URLs) into the message
     // send — we keep local state empty after the call returns.
     const sending = attachments.slice();
     setAttachments([]);
+    setIsLoading(true);
     try {
       let res;
       if (hasAttachments) {
@@ -287,10 +459,7 @@ export default function AskAIButton() {
       setMessages(m => m.map(msg => msg.id === aiMsg.id ? { ...msg, content: '', loading: false, error: friendlyError(err, 'Search failed. Please try again.') } : msg));
       // Put the attachments back so the user can retry without re-adding.
       setAttachments(sending);
-    } finally {
-      sendInFlightRef.current = false;
-      setIsLoading(false);
-    }
+    } finally { setIsLoading(false); }
   }, [query, isLoading, isAuthenticated, openModal, attachments]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } };
@@ -363,7 +532,27 @@ export default function AskAIButton() {
               </div>
             </div>
           )}
-          {messages.map(m => <MessageBubble key={m.id} m={m} onNav={handleSourceNav} />)}
+          {messages.map(m => {
+            // Show feedback widget on completed assistant messages only
+            const showWidget =
+              m.role === 'assistant' &&
+              !m.loading &&
+              !m.error &&
+              !submittedFeedback.has(m.id) &&
+              !dismissedFeedback.has(m.id);
+            return (
+              <MessageBubble
+                key={m.id}
+                m={m}
+                onNav={handleSourceNav}
+                onFeedback={showWidget ? {
+                  question: questionForMsg.current.get(m.id) ?? '',
+                  onDismiss: (id) => setDismissedFeedback(prev => new Set([...prev, id])),
+                  onSubmitted: (id) => setSubmittedFeedback(prev => new Set([...prev, id])),
+                } : undefined}
+              />
+            );
+          })}
         </div>
         {/* Hidden file input — triggered by the + button below. */}
         <input
