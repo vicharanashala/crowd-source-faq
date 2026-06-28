@@ -139,12 +139,10 @@ const runVectorSearch = async (collectionName: string, queryEmbedding: number[],
     // pipeline stage it touches, so a $match pre-filter is the
     // only way to scope the search to a single program. When
     // batchIdFilter is null the helper behaves as before.
-    const preFilter: Record<string, unknown>[] = batchIdFilter
-      ? [{ $match: { batchId: batchIdFilter } }]
-      : [];
+    const filterObj: Record<string, unknown> = {};
+    if (batchIdFilter) filterObj.batchId = batchIdFilter;
 
     const pipeline: Record<string, unknown>[] = [
-      ...preFilter,
       {
         $vectorSearch: {
           index: 'vector_index',
@@ -152,6 +150,7 @@ const runVectorSearch = async (collectionName: string, queryEmbedding: number[],
           queryVector: queryEmbedding,
           numCandidates: limit * 10, // Over-fetch for better accuracy before limiting
           limit,
+          ...(Object.keys(filterObj).length > 0 ? { filter: filterObj } : {}),
         },
       },
       {
