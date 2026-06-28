@@ -29,7 +29,7 @@ const generateToken = (id: string): { token: string; jti: string; expiresAt: Dat
 };
 
 const generateRefreshToken = (id: string): { token: string; jti: string; expiresAt: Date } => {
-  const secret = (process.env.JWT_REFRESH_SECRET ?? process.env.JWT_SECRET) as string;
+  const secret = (process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET) as string;
   const expiresIn = '7d';
   const jti = uuidv4();
   const token = jwt.sign({ id, jti }, secret, { expiresIn } as jwt.SignOptions);
@@ -596,7 +596,7 @@ export const refresh = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const secret = (process.env.JWT_REFRESH_SECRET ?? process.env.JWT_SECRET) as string;
+    const secret = (process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET) as string;
     let decoded: { id: string; jti: string };
     try {
       decoded = jwt.verify(refreshToken, secret) as { id: string; jti: string };
