@@ -1,129 +1,172 @@
-# Crowd Source FAQ (Yaksha FAQ Portal)
+# 🔮 Yaksha AI — Gamified FAQ Constellation Portal
 
-Full-stack FAQ portal with semantic vector search, AI-powered community moderation, and an expert promotion layer. Built to handle 1 million registered users.
+🌌 **[Live Demo Portal](https://cs-faq-phase-1-project.vercel.app/)**
 
-GitHub: https://github.com/vicharanashala/crowd-source-faq
-Full reference: [`docs/`](docs/README.md) · [Contributing](./CONTRIBUTING.md) · [Code of Conduct](./CODE_OF_CONDUCT.md) · [License](./LICENSE)
+[![Vercel Deployment](https://img.shields.io/badge/Vercel-Deploy_Live-black.svg?style=for-the-badge&logo=vercel)](https://cs-faq-phase-1-project.vercel.app/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue.svg?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
+[![React 19](https://img.shields.io/badge/React-19.0-blue.svg?style=for-the-badge&logo=react)](https://react.dev/)
+[![Tailwind CSS v4](https://img.shields.io/badge/Tailwind_CSS-v4.0-38bdf8.svg?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com/)
+[![Three.js](https://img.shields.io/badge/Three.js-0.160-black.svg?style=for-the-badge&logo=three.js)](https://threejs.org/)
+[![Groq AI](https://img.shields.io/badge/Groq_AI-Llama_3.3-orange.svg?style=for-the-badge&logo=openai)](https://console.groq.com/)
+[![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-green.svg?style=for-the-badge&logo=supabase)](https://supabase.com/)
+[![Prisma](https://img.shields.io/badge/Prisma-ORM-2D3748.svg?style=for-the-badge&logo=prisma)](https://www.prisma.io/)
 
----
-
-## Vision
-
-**Automate the FAQ lifecycle end-to-end. Zero people in the loop. Reduce the operational FAQ culture.**
-
-Every question a user has has been asked before — and most will be asked again. The right answer should be there before the user finishes typing. The platform achieves this through four zero-touch pillars:
-
-- **Zero-touch ingestion** — Zoom meetings, webhooks, and manual uploads feed the knowledge base without human scheduling, categorising, or approval.
-- **Zero-touch answering** — A 24-hour scheduler matches unanswered posts against the knowledge base; high-confidence matches auto-post, low-confidence escalate to humans.
-- **Zero-touch quality control** — Approved FAQs are re-evaluated every 6 hours; drift, contradictions, and staleness are detected and flagged automatically.
-- **Zero-touch user lifecycle** — Deletion is anonymisation, not destruction. Reputation, attribution, and audit history persist.
-
-The platform is the operator. People handle exceptions, not the steady state.
+Yaksha AI is a premium, full-stack, gamified FAQ portal designed for the **Vicharanashala Internship Program at IIT Ropar**. It moves away from boring, flat text documentation by wrapping FAQ searches inside an interactive space-themed dashboard complete with a 3D coordinate graph, real-time voice synthesis, a live database, and gamification streaks.
 
 ---
 
-## About
+## 🛠️ Architecture Blueprint
 
-Samagama (internally "Yaksha FAQ Portal") turns an organisation's accumulated conversations into a searchable, self-maintaining FAQ. It combines hybrid vector + keyword search with a community Q&A board and a fully automated ingestion pipeline that pulls transcripts from Zoom, extracts Q&A with AI, and indexes them for retrieval in seconds.
+The application employs a decoupled client-server architecture powered by a persistent database connection:
 
-Built for organisations whose community generates more questions than a human team can answer — student cohorts, open-source projects, internal forums, customer-success communities. Target scale: 1 million registered users with constant conversational input.
+```mermaid
+graph TD
+    %% Frontend Components
+    subgraph Client [Vite + React 19 Frontend]
+        UI[TopNavbar / Navigation]
+        Graph[3D FAQ Graph - Three.js/R3F]
+        Chat[Chat Panel - Yaksha AI]
+        Voice[Voice Portal - Speech API]
+        Spurti[Profile Dashboard - XP / Badges]
+    end
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the architecture deep-dive and [docs/PIPELINES.md](docs/PIPELINES.md) for pipeline internals.
+    %% Backend Components
+    subgraph Server [Express.js Backend Engine]
+        API[API Router / Middleware]
+        Limiter[Rate Limiters - express-rate-limit]
+        Auth[JWT Cookie Guardian]
+    end
+
+    %% Integrations
+    subgraph Services [Cloud Integrations]
+        Postgres[(Supabase PostgreSQL)]
+        Groq[Groq API - Llama 3.3 RAG]
+    end
+
+    %% Connections
+    UI --> API
+    Chat -->|POST /api/chat| API
+    Voice -->|Voice Capture| API
+    Graph -->|Focus ID| UI
+    
+    API --> Auth
+    API -->|Prisma Client| Postgres
+    API -->|Fetch Context| Groq
+    
+    style Graph fill:#0b0f19,stroke:#06b6d4,stroke-width:2px
+    style Chat fill:#0b0f19,stroke:#7c3aed,stroke-width:2px
+    style Postgres fill:#071c14,stroke:#3ecf8e,stroke-width:2px
+    style Groq fill:#1f1307,stroke:#f97316,stroke-width:2px
+```
 
 ---
 
-## Tech Stack
+## 🌌 Feature Matrix
 
-| Layer | Technologies |
-|---|---|
-| Frontend | React 18, Vite, TypeScript, Tailwind CSS, Framer Motion, Axios, Recharts, React Router 6, Vitest |
-| Backend | Node.js, Express 4, TypeScript (ESM), Mongoose 8, JWT, bcryptjs, Helmet, CORS, Morgan, Multer, Zod, express-rate-limit, dotenv, OpenAI SDK, Vitest |
-| Database & Storage | MongoDB Atlas (with Vector Search), Upstash Redis (optional), LRU cache, Cloudinary |
-| Search & AI | Xenova/transformers (768-dim local embeddings), Atlas Vector Search, $text search, Reciprocal Rank Fusion |
-| AI Providers | Anthropic, OpenAI, XAI, MiniMax (per-pipeline configurable) |
-| DevOps | Sentry, Ngrok (local webhook tunnel), Twilio (SMS), SMTP, Vitest |
+- **⚛️ 3D FAQ Knowledge Graph**: A coordinates constellation built in Three.js where FAQ articles float as glowing nodes clustered by category. Includes OrbitControls (drag to rotate, scroll to zoom, hover/click nodes).
+- **🧠 Interactive RAG Citations**: When querying Yaksha AI, clickable source badges (e.g. `[FAQ-005]`) are returned under responses. Clicking a source tab pisses the viewport to the 3D FAQ tab and zooms the camera directly onto the target node.
+- **🔮 Yaksha AI Chatbot**: Context-matching, RAG-augmented chatbot powered by Groq's `llama-3.3-70b-versatile`. It has deep knowledge of NOC policies, stipends, Rosetta logs, and team structures, with local keywords fallback if offline.
+- **🎙️ Voice Yaksha Portal**: Hands-free verbal interaction using the Web Speech API (speech recognition input and text-to-speech feedback) complete with a live Canvas frequency visualizer.
+- **🏆 Spurti XP Gamification**: Ranks (Seeker ➔ Scholar ➔ Sage ➔ Oracle), dynamic level bars, streaking mechanisms, and a live cohort leaderboard with disclosure anonymity toggles.
+- **🏅 Achievement Reliquary**: Automatic badge unlock conditions:
+  - `🌱 First Question` (starter badge).
+  - `📚 Bookworm` (saved 10 bookmarks in FAQ explorer).
+  - `🔮 Yaksha's Favorite` (sent 50 chat messages to Yaksha).
+  - `🎯 FAQ Hunter` (read all 24 official FAQs).
+- **📊 Admin Council Panel**: Administrative statistics aggregates, FAQ CRUD controls, and a suggestion moderation queue for user suggestions.
 
 ---
 
-## Quick Start
+## 📁 Repository Structure
 
+```text
+Vicharanshala/
+├── prisma/
+│   ├── schema.prisma      # Supabase PostgreSQL relational schema
+│   └── seed.ts            # Seeding script for 24 FAQs & Admin user
+├── src/
+│   ├── backend/           # Server controllers & routes
+│   │   ├── routes/        # Auth, FAQs, Chat, Leaderboards, Admin
+│   │   └── services/      # Prisma DB client & Groq LLM API client
+│   ├── components/        # React 3D & UI components
+│   │   ├── ThreeScene.tsx      # Interactive 3D particle background
+│   │   ├── YakshaAvatar.tsx    # Pulsing 3D geometric wireframe avatar
+│   │   ├── KnowledgeGraph.tsx  # 3D Three.js FAQ coordinate graph
+│   │   └── ChatInterface.tsx   # Yaksha Chat with RAG citations
+│   ├── context/           # Auth & offline fallback state providers
+│   └── App.tsx            # Navigation coordinator & dashboard layouts
+├── server.ts              # Express server bootstrap (bundling entry)
+└── index.html             # HTML mounting viewport
+```
+
+---
+
+## 🚀 Quick Setup & Seeding
+
+### 1. Prerequisites
+- **Node.js**: Version 18+ (supporting global `fetch`).
+- **PostgreSQL Database**: Setup a free database project on [Supabase](https://supabase.com/).
+- **Groq API Key**: Create a free key in the [Groq Console](https://console.groq.com/).
+
+### 2. Installation
+Clone the repository and install the dependencies:
 ```bash
-./run.sh        # Full-stack runner: env setup, ngrok, backend + frontend
+git clone https://github.com/badgujarkunal93-blip/CS-FAQ-Phase-1-Project.git
+cd Vicharanshala
+npm install --legacy-peer-deps
 ```
 
-`run.sh` prompts for `MONGODB_URI` and `JWT_SECRET` on first run, then saves them to `apps/backend/.env.local`. The script will not overwrite existing values. Session logs are written to `logs/session_*.txt`.
+### 3. Environment Setup
+Create a `.env` file in the root of the `Vicharanshala` directory:
+```env
+PORT=5000
+JWT_SECRET="your_custom_jwt_secret_key"
+GROQ_API_KEY="your_groq_api_key"
 
----
-
-## Key Features
-
-Eight flagship capabilities define this platform:
-
-- **Zoom transcript ingestion with per-user OAuth** — Each user connects their own Zoom account via OAuth. Webhook-fired downloads parse VTT transcripts, extract Q&A pairs via AI, and dual-publish: `ZoomInsight` (admin-reviewed) and `TranscriptKnowledge` (auto-approved, immediately vector-searchable). Includes retry + dead-letter queue for failed meetings and admin backfill for historical meetings. See [docs/PIPELINES.md#4-zoom-ingestion-pipeline](docs/PIPELINES.md).
-- **AI auto-answer pipeline for community posts** — A scheduler (every 24h) — and a one-click **Run AI** button in the admin dashboard — finds unanswered posts and searches **all three knowledge sources in parallel** (FAQ + Community Q&A + Transcript Knowledge). Best match above ≥0.85 confidence auto-posts; 0.60–0.84 queues for human review; below 0.60 (or sensitive content) escalates. When no direct match exists, the LLM is given the top gathered context to synthesize an answer. Per-pipeline AI provider configurable. See [docs/PIPELINES.md#1-auto-answer-pipeline](docs/PIPELINES.md).
-- **FAQ audit pipeline** — A scheduler (every 6h) re-evaluates approved FAQs against the live knowledge base (TranscriptKnowledge + ZoomInsights). Uses AI to judge correctness and emits verdicts: `correct` (≥0.80), `drift_detected` (0.60–0.79), `contradiction` (<0.60), or `stale`. Flagged FAQs land in `/admin/faqs/review` with `reviewStatus='pending_review'`, `flagType='auto'`, and an incremented `reviewCycle`. See [docs/PIPELINES.md#2-faq-audit-pipeline](docs/PIPELINES.md).
-- **FAQ freshness & staleness detection** — Every approved FAQ carries a `freshness_tier` (`evergreen` / `seasonal` / `volatile`) and a per-tier review interval. A daily cron auto-flags FAQs whose last-verified date exceeds the interval, opening a peer-review window on `/admin/faqs/review`. Anyone can vote `still_accurate` / `needs_update`; the threshold auto-verifies, otherwise it escalates to a moderator. `FreshnessBadge` on the public FAQ card surfaces verified-vs-under-review status. See [docs/PIPELINES.md#7-faq-freshness-pipeline](docs/PIPELINES.md).
-- **Golden Ticket — Spurti Points escalation** — A premium user-driven escalation channel. Users spend Spurti Points (SP) to bump a time-sensitive query to the top of the admin queue (higher SP = higher priority). SP is consumed on submission; a 48h cooldown blocks repeat submissions. Admins resolve or reject — no penalty, no ban, just a single unified cooldown rule. Includes a live Escalation Queue (right column on `/golden`) sorted by SP spend, anonymous to non-admin viewers. Toggleable from `/admin/features`.
-- **Batch management + public guest FAQ portal** — FAQs, categories, and analytics are scoped to a `Batch` (cohort, term, program). A first-class `Category` model replaces the old free-text field. Guests land on `/explore/select` to pick a batch, then browse the public FAQ at `/faq` with no account required. Admin can create/archive batches and promote FAQs between them. See [docs/BATCH_MANAGEMENT_PLAN.md](docs/BATCH_MANAGEMENT_PLAN.md).
-- **Schema-driven context fields per support category** — Each support category (`internet`, `camera`, `microphone`, `device`, `power`, `other`) has an admin-editable schema of context fields (text, textarea, number, date, boolean, dropdown). Admins add, edit, reorder, or archive fields from `/admin/support/categories` without redeploying. The frontend renders dynamic inputs from the live schema. See [docs/SCHEMA_DRIVEN_CONTEXT_PLAN.md](docs/SCHEMA_DRIVEN_CONTEXT_PLAN.md).
-- **Soft-delete with anonymization** — Deleting a user never hard-deletes their records. The account is anonymised: `isDeleted=true`, `deletedAt` timestamp, `name` becomes `Deleted User`, `email` is rewritten to a non-routable placeholder, `password` is replaced with a random UUID to break login. All posts, comments, votes, reputation logs, and audit trail entries remain intact — preserving referential integrity, attribution history, and regulatory compliance.
-
-Other capabilities: semantic hybrid search, community Q&A board, reputation system + badges + leaderboard, SpillTheTea event-driven notifications, per-user Zoom OAuth, RAG-powered `/ask-ai` assistant with image + file attachments, soft user lifecycle, experimental feature flags, support tickets (troubleshoot → admin triage → resolution).
-
----
-
-## Admin Dashboard
-
-The admin panel at `/admin` (mounted at `/api/admin/*`) provides telemetry, moderation, and operational control. Key areas:
-
-- **Telemetry & analytics** — live stats, FAQ growth, top categories, search insights, user-activity charts, activity feed, failed-query analytics, unresolved-search tracker
-- **Operational pages** — AdminDashboard, AdminFAQs, FaqReview, AdminFAQAudit, AdminAutoAnswerQueue, AdminCommunity, AdminUsers, AdminModeration, AdminZoomMeetings, AdminZoomInsights, AdminLeaderboard, AdminUnresolvedSearch, AdminAISettings, AdminSettings, AdminLogin
-- **Moderation** — every ban, suspend, warn, and soft-delete recorded in `ModerationLog`; every reputation change (+2 upvote, +5 accepted answer, -2/-5 on removal) recorded in `ReputationLog`
-- **AI pipeline visibility** — unified `PipelineResult` collection (30-day TTL) for both auto-answer and audit outcomes; Zoom health endpoint reports OAuth/API circuit state, cache hit rate, failing-meetings count, dead-letter count, pending-retry count; Prometheus metrics at `/api/metrics` (search latency, cache hits, RAG duration, queue depth)
-
-For the full admin route map and per-page behaviour, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-
----
-
-## User Experience
-
-The user-facing app (`/`, `/faq`, `/community`, `/saved`, `/account`, `/leaderboard`) gives authenticated users full participation in the knowledge loop:
-
-- **Discover** — hybrid semantic + keyword search at `/api/search` (public), semantic suggestions at `/api/search/suggest`, category browsing
-- **Ask the community** — post creation with Zod validation, debounced duplicate detection against the FAQ base (banner + block on match), auto-normalised tags, Cloudinary image attachments
-- **Engage** — upvotes with reputation-farming prevention (reverses on removal), bookmarks at `/saved`, nested comment threads with optimistic UI, accept-answer (locks verified/expert comments from edit), edit/delete own comments, share via clipboard, report and flag-outdated
-- **Notifications** — in-app bell, SpillTheTea event stream (`post_answered`, `post_deleted`, etc.), per-event-type settings, email + SMS delivery
-- **Reputation** — points for accepted answers, badges at thresholds, expert promotion by peer vote, public leaderboard
-- **AI assistant** — RAG-powered `/ask-ai` (5/day anonymous quota via localStorage, unlimited for authenticated users), sources cited, **accepts file and image attachments (max 4 files, 10 MB each) — images sent as vision input, text files inlined into the prompt**
-- **Zoom integration** — per-user OAuth from `/account`, manual `.vtt` / `.txt` / raw-text upload, last-synced status card, no admin required
-- **Search feedback** — "Report missing FAQ" on zero results, admin-promotable to FAQ
-
-For per-route behaviour and field schemas, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-
----
-
-## Project Structure
-
+# Supabase database connection string (use port 5432 for initial setup/seeding)
+DATABASE_URL="postgresql://postgres.[PROJECT_REF]:[PASSWORD]@aws-1-ap-south-1.pooler.supabase.com:5432/postgres"
 ```
-Crowd Source FAQ/
-├── apps/
-│   ├── backend/       # Express + TypeScript API
-│   └── frontend/      # React + Vite SPA
-├── docs/              # Full documentation      
-└── run.sh             # Local dev runner (env setup, ngrok, backend + frontend)
+
+### 4. Push Schema & Seed Database
+Connect to your Supabase instance, create the tables, and seed records:
+```bash
+npm run setup
+```
+*(This commands runs `prisma db push` to synchronize Supabase tables, and runs `prisma/seed.ts` to add the default FAQ cards and the admin account).*
+
+### 5. Run Locally
+Launch the Express backend (port 5000) and the Vite frontend (port 5173) simultaneously:
+```bash
+npm run dev
 ```
 
 ---
 
-## Environment Variables
-
-Required: `MONGODB_URI`, `JWT_SECRET`
-Optional: at least one AI provider key (`ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `XAI_API_KEY` / `MINIMAX_API_KEY`), Zoom OAuth credentials, `CLOUDINARY_*`, `SENTRY_DSN`, Twilio + SMTP for notifications, `UPSTASH_REDIS_*`
-
-See [docs/ARCHITECTURE.md#10-env-variables-reference](docs/ARCHITECTURE.md#10-env-variables-reference) for the full list.
+## 👑 Test Credentials
+Access the admin portal with this pre-seeded account:
+* **Email ID**: `admin@vicharanashala.in`
+* **Password**: `admin123`
 
 ---
 
-## License
+## 🌐 Production Deployment (Vercel)
 
-[MIT](./LICENSE) © 2026 vicharanashala
+When deploying to Vercel:
+1. Link your GitHub repository.
+2. In the **Environment Variables** section, configure the following:
+   * `DATABASE_URL`: Add your Supabase connection string. *For production, use the Transaction Pooler connection URI on port **6543** with `?pgbouncer=true&connection_limit=1`.*
+   * `GROQ_API_KEY`: Your live Groq API key.
+   * `JWT_SECRET`: Any secure random string (e.g. `yaksha_secret_v2_2026`).
+3. Deploy the application. Vercel will build the frontend assets, launch the Express server handlers, and connect persistently to your cloud database!
+
+---
+
+## 🏆 Spurti Rank Progression
+
+| Rank | SP Threshold | Icon |
+| :--- | :--- | :--- |
+| **Seeker** | `0 - 99 SP` | 🪙 |
+| **Scholar** | `100 - 299 SP` | 🛡️ |
+| **Sage** | `300 - 599 SP` | ⚔️ |
+| **Oracle** | `600+ SP` | 👑 |
+<img width="1160" height="637" alt="image" src="https://github.com/user-attachments/assets/b0f2389f-1ec4-46be-9658-f1f1076418b1" />
