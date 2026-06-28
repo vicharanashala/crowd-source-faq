@@ -69,5 +69,13 @@ jobs:
             echo "==> Reloading nginx..."
             sudo systemctl reload nginx
             
-            echo "==> Deployment complete."
+            echo "==> Verifying server health (Waiting for startup)..."
+            sleep 10
+            HEALTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:6767/api/health)
+            if [ "$HEALTH_STATUS" -ne 200 ]; then
+              echo "Server health check failed! HTTP Status: $HEALTH_STATUS. Database might be down or server crashed."
+              exit 1
+            fi
+            
+            echo "==> Deployment complete and server is healthy!"
           DEPLOY

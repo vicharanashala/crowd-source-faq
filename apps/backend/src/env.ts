@@ -1,10 +1,18 @@
 import dotenv from 'dotenv';
 import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-if (fs.existsSync('.env.local')) {
-  const envConfig = dotenv.parse(fs.readFileSync('.env.local'));
+// Load .env relative to the apps/backend directory regardless of execution context
+const envPath = path.resolve(__dirname, '../.env');
+dotenv.config({ path: envPath });
+
+const localEnvPath = path.resolve(__dirname, '../.env.local');
+if (fs.existsSync(localEnvPath)) {
+  const envConfig = dotenv.parse(fs.readFileSync(localEnvPath));
   for (const k in envConfig) {
     process.env[k] = envConfig[k];
   }
