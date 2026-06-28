@@ -1,0 +1,290 @@
+.attendance-split-layout-grid {
+  display: grid;
+  grid-template-columns: 0.9fr 1.1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.attendance-status-panel-card,
+.attendance-breakdown-panel-card {
+  background-color: #121824;
+  border: 1px solid #1e293b;
+  border-radius: 10px;
+  padding: 20px;
+}
+
+.attendance-status-panel-card h3,
+.attendance-breakdown-panel-card h3 {
+  margin: 0 0 16px 0;
+  font-size: 0.95rem;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.section-description-meta {
+  font-size: 0.78rem;
+  color: #64748b;
+  margin: -10px 0 20px 0;
+  line-height: 1.4;
+}
+
+/* --- SVG Radial Circle Gauge Engine Rules --- */
+.radial-gauge-container-pro {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  margin: 24px auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* FIXED: Target ONLY the radial canvas wrapper to preserve sidebar/notification icon orientations */
+svg.radial-svg-canvas {
+  transform: rotate(-90deg) !important;
+}
+
+.gauge-track-trail {
+  fill: transparent;
+  stroke: #1e293b;
+  stroke-width: 8;
+}
+
+.gauge-track-fill-stroke {
+  fill: transparent;
+  stroke-width: 8;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stroke-success {
+  stroke: #10b981;
+  filter: drop-shadow(0 0 4px rgba(16, 185, 129, 0.2));
+}
+.stroke-alert {
+  stroke: #ef4444;
+  filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.2));
+}
+
+.radial-score-labels {
+  position: absolute;
+  text-align: center;
+}
+
+.radial-score-labels h2 {
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+}
+
+.radial-score-labels p {
+  margin: 0;
+  font-size: 0.72rem;
+  color: #475569;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+/* --- Dynamic Status Info Cards Blocks --- */
+.attendance-alert-container-box {
+  background-color: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border-radius: 6px;
+  padding: 10px 12px;
+  display: flex;
+  gap: 8px;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  margin-bottom: 12px;
+}
+
+.attendance-success-container-box {
+  background-color: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border-radius: 6px;
+  padding: 10px 12px;
+  display: flex;
+  gap: 8px;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  margin-bottom: 12px;
+}
+
+.attendance-tip-container-box {
+  background-color: rgba(30, 41, 59, 0.5);
+  border: 1px solid #1e293b;
+  color: #94a3b8;
+  border-radius: 6px;
+  padding: 10px 12px;
+  display: flex;
+  gap: 8px;
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.alert-inline-icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+.tip-inline-icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+  color: #3b82f6;
+}
+
+/* --- Right Side Rows Breakdown Metrics --- */
+.metrics-track-rows-container {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.metric-status-row-item {
+  background-color: #0b0f19;
+  border: 1px solid rgba(255, 255, 255, 0.01);
+  padding: 14px;
+  border-radius: 8px;
+}
+
+.metric-meta-details {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.metric-title-group {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.icon-metric-accent-blue {
+  color: #3b82f6;
+}
+.icon-metric-accent-purple {
+  color: #a855f7;
+}
+
+.metric-title-group h4 {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #ffffff;
+  font-weight: 500;
+}
+
+.metric-title-group p {
+  margin: 2px 0 0 0;
+  font-size: 0.72rem;
+  color: #475569;
+}
+
+.badge-percentage-lbl {
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.lbl-success {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: #34d399;
+}
+.lbl-danger {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #f87171;
+}
+
+/* Straight Linear Fill Tracks */
+.metric-rail-bar-track {
+  height: 5px;
+  background-color: #1e293b;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.metric-rail-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.bg-success {
+  background-color: #10b981;
+}
+.bg-danger {
+  background-color: #ef4444;
+}
+
+/* Functional Interactive Control Bar simulation keys styling */
+.interactive-simulation-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.interactive-simulation-row button {
+  background-color: transparent;
+  border: 1px solid #1e293b;
+  color: #64748b;
+  font-size: 0.7rem;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.interactive-simulation-row button:hover {
+  border-color: #3b82f6;
+  color: #ffffff;
+  background-color: rgba(59, 130, 246, 0.02);
+}
+
+/* ===== PAGE THEMES ===== */
+
+.attendance-page {
+  flex: 1;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+/* DARK */
+.attendance-dark {
+  background: #0f172a;
+  color: white;
+}
+
+/* LIGHT */
+.attendance-light {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.attendance-light .attendance-status-panel-card,
+.attendance-light .attendance-breakdown-panel-card,
+.attendance-light .metric-status-row-item {
+  background: #ffffff;
+  border-color: #e2e8f0;
+}
+
+.attendance-light h3,
+.attendance-light h4,
+.attendance-light .radial-score-labels h2 {
+  color: #0f172a;
+}
+
+.attendance-light .metric-title-group p,
+.attendance-light .section-description-meta,
+.attendance-light .radial-score-labels p {
+  color: #64748b;
+}
+
+.attendance-light .metric-rail-bar-track {
+  background: #e2e8f0;
+}

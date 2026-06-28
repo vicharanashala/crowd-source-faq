@@ -1,0 +1,364 @@
+.page-header {
+  margin-bottom: 20px;
+}
+
+.page-header h2 {
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 700;
+}
+
+.main-content-compact {
+  flex: 1;
+  padding: 16px 32px;
+  background-color: #0b0f19;
+  overflow-y: auto;
+}
+
+.faq-search-card-pro,
+.ask-card-pro {
+  background-color: #121824;
+  border: 1px solid #1e293b;
+  border-radius: 10px;
+  padding: 18px;
+  margin-bottom: 16px;
+}
+
+.filter-label-pro {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: #64748b;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.search-row-layout {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.search-field-pro {
+  flex: 1;
+  background-color: #0b0f19;
+  border: 1px solid #1e293b;
+  border-radius: 6px;
+  padding: 10px 14px;
+  color: #ffffff;
+  font-size: 0.85rem;
+}
+
+.dropdown-selector-pro {
+  background-color: #0b0f19;
+  border: 1px solid #1e293b;
+  border-radius: 6px;
+  padding: 10px 14px;
+  color: #ffffff;
+  width: 160px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.accordions-wrapper-pro {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.accordion-box-pro {
+  background-color: #111827;
+  border: 1px solid rgba(255, 255, 255, 0.01);
+  border-radius: 8px;
+  overflow: hidden;
+  border-left: 2px solid transparent;
+}
+
+.accordion-box-pro.expanded {
+  border-left-color: #4f46e5;
+  background-color: #141b29;
+}
+
+.accordion-header-pro {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  cursor: pointer;
+}
+
+.question-details-pro h4 {
+  margin: 0 0 4px 0;
+  font-size: 0.92rem;
+  color: #ffffff;
+  font-weight: 500;
+}
+
+.badges-strip-pro {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tag-badge-pro {
+  background-color: rgba(79, 70, 229, 0.12);
+  color: #a5b4fc;
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.searches-badge-pro {
+  color: #475569;
+  font-size: 0.7rem;
+}
+
+.points-badge-pro {
+  color: #fbbf24;
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.arrow-indicator-pro {
+  color: #475569;
+  font-size: 1rem;
+}
+
+.accordion-body-pro {
+  padding: 0 16px 14px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.02);
+}
+
+.accordion-body-pro p {
+  color: #94a3b8;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  margin: 10px 0;
+}
+
+.add-answer-btn-pro {
+  background-color: #4f46e5;
+  color: #ffffff;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 14px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.ask-card-pro h3 {
+  margin: 0 0 14px 0;
+  font-size: 1rem;
+  color: #ffffff;
+}
+
+.form-layout-pro {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.form-row-grid-pro {
+  display: flex;
+  gap: 12px;
+}
+
+.input-group-pro {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.input-group-pro.select-box-width {
+  flex: 0 0 200px;
+}
+
+.input-group-pro label {
+  font-size: 0.75rem;
+  color: #475569;
+  font-weight: 600;
+}
+
+.input-group-pro input,
+.input-group-pro select {
+  background-color: #0b0f19;
+  border: 1px solid #1e293b;
+  border-radius: 6px;
+  padding: 10px 12px;
+  color: #ffffff;
+  font-size: 0.85rem;
+}
+
+.dynamic-input-animate {
+  animation: slideDownIn 0.2s ease-out forwards;
+}
+
+@keyframes slideDownIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.submit-btn-pro {
+  align-self: flex-start;
+  background-color: #3b82f6;
+  color: #ffffff;
+  border: none;
+  padding: 8px 18px;
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.faq-current-answer {
+  color: #94a3b8;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  margin: 8px 0 14px 0;
+}
+
+.live-answer-input-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background-color: #0b0f19;
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid #1e293b;
+  margin-top: 8px;
+}
+
+.live-answer-textarea {
+  background-color: #121824;
+  border: 1px solid #1e293b;
+  border-radius: 4px;
+  padding: 10px;
+  color: #ffffff;
+  font-size: 0.85rem;
+  min-height: 60px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.live-answer-textarea:focus {
+  outline: none;
+  border-color: #4f46e5;
+}
+
+.live-answer-actions-row {
+  display: flex;
+  gap: 8px;
+}
+
+.submit-live-answer-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background-color: #10b981;
+  color: #ffffff;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.submit-live-answer-btn:hover {
+  background-color: #059669;
+}
+
+.cancel-live-answer-btn {
+  background-color: transparent;
+  color: #64748b;
+  border: 1px solid #1e293b;
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.cancel-live-answer-btn:hover {
+  background-color: rgba(255, 255, 255, 0.02);
+  color: #ffffff;
+}
+
+.answers-stream-history-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.individual-answer-row-wrapper {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+  padding-bottom: 10px;
+}
+
+.individual-answer-row-wrapper:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.answers-count-badge-pro {
+  color: #3b82f6;
+  font-size: 0.7rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.latest-answer-tag-pill {
+  display: inline-block;
+  background-color: rgba(16, 185, 129, 0.1);
+  color: #34d399;
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  margin-top: 4px;
+  letter-spacing: 0.02em;
+}
+
+.light-mode {
+  background: #f8fafc;
+  color: #111827;
+}
+
+.light-mode .faq-search-card-pro,
+.light-mode .ask-card-pro,
+.light-mode .accordion-box-pro {
+  background: white;
+  color: #111827;
+}
+
+.light-mode .search-field-pro,
+.light-mode .dropdown-selector-pro,
+.light-mode input,
+.light-mode select,
+.light-mode textarea {
+  background: #ffffff;
+  color: #111827;
+  border: 1px solid #d1d5db;
+}
+
+.light-mode .question-details-pro h4,
+.light-mode .ask-card-pro h3 {
+  color: #111827;
+}
+
+.light-mode .faq-current-answer {
+  color: #374151;
+}

@@ -1,0 +1,363 @@
+.page-layout {
+  min-height: 100vh;
+}
+
+.spurti-page {
+  flex: 1;
+  padding: 24px;
+  width: 100%;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.spurti-dark {
+  background: #0f172a;
+}
+
+.spurti-light {
+  background: #f8fafc;
+}
+
+.points-score-huge-value {
+  font-size: 3rem;
+  font-weight: 800;
+  color: #fbbf24;
+  line-height: 1;
+  margin-bottom: 4px;
+  letter-spacing: -0.03em;
+}
+
+.points-sub-title-meta {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  font-weight: 500;
+  margin-bottom: 12px;
+}
+
+.user-level-status-pill-badge {
+  display: inline-block;
+  background-color: rgba(79, 70, 229, 0.15);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  color: #c7d2fe;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 4px 14px;
+  border-radius: 20px;
+  margin-bottom: 20px;
+}
+
+.progress-engine-rail-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 540px;
+  margin: 0 auto 6px auto;
+}
+
+.level-indicator-bounds {
+  font-size: 0.75rem;
+  color: #475569;
+  font-weight: 600;
+  flex: 0 0 90px;
+  text-align: left;
+}
+
+.level-indicator-bounds.text-right {
+  text-align: right;
+}
+
+.pro-linear-progress-track {
+  flex: 1;
+  height: 6px;
+  background-color: #0b0f19;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.pro-linear-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4f46e5 0%, #fbbf24 100%);
+  border-radius: 3px;
+}
+
+.remaining-points-micro-text {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin: 4px 0 0 0;
+}
+
+.gamification-split-layout-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 16px;
+}
+
+.points-rules-panel-card,
+.badges-showcase-panel-card,
+.earnings-history-panel-card {
+  background-color: #121824;
+  border: 1px solid #1e293b;
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.points-rules-panel-card h3,
+.badges-showcase-panel-card h3,
+.earnings-history-panel-card h3 {
+  margin: 0 0 16px 0;
+  font-size: 0.95rem;
+  color: #ffffff;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rules-matrix-table-header {
+  display: flex;
+  padding: 0 8px 8px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #475569;
+  letter-spacing: 0.03em;
+}
+
+.rules-matrix-table-rows-stack {
+  display: flex;
+  flex-direction: column;
+}
+
+.matrix-data-row-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+}
+
+.matrix-data-row-item:last-child {
+  border-bottom: none;
+}
+
+.col-lbl-category {
+  flex: 1.2;
+}
+
+.col-lbl-values {
+  flex: 0.9;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.col-lbl-values.text-right {
+  text-align: right;
+}
+.weight-highlight-amber {
+  color: #fbbf24;
+  font-weight: 600;
+}
+.text-muted-slate {
+  color: #475569;
+}
+
+.category-pill-micro {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.variance-purple {
+  background-color: rgba(147, 51, 234, 0.12);
+  color: #c084fc;
+}
+.variance-red {
+  background-color: rgba(239, 68, 68, 0.12);
+  color: #f87171;
+}
+.variance-green {
+  background-color: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+}
+.variance-blue {
+  background-color: rgba(59, 130, 246, 0.12);
+  color: #60a5fa;
+}
+.variance-yellow {
+  background-color: rgba(234, 179, 8, 0.12);
+  color: #facc15;
+}
+.variance-orange {
+  background-color: rgba(249, 115, 22, 0.12);
+  color: #fb923c;
+}
+.variance-navy {
+  background-color: rgba(99, 102, 241, 0.12);
+  color: #818cf8;
+}
+.variance-teal {
+  background-color: rgba(20, 184, 166, 0.12);
+  color: #2dd4bf;
+}
+
+.achievements-right-column-stack {
+  display: flex;
+  flex-direction: column;
+}
+
+.badges-showcase-flex-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.badge-square-item-pro {
+  background-color: #0b0f19;
+  border: 1px solid #1e293b;
+  border-radius: 8px;
+  padding: 12px 6px;
+  text-align: center;
+  transition: transform 0.2s ease;
+}
+
+.badge-square-item-pro h4 {
+  margin: 8px 0 2px 0;
+  font-size: 0.78rem;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.badge-square-item-pro p {
+  margin: 0;
+  font-size: 0.65rem;
+  color: #475569;
+}
+
+.badge-graphics-icon-wrapper {
+  width: 32px;
+  height: 32px;
+  margin: 0 auto;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+}
+
+.badge-state-unlocked .badge-graphics-icon-wrapper {
+  background-color: rgba(251, 191, 36, 0.1);
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.2);
+}
+
+.badge-state-locked {
+  opacity: 0.4;
+}
+
+.badge-state-locked .badge-graphics-icon-wrapper {
+  background-color: #1e293b;
+  color: #64748b;
+}
+
+.earnings-history-list-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.earning-log-row-item-pro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #0b0f19;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.01);
+}
+
+.earning-log-left-block {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.earning-log-emoji-icon {
+  font-size: 0.95rem;
+}
+
+.earning-log-action-text {
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.earning-log-right-pts-tag {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #10b981;
+}
+
+.spurti-dark .points-rules-panel-card,
+.spurti-dark .badges-showcase-panel-card,
+.spurti-dark .earnings-history-panel-card {
+  background: #121824;
+  border-color: #1e293b;
+}
+
+.spurti-dark .points-rules-panel-card h3,
+.spurti-dark .badges-showcase-panel-card h3,
+.spurti-dark .earnings-history-panel-card h3 {
+  color: white;
+}
+
+.spurti-light .points-hero-card-pro {
+  background: linear-gradient(135deg, #ffffff 0%, #eef2ff 100%);
+}
+
+.spurti-light .points-rules-panel-card,
+.spurti-light .badges-showcase-panel-card,
+.spurti-light .earnings-history-panel-card {
+  background: white;
+  border-color: #e2e8f0;
+}
+
+.spurti-light .points-rules-panel-card h3,
+.spurti-light .badges-showcase-panel-card h3,
+.spurti-light .earnings-history-panel-card h3 {
+  color: #0f172a;
+}
+
+.spurti-light .earning-log-action-text,
+.spurti-light .remaining-points-micro-text,
+.spurti-light .points-sub-title-meta {
+  color: #475569;
+}
+
+.spurti-light .badge-square-item-pro {
+  background: #f8fafc;
+}
+
+.spurti-light .badge-square-item-pro h4 {
+  color: #0f172a;
+}
+
+@media (max-width: 768px) {
+  .spurti-page {
+    margin-left: 0;
+    padding: 90px 15px 20px;
+  }
+
+  .gamification-split-layout-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .badges-showcase-flex-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .progress-engine-rail-wrapper {
+    flex-direction: column;
+    gap: 8px;
+  }
+}

@@ -1,0 +1,245 @@
+:root {
+  --bg-dark-base: #0b0f19;
+  --bg-card-dark: #121824;
+  --bg-sidebar-dark: #0f131c;
+  --accent-purple: #6366f1;
+  --accent-purple-hover: #4f46e5;
+  --text-primary: #ffffff;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --border-color: #1e293b;
+  --success-green: #10b981;
+}
+
+body {
+  margin: 0;
+  font-family: "Inter", sans-serif;
+  background-color: var(--bg-dark-base);
+  color: var(--text-primary);
+}
+
+.vicharanashala-container {
+  min-height: 100vh;
+  background: #0b0f19;
+  color: white;
+}
+
+.main-content {
+  max-width: 1200px;
+  margin: auto;
+  padding: 20px 40px 50px;
+}
+
+.documents-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 25px;
+  margin-top: 30px;
+}
+
+.card-layout {
+  background-color: var(--bg-card-dark);
+  border: 1px solid #1e293b;
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.card-layout h3 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.drag-drop-zone {
+  border: 2px dashed rgba(99, 102, 241, 0.4);
+  background-color: rgba(99, 102, 241, 0.02);
+  border-radius: 12px;
+  padding: 40px 20px;
+  text-align: center;
+  cursor: pointer;
+  margin-bottom: 24px;
+  transition: background 0.2s ease;
+}
+
+.drag-drop-zone:hover {
+  background-color: rgba(99, 102, 241, 0.05);
+}
+
+.upload-cloud-icon {
+  font-size: 3rem;
+  color: var(--accent-purple);
+  margin-bottom: 12px;
+}
+
+.drag-drop-zone h4 {
+  margin: 0 0 4px 0;
+  font-size: 1rem;
+}
+.drag-drop-zone p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.doc-category-matrix {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.category-tile {
+  background-color: rgba(30, 41, 59, 0.4);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s ease;
+}
+
+.category-tile:hover,
+.category-tile.active {
+  background-color: rgba(99, 102, 241, 0.08);
+  border-color: var(--accent-purple);
+}
+
+.tile-icon {
+  font-size: 1.2rem;
+  color: var(--accent-purple);
+  margin-top: 2px;
+}
+
+.tile-text h5 {
+  margin: 0 0 2px 0;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+.tile-text p {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.docs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.uploaded-doc-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: rgba(17, 24, 39, 0.5);
+  border: 1px solid var(--border-color);
+  padding: 14px 16px;
+  border-radius: 12px;
+}
+
+.doc-item-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.doc-file-icon {
+  color: var(--success-green);
+  font-size: 1.4rem;
+}
+
+.doc-metadata h4 {
+  margin: 0 0 2px 0;
+  font-size: 0.9rem;
+}
+.doc-metadata p {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.doc-item-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.status-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--success-green);
+  background-color: rgba(16, 185, 129, 0.1);
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-weight: 600;
+}
+
+.points-award {
+  color: #fbbf24;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.dark-mode {
+  background: #0b0f19;
+  color: white;
+}
+
+.light-mode {
+  background: #f4f7fb;
+  color: #111827;
+}
+
+.light-mode .card-layout {
+  background: white;
+  border: 1px solid #ddd;
+}
+
+.light-mode .uploaded-doc-item {
+  background: #f8fafc;
+}
+
+.light-mode .drag-drop-zone {
+  background: #f8fafc;
+}
+
+.light-mode .category-tile {
+  background: white;
+}
+
+.light-mode h3,
+.light-mode h4,
+.light-mode .tile-text h5 {
+  color: #111827;
+}
+
+.light-mode p {
+  color: #64748b;
+}
+
+@media (max-width: 900px) {
+  .documents-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .main-content {
+    padding: 20px;
+  }
+
+  .doc-category-matrix {
+    grid-template-columns: 1fr;
+  }
+
+  .doc-item-right {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+  }
+}

@@ -1,0 +1,341 @@
+.disc-portal-shell {
+  min-height: 100vh;
+  width: 100%;
+  background-color: #0b0f19;
+  color: #ffffff;
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  padding-bottom: 60px;
+  box-sizing: border-box;
+}
+
+.disc-header-navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 40px;
+  background: transparent;
+}
+
+.disc-nav-left-wing {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.disc-hamburger-btn {
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 14px;
+  background: #1e293b;
+  color: white;
+  font-size: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+}
+
+.disc-back-action-btn {
+  background: #1e293b;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: opacity 0.2s;
+}
+.disc-back-action-btn:hover {
+  opacity: 0.85;
+}
+
+.disc-ask-trigger-cta {
+  background: #6366f1;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 14.5px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+}
+
+.disc-content-viewport {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 40px;
+}
+
+.disc-section-title {
+  text-align: center;
+  font-size: 13px;
+  letter-spacing: 1.5px;
+  color: #94a3b8;
+  font-weight: 800;
+  margin-bottom: 24px;
+}
+
+.disc-threads-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.disc-thread-card {
+  background: #161f38; /* Replicated Deep Cobalt Box Tint */
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 20px;
+  padding: 30px;
+}
+
+.disc-card-profile-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.disc-user-avatar-circle {
+  width: 48px;
+  height: 48px;
+  background: #25335a;
+  border-radius: 50%;
+  color: #818cf8;
+  font-weight: 700;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.disc-user-identity-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.disc-user-identity-block h4 {
+  margin: 0;
+  font-size: 16px;
+  color: #cbd5e1;
+  font-weight: 700;
+}
+.disc-user-identity-block span {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.disc-post-main-headline {
+  font-size: 22px;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0 0 24px 0;
+  line-height: 1.4;
+}
+
+.disc-card-meta-footer {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.disc-badge-pill-category {
+  background: #28305c;
+  color: #818cf8;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.disc-replies-counter-node {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #94a3b8;
+  font-size: 13.5px;
+}
+
+.disc-badge-points-reward {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.disc-modal-overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(3, 7, 18, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  padding: 20px;
+}
+
+.disc-modal-card-window {
+  width: 100%;
+  max-width: 580px;
+  background: #111827;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
+  padding: 32px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.disc-modal-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+.disc-modal-header-row h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+.disc-modal-close-cross {
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.disc-modal-interactive-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.disc-form-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.disc-form-input-group label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #9ca3af;
+}
+
+.disc-form-input-group textarea,
+.disc-form-input-group select {
+  width: 100%;
+  background: #1f2937;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 14px;
+  color: white;
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.disc-modal-actions-wrapper {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 10px;
+}
+.disc-btn-cancel-node {
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  padding: 10px 20px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.disc-btn-submit-node {
+  background: #6366f1;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.disc-theme-btn {
+  width: 48px;
+  height: 48px;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  background: #1e293b;
+  color: white;
+  font-size: 20px;
+}
+
+.disc-portal-shell.light {
+  background: #f4f7fb;
+  color: #111827;
+}
+
+.disc-portal-shell.light .disc-thread-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+}
+
+.disc-portal-shell.light .disc-post-main-headline {
+  color: #111827;
+}
+
+.disc-portal-shell.light .disc-user-identity-block h4 {
+  color: #111827;
+}
+
+.disc-portal-shell.light .disc-back-action-btn {
+  background: white;
+  color: #111827;
+  border: 1px solid #ddd;
+}
+
+.disc-portal-shell.light .disc-theme-btn {
+  background: white;
+  color: #111827;
+  border: 1px solid #ddd;
+}
+
+.disc-portal-shell.light .disc-modal-card-window {
+  background: white;
+  color: #111827;
+}
+
+.disc-portal-shell.light textarea,
+.disc-portal-shell.light select {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.disc-portal-shell.light .disc-user-avatar-circle {
+  background: #e0e7ff;
+}
+
+.disc-portal-shell.light .disc-badge-pill-category {
+  background: #eef2ff;
+  color: #4f46e5;
+}
+
+.disc-portal-shell.light .disc-badge-points-reward {
+  background: #ecfdf5;
+}

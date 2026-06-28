@@ -1,0 +1,28 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100vh;
+  width: 100%;
+  font-family: Arial, sans-serif;
+}
+
+.app {
+  min-height: 100vh;
+  transition: all 0.3s ease;
+}
+
+.dark {
+  background: #07111f;
+  color: white;
+}
+
+.light {
+  background: #f8fafc;
+  color: #111827;
+}

@@ -1,0 +1,187 @@
+.leaderboard-card-pro {
+  background-color: #121824;
+  border: 1px solid #1e293b;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.leaderboard-header-row-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: #ffffff;
+  font-weight: 600;
+  margin-bottom: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  padding-bottom: 12px;
+}
+
+.trophy-gold-icon {
+  color: #fbbf24;
+  font-size: 1.1rem;
+}
+
+.leaderboard-list-stack-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.leaderboard-row-item-pro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: 6px;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.leaderboard-row-item-pro.current-user-highlight {
+  background-color: rgba(59, 130, 246, 0.05);
+  border: 1px dashed rgba(59, 130, 246, 0.2);
+}
+
+.leaderboard-row-item-pro:hover {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.leaderboard-left-meta-block {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 0 0 240px;
+}
+
+.rank-position-box-container {
+  width: 28px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.rank-badge {
+  font-size: 1.1rem;
+}
+
+.rank-number-text {
+  font-size: 0.85rem;
+  color: #475569;
+  font-weight: 600;
+}
+
+.competitor-avatar-circle {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.avatar-gray {
+  background-color: #1e293b;
+  color: #94a3b8;
+}
+.avatar-blue {
+  background-color: rgba(59, 130, 246, 0.2);
+  color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.4);
+}
+
+.competitor-identity-text-block h4 {
+  margin: 0;
+  font-size: 0.88rem;
+  color: #ffffff;
+  font-weight: 500;
+}
+
+.competitor-identity-text-block h4 .you-identity-tag {
+  color: #3b82f6;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-left: 4px;
+}
+
+.competitor-identity-text-block p {
+  margin: 2px 0 0 0;
+  font-size: 0.72rem;
+  color: #475569;
+}
+
+.leaderboard-center-progress-rail {
+  flex: 1;
+  padding: 0 32px;
+  display: flex;
+  align-items: center;
+}
+
+.leaderboard-fill-bar-progress {
+  height: 4px;
+  border-radius: 2px;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.fill-purple {
+  background-color: #4f46e5;
+  box-shadow: 0 0 8px rgba(79, 70, 229, 0.3);
+}
+
+.fill-blue {
+  background-color: #3b82f6;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
+}
+
+.leaderboard-right-score-value {
+  flex: 0 0 60px;
+  text-align: right;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #fbbf24;
+}
+
+.leaderboard-page {
+  flex: 1;
+  min-height: 100vh;
+  padding: 24px;
+  transition: all 0.3s ease;
+}
+
+.leaderboard-dark {
+  background: #0b0f19;
+  color: #ffffff;
+}
+
+.leaderboard-light {
+  background: #f8fafc;
+  color: #111827;
+}
+
+.leaderboard-light .leaderboard-card-pro {
+  background: white;
+  border-color: #e5e7eb;
+}
+
+.leaderboard-light .leaderboard-header-row-label {
+  color: #111827;
+}
+
+.leaderboard-light .competitor-identity-text-block h4 {
+  color: #111827;
+}
+
+.leaderboard-light .competitor-identity-text-block p {
+  color: #64748b;
+}
+
+.leaderboard-light .leaderboard-row-item-pro:hover {
+  background: #f3f4f6;
+}
+
+.leaderboard-light .rank-number-text {
+  color: #64748b;
+}
