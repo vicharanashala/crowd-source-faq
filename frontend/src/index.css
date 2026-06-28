@@ -1,0 +1,134 @@
+@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+    margin: 0;
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background: #F9F9F8;
+    color: #111110;
+    letter-spacing: -0.01em;
+}
+
+input, textarea, select {
+    letter-spacing: -0.01em;
+}
+
+button {
+    letter-spacing: 0.02em;
+}
+
+code, pre {
+    font-family: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
+}
+
+@layer base {
+    :root {
+        --background: 48 14% 97%;
+        --foreground: 60 5% 7%;
+        --card: 0 0% 100%;
+        --card-foreground: 60 5% 7%;
+        --popover: 0 0% 100%;
+        --popover-foreground: 60 5% 7%;
+        --primary: 60 5% 7%;
+        --primary-foreground: 0 0% 100%;
+        --secondary: 48 10% 95%;
+        --secondary-foreground: 60 5% 7%;
+        --muted: 48 10% 95%;
+        --muted-foreground: 30 3% 52%;
+        --accent: 48 10% 93%;
+        --accent-foreground: 60 5% 7%;
+        --destructive: 9 75% 48%;
+        --destructive-foreground: 0 0% 100%;
+        --border: 40 12% 89%;
+        --input: 40 12% 89%;
+        --ring: 60 5% 7%;
+        --chart-1: 207 100% 26%;
+        --chart-2: 9 75% 48%;
+        --chart-3: 60 5% 7%;
+        --chart-4: 167 48% 21%;
+        --chart-5: 40 12% 75%;
+        --radius: 0px;
+    }
+}
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+    body {
+        @apply bg-background text-foreground;
+    }
+    ::selection {
+        background: #111110;
+        color: #F9F9F8;
+    }
+}
+
+@layer utilities {
+    .font-serif {
+        font-family: 'Lora', Georgia, serif;
+        font-feature-settings: "liga", "dlig", "lnum";
+        font-variant-numeric: lining-nums;
+    }
+    .font-sans {
+        font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+        letter-spacing: -0.01em;
+    }
+    .label-eyebrow {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        font-weight: 700;
+        color: #666661;
+    }
+    .grid-lines {
+        background-image:
+            linear-gradient(to right, #EAEAE5 1px, transparent 1px);
+        background-size: 100% 100%;
+    }
+    .hover-shift {
+        transition: all 200ms ease-in-out;
+    }
+    .hover-shift:hover {
+        transform: translateX(2px);
+    }
+    .ticker {
+        animation: ticker 40s linear infinite;
+    }
+    @keyframes ticker {
+        from { transform: translateX(0); }
+        to { transform: translateX(-50%); }
+    }
+    .fade-in-up {
+        animation: fadeInUp 600ms ease-out both;
+    }
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(12px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+}
+
+@layer base {
+    [data-debug-wrapper="true"] {
+        display: contents !important;
+    }
+    [data-debug-wrapper="true"] > * {
+        margin-left: inherit;
+        margin-right: inherit;
+        margin-top: inherit;
+        margin-bottom: inherit;
+        padding-left: inherit;
+        padding-right: inherit;
+        padding-top: inherit;
+        padding-bottom: inherit;
+        column-gap: inherit;
+        row-gap: inherit;
+        gap: inherit;
+    }
+}

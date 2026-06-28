@@ -1,101 +1,107 @@
-# Crowd Source FAQ — Product Overview
+# CrowdFAQ Product Specification
 
-A self-maintaining FAQ + community Q&A portal. Combines semantic vector search, AI-powered ingestion, and an expert promotion layer so the right answer is in front of a user before they finish typing.
-
----
-
-## What it does
-
-Four zero-touch pillars, in order of automation:
-
-1. **Ingest** — Zoom recordings, manual uploads (PDF/DOCX/XLSX/images), and webhooks feed a knowledge base. No human scheduling or categorising.
-2. **Answer** — Unanswered community posts are auto-matched against the knowledge base every 24h via semantic search. High-confidence matches are auto-posted; low-confidence escalate to admins.
-3. **Quality** — Approved FAQs are re-evaluated every 6h for drift, contradictions, and staleness. Drift is auto-flagged.
-4. **Lifecycle** — User deletion is anonymisation, not destruction. Reputation, attribution, and audit history persist.
+CrowdFAQ is a crowdsourced FAQ and community Q&A portal designed to streamline developer support, reduce redundant questions, and capture collective knowledge. It combines a React TypeScript frontend, an Express API, MongoDB, and Gemini-powered vector search.
 
 ---
 
-## Key features
+## 1. Product Vision & Goals
 
-- **Hybrid search** — vector + keyword + Reciprocal Rank Fusion. Auto-falls-back to keyword when vector search is empty.
-- **Public FAQ portal** — no-auth browse path, batch-scoped, with popularity ranking and guest analytics.
-- **Community Q&A** — posts + threaded comments + upvotes + AI auto-answer; admin escalation flow.
-- **Session Support** — student issue tracker with 4-step troubleshooting checklists, evidence uploads, admin follow-ups.
-- **Golden Tickets** — admin-promoted high-priority support requests with Spurti Points (SP) economy and 48h cooldown.
-- **Reputation system** — points, tier ladder (newcomer → knowledge_master), auto-awarded badges.
-- **Admin panel** — FAQs, users, golden tickets, support inbox, AI settings, feature flags, batches, categories.
-- **Real-time observability** — tagged colored logs (`[ INFO ] [ cron ]` etc.), Discord ALERT webhook, optional Sentry.
+Every growing technical community or engineering team suffers from **support fatigue**—answering the same questions (e.g., *"How do we rotate AWS keys without downtime?"*, *"How do I configure my local database?"*) repeatedly across Slack, emails, or chat threads. 
 
----
-
-## Tech stack (one-liner per layer)
-
-| Layer | Pick |
-|---|---|
-| Frontend | React 18 + Vite + TS + Tailwind + Framer Motion |
-| Backend | Node 22 + Express 4 + TS (ESM) + Mongoose 8 |
-| DB | MongoDB Atlas (with Vector Search) + Upstash Redis (optional cache) + Cloudinary (uploads) |
-| Search & AI | `mixedbread-ai/mxbai-embed-large-v1` (1024-dim, via HF Inference API; falls back to in-process ONNX), RRF, Atlas `$vectorSearch` |
-| AI providers | Anthropic, OpenAI, XAI, MiniMax, Gemini, custom — admin-configurable per-pipeline |
-| Infra | Sentry, Ngrok (webhook dev tunnel), Twilio (SMS), SMTP, Helmet, express-rate-limit, JWT, bcryptjs |
+CrowdFAQ solves this by:
+*   **Centralizing Knowledge**: A single public/private repository of high-fidelity Q&As and FAQs.
+*   **Empowering the Community**: Gamifying knowledge sharing so users ask, answer, and moderate content together.
+*   **Integrating Smart AI**: Surfacing answers proactively using vector-based semantic search and an interactive RAG assistant.
+*   **Verifying Authority**: Allowing domain experts and admins to lock and mark official verified answers.
 
 ---
 
-## Recent changes (v1.68)
+## 2. Target Personas
 
-- **Embedding model swap**: `Xenova/multi-qa-mpnet-base-dot-v1` (768-dim) → `mixedbread-ai/mxbai-embed-large-v1` (1024-dim, SOTA MTEB 64.68). Now routed through the HuggingFace Inference API when `HUGGINGFACE_API_KEY` is set, with a fall-back to the in-process ONNX pipeline. The retrieval-tuned query prompt (`Represent this sentence for searching relevant passages:`) is auto-prepended for queries via `generateQueryEmbedding()`.
-- **Schema + data audit pass** — 3 critical, 4 high, 7 medium, 6 low fixes across the 29 Mongoose models. See [`docs/schema-audit.md`](docs/schema-audit.md).
-- **Race-condition sweep** — all 8 `findByIdAndUpdate` + `save()` anti-patterns in user-facing controllers (comments, bookmarks, FAQ, posts, golden tickets) replaced with atomic `$set` / `$addToSet` / `$pull`.
-- **Observability overhaul** — 11 named loggers (`authLog`, `adminLog`, `cronLog`, etc.), background-colored level tags (`[ INFO ]`, `[ WARN ]`, `[ ERR ]`, `[ ALRT ]`), glyph-prefixed lines, Discord webhook forwarder with exponential-backoff retry queue.
-- **Live-data seed** — `npm run seed:live` populates 20 community posts, 8 support tickets, 2 zoom meetings, badge awards, search logs, and a populated leaderboard. Idempotent.
+### 👤 Standard Community Member (The Seeker)
+*   **Goal**: Find high-quality answers to technical or platform-related questions instantly.
+*   **Pain Point**: Frustrated by search engines that match exact keywords rather than semantic intent, leading to duplicate posts or outdated answers.
+*   **Key Action**: Queries the Q&A database, interacts with the FAQ chatbot, votes on helpful answers, and flags spam.
 
----
+### 🏆 Domain Expert / Active Contributor (The Helper)
+*   **Goal**: Build professional reputation, share expertise, and help peers.
+*   **Pain Point**: Contributions in chat apps (like Slack) are transient and quickly buried.
+*   **Key Action**: Answers open questions, writes detailed long-form answers, and earns badges for their achievements.
 
-## Reference docs
-
-| Topic | File |
-|---|---|
-| Full architecture deep-dive | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
-| AI provider configuration | [`docs/AI_PROVIDERS.md`](docs/AI_PROVIDERS.md) |
-| Pipelines (Zoom / doc / AI extraction) | [`docs/PIPELINES.md`](docs/PIPELINES.md) |
-| Batch + category scoping | [`docs/BATCH MANAGEMENT_PLAN.md`](docs/BATCH%20MANAGEMENT_PLAN.md) |
-| Public FAQ page design | [`docs/PUBLIC_FAQ_PLAN.md`](docs/PUBLIC_FAQ_PLAN.md) |
-| Schema-driven context fields | [`docs/SCHEMA_DRIVEN_CONTEXT_PLAN.md`](docs/SCHEMA_DRIVEN_CONTEXT_PLAN.md) |
-| Public API surface | [`docs/openapi.yaml`](docs/openapi.yaml) |
-| Backup strategy | [`docs/BACKUP.md`](docs/BACKUP.md) |
-| MCP server integration | [`docs/MCP.md`](docs/MCP.md) |
-| Schema + data audit (v1.68) | [`docs/schema-audit.md`](docs/schema-audit.md) |
-| Code audit (issues tracker) | [`docs/issues.md`](docs/issues.md) |
-| Progress log | [`docs/progress.md`](docs/progress.md) |
-| Wire diagram | [`docs/wire.md`](docs/wire.md) |
-| Context | [`docs/context.md`](docs/context.md) |
-| Project README | [`README.md`](README.md) |
-| Contributing | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
-| Code of Conduct | [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) |
-| License | [`LICENSE`](LICENSE) |
+### 🛡️ Moderator & Admin (The Curator)
+*   **Goal**: Maintain content quality, verify official replies, and remove malicious or incorrect posts.
+*   **Pain Point**: Manual moderation of duplicate threads and spam takes too much time.
+*   **Key Action**: Views stats, changes user roles, approves/rejects content reports, and marks answers as "Official."
 
 ---
 
-## Useful npm scripts (backend)
+## 3. Core Product Features
 
-| Script | What it does |
-|---|---|
-| `npm start` | Run backend (tsx server.ts) |
-| `npm run dev` | Run with watch |
-| `npm run seed` | Seed 130 FAQs from `faqs.json` |
-| `npm run seed:live` | Seed realistic test data (posts, tickets, badges, zoom, etc.) |
-| `npm run audit:data` | Read-only data-quality report |
-| `npm run cleanup:seed` | Undo `seed:live` |
-| `npm run cleanup:orphan-notifications` | Delete orphan notifications |
-| `npm run recompute:tier` | Fix stale user `tier` values |
-| `npm run backfill:embeddings` | Regenerate all stored vectors with the current model |
-| `npm run create:vector-index -- --drop` | Drop + recreate the Atlas vector search index |
-| `npm run migrate` | Add / update Mongo indexes |
+### 🔍 Semantic Search & Triage
+*   **Smart Duplicate Checker**: When a user types a new question, the system runs a real-time semantic check (`POST /ai/check-duplicates`) against existing questions. It displays similar questions before the user can publish, preventing duplicate clutter.
+*   **Vector Search**: Allows searching for conceptual matches (e.g., searching for "kubernetes secrets" returns CSI driver and Secret configuration Q&As even if the terms don't match exactly).
+
+### 🤖 AI FAQ Assistant (RAG Chatbot)
+*   **Premium Interactive Chat**: A persistent chatbot widget styled with a premium green-slate aesthetic.
+*   **RAG Engine**: Retrieves the top relevant Q&A threads and platform knowledge documents, passes them to a language model (Gemini/Groq), and returns a precise answer.
+*   **Clickable Citations**: Includes links (e.g., `[Source 1]`) that redirect the user directly to the question detail thread (`/q/:slug`).
+
+### 💬 Thread Discussions & Collapsible Comments
+*   **Nested Comments**: Standard members can comment on both questions and answers to request clarifications or suggest edits.
+*   **Collapsible Comments Toggle**: To prevent visual clutter when threads have numerous comments, discussions are collapsed by default. Users can toggle them visible using the "Show Comments" action button.
+*   **Content Flagging**: Users can report inappropriate questions or answers. Reports are queued dynamically in the moderator panel for approval, rejection, or deletion.
+*   **Official Verification**: Admins can tag an answer as "Official," pinning it to the top of the question thread with a special checkmark badge.
+
+### 🔔 Notifications & Subscriptions
+*   **Real-time Alerts (Socket.IO)**: Real-time notification socket push events are triggered whenever:
+    *   A new answer is posted to a followed question.
+    *   An answer is marked as the "Best Answer."
+    *   An answer is marked as "Faculty Verified" or "Official."
+    *   A question's moderation status is updated.
+*   **Inbox Panel**: Users can view all historical notifications, clear individual alerts, and mark them as read (`/notifications`).
+*   **Question Following & Bookmarking**: Users can click the "Follow" button on any question thread to subscribe to notifications, and click the "Save" (Bookmark) button to pin it to their active dashboard feeds.
+
+### 🎮 Gamification & Badges
+*   **Dynamic Reputation**: Users earn reputation points based on upvotes, accepted answers, and general activity.
+*   **Earned Badges**: Recalculated dynamically on the fly and persisted to MongoDB:
+    *   *Early Adopter*: Assigned if the user is among the first 1,000 members created.
+    *   *Storyteller*: Earned by contributing a detailed, comprehensive answer of over 500 words.
+    *   *Curator*: Assigned for editing or moderating substantial platform content.
+    *   *Mentor*: Earned for contributing 50+ answers.
+    *   *Sleuth*: Earned for resolving 5+ reported moderation issues.
+    *   *founder*: Automatically granted to accounts with the `admin` role.
+    *   *verified*: Automatically granted to accounts designated as verified system or faculty accounts.
 
 ---
 
-## Repository
+## 4. User Interaction Flows
 
-- GitHub: https://github.com/vicharanashala/crowd-source-faq
-- License: see [`LICENSE`](LICENSE)
-- Branch: `main` (active), with `MCSFAQ/main-v2` for the next iteration
+```mermaid
+graph TD
+    A[User visits CrowdFAQ] --> B{Has a Question?}
+    B -->|Yes| C[Type in Search Bar or FAQ Chatbot]
+    B -->|No| D[Browse Home Feed: Latest/Trending]
+    
+    C --> E[Chatbot replies using RAG with clickable citations]
+    C --> F[User decides to Post a new Question]
+    
+    F --> G[Type Title & Body]
+    G --> H[AI Duplicate Detection triggers]
+    H -->|Match Found| I[Suggest reading existing thread]
+    H -->|No Match| J[Publish Question to Community]
+    
+    J --> K[Domain Experts Answer & Comment]
+    K --> L[Users Vote Up/Down]
+    L --> M[Author Accepts Best Answer OR Admin verifies Official Answer]
+    M --> N[Reputation points updated & Badges awarded]
+```
+
+---
+
+## 5. Product Roadmap (Future Scope)
+
+*   **Phase 1 (Completed)**: Core Q&A, comments, flagging/moderation dashboard, dynamic badges, and RAG chatbot with citations.
+*   **Phase 2 (Next)**:
+    *   **Slack/Discord Integration**: A bot that listens to Slack questions and answers them directly using CrowdFAQ's RAG database.
+    *   **Email Digests**: Weekly personalized summaries of trending questions in followed categories.
+    *   **Rich Text Editor**: Support for Markdown, syntax highlighting, and code block formatting in question bodies and comments.

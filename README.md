@@ -1,129 +1,150 @@
-# Crowd Source FAQ (Yaksha FAQ Portal)
+# CrowdFAQ
 
-Full-stack FAQ portal with semantic vector search, AI-powered community moderation, and an expert promotion layer. Built to handle 1 million registered users.
+CrowdFAQ is a crowdsourced FAQ and community Q&A portal. It combines a React TypeScript frontend, an Express API, MongoDB-backed question and answer data, real-time updates via Socket.IO, and Gemini-powered semantic search.
 
-GitHub: https://github.com/vicharanashala/crowd-source-faq
-Full reference: [`docs/`](docs/README.md) · [Contributing](./CONTRIBUTING.md) · [Code of Conduct](./CODE_OF_CONDUCT.md) · [License](./LICENSE)
+## What It Solves
 
----
-
-## Vision
-
-**Automate the FAQ lifecycle end-to-end. Zero people in the loop. Reduce the operational FAQ culture.**
-
-Every question a user has has been asked before — and most will be asked again. The right answer should be there before the user finishes typing. The platform achieves this through four zero-touch pillars:
-
-- **Zero-touch ingestion** — Zoom meetings, webhooks, and manual uploads feed the knowledge base without human scheduling, categorising, or approval.
-- **Zero-touch answering** — A 24-hour scheduler matches unanswered posts against the knowledge base; high-confidence matches auto-post, low-confidence escalate to humans.
-- **Zero-touch quality control** — Approved FAQs are re-evaluated every 6 hours; drift, contradictions, and staleness are detected and flagged automatically.
-- **Zero-touch user lifecycle** — Deletion is anonymisation, not destruction. Reputation, attribution, and audit history persist.
-
-The platform is the operator. People handle exceptions, not the steady state.
-
----
-
-## About
-
-Samagama (internally "Yaksha FAQ Portal") turns an organisation's accumulated conversations into a searchable, self-maintaining FAQ. It combines hybrid vector + keyword search with a community Q&A board and a fully automated ingestion pipeline that pulls transcripts from Zoom, extracts Q&A with AI, and indexes them for retrieval in seconds.
-
-Built for organisations whose community generates more questions than a human team can answer — student cohorts, open-source projects, internal forums, customer-success communities. Target scale: 1 million registered users with constant conversational input.
-
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the architecture deep-dive and [docs/PIPELINES.md](docs/PIPELINES.md) for pipeline internals.
-
----
+- **Reduces Repeated Support Work**: Centralizes common questions and official answers.
+- **Unified Q&A Hub**: Gives users one searchable place to find FAQs and community answers.
+- **Community Reputation**: Lets community members ask questions, contribute answers, and build reputation.
+- **Admin Moderation**: Allows administrators and moderators to publish verified official responses and manage flagged content.
 
 ## Tech Stack
 
-| Layer | Technologies |
-|---|---|
-| Frontend | React 18, Vite, TypeScript, Tailwind CSS, Framer Motion, Axios, Recharts, React Router 6, Vitest |
-| Backend | Node.js, Express 4, TypeScript (ESM), Mongoose 8, JWT, bcryptjs, Helmet, CORS, Morgan, Multer, Zod, express-rate-limit, dotenv, OpenAI SDK, Vitest |
-| Database & Storage | MongoDB Atlas (with Vector Search), Upstash Redis (optional), LRU cache, Cloudinary |
-| Search & AI | Xenova/transformers (768-dim local embeddings), Atlas Vector Search, $text search, Reciprocal Rank Fusion |
-| AI Providers | Anthropic, OpenAI, XAI, MiniMax (per-pipeline configurable) |
-| DevOps | Sentry, Ngrok (local webhook tunnel), Twilio (SMS), SMTP, Vitest |
+### Frontend
+- **React 19 (TypeScript)**
+- **Craco** (CRA config override)
+- **Tailwind CSS & Tailwind Animate**
+- **Radix UI Primitives**
+- **Framer Motion**
+- **Axios** (configured with global credentials handling)
+- **React Hook Form & Zod**
+- **Recharts** (for Analytics visualization)
+- **Socket.IO Client** (for real-time notifications)
 
----
-
-## Quick Start
-
-```bash
-./run.sh        # Full-stack runner: env setup, ngrok, backend + frontend
-```
-
-`run.sh` prompts for `MONGODB_URI` and `JWT_SECRET` on first run, then saves them to `apps/backend/.env.local`. The script will not overwrite existing values. Session logs are written to `logs/session_*.txt`.
-
----
-
-## Key Features
-
-Eight flagship capabilities define this platform:
-
-- **Zoom transcript ingestion with per-user OAuth** — Each user connects their own Zoom account via OAuth. Webhook-fired downloads parse VTT transcripts, extract Q&A pairs via AI, and dual-publish: `ZoomInsight` (admin-reviewed) and `TranscriptKnowledge` (auto-approved, immediately vector-searchable). Includes retry + dead-letter queue for failed meetings and admin backfill for historical meetings. See [docs/PIPELINES.md#4-zoom-ingestion-pipeline](docs/PIPELINES.md).
-- **AI auto-answer pipeline for community posts** — A scheduler (every 24h) — and a one-click **Run AI** button in the admin dashboard — finds unanswered posts and searches **all three knowledge sources in parallel** (FAQ + Community Q&A + Transcript Knowledge). Best match above ≥0.85 confidence auto-posts; 0.60–0.84 queues for human review; below 0.60 (or sensitive content) escalates. When no direct match exists, the LLM is given the top gathered context to synthesize an answer. Per-pipeline AI provider configurable. See [docs/PIPELINES.md#1-auto-answer-pipeline](docs/PIPELINES.md).
-- **FAQ audit pipeline** — A scheduler (every 6h) re-evaluates approved FAQs against the live knowledge base (TranscriptKnowledge + ZoomInsights). Uses AI to judge correctness and emits verdicts: `correct` (≥0.80), `drift_detected` (0.60–0.79), `contradiction` (<0.60), or `stale`. Flagged FAQs land in `/admin/faqs/review` with `reviewStatus='pending_review'`, `flagType='auto'`, and an incremented `reviewCycle`. See [docs/PIPELINES.md#2-faq-audit-pipeline](docs/PIPELINES.md).
-- **FAQ freshness & staleness detection** — Every approved FAQ carries a `freshness_tier` (`evergreen` / `seasonal` / `volatile`) and a per-tier review interval. A daily cron auto-flags FAQs whose last-verified date exceeds the interval, opening a peer-review window on `/admin/faqs/review`. Anyone can vote `still_accurate` / `needs_update`; the threshold auto-verifies, otherwise it escalates to a moderator. `FreshnessBadge` on the public FAQ card surfaces verified-vs-under-review status. See [docs/PIPELINES.md#7-faq-freshness-pipeline](docs/PIPELINES.md).
-- **Golden Ticket — Spurti Points escalation** — A premium user-driven escalation channel. Users spend Spurti Points (SP) to bump a time-sensitive query to the top of the admin queue (higher SP = higher priority). SP is consumed on submission; a 48h cooldown blocks repeat submissions. Admins resolve or reject — no penalty, no ban, just a single unified cooldown rule. Includes a live Escalation Queue (right column on `/golden`) sorted by SP spend, anonymous to non-admin viewers. Toggleable from `/admin/features`.
-- **Batch management + public guest FAQ portal** — FAQs, categories, and analytics are scoped to a `Batch` (cohort, term, program). A first-class `Category` model replaces the old free-text field. Guests land on `/explore/select` to pick a batch, then browse the public FAQ at `/faq` with no account required. Admin can create/archive batches and promote FAQs between them. See [docs/BATCH_MANAGEMENT_PLAN.md](docs/BATCH_MANAGEMENT_PLAN.md).
-- **Schema-driven context fields per support category** — Each support category (`internet`, `camera`, `microphone`, `device`, `power`, `other`) has an admin-editable schema of context fields (text, textarea, number, date, boolean, dropdown). Admins add, edit, reorder, or archive fields from `/admin/support/categories` without redeploying. The frontend renders dynamic inputs from the live schema. See [docs/SCHEMA_DRIVEN_CONTEXT_PLAN.md](docs/SCHEMA_DRIVEN_CONTEXT_PLAN.md).
-- **Soft-delete with anonymization** — Deleting a user never hard-deletes their records. The account is anonymised: `isDeleted=true`, `deletedAt` timestamp, `name` becomes `Deleted User`, `email` is rewritten to a non-routable placeholder, `password` is replaced with a random UUID to break login. All posts, comments, votes, reputation logs, and audit trail entries remain intact — preserving referential integrity, attribution history, and regulatory compliance.
-
-Other capabilities: semantic hybrid search, community Q&A board, reputation system + badges + leaderboard, SpillTheTea event-driven notifications, per-user Zoom OAuth, RAG-powered `/ask-ai` assistant with image + file attachments, soft user lifecycle, experimental feature flags, support tickets (troubleshoot → admin triage → resolution).
-
----
-
-## Admin Dashboard
-
-The admin panel at `/admin` (mounted at `/api/admin/*`) provides telemetry, moderation, and operational control. Key areas:
-
-- **Telemetry & analytics** — live stats, FAQ growth, top categories, search insights, user-activity charts, activity feed, failed-query analytics, unresolved-search tracker
-- **Operational pages** — AdminDashboard, AdminFAQs, FaqReview, AdminFAQAudit, AdminAutoAnswerQueue, AdminCommunity, AdminUsers, AdminModeration, AdminZoomMeetings, AdminZoomInsights, AdminLeaderboard, AdminUnresolvedSearch, AdminAISettings, AdminSettings, AdminLogin
-- **Moderation** — every ban, suspend, warn, and soft-delete recorded in `ModerationLog`; every reputation change (+2 upvote, +5 accepted answer, -2/-5 on removal) recorded in `ReputationLog`
-- **AI pipeline visibility** — unified `PipelineResult` collection (30-day TTL) for both auto-answer and audit outcomes; Zoom health endpoint reports OAuth/API circuit state, cache hit rate, failing-meetings count, dead-letter count, pending-retry count; Prometheus metrics at `/api/metrics` (search latency, cache hits, RAG duration, queue depth)
-
-For the full admin route map and per-page behaviour, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-
----
-
-## User Experience
-
-The user-facing app (`/`, `/faq`, `/community`, `/saved`, `/account`, `/leaderboard`) gives authenticated users full participation in the knowledge loop:
-
-- **Discover** — hybrid semantic + keyword search at `/api/search` (public), semantic suggestions at `/api/search/suggest`, category browsing
-- **Ask the community** — post creation with Zod validation, debounced duplicate detection against the FAQ base (banner + block on match), auto-normalised tags, Cloudinary image attachments
-- **Engage** — upvotes with reputation-farming prevention (reverses on removal), bookmarks at `/saved`, nested comment threads with optimistic UI, accept-answer (locks verified/expert comments from edit), edit/delete own comments, share via clipboard, report and flag-outdated
-- **Notifications** — in-app bell, SpillTheTea event stream (`post_answered`, `post_deleted`, etc.), per-event-type settings, email + SMS delivery
-- **Reputation** — points for accepted answers, badges at thresholds, expert promotion by peer vote, public leaderboard
-- **AI assistant** — RAG-powered `/ask-ai` (5/day anonymous quota via localStorage, unlimited for authenticated users), sources cited, **accepts file and image attachments (max 4 files, 10 MB each) — images sent as vision input, text files inlined into the prompt**
-- **Zoom integration** — per-user OAuth from `/account`, manual `.vtt` / `.txt` / raw-text upload, last-synced status card, no admin required
-- **Search feedback** — "Report missing FAQ" on zero results, admin-promotable to FAQ
-
-For per-route behaviour and field schemas, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-
----
+### Backend
+- **Node.js & Express**
+- **MongoDB with Mongoose**
+- **JWT Authentication** (via HTTP-Only secure cookies)
+- **Socket.IO** (for real-time question, answer, and status events)
+- **Gemini API & Groq SDK** (Gemini for 3072-dimensional vector search embeddings, Groq for lightning-fast chatbot RAG responses)
 
 ## Project Structure
 
+```text
+CrowdFAQ/
+  backend/      Express API, controllers, routes, schemas, and seeding scripts
+  frontend/     TypeScript React application, Craco configuration, and Tailwind design system
+  database/     Database-related project files and backup assets
+  docs/         Technical specifications, team guides, and moderation API notes
+  testing/      E2E and component-level testing support files
 ```
-Crowd Source FAQ/
-├── apps/
-│   ├── backend/       # Express + TypeScript API
-│   └── frontend/      # React + Vite SPA
-├── docs/              # Full documentation      
-└── run.sh             # Local dev runner (env setup, ngrok, backend + frontend)
+
+## Prerequisites
+
+- **Node.js 18** or newer
+- **npm** or **Yarn**
+- **MongoDB** running locally or a MongoDB Atlas connection string
+- **Gemini API Key** (required for vector embeddings)
+- **Groq API Key** (optional, for fast RAG chat generation)
+
+## Installation & Setup
+
+### 1. Setup Backend
+From the repository root:
+```bash
+cd backend
+npm install
+```
+Create `backend/.env` and add:
+```env
+MONGODB_URI=mongodb://localhost:27017/CrowdFAQ
+JWT_SECRET=change-this-secret
+PORT=5000
+CLIENT_ORIGIN=http://localhost:3000
+NODE_ENV=development
+GEMINI_API_KEY=your-gemini-api-key
+GROQ_API_KEY=your-groq-api-key
+```
+
+### 2. Setup Frontend
+From the repository root:
+```bash
+cd frontend
+npm install --legacy-peer-deps
 ```
 
 ---
 
-## Environment Variables
+## Running the Project
 
-Required: `MONGODB_URI`, `JWT_SECRET`
-Optional: at least one AI provider key (`ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `XAI_API_KEY` / `MINIMAX_API_KEY`), Zoom OAuth credentials, `CLOUDINARY_*`, `SENTRY_DSN`, Twilio + SMTP for notifications, `UPSTASH_REDIS_*`
+### Terminal 1: Run Backend
+```bash
+cd backend
+npm run dev
+# Runs backend on http://localhost:5000
+```
 
-See [docs/ARCHITECTURE.md#10-env-variables-reference](docs/ARCHITECTURE.md#10-env-variables-reference) for the full list.
+### Terminal 2: Run Frontend
+```bash
+cd frontend
+npm start
+# Runs frontend on http://localhost:3000
+```
 
 ---
 
-## License
+## Available Scripts
 
-[MIT](./LICENSE) © 2026 vicharanashala
+### Backend Scripts
+```bash
+npm run dev    # Start backend with node --watch
+npm start      # Start backend normally
+npm test       # Run backend Jest test suite
+```
+
+### Frontend Scripts
+```bash
+npm start      # Start React development server
+npm run build  # Build production frontend assets to frontend/build/
+npm test       # Run frontend tests
+```
+
+---
+
+## Core System Features
+
+1. **AI FAQ Assistant (RAG)**: Uses MongoDB Atlas Vector Search and Gemini embeddings to retrieve relevant documentation, passing context to the chat model to answer user queries with clickable inline citations routing to `/q/:slug`.
+2. **Dynamic Badges & Gamification**: Recalculates and persists user accomplishments (`Early Adopter`, `Storyteller`, `founder`, `verified`) to MongoDB when their profile is fetched.
+3. **Interactive Comments & Flagging**: Allows inline nested discussions on questions and answers. Users can flag spam or policy-breaching posts, which populate in the moderator panel.
+4. **Moderation Dashboard**: Admin/moderator console featuring real-time statistics, member management, and content flagging controls.
+
+---
+
+## Codebase & System Invariants
+
+To keep the codebase stable and prevent deployment regressions, developers must adhere to the following invariants:
+
+### 1. Vector Embedding Dimension (3072)
+- **Rule**: The database schema in [Question.js](file:///c:/Users/kkp18/OneDrive/Pictures/Documents/IIT/CrowdFAQ/backend/models/Question.js) validates that any populated `embedding` array must be exactly **3072** elements.
+- **Implication**: We use `gemini-embedding-001` which outputs 3072 dimensions. Changing the embedding model requires updating `EMBEDDING_DIMENSIONS` in both the schema validation and the MongoDB Atlas Search Vector index definition.
+
+### 2. Cookie Authentication & Reverse Proxying
+- **Rule**: Authentication JWT tokens are transmitted via secure, HTTP-Only cookies. The API client in `frontend/src/lib/api.ts` enforces `withCredentials: true`.
+- **Implication**: To prevent modern browsers from blocking third-party cookies during deployment (e.g., frontend on Vercel, backend on Render), all backend requests are proxied via `/api/*` on the same domain. The `vercel.json` rewrite configuration must always proxy `/api/:path*` to the backend target url.
+
+### 3. TypeScript Compilation & primitive Typing
+- **Rule**: The frontend uses strict React 19 + TypeScript checks.
+- **Implication**: Radical overrides and type augmentations are housed in `frontend/src/react-augmentation.d.ts` and `frontend/src/react-app-env.d.ts` (e.g., merging React's `forwardRef` types). Relaxed types (`any`) on Shadcn/Radix components are preserved to prevent compiler blocking during initial migrations.
+
+### 4. ESLint Hook Check Directives
+- **Rule**: In CI/CD pipelines (e.g., Vercel), compiler warnings are treated as hard errors (`CI=true`).
+- **Implication**: Any `react-hooks/exhaustive-deps` warning overrides (like `// eslint-disable-next-line react-hooks/exhaustive-deps`) must be placed **directly above** the `useEffect` call declaration (not inside the dependency array).
+
+### 5. Mock-Free State
+- **Rule**: Application pages must pull real, dynamic data from the backend APIs rather than mock states.
+- **Implication**: Mocks in `mockData.ts` are deprecated. Any newly added pages must consume state via the global `AuthContext` or Axios hooks.
+
+### 6. Badges & Testing Connections
+- **Rule**: The dynamic badge calculator `calculateAndStoreUserBadges` runs on-demand.
+- **Implication**: It contains a safety guard checking `process.env.NODE_ENV === "test"` and Mongoose connection status. Database operations are bypassed during offline unit tests to avoid timeout crashes.
