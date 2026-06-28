@@ -21,6 +21,7 @@ const GoldenTicketPage = lazy(() => import('../pages/GoldenTicketPage'));
 const WelcomePackagePage = lazy(() => import('../pages/WelcomePackagePage'));
 const ProgramPortalPage = lazy(() => import('../pages/ProgramPortalPage'));
 const ProgramPage = lazy(() => import('../pages/ProgramPage'));
+const VinsAssistantPage = lazy(() => import('../pages/VinsAssistantPage'));
 
 // Admin pages
 const AdminDashboard = lazy(() => import('../admin/pages/AdminDashboard'));
@@ -108,6 +109,7 @@ export default function AppRoutes() {
             <Route path="/faq" element={<FAQPage />} />
             <Route path="/faq/:id" element={<FAQPage />} />
             <Route path="/community" element={<CommunityPage />} />
+            <Route path="/assistant" element={<VinsAssistantPage />} />
             <Route path="/saved" element={<SavedKnowledgePage />} />
             <Route path="/support" element={<SupportRoute />} />
             <Route path="/support/new" element={<SupportNewRoute />} />

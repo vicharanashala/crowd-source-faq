@@ -8,6 +8,7 @@ export type NavItem = { label: string; to: string; xlOnly?: true };
 export const baseNavItems: NavItem[] = [
   { label: 'Home', to: '/' },
   { label: 'FAQ', to: '/faq' },
+  { label: 'Assistant', to: '/assistant' },
   { label: 'Welcome Package', to: '/welcome' },
   { label: 'Community', to: '/community' },
 ];
