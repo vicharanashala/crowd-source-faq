@@ -19,7 +19,7 @@
  * rollout will tighten the fallback to a hard 400.
  */
 
-import type { FilterQuery, Model } from 'mongoose';
+import { FilterQuery, Model, Types } from 'mongoose';
 
 export type ProgramScopedFilter<T> = FilterQuery<T>;
 
@@ -30,7 +30,7 @@ export type ProgramScopedFilter<T> = FilterQuery<T>;
  */
 export function withProgramScope<T>(
   filter: ProgramScopedFilter<T>,
-  batchId: string | null | undefined
+  batchId: string | Types.ObjectId | null | undefined
 ): ProgramScopedFilter<T> {
   if (!batchId) return filter;
   // If the caller already explicitly set batchId, don't clobber.
@@ -59,7 +59,7 @@ export function withCurrentProgram<T>(
 export async function findScoped<M extends Model<any>>(
   model: M,
   filter: ProgramScopedFilter<any>,
-  batchId: string | null | undefined
+  batchId: string | Types.ObjectId | null | undefined
 ): Promise<ReturnType<M['find']>> {
   return (model as any).find(withProgramScope(filter, batchId)) as ReturnType<M['find']>;
 }

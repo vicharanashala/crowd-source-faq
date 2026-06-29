@@ -32,6 +32,7 @@ const ProgramPage = lazy(() => import('./pages/ProgramPage'));
 // v1.68 — AdminLogin page is gone. The single global AuthModal
 // (rendered by AuthModalHost) handles sign-in for everyone.
 const AdminDashboard = lazy(() => import('./admin/pages/AdminDashboard'));
+const AdminAnalytics = lazy(() => import('./admin/pages/AdminAnalytics'));
 const AdminFAQs = lazy(() => import('./admin/pages/AdminFAQs'));
 const AdminUsers = lazy(() => import('./admin/pages/AdminUsers'));
 const AdminSettings = lazy(() => import('./admin/pages/AdminSettings'));
@@ -196,6 +197,7 @@ function AppRoutes() {
           element={<Navigate to="/?next=/admin" replace />}
         />
         <Route path="/admin" element={<AdminRoute><AdminLayout><AdminDashboard /></AdminLayout></AdminRoute>} />
+        <Route path="/admin/analytics" element={<AdminRoute><AdminLayout><AdminAnalytics /></AdminLayout></AdminRoute>} />
         <Route path="/admin/faqs" element={<AdminRoute><AdminLayout><AdminFAQs /></AdminLayout></AdminRoute>} />
         <Route path="/admin/users" element={<AdminRoute><AdminLayout><AdminUsers /></AdminLayout></AdminRoute>} />
         <Route path="/admin/settings" element={<AdminRoute><AdminLayout><AdminSettings /></AdminLayout></AdminRoute>} />

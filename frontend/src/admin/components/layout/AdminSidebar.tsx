@@ -17,6 +17,7 @@ const NAV: NavGroup[] = [
     label: 'Overview',
     items: [
       { to: '/admin',            label: 'Dashboard',   icon: GridIcon,    end: true },
+      { to: '/admin/analytics',  label: 'Analytics',   icon: ChartIcon },
     ],
   },
   {
