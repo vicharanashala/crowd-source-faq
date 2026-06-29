@@ -338,6 +338,21 @@ async function main() {
     },
   });
 
+  console.log("Creating default Candidate User...");
+  const candidatePasswordHash = await bcrypt.hash("scholar123", 10);
+  await prisma.user.create({
+    data: {
+      name: "Scholar Intern",
+      email: "scholar@vicharanashala.in",
+      password: candidatePasswordHash,
+      role: "USER",
+      isVerified: true,
+      spurtiPoints: 75,
+      streak: 3,
+      badges: JSON.stringify(["First Question"]),
+    },
+  });
+
   console.log("Database seeded successfully!");
 }
 

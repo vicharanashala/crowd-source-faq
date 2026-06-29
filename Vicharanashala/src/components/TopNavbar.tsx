@@ -250,6 +250,24 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({ currentTab, setCurrentTab 
               {isRegister ? 'Join the Vicharanashala research network' : 'Present credentials to consult Yaksha AI'}
             </p>
 
+            {!isRegister && (
+              <div className="bg-[#7C3AED]/10 border border-[#7C3AED]/25 rounded-xl p-3 mb-4 text-xs font-mono text-slate-350 select-text">
+                <span className="text-[#06B6D4] font-bold block mb-1.5 uppercase tracking-wider text-[9px]">Portal Test Access</span>
+                <div className="grid grid-cols-2 gap-3 text-[11px] leading-tight">
+                  <div className="border-r border-slate-800/50 pr-2">
+                    <span className="text-slate-500 font-sans font-bold text-[9px] uppercase tracking-wider block">Admin Console</span>
+                    <p className="text-white mt-1 select-all">admin@vicharanashala.in</p>
+                    <p className="text-cyan-400/80 mt-0.5 select-all">admin123</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 font-sans font-bold text-[9px] uppercase tracking-wider block">Candidate Access</span>
+                    <p className="text-white mt-1 select-all">scholar@vicharanashala.in</p>
+                    <p className="text-cyan-400/80 mt-0.5 select-all">scholar123</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {errorMsg && (
               <div className="bg-red-950/30 border border-red-800/40 text-red-400 p-2.5 rounded-lg text-xs mb-4 text-center">
                 {errorMsg}
