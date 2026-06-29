@@ -31,6 +31,7 @@ async function migrate() {
   const indexes: { name: string; coll: string; key: Record<string, 1 | -1>; options?: Record<string, unknown> }[] = [
     { name: 'TTL 90-day expiry',           coll: 'yaksha_faq_searchlogs',              key: { createdAt: 1 },                       options: { expireAfterSeconds: 60 * 60 * 24 * 90 } },
     { name: 'query+createdAt',            coll: 'yaksha_faq_searchlogs',              key: { query: 1, createdAt: -1 } },
+    { name: 'batchId+createdAt',          coll: 'yaksha_faq_searchlogs',              key: { batchId: 1, createdAt: -1 } },
     { name: 'category+status+createdAt',   coll: 'yaksha_faq_faqs',                   key: { category: 1, status: 1, createdAt: -1 } },
     { name: 'status+createdAt',            coll: 'yaksha_faq_communityposts',          key: { status: 1, createdAt: -1 } },
     { name: 'status+createdAt (unresolved)', coll: 'yaksha_faq_unresolved_searches',   key: { status: 1, createdAt: -1 } },

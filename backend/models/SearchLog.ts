@@ -64,10 +64,18 @@ const searchLogSchema = new MongooseSchema(
 //   days; the 90-day window matches the analytics retention
 //   policy and bounds the collection size without losing
 //   analytical value. Mongo's TTL monitor runs every 60s.
+//   MongoDB restricts TTL indexes to a single field, so this
+//   must remain a single-field index.
 searchLogSchema.index(
   { createdAt: 1 },
   { expireAfterSeconds: 90 * 24 * 60 * 60 }
 );
+
+// v1.69 — Compound index to support program-scoped dashboard search trend queries.
+//   This complements the TTL index: while the TTL index runs background deletions,
+//   this index speeds up analytics queries that match on program (batchId) and
+//   range/sort by date (createdAt).
+searchLogSchema.index({ batchId: 1, createdAt: -1 });
 
 // Export the model, explicitly defining the target collection name ('yaksha_faq_searchlogs')
 export default mongoose.model<ISearchLog>('SearchLog', searchLogSchema, 'yaksha_faq_searchlogs');
