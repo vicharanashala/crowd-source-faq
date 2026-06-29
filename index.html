@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Samagama Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="dark-mode">
+
+  <div class="dashboard-layout">
+    
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header" style="display: flex; align-items: center; gap: 0.5rem; padding: 1.5rem 1rem;">
+        <button id="hamburger-menu" class="icon-btn" title="Toggle Menu" style="font-size: 1.5rem; color: var(--text-primary);">☰</button>
+        <h2>Smart FAQ</h2>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="#" data-target="home" class="active"><span class="icon">🏠</span> <span class="nav-text">Home</span></a>
+        <a href="#" data-target="about"><span class="icon">ℹ️</span> <span class="nav-text">About</span></a>
+        <a href="#" data-target="faq"><span class="icon">❓</span> <span class="nav-text">FAQ Section</span></a>
+        <a href="#" data-target="my-queries" id="nav-my-queries" style="display: none;"><span class="icon">📩</span> <span class="nav-text">My Queries</span></a>
+        <a href="#" data-target="community-queries" id="nav-community-queries" style="display: none;"><span class="icon">🤝</span> <span class="nav-text">Help Community</span></a>
+        <a href="#" data-target="sp-history" id="nav-sp-history" style="display: none;"><span class="icon">✨</span> <span class="nav-text">Spurti Points (<span id="user-sp-count">0</span>)</span></a>
+        <a href="#" data-target="admin" id="nav-admin"><span class="icon">🔒</span> <span class="nav-text">Admin</span></a>
+      </nav>
+    </aside>
+
+    <!-- Main Content Wrapper -->
+    <div class="main-content-wrapper">
+      
+      <!-- Top Navigation Bar -->
+      <header class="top-nav">
+        <div class="nav-left">
+          <h1 id="page-title">Home</h1>
+        </div>
+        <div class="nav-right">
+          <button id="theme-toggle" class="icon-btn theme-toggle-btn" title="Toggle Theme">☀️</button>
+          <div id="auth-section">
+            <button id="login-modal-btn" class="btn primary-btn btn-small">Sign In / Sign Up</button>
+          </div>
+          <div id="user-profile" style="display: none;">
+            <span id="user-email-display" class="user-email"></span>
+            <button id="logout-btn" class="icon-btn" title="Log Out">🚪</button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Scrollable Content -->
+      <main class="content-area">
+        
+        <!-- Home Section -->
+        <section id="home" class="content-section active">
+          <div class="hero-header text-center">
+            <h2>Find answers to common questions instantly.</h2>
+            <button class="btn primary-btn mt-1" id="home-view-faqs-btn">View FAQs</button>
+          </div>
+          
+          <div class="search-container glass-card text-center mt-2">
+            <h3>Search Bar</h3>
+            <p class="subtitle mb-1">Allow users to search FAQs.</p>
+            <div class="search-flex">
+              <input type="text" id="faq-search-input" placeholder="Search your question..." autocomplete="off">
+              <button id="faq-search-btn" class="btn primary-btn btn-small">Search</button>
+            </div>
+          </div>
+
+          <div class="categories-container mt-2">
+            <h3 class="section-heading">FAQ Categories</h3>
+            <div class="categories-grid" id="home-categories-grid">
+              <!-- Dynamically populated by JS -->
+            </div>
+          </div>
+
+          <div class="popular-stats-flex mt-2">
+            <div class="popular-faqs glass-card flex-1">
+              <h3 class="color-heading-1">Popular FAQs</h3>
+              <div id="popular-faq-login-msg" style="padding: 2rem; background: rgba(255,255,255,0.05); border-radius: 8px; margin-top: 1rem;">
+                <p>Please <a href="#" onclick="document.getElementById('login-modal-btn').click(); return false;" style="color: var(--accent-primary);">sign in</a> to view the Popular FAQs.</p>
+              </div>
+              <div id="popular-faq-list-container" class="faq-container" style="text-align: left; display: none;">
+                <div class="faq-item">
+                  <button class="faq-question" onclick="this.parentElement.classList.toggle('active')">
+                    <span>I have uploaded my NOC and it got validated also but not got the final offer letter</span>
+                    <span class="faq-icon">▼</span>
+                  </button>
+                  <div class="faq-answer">
+                    <div class="faq-answer-inner">
+                      <p>Your NOC might have got auto validated , so you need not worry as when it gets reviewed once by the team then you will get your final offer letter, until that please continue your internship, Thank You.</p>
+                    </div>
+                  </div>
+                </div>
+                <div class="faq-item">
+                  <button class="faq-question" onclick="this.parentElement.classList.toggle('active')">
+                    <span>I have been excused from the internship due to low attendance , as i had an urgent emergency.</span>
+                    <span class="faq-icon">▼</span>
+                  </button>
+                  <div class="faq-answer">
+                    <div class="faq-answer-inner">
+                      <p>If you have been excused and you had a genuine reason then you can appeal it on the samagama dashboard that will be visible to you, you can appeal there, Team will review it and on basis of it you will be informed, what can be done, Thank You.</p>
+                    </div>
+                  </div>
+                </div>
+                <div class="faq-item">
+                  <button class="faq-question" onclick="this.parentElement.classList.toggle('active')">
+                    <span>My team leader got excused the from this cohort , what should the team do now to continue.</span>
+                    <span class="faq-icon">▼</span>
+                  </button>
+                  <div class="faq-answer">
+                    <div class="faq-answer-inner">
+                      <p>If your team leader got excused then you need not worry in some time you wil get an option to select a team leader from the team members of your team , So in this way you can continue, Thank You.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="statistics-container glass-card flex-1 text-center">
+              <h3 class="color-heading-2">Statistics</h3>
+              <div class="stats-grid mt-1">
+                <div class="stat-item"><h4>500+</h4><p>FAQs</p></div>
+                <div class="stat-item"><h4>1000+</h4><p>Users Helped</p></div>
+                <div class="stat-item"><h4>24/7</h4><p>Access</p></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- About Section -->
+        <section id="about" class="content-section">
+          <div class="hero-header text-center">
+            <h2>About FAQs</h2>
+          </div>
+
+          <div class="glass-card full-width-card">
+            <p>Frequently Asked Questions (FAQs) are a collection of common questions and their answers related to a product, service, or platform. FAQs help users find information quickly without needing to contact support.</p>
+            <p class="mt-1">Our FAQ system is designed to provide clear and organized answers to commonly asked questions. Users can browse different categories, search for specific topics, and access information whenever needed.</p>
+          </div>
+
+          <div class="about-grid mt-2">
+            <div class="glass-card">
+              <h3 class="color-heading-1">Benefits of FAQs</h3>
+              <ul class="custom-list mt-1">
+                <li>Quick access to information</li>
+                <li>Saves users' time</li>
+                <li>Reduces repetitive support requests</li>
+                <li>Provides consistent and accurate answers</li>
+                <li>Improves overall user experience</li>
+              </ul>
+            </div>
+            
+            <div class="glass-card">
+              <h3 class="color-heading-2">How Our FAQ System Works</h3>
+              <ul class="custom-list mt-1">
+                <li>Users can browse or search for questions.</li>
+                <li>Questions are organized into categories for easy navigation.</li>
+                <li>Administrators can add, update, or remove FAQs to keep information current.</li>
+                <li>Users receive instant answers to common queries without waiting for support.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="glass-card full-width-card mt-2 text-center">
+            <h3 class="color-heading-3">Our Goal</h3>
+            <p class="mt-1">The goal of this FAQ platform is to make information easily accessible, improve user satisfaction, and provide a simple way to manage and maintain frequently asked questions.</p>
+          </div>
+        </section>
+
+        <!-- FAQ Section -->
+        <section id="faq" class="content-section">
+          <h2>Frequently Asked Questions</h2>
+          <p class="subtitle">FAQ regarding every doubt you have or you can think of</p>
+          <div class="faq-container" id="faq-container">
+            <!-- Dynamically populated by JS -->
+          </div>
+        </section>
+
+        <!-- My Queries Section -->
+        <section id="my-queries" class="content-section">
+          <h2>My Queries</h2>
+          <p class="subtitle">Questions you've asked that have been answered by an Admin.</p>
+          <div class="faq-container" id="my-queries-container">
+            <!-- Dynamically populated by JS -->
+          </div>
+        </section>
+
+        <!-- Community Queries Section -->
+        <section id="community-queries" class="content-section">
+          <h2>Help Community</h2>
+          <p class="subtitle">Answer questions from other students and help the community.</p>
+          <div class="faq-container" id="community-queries-container">
+            <!-- Dynamically populated by JS -->
+          </div>
+        </section>
+
+        <!-- SP History Section -->
+        <section id="sp-history" class="content-section">
+          <h2>Spurti Points History</h2>
+          <p class="subtitle">Track your earned rewards and penalties.</p>
+          <div class="glass-card full-width-card mt-2">
+            <div class="table-container">
+              <table class="users-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Action</th>
+                    <th>Points</th>
+                    <th>Query Reference</th>
+                  </tr>
+                </thead>
+                <tbody id="sp-history-table-body">
+                  <!-- Dynamically populated -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- Admin Section -->
+        <section id="admin" class="content-section">
+          <h2>Admin Dashboard</h2>
+          <div class="glass-card full-width-card admin-panel">
+            
+            <!-- Step 1: Security Key -->
+            <div id="admin-step-1">
+              <h3 class="color-heading-1">Restricted Area</h3>
+              <p>Please enter the security key to access the admin portal.</p>
+              <div class="input-group mt-1">
+                <input type="password" id="admin-security-key" placeholder="Enter security key...">
+              </div>
+              <button id="admin-verify-key-btn" class="btn primary-btn mt-1">Verify Key</button>
+              <div id="admin-key-error" class="error-msg mt-1" style="display:none;">Invalid security key.</div>
+            </div>
+
+            <!-- Step 2: Admin Login / Signup -->
+            <div id="admin-step-2" style="display:none;">
+              <h3 class="color-heading-2" id="admin-form-title">Admin Login</h3>
+              <p id="admin-form-subtitle">Please sign in with your individual administrator credentials.</p>
+              
+              <div class="input-group mt-1">
+                <input type="email" id="admin-email" placeholder="Admin Email">
+              </div>
+              <div class="input-group mt-1">
+                <input type="password" id="admin-password" placeholder="Password">
+              </div>
+              
+              <button id="admin-login-btn" class="btn primary-btn mt-1">Sign In</button>
+              <button id="admin-signup-btn" class="btn primary-btn mt-1" style="display:none;">Create Admin</button>
+              
+              <div id="admin-login-error" class="error-msg mt-1" style="display:none;">Invalid Admin Email or Password.</div>
+              <div id="admin-signup-success" class="success-msg mt-1" style="display:none;">Admin created! Please sign in.</div>
+              
+              <p class="mt-1" style="font-size: 0.9rem; text-align: center;">
+                <a href="#" id="toggle-admin-form">Create a new admin account</a>
+              </p>
+            </div>
+            
+            <!-- Step 3: Admin Dashboard -->
+            <div id="admin-step-3" style="display:none;">
+              <h3 class="color-heading-3">Welcome, Administrator</h3>
+              <p>Here you can view the record and progress of all registered users.</p>
+              
+              <div class="table-container mt-2">
+                <table class="users-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>User Email</th>
+                      <th>Spurti Points</th>
+                      <th>Status</th>
+                      <th>Joined Date</th>
+                      <th>Last Sign In</th>
+                    </tr>
+                  </thead>
+                  <tbody id="admin-users-table-body">
+                    <!-- Populated by JS -->
+                  </tbody>
+                </table>
+              </div>
+
+              <h3 class="color-heading-3 mt-2">Unresolved Queries</h3>
+              <p>Questions searched by students that did not yield any results.</p>
+              <div class="table-container mt-1">
+                <table class="users-table">
+                  <thead>
+                    <tr>
+                      <th>Search Term</th>
+                      <th>Student Name</th>
+                      <th>Student Email</th>
+                      <th>Date</th>
+                      <th>Time</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="admin-queries-table-body">
+                    <!-- Populated by JS -->
+                  </tbody>
+                </table>
+              </div>
+
+              <h3 class="color-heading-3 mt-2">Resolved Queries</h3>
+              <p>Questions that have been answered by an admin.</p>
+              <div class="table-container mt-1">
+                <table class="users-table">
+                  <thead>
+                    <tr>
+                      <th>Question</th>
+                      <th>Answer</th>
+                      <th>Student Name</th>
+                      <th>Resolved By</th>
+                    </tr>
+                  </thead>
+                  <tbody id="admin-resolved-table-body">
+                    <!-- Populated by JS -->
+                  </tbody>
+                </table>
+              </div>
+              
+              <button id="admin-lock-btn" class="btn mt-2">Lock Admin Portal</button>
+            </div>
+
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- Login/Signup Modal (Book Animation) -->
+  <div id="login-modal" class="modal-overlay">
+    <div class="modal-content">
+      <button id="close-modal" class="icon-btn close-modal-btn">&times;</button>
+      
+      <div class="book-container">
+        <div class="book">
+          <!-- Left Base (Welcome Decor) -->
+          <div class="book-page left-side-base desktop-only">
+            <div class="decor-content">
+              <h2>Welcome Back</h2>
+              <p>We're thrilled to see you again. Sign in to access your dashboard.</p>
+            </div>
+          </div>
+
+          <!-- Right Base (Join Decor) -->
+          <div class="book-page right-side-base desktop-only">
+            <div class="decor-content">
+              <h2>Join the Community</h2>
+              <p>Sign up to explore all the FAQs and ask your own questions.</p>
+            </div>
+          </div>
+
+          <!-- Flipping Page -->
+          <div class="book-page flipping-page" id="flip-page">
+            <!-- Front Face -> Login Form -->
+            <div class="page-face front">
+              <div class="form-container">
+                <h2>Sign In</h2>
+                <p class="subtitle">Access your account</p>
+                <div id="login-error" class="error-msg" style="display: none;">Invalid email or password</div>
+                <form id="signin-form">
+                  <div class="input-group">
+                    <label>Email ID</label>
+                    <input type="email" id="signin-email" required placeholder="Enter your email">
+                  </div>
+                  <div class="input-group">
+                    <label>Password</label>
+                    <input type="password" id="signin-password" required placeholder="Enter your password">
+                  </div>
+                  <button type="submit" class="btn primary-btn">Sign In</button>
+                  <div class="switch-form">
+                    <p>Don't have an account? <a href="#" id="go-to-signup">Create an account</a></p>
+                  </div>
+                </form>
+              </div>
+            </div>
+
+            <!-- Back Face -> Sign Up Form -->
+            <div class="page-face back">
+              <div class="form-container">
+                <h2>Create an account</h2>
+                <p class="subtitle">Join us to get your answers</p>
+                <div id="signup-success" class="success-msg" style="display: none;">Account created! Please sign in.</div>
+                <div id="signup-error" class="error-msg" style="display: none;">User already exists.</div>
+                <form id="signup-form">
+                  <div class="input-group">
+                    <label>Full Name</label>
+                    <input type="text" id="signup-name" required placeholder="Enter your full name">
+                  </div>
+                  <div class="input-group">
+                    <label>Email ID</label>
+                    <input type="email" id="signup-email" required placeholder="Enter your email">
+                  </div>
+                  <div class="input-group">
+                    <label>Password</label>
+                    <input type="password" id="signup-password" required placeholder="Create a password">
+                  </div>
+                  <button type="submit" class="btn primary-btn">Sign Up</button>
+                  <div class="switch-form">
+                    <p>Already have an account? <a href="#" id="go-to-signin">Sign In</a></p>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Resolve Query Modal -->
+  <div id="resolve-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 500px; padding: 2rem;">
+      <h2 class="color-heading-2">Resolve Query</h2>
+      <p id="resolve-query-text" style="font-weight: 500; margin-bottom: 1rem;"></p>
+      <div class="input-group">
+        <label>Answer</label>
+        <textarea id="resolve-answer-input" rows="4" placeholder="Type the answer here..." style="width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: var(--bg-tertiary); color: var(--text-primary);"></textarea>
+      </div>
+      <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+        <button id="resolve-submit-btn" class="btn primary-btn">Submit Answer</button>
+        <button id="resolve-cancel-btn" class="btn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="reject-modal" class="modal-overlay">
+    <div class="modal glass-card">
+      <h3 class="color-heading-2">Reject Query</h3>
+      <p id="reject-query-text" class="mt-1" style="font-style: italic; opacity: 0.8; margin-bottom: 1rem;"></p>
+      
+      <p class="mb-1">Select SP Penalty for this invalid query:</p>
+      <select id="reject-penalty-select" style="width: 100%; padding: 0.5rem; margin-bottom: 1rem; background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px;">
+        <option value="0">0 SP (No Penalty)</option>
+        <option value="2">-2 SP (Minor Offense)</option>
+        <option value="5">-5 SP (Spam)</option>
+        <option value="10">-10 SP (Severe Violation)</option>
+      </select>
+      
+      <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+        <button id="reject-submit-btn" class="btn primary-btn flex-1" style="background-color: var(--error-color);">Confirm Reject</button>
+        <button id="reject-cancel-btn" class="btn secondary-btn flex-1">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/script.ts"></script>
+</body>
+</html>
