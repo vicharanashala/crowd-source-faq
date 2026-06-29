@@ -17,6 +17,7 @@ import { invalidatePublicCaches } from './publicFaqController.js';
 // Mongoose filter through withProgramScope. Single tenant callers
 // (no batchId) keep working until the rollout flips required=true.
 import { withProgramScope } from '../utils/db/scopedQuery.js';
+import { learnFromText } from '../src/search/aliasMapper.js';
 
 // v1.69 — batchIdFromQuery helper: read ?batchId=... from
 // any request. The type is intentionally narrow ({query: any})
@@ -239,6 +240,7 @@ export const getFAQById = async (req: Request<{ id: string }>, res: Response): P
     if (cacheAvailable()) {
       await cacheSet(cacheKey, faq, 600); // 10 min TTL
     }
+    learnFromText(`${faq.question} ${faq.answer}`);
     res.json(faq);
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
@@ -438,6 +440,10 @@ export const createFAQ = async (req: Request, res: Response): Promise<void> => {
     // Invalidate caches so updated/new FAQ reflects immediately
     await triggerAllCacheInvalidation();
 
+    // Extract any new abbreviation↔long-form pairs from the new FAQ content
+    // and persist them to aliases.json so searches expand them immediately.
+    learnFromText(`${question_} ${answer_}`);
+
     // Fan out tea drops to all non-admin users
     createTeaDropsForFAQ(faq._id.toString(), question).catch((err) => adminLog.warn(`[faq] createTeaDropsForFAQ failed: ${(err as Error).message}`));
 
@@ -506,6 +512,9 @@ export const updateFAQ = async (req: Request<{ id: string }>, res: Response): Pr
 
     // Invalidate caches so updated/new FAQ reflects immediately
     await triggerAllCacheInvalidation();
+
+    // Re-scan the updated content for any new abbreviation↔long-form pairs.
+    learnFromText(`${faq.question} ${faq.answer}`);
 
     res.json({ message: 'FAQ updated successfully.', faq });
   } catch (error) {

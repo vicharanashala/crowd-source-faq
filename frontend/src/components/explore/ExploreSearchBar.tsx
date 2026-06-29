@@ -3,6 +3,7 @@
 // at the top of the page once the user scrolls past the hero.
 
 import React, { useEffect, useRef, useState } from 'react';
+import { getQueryExpansions } from '../../utils/queryExpander';
 
 interface ExploreSearchBarProps {
   value: string;
@@ -26,6 +27,7 @@ export function ExploreSearchBar({
 }: ExploreSearchBarProps): React.ReactElement {
   const [internal, setInternal] = useState(value);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [queryExpansions, setQueryExpansions] = useState<string[]>([]);
 
   // Keep local input in sync if parent clears the value externally.
   useEffect(() => {
@@ -35,6 +37,11 @@ export function ExploreSearchBar({
   function handleChange(e: React.ChangeEvent<HTMLInputElement>): void {
     const v = e.target.value;
     setInternal(v);
+    
+    // Update query expansions for UI display
+    const expansions = getQueryExpansions(v);
+    setQueryExpansions(expansions);
+    
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => onChange(v), 250);
   }
@@ -79,6 +86,20 @@ export function ExploreSearchBar({
         >
           Clear
         </button>
+      )}
+
+      {/* Query Expansion Hints */}
+      {queryExpansions.length > 0 && (
+        <div className="absolute top-full left-0 right-0 mt-1 px-3 py-2 rounded-lg border border-accent/15 bg-accent-light/50 shadow-subtle z-40">
+          <p className="text-xs font-semibold text-accent/70 mb-1 uppercase tracking-wide">🔍 Also searching:</p>
+          <div className="flex flex-wrap gap-1.5">
+            {queryExpansions.map((expansion, idx) => (
+              <span key={idx} className="inline-block px-2 py-0.5 bg-white/70 text-accent text-xs rounded-full border border-accent/15">
+                {expansion}
+              </span>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, type FormEvent, type ChangeEvent } 
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import api from '../../utils/api';
+import { getQueryExpansions } from '../../utils/queryExpander';
 import type { SearchResult } from '../../types/ui';
 import { useBatch } from '../../context/BatchContext';
 
@@ -46,6 +47,7 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestionError, setSuggestionError] = useState<string | null>(null);
+  const [queryExpansions, setQueryExpansions] = useState<string[]>([]);
   const isControlled = value !== undefined;
   const query = isControlled ? (value ?? '') : internalQuery;
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -101,6 +103,10 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
     } else {
       setInternalQuery(val);
     }
+
+    // Update query expansions for UI display
+    const expansions = getQueryExpansions(val);
+    setQueryExpansions(expansions);
 
     // Suggestion debounce (300ms)
     if (!disableSuggestions) {
@@ -220,6 +226,21 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
             ))}
           </div>
         )}
+
+        {/* Query Expansion Hints */}
+        {queryExpansions.length > 0 && (
+          <div className="absolute top-full left-0 right-0 mt-2 px-4 py-3 rounded-2xl border border-accent/20 bg-accent-light shadow-subtle z-40">
+            <p className="text-xs font-semibold text-accent/80 mb-2 uppercase tracking-wide">🔍 Searching also for:</p>
+            <div className="flex flex-wrap gap-2">
+              {queryExpansions.map((expansion, idx) => (
+                <span key={idx} className="inline-block px-2.5 py-1 bg-white/50 text-accent text-xs rounded-full border border-accent/20">
+                  {expansion}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Suggestion click error */}
         {suggestionError && (
           <div className="absolute top-full left-0 right-0 mt-2 px-4 py-2 bg-danger-light border border-danger/20 rounded-xl text-xs text-danger">

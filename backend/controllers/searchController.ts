@@ -13,6 +13,7 @@ import {
 } from '../utils/http/search.js';
 import { searchRequests, searchResultsReturned, searchLogFlushActive, searchLogFlushes } from '../utils/http/metrics.js';
 import { searchKnowledge } from '../services/knowledgeBase.js';
+import { expandQuery, learnFromText } from '../src/search/aliasMapper.js';
 
 // Cache configuration: Store up to 500 recent queries for 1 hour to reduce DB/AI loads
 const searchCache = new LRUCache<string, SearchResultItem[]>({
@@ -249,6 +250,10 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
         userId: userObjectId,
         batchId: batchIdObjectId,
       });
+      for (const result of cachedResults) {
+        const text = `${(result as any).question ?? ''} ${(result as any).answer ?? ''}`.trim();
+        if (text) learnFromText(text);
+      }
       res.json({ results: cachedResults, total: cachedResults.length, cached: true });
       return;
     }
@@ -268,19 +273,29 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
         userId: userObjectId,
         batchId: batchIdObjectId,
       });
+      for (const result of cachedResults) {
+        const text = `${(result as any).question ?? ''} ${(result as any).answer ?? ''}`.trim();
+        if (text) learnFromText(text);
+      }
       res.json({ results: cachedResults, total: cachedResults.length, cached: true });
       return;
     }
 
-    // 2. Compute AI Embedding for the search term
-    const embedding = await generateQueryEmbedding(query);
+    // 2. Expand query with aliases, acronyms, and typo corrections before embedding/search
+    // The cache key (normalizedQuery) is intentionally kept as the original so
+    // repeated identical queries still get cache hits. Only the embedding and
+    // text-search layers receive the enriched string.
+    const expandedQuery = expandQuery(query);
 
-    // 3. Execute Vector and Text searches in parallel across both collections for maximum speed
+    // 3. Compute AI Embedding for the (alias-expanded) search term
+    const embedding = await generateQueryEmbedding(expandedQuery);
+
+    // 4. Execute Vector and Text searches in parallel across both collections for maximum speed
     const [faqVec, commVec, faqTxt, commTxt] = await Promise.all([
       runVectorSearch('yaksha_faq_faqs', embedding, 5, batchIdObjectId),
       runVectorSearch('yaksha_faq_communityposts', embedding, 5, batchIdObjectId),
-      runTextSearch('yaksha_faq_faqs', query, 5, batchIdObjectId),
-      runTextSearch('yaksha_faq_communityposts', query, 5, batchIdObjectId)
+      runTextSearch('yaksha_faq_faqs', expandedQuery, 5, batchIdObjectId),
+      runTextSearch('yaksha_faq_communityposts', expandedQuery, 5, batchIdObjectId)
     ]);
     
     // Tag results with their origin source (FAQ vs Community)
@@ -335,6 +350,14 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
     // 6. Save to both Redis (shared) and LRU (process-local)
     searchCache.set(normalizedQuery, filtered);
     await setCachedResults(normalizedQuery, filtered);
+
+    // Learn abbreviations from returned FAQ content opportunistically.
+    // Each result may contain patterns like "Spurti Points (SP)" that the
+    // extractor can pick up and persist — fire-and-forget, zero search latency.
+    for (const result of filtered) {
+      const text = `${(result as any).question ?? ''} ${(result as any).answer ?? ''}`.trim();
+      if (text) learnFromText(text);
+    }
 
     // 7. Buffer search log entry for batched async write (non-blocking)
     const topResult = filtered[0] || null;

@@ -64,6 +64,7 @@ import { runPromotionCycle } from './services/promotionService.js';
 import { getMetrics } from './utils/http/metrics.js';
 import { runWithContext } from './utils/http/requestContext.js';
 import { flushSearchLogs } from './controllers/searchController.js';
+import { initAcronymExtractor } from './src/search/aliasMapper.js';
 import { jobQueue } from './utils/http/jobQueue.js';
 import { getCloudinaryConfig } from './utils/http/cloudinary.js';
 import { recomputePopularity } from './controllers/publicFaqController.js';
@@ -384,7 +385,11 @@ function validateEnv(): void {
   try {
     getCloudinaryConfig();
   } catch (e: any) {
-    errors.push(e.message);
+    if (process.env.NODE_ENV === 'production') {
+      errors.push(e.message);
+    } else {
+      logger.warn('[validateEnv] Cloudinary not configured — image uploads disabled in development.');
+    }
   }
 
   if (errors.length > 0) {
@@ -425,6 +430,18 @@ if (process.env.NODE_ENV !== 'production') {
     startEscalationScheduler();
     runScheduledAutoAnswer().catch((err) => logger.error(`[autoAnswer] Startup: ${(err as Error).message}`));
     runScheduledFAQAudit().catch((err) => logger.error(`[faqAudit] Startup: ${(err as Error).message}`));
+
+    // Search alias engine — scan bundled faqs.json for acronym patterns once at startup.
+    // initAcronymExtractor is synchronous and fast (in-memory only); the cast is safe
+    // because the JSON structure is stable and validated by the seed scripts.
+    try {
+      const { default: faqsData } = await import('./faqs.json', { with: { type: 'json' } }) as { default: { faqs?: Array<{ question?: string; answer?: string }> } };
+      const faqTexts = (faqsData.faqs ?? []).map((f) => `${f.question ?? ''} ${f.answer ?? ''}`);
+      initAcronymExtractor(faqTexts);
+      startupLog.info(`[aliasMapper] Extracted acronyms from ${faqTexts.length} FAQ entries`);
+    } catch (e) {
+      startupLog.warn(`[aliasMapper] Could not load faqs.json for acronym extraction: ${(e as Error).message}`);
+    }
 
     // v1.68 — start the Discord bot (gated on
     // DISCORD_BOT_TOKEN; no-ops gracefully if the env var

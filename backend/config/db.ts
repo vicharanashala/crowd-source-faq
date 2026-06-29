@@ -62,7 +62,17 @@ const connectDB = async (): Promise<Connection> => {
     return cachedConnection;
   } catch (error) {
     const err = error as Error;
-    dbLog.alert('connection failed at startup', { message: err.message, uri });
+    // SSL alert 80 (internal_error) is how Atlas rejects connections from
+    // non-whitelisted IPs at the TLS handshake layer. Surface this clearly
+    // instead of letting it appear as a generic SSL failure.
+    if (err.message.includes('SSL alert number 80') || err.message.includes('ssl3_read_bytes')) {
+      dbLog.alert('connection failed — IP not whitelisted on MongoDB Atlas', {
+        hint: 'Go to https://cloud.mongodb.com → Network Access → Add IP Address and add your current IP (or 0.0.0.0/0 for dev)',
+        message: err.message,
+      });
+    } else {
+      dbLog.alert('connection failed at startup', { message: err.message, uri });
+    }
     throw error;
   }
 };
