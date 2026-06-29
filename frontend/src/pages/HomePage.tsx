@@ -488,6 +488,11 @@ export default function HomePage() {
     }
   };
 
+  const handleFindSolutionsClick = () => {
+    searchBarRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    searchBarRef.current?.focus();
+  };
+
   // True when the user is browsing the discovery landing (nothing selected)
   const showDiscovery = !loading && !error && !activeQuestion && !searchActive && !activeCategory;
 
@@ -548,6 +553,7 @@ export default function HomePage() {
         </section>
 
         {/* ─── CATEGORY FILTER PILLS (clickable horizontal row) ─────── */}
+        
         {showDiscovery && categories.length > 0 && (
           <nav
             className="mt-3 max-w-5xl mx-auto px-1 flex flex-wrap justify-center gap-2"
@@ -592,6 +598,78 @@ export default function HomePage() {
               </button>
             )}
           </nav>
+        )}
+
+        {/* ─── FEATURE CARDS ─ always visible on landing ─────────── */}
+        
+        {!activeQuestion && !searchActive && !activeCategory && (
+          <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mt-8 mb-2 animate-fade-in" aria-label="Core features">
+            {[
+              {
+                title: 'Ask Questions',
+                description: 'Post your internship-related questions and get answers from the community.',
+                icon: (
+                  <svg className="w-5 h-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
+                  </svg>
+                ),
+                action: () => navigate('/community?create=true'),
+              },
+              {
+                title: 'Find Solutions',
+                description: 'Search through existing FAQs to quickly solve common problems.',
+                icon: (
+                  <svg className="w-5 h-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.637 10.637z" />
+                  </svg>
+                ),
+                action: handleFindSolutionsClick,
+              },
+              {
+                title: 'Community Support',
+                description: 'Connect with other interns, discuss issues, and help each other.',
+                icon: (
+                  <svg className="w-5 h-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.97 5.97 0 00-.75-2.906m-.173-3.414a3 3 0 11-5.69 0M7.5 10.5a3 3 0 115.69 0m0 0a3 3 0 11-5.69 0M6 18.72a9.094 9.094 0 01-3.741-.479 3 3 0 014.682-2.72m-.94 3.198l-.002.031c0 .225.012.447.037.666A11.944 11.944 0 0012 21c2.17 0 4.207-.576 5.963-1.584A6.062 6.062 0 0018 18.72m-12 0a5.97 5.97 0 01.75-2.906m-.173-3.414a3 3 0 105.69 0m-5.69 0a3 3 0 105.69 0" />
+                  </svg>
+                ),
+                action: () => navigate('/community'),
+              },
+              {
+                title: 'AI Assistance',
+                description: 'Need help? Ask Yaksha AI to get instant guidance.',
+                icon: (
+                  <svg className="w-5 h-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 21l-.813-5.096L3 15l5.187-.813L9 9l.813 5.187L15 15l-5.187.813zM18 10.5l-.563 2.25L15 13.5l2.438.75.562 2.25.563-2.25 2.437-.75-2.437-.75-.563-2.25zM21 6l-.281 1.125L19.5 7.5l1.219.375.281 1.125.281-1.125 1.219-.375-1.219-.375L21 6z" />
+                  </svg>
+                ),
+                action: () => {
+                  const event = new CustomEvent('askai:open');
+                  window.dispatchEvent(event);
+                },
+              },
+            ].map((card, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={card.action}
+                className="group text-left relative flex flex-col p-5 rounded-2xl border border-border/40 bg-card/30 backdrop-blur-md hover:bg-card-hover/50 hover:border-accent/40 hover:-translate-y-1 hover:shadow-card-hover transition-all duration-300 ease-smooth overflow-hidden"
+              >
+                <div className="absolute -inset-px bg-gradient-to-br from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl pointer-events-none" />
+                <div className="relative z-10 shrink-0 w-10 h-10 rounded-xl bg-accent/10 text-accent flex items-center justify-center mb-3.5 group-hover:scale-110 group-hover:bg-accent/15 transition-all duration-300 ease-smooth">
+                  {card.icon}
+                </div>
+                <div className="relative z-10 flex-1 flex flex-col">
+                  <h3 className="font-serif text-sm font-semibold text-ink group-hover:text-accent transition-colors duration-200 mb-1 leading-snug">
+                    {card.title}
+                  </h3>
+                  <p className="text-[11px] text-ink-soft leading-normal">
+                    {card.description}
+                  </p>
+                </div>
+              </button>
+            ))}
+          </section>
         )}
 
         {/* ─── LOADING / ERROR STATES ──────────────────────────────── */}
@@ -849,6 +927,228 @@ export default function HomePage() {
                 {/* Trending Issues */}
                 <TrendingIssues />
               </aside>
+            </section>
+
+            {/* Explore by Category */}
+            <section className="mt-10" aria-labelledby="explore-by-category-heading">
+              <div className="bg-card rounded-2xl border border-border p-5 sm:p-6 shadow-subtle">
+                <div className="mb-5">
+                  <h2 id="explore-by-category-heading" className="font-serif text-lg text-ink">Explore by Category</h2>
+                  <p className="text-xs text-ink-soft mt-1">Browse questions by popular categories</p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4">
+                  {categories.map((cat) => {
+                    const count = grouped[cat]?.length ?? 0;
+                    const formattedName = formatCategoryName(cat);
+                    const icon = getCategoryIcon(cat);
+                    
+                    // Generate color scheme based on category name
+                    const nameLower = cat.toLowerCase();
+                    let iconBg = 'bg-accent/15 text-accent';
+                    if (nameLower.includes('intern') || nameLower.includes('about')) {
+                      iconBg = 'bg-emerald-500/15 text-emerald-500';
+                    } else if (nameLower.includes('noc') || nameLower.includes('document')) {
+                      iconBg = 'bg-blue-500/15 text-blue-400';
+                    } else if (nameLower.includes('zoom') || nameLower.includes('attendance') || nameLower.includes('meeting')) {
+                      iconBg = 'bg-purple-500/15 text-purple-400';
+                    } else if (nameLower.includes('stipend') || nameLower.includes('payment') || nameLower.includes('finance')) {
+                      iconBg = 'bg-amber-500/15 text-amber-500';
+                    } else if (nameLower.includes('certif') || nameLower.includes('badge')) {
+                      iconBg = 'bg-red-500/15 text-red-500';
+                    } else if (nameLower.includes('team') || nameLower.includes('phase') || nameLower.includes('course')) {
+                      iconBg = 'bg-teal-500/15 text-teal-400';
+                    } else if (nameLower.includes('general') || nameLower.includes('other')) {
+                      iconBg = 'bg-gray-500/15 text-gray-400';
+                    }
+
+                    return (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => handleCategoryOpen(cat)}
+                        className="flex items-center gap-3 p-3 rounded-xl bg-cream/30 border border-border/55 hover:bg-cream hover:border-accent/40 hover:-translate-y-0.5 transition-all duration-200 text-left w-full"
+                      >
+                        <span className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${iconBg}`}>
+                          {icon}
+                        </span>
+                        <div className="min-w-0">
+                          <h3 className="text-xs font-semibold text-ink line-clamp-1">
+                            {formattedName}
+                          </h3>
+                          <p className="text-[10px] text-ink-faint mt-0.5 whitespace-nowrap">
+                            {count} {count === 1 ? 'question' : 'questions'}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </section>
+
+            {/* Quick Access */}
+            <section className="mt-8" aria-labelledby="quick-access-heading">
+              <div className="bg-card rounded-2xl border border-border p-5 sm:p-6 shadow-subtle">
+                <div className="mb-5">
+                  <h2 id="quick-access-heading" className="font-serif text-lg text-ink">Quick Access</h2>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                  {/* Ask a Question */}
+                  <button
+                    type="button"
+                    onClick={() => navigate('/community?create=true')}
+                    className="group flex items-center justify-between p-3.5 rounded-xl bg-cream/30 border border-border/55 hover:bg-cream hover:border-accent/40 hover:-translate-y-0.5 transition-all duration-200 text-left w-full"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="shrink-0 w-8 h-8 rounded-lg bg-emerald-500/15 text-emerald-500 flex items-center justify-center">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M12 20h9" />
+                          <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                        </svg>
+                      </span>
+                      <div className="min-w-0">
+                        <h3 className="text-xs font-semibold text-ink group-hover:text-accent transition-colors line-clamp-1">Ask a Question</h3>
+                        <p className="text-[10px] text-ink-faint mt-0.5 line-clamp-1">Get help from peers</p>
+                      </div>
+                    </div>
+                    <svg className="shrink-0 text-ink-faint group-hover:text-accent group-hover:translate-x-0.5 transition-all" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="m9 18 6-6-6-6" />
+                    </svg>
+                  </button>
+
+                  {/* Browse FAQ */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveCategory('');
+                      setActiveQuestion(null);
+                      setSearchQuery('');
+                      setSearchResults(null);
+                      scrollToTop();
+                    }}
+                    className="group flex items-center justify-between p-3.5 rounded-xl bg-cream/30 border border-border/55 hover:bg-cream hover:border-accent/40 hover:-translate-y-0.5 transition-all duration-200 text-left w-full"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="shrink-0 w-8 h-8 rounded-lg bg-blue-500/15 text-blue-500 flex items-center justify-center">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                        </svg>
+                      </span>
+                      <div className="min-w-0">
+                        <h3 className="text-xs font-semibold text-ink group-hover:text-accent transition-colors line-clamp-1">Browse FAQ</h3>
+                        <p className="text-[10px] text-ink-faint mt-0.5 line-clamp-1">Find solved answers</p>
+                      </div>
+                    </div>
+                    <svg className="shrink-0 text-ink-faint group-hover:text-accent group-hover:translate-x-0.5 transition-all" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="m9 18 6-6-6-6" />
+                    </svg>
+                  </button>
+
+                  {/* Join Community */}
+                  <button
+                    type="button"
+                    onClick={() => navigate('/community')}
+                    className="group flex items-center justify-between p-3.5 rounded-xl bg-cream/30 border border-border/55 hover:bg-cream hover:border-accent/40 hover:-translate-y-0.5 transition-all duration-200 text-left w-full"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="shrink-0 w-8 h-8 rounded-lg bg-purple-500/15 text-purple-500 flex items-center justify-center">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                          <circle cx="9" cy="7" r="4" />
+                          <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                        </svg>
+                      </span>
+                      <div className="min-w-0">
+                        <h3 className="text-xs font-semibold text-ink group-hover:text-accent transition-colors line-clamp-1">Join Community</h3>
+                        <p className="text-[10px] text-ink-faint mt-0.5 line-clamp-1">Connect with interns</p>
+                      </div>
+                    </div>
+                    <svg className="shrink-0 text-ink-faint group-hover:text-accent group-hover:translate-x-0.5 transition-all" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="m9 18 6-6-6-6" />
+                    </svg>
+                  </button>
+
+                  {/* Welcome Package */}
+                  <button
+                    type="button"
+                    onClick={() => navigate('/programs')}
+                    className="group flex items-center justify-between p-3.5 rounded-xl bg-cream/30 border border-border/55 hover:bg-cream hover:border-accent/40 hover:-translate-y-0.5 transition-all duration-200 text-left w-full"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="shrink-0 w-8 h-8 rounded-lg bg-amber-500/15 text-amber-500 flex items-center justify-center">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                          <polyline points="3.29 7 12 12 20.71 7" />
+                          <line x1="12" y1="22" x2="12" y2="12" />
+                        </svg>
+                      </span>
+                      <div className="min-w-0">
+                        <h3 className="text-xs font-semibold text-ink group-hover:text-accent transition-colors line-clamp-1">Welcome Package</h3>
+                        <p className="text-[10px] text-ink-faint mt-0.5 line-clamp-1">Start your journey</p>
+                      </div>
+                    </div>
+                    <svg className="shrink-0 text-ink-faint group-hover:text-accent group-hover:translate-x-0.5 transition-all" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="m9 18 6-6-6-6" />
+                    </svg>
+                  </button>
+
+                  {/* Track Issues */}
+                  <button
+                    type="button"
+                    onClick={() => navigate('/support')}
+                    className="group flex items-center justify-between p-3.5 rounded-xl bg-cream/30 border border-border/55 hover:bg-cream hover:border-accent/40 hover:-translate-y-0.5 transition-all duration-200 text-left w-full"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="shrink-0 w-8 h-8 rounded-lg bg-red-500/15 text-red-500 flex items-center justify-center">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10" />
+                          <line x1="12" y1="8" x2="12" y2="12" />
+                          <line x1="12" y1="16" x2="12.01" y2="16" />
+                        </svg>
+                      </span>
+                      <div className="min-w-0">
+                        <h3 className="text-xs font-semibold text-ink group-hover:text-accent transition-colors line-clamp-1">Track Issues</h3>
+                        <p className="text-[10px] text-ink-faint mt-0.5 line-clamp-1">Track your queries</p>
+                      </div>
+                    </div>
+                    <svg className="shrink-0 text-ink-faint group-hover:text-accent group-hover:translate-x-0.5 transition-all" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="m9 18 6-6-6-6" />
+                    </svg>
+                  </button>
+
+                  {/* Ask Yaksha AI */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const event = new CustomEvent('askai:open');
+                      window.dispatchEvent(event);
+                    }}
+                    className="group flex items-center justify-between p-3.5 rounded-xl bg-cream/30 border border-border/55 hover:bg-cream hover:border-accent/40 hover:-translate-y-0.5 transition-all duration-200 text-left w-full"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="shrink-0 w-8 h-8 rounded-lg bg-teal-500/15 text-teal-500 flex items-center justify-center">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M12 8V4H8" />
+                          <rect width="16" height="12" x="4" y="8" rx="2" />
+                          <path d="M2 14h2" />
+                          <path d="M20 14h2" />
+                          <path d="M15 13v2" />
+                          <path d="M9 13v2" />
+                        </svg>
+                      </span>
+                      <div className="min-w-0">
+                        <h3 className="text-xs font-semibold text-ink group-hover:text-accent transition-colors line-clamp-1">Ask Yaksha AI</h3>
+                        <p className="text-[10px] text-ink-faint mt-0.5 line-clamp-1">AI-powered support</p>
+                      </div>
+                    </div>
+                    <svg className="shrink-0 text-ink-faint group-hover:text-accent group-hover:translate-x-0.5 transition-all" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="m9 18 6-6-6-6" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
             </section>
 
             {/* ─── BROWSE ALL CATEGORIES — full-width section ────── */}
