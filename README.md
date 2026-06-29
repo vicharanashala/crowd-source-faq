@@ -57,7 +57,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the architecture deep-dive 
 
 ## Key Features
 
-Eight flagship capabilities define this platform:
+Nine flagship capabilities define this platform:
 
 - **Zoom transcript ingestion with per-user OAuth** — Each user connects their own Zoom account via OAuth. Webhook-fired downloads parse VTT transcripts, extract Q&A pairs via AI, and dual-publish: `ZoomInsight` (admin-reviewed) and `TranscriptKnowledge` (auto-approved, immediately vector-searchable). Includes retry + dead-letter queue for failed meetings and admin backfill for historical meetings. See [docs/PIPELINES.md#4-zoom-ingestion-pipeline](docs/PIPELINES.md).
 - **AI auto-answer pipeline for community posts** — A scheduler (every 24h) — and a one-click **Run AI** button in the admin dashboard — finds unanswered posts and searches **all three knowledge sources in parallel** (FAQ + Community Q&A + Transcript Knowledge). Best match above ≥0.85 confidence auto-posts; 0.60–0.84 queues for human review; below 0.60 (or sensitive content) escalates. When no direct match exists, the LLM is given the top gathered context to synthesize an answer. Per-pipeline AI provider configurable. See [docs/PIPELINES.md#1-auto-answer-pipeline](docs/PIPELINES.md).
@@ -67,6 +67,7 @@ Eight flagship capabilities define this platform:
 - **Batch management + public guest FAQ portal** — FAQs, categories, and analytics are scoped to a `Batch` (cohort, term, program). A first-class `Category` model replaces the old free-text field. Guests land on `/explore/select` to pick a batch, then browse the public FAQ at `/faq` with no account required. Admin can create/archive batches and promote FAQs between them. See [docs/BATCH_MANAGEMENT_PLAN.md](docs/BATCH_MANAGEMENT_PLAN.md).
 - **Schema-driven context fields per support category** — Each support category (`internet`, `camera`, `microphone`, `device`, `power`, `other`) has an admin-editable schema of context fields (text, textarea, number, date, boolean, dropdown). Admins add, edit, reorder, or archive fields from `/admin/support/categories` without redeploying. The frontend renders dynamic inputs from the live schema. See [docs/SCHEMA_DRIVEN_CONTEXT_PLAN.md](docs/SCHEMA_DRIVEN_CONTEXT_PLAN.md).
 - **Soft-delete with anonymization** — Deleting a user never hard-deletes their records. The account is anonymised: `isDeleted=true`, `deletedAt` timestamp, `name` becomes `Deleted User`, `email` is rewritten to a non-routable placeholder, `password` is replaced with a random UUID to break login. All posts, comments, votes, reputation logs, and audit trail entries remain intact — preserving referential integrity, attribution history, and regulatory compliance.
+- **Batch-scoped Admin Analytics Dashboard** — A dedicated telemetry console (`/admin/analytics`) offering deep search and content insights. Tracks total FAQs, search success rate, search volume trends, and unique users with custom time-range filtering (7d, 30d, 90d). Surfaces top popular searches alongside a real-time failed query index to highlight knowledge gaps. Fully scoped by `Batch` (cohort) with built-in CSV export for external auditing and optimized using database indexing (`query+createdAt`, `batchId+createdAt`) for sub-second retrieval.
 
 Other capabilities: semantic hybrid search, community Q&A board, reputation system + badges + leaderboard, SpillTheTea event-driven notifications, per-user Zoom OAuth, RAG-powered `/ask-ai` assistant with image + file attachments, soft user lifecycle, experimental feature flags, support tickets (troubleshoot → admin triage → resolution).
 
@@ -76,8 +77,8 @@ Other capabilities: semantic hybrid search, community Q&A board, reputation syst
 
 The admin panel at `/admin` (mounted at `/api/admin/*`) provides telemetry, moderation, and operational control. Key areas:
 
-- **Telemetry & analytics** — live stats, FAQ growth, top categories, search insights, user-activity charts, activity feed, failed-query analytics, unresolved-search tracker
-- **Operational pages** — AdminDashboard, AdminFAQs, FaqReview, AdminFAQAudit, AdminAutoAnswerQueue, AdminCommunity, AdminUsers, AdminModeration, AdminZoomMeetings, AdminZoomInsights, AdminLeaderboard, AdminUnresolvedSearch, AdminAISettings, AdminSettings, AdminLogin
+- **Telemetry & analytics** — live stats, FAQ growth, top categories, search insights, user-activity charts, activity feed, failed-query analytics, unresolved-search tracker, and a comprehensive admin analytics dashboard with time-range filtering, batch-scoping, and CSV exports for popular/failed search queries.
+- **Operational pages** — AdminDashboard, AdminAnalytics, AdminFAQs, FaqReview, AdminFAQAudit, AdminAutoAnswerQueue, AdminCommunity, AdminUsers, AdminModeration, AdminZoomMeetings, AdminZoomInsights, AdminLeaderboard, AdminUnresolvedSearch, AdminAISettings, AdminSettings, AdminLogin
 - **Moderation** — every ban, suspend, warn, and soft-delete recorded in `ModerationLog`; every reputation change (+2 upvote, +5 accepted answer, -2/-5 on removal) recorded in `ReputationLog`
 - **AI pipeline visibility** — unified `PipelineResult` collection (30-day TTL) for both auto-answer and audit outcomes; Zoom health endpoint reports OAuth/API circuit state, cache hit rate, failing-meetings count, dead-letter count, pending-retry count; Prometheus metrics at `/api/metrics` (search latency, cache hits, RAG duration, queue depth)
 
