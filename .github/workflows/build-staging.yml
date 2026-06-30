@@ -58,6 +58,7 @@ jobs:
       github.event.inputs.should_build == 'true'
     name: Build & Push Images
     runs-on: ubuntu-latest
+    environment: staging
 
     steps:
       - name: Checkout
