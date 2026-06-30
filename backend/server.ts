@@ -1,6 +1,6 @@
+import './config/loadEnv.js';
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import helmet from 'helmet';
 // morgan removed in v1.68 — httpLog (via requestLogger.ts)
 // now owns HTTP request logging.
@@ -35,6 +35,9 @@ import courseRoutes from './routes/course.js';
 import enrollmentRoutes from './routes/enrollment.js';
 import supportRoutes from './routes/support.js';
 import featureFlagRoutes from './routes/featureFlag.js';
+import streakRoutes from './routes/streak.js';
+import recoveryRoutes from './routes/recovery.js';
+import mentorRoutes from './routes/mentor.js';
 import { documentRouter, documentAdminRouter } from './routes/documents.js';
 import welcomeRoutes from './routes/welcomeRoutes.js';
 import adminWelcomeRoutes from './routes/adminWelcomeRoutes.js';
@@ -70,10 +73,6 @@ import { recomputePopularity } from './controllers/publicFaqController.js';
 import { clusterAllActiveBatches } from './utils/ai/categoryClusterer.js';
 import * as Sentry from '@sentry/node';
 import { expressIntegration } from '@sentry/node';
-
-// Load environment variables (.env + .env.local overrides)
-dotenv.config();
-dotenv.config({ path: '.env.local' });
 
 // Initialize Sentry
 Sentry.init({
@@ -223,6 +222,9 @@ app.use('/api/courses', courseRoutes);
 app.use('/api', enrollmentRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/feature-flags', featureFlagRoutes);
+app.use('/api/streak', streakRoutes);
+app.use('/api/recovery', recoveryRoutes);
+app.use('/api/mentor', mentorRoutes);
 app.use('/api/documents',       documentRouter);
 app.use('/api/admin/documents', documentAdminRouter);
 app.use('/api/welcome', welcomeRoutes);

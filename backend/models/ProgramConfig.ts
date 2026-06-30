@@ -78,7 +78,6 @@ const programConfigSchema = new MongooseSchema<IProgramConfig>(
       ref: 'Batch',
       required: true,
       unique: true,
-      index: true,
     },
     zoom: {
       clientId:           { type: String, default: null },

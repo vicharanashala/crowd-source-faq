@@ -273,6 +273,11 @@ api.interceptors.response.use(
     }
 
     if (error.response && error.response.status === 401) {
+      const isLogout = error.config && error.config.url && error.config.url.endsWith('/auth/logout');
+      if (isLogout) {
+        return Promise.reject(error);
+      }
+
       // Spec: "Never show raw auth/token errors to users." Any 401 means the
       // user tried a restricted action without (or with an expired) token —
       // pop the sign-in modal so they can fix it. The current page is

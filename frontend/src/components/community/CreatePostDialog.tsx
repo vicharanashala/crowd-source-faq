@@ -6,6 +6,7 @@ import type { Post } from '../../types/ui';
 import { useAuth } from '../../hooks/useAuth';
 import { useAuthModal } from '../../context/AuthModalContext';
 import { useCloudinaryUpload, buildTransformedUrl, type CloudinaryAsset } from '../../hooks/useCloudinaryUpload';
+import { useToast } from '../../context/ToastContext';
 
 interface CreatePostDialogProps {
   onClose: () => void;
@@ -75,6 +76,8 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [tags, setTags] = useState<string[]>([]);
+  const [isAnonymous, setIsAnonymous] = useState(false);
+  const [priority, setPriority] = useState<'low' | 'medium' | 'urgent' | 'critical'>('low');
   const [tagInput, setTagInput] = useState('');
   const [duplicateMatch, setDuplicateMatch] = useState<{ isDuplicate: boolean; matches: any[] } | null>(null);
   const [checkingDuplicates, setCheckingDuplicates] = useState(false);
@@ -82,11 +85,16 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
   const duplicateCheckTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Toast state
-  const [toast, setToast] = useState<{ msg: string; type: 'success' | 'warn' | 'info' } | null>(null);
+  const globalToast = useToast();
 
   const showToast = (msg: string, type: 'success' | 'warn' | 'info' = 'info') => {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 3500);
+    if (type === 'success') {
+      globalToast.success(msg);
+    } else if (type === 'warn') {
+      globalToast.warning(msg);
+    } else {
+      globalToast.info(msg);
+    }
   };
 
   // Save draft on field changes
@@ -147,6 +155,13 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
     return () => { if (duplicateCheckTimerRef.current) clearTimeout(duplicateCheckTimerRef.current); };
   }, [title]);
 
+  const criticalMatch = duplicateMatch?.matches?.find(
+    (m: any) => m.score > 0.9
+  );
+  const warningMatch = duplicateMatch?.matches?.find(
+    (m: any) => m.score > 0.7 && m.score <= 0.9
+  );
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -154,13 +169,8 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
       setError('Both title and description are required.');
       return;
     }
-    // Block only if match is a high-confidence FAQ match (score >= 0.85).
-    // Low-confidence / tangential matches are shown as suggestions — posting is allowed.
-    const highConfidenceFaqMatch = duplicateMatch?.matches?.find(
-      (m: any) => m.source === 'faq' && m.score >= 0.85
-    );
-    if (highConfidenceFaqMatch) {
-      setError('This question is already answered in our FAQ. Please check the FAQ page first.');
+    if (criticalMatch) {
+      setError('A highly similar question already exists (>90% match). Please check the suggestion first.');
       return;
     }
     setLoading(true);
@@ -169,6 +179,8 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
         title: title.trim(),
         body: body.trim(),
         tags,
+        isAnonymous,
+        priority,
         // Send only the persisted fields the backend expects. The full
         // Cloudinary response has more (eager, etc.) that we don't save.
         attachments: attachments.map((a) => ({
@@ -204,27 +216,10 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
     }
   };
 
-  // Only block submission for high-confidence FAQ matches (score >= 0.85).
-  // Low-confidence matches are informational only — posting is always allowed.
-  const hasHighConfidenceFaqMatch = duplicateMatch?.matches?.some(
-    (m: any) => m.source === 'faq' && m.score >= 0.85
-  );
-  // v1.65.1 — BUGFIX: the "Post Question" button must be disabled
-  // while a Cloudinary upload is in flight. Without this, a user
-  // can pick a file and click Post before the await in
-  // handleAttachmentFile resolves + setAttachments fires + React
-  // re-renders. The submit handler's `attachments` closure still
-  // reads [] at that moment, so the post gets created with no
-  // attachments and the image never references the (already
-  // uploaded) Cloudinary asset. Symptom: post is created, image
-  // is on Cloudinary, post body in the feed has no thumbnail.
-  // The "+" pick-file button is already disabled while attaching
-  // (so the user can see the spinner), but the submit button was
-  // not — this commit closes that gap.
   const isSubmitDisabled =
     !title.trim() ||
     !body.trim() ||
-    hasHighConfidenceFaqMatch ||
+    !!criticalMatch ||
     checkingDuplicates ||
     loading ||
     attaching;
@@ -327,6 +322,26 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
                     </button>
                   );
                 })}
+              </div>
+            </div>
+          )}
+
+          {criticalMatch && (
+            <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs flex items-start gap-2">
+              <span className="text-sm">🚫</span>
+              <div>
+                <p className="font-semibold text-red-800">Submission Blocked</p>
+                <p className="mt-0.5">A highly similar question already exists (&gt;90% match). Please review the matching question above.</p>
+              </div>
+            </div>
+          )}
+
+          {!criticalMatch && warningMatch && (
+            <div className="p-3 bg-yellow-50 border border-yellow-200 text-yellow-700 rounded-xl text-xs flex items-start gap-2">
+              <span className="text-sm">⚠️</span>
+              <div>
+                <p className="font-semibold text-yellow-800">Potential Duplicate Warning</p>
+                <p className="mt-0.5">We found a highly similar question (70% - 90% match). Please check it before proceeding to post.</p>
               </div>
             </div>
           )}
@@ -444,18 +459,43 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
             )}
           </div>
 
+          {/* Priority */}
+          <div>
+            <label htmlFor="post-priority" className="block text-xs font-medium text-ink-soft mb-1.5">
+              Doubt Priority <span className="text-danger">*</span>
+            </label>
+            <select
+              id="post-priority"
+              value={priority}
+              onChange={(e) => setPriority(e.target.value as 'low' | 'medium' | 'urgent' | 'critical')}
+              className="w-full rounded-xl border border-border bg-mist px-3 py-2.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-accent/25 focus:bg-card transition-all cursor-pointer"
+            >
+              <option value="low">Low (Standard Question)</option>
+              <option value="medium">Medium (Requires attention soon)</option>
+              <option value="urgent">Urgent (Blocks my current progress)</option>
+              <option value="critical">Critical (Completely stuck, urgent assistance needed)</option>
+            </select>
+          </div>
+
+          {/* Anonymous toggle */}
+          <div className="flex items-center gap-2 mb-2">
+            <input
+              id="post-anonymous"
+              type="checkbox"
+              checked={isAnonymous}
+              onChange={(e) => setIsAnonymous(e.target.checked)}
+              className="w-4 h-4 rounded text-accent focus:ring-accent/25 border-border bg-mist cursor-pointer"
+            />
+            <label htmlFor="post-anonymous" className="text-xs font-semibold text-ink-soft select-none cursor-pointer">
+              Post anonymously (Hides your identity from other students)
+            </label>
+          </div>
+
           {error && (
             <p className="text-xs text-danger bg-danger-light border border-danger/15 rounded-xl px-3 py-2">{error}</p>
           )}
 
-          {toast && (
-            <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] px-5 py-3 rounded-xl text-sm font-medium shadow-float border animate-fade-in
-              ${toast.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
-                toast.type === 'warn' ? 'bg-amber-50 border-amber-200 text-amber-700' :
-                'bg-blue-50 border-blue-200 text-blue-700'}`}>
-              {toast.msg}
-            </div>
-          )}
+
 
           <div className="flex gap-2 pt-1">
             <Button

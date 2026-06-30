@@ -11,6 +11,7 @@
 import { Request, Response } from 'express';
 import { Types } from 'mongoose';
 import CommunityPost from '../models/CommunityPost.js';
+import { translatePostInBackground } from '../services/translationService.js';
 import FAQ from '../models/FAQ.js';
 import { generateEmbedding } from '../utils/ai/embeddings.js';
 import User, { calculateTier } from '../models/User.js';
@@ -23,7 +24,7 @@ import { sanitizeHtml } from '../utils/http/sanitize.js';
 // v1.68 — L1: communityLog replaces the bare `logger` so all
 // post/comment/upvote log lines carry the [community] tag.
 import { communityLog } from '../utils/http/logger.js';
-import { checkDuplicate } from './postDuplicateController.js';
+import { getDuplicates } from './postDuplicateController.js';
 import { assertCanCreateContent } from '../utils/banUtils.js';
 
 // POST /api/community — Create a new post (protected)
@@ -32,7 +33,7 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
   // v1.66 — Golden-ban gate. 72h ban blocks new posts (questions, answers).
   if (!assertCanCreateContent(req.user, res)) return;
   try {
-    const { title, body, tags, attachments } = req.body as {
+    const { title, body, tags, attachments, isAnonymous, priority } = req.body as {
       title?: string;
       body?: string;
       tags?: string[];
@@ -41,7 +42,12 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
       // then sends back just the publicId + url. We validate ownership of
       // the URL before saving.
       attachments?: Array<{ url?: string; publicId?: string; width?: number; height?: number; format?: string; bytes?: number }>;
+      isAnonymous?: boolean;
+      priority?: 'low' | 'medium' | 'urgent' | 'critical';
     };
+
+    const validPriorities = ['low', 'medium', 'urgent', 'critical'];
+    const resolvedPriority = (priority && validPriorities.includes(priority)) ? priority : 'low';
 
     // Validate inputs
     if (!title || !body) {
@@ -55,13 +61,12 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
       : [];
 
     // ── Server-side duplicate check ──────────────────────────────────────────
-    const words = title.trim().split(' ').filter((w) => w.length >= 3);
-    const isShortQuery = words.length < 3;
-    const matches = await checkDuplicate(title, isShortQuery);
-    if (matches.length > 0) {
+    const duplicates = await getDuplicates(title, req.programContext?.batchId ?? null);
+    const criticalMatch = duplicates.find((m) => m.score > 0.9);
+    if (criticalMatch) {
       res.status(409).json({
-        message: 'This question has already been asked by the universe. Try searching first.',
-        matches,
+        message: 'This question has already been asked with >90% similarity. Please search first.',
+        matches: duplicates,
         isDuplicate: true,
       });
       return;
@@ -133,6 +138,8 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
       body: sanitizeHtml(body),
       author: req.user!._id,
       status: 'unanswered',
+      isAnonymous: !!isAnonymous,
+      priority: resolvedPriority,
       embedding,
       batchId: resolvedBatchId,
       tags: safeTags,
@@ -151,6 +158,9 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
 
     // Hydrate the author field before sending back the response
     await post.populate('author', 'name');
+
+    // Trigger Hindi translation in the background
+    translatePostInBackground(post._id);
 
     // Invalidate search cache so new post appears in community search immediately
     await invalidateCache().catch((err) => {

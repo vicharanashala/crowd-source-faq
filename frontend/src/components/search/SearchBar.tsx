@@ -4,6 +4,7 @@ import axios from 'axios';
 import api from '../../utils/api';
 import type { SearchResult } from '../../types/ui';
 import { useBatch } from '../../context/BatchContext';
+import { useToast } from '../../context/ToastContext';
 
 interface Suggestion {
   _id: string;
@@ -40,6 +41,7 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
   ref
 ) {
   const { currentBatch } = useBatch();
+  const toast = useToast();
   const batchId = currentBatch?._id ?? null;
   const navigate = useNavigate();
   const [internalQuery, setInternalQuery] = useState<string>('');
@@ -52,6 +54,63 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
   const suggestDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const wrapperRef = useRef<HTMLDivElement>(null);
+
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      
+      const activeLang = localStorage.getItem('language') || 'en';
+      recognition.lang = activeLang === 'hi' ? 'hi-IN' : 'en-US';
+
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        if (transcript) {
+          if (isControlled) {
+            onQueryChange?.(transcript);
+          } else {
+            setInternalQuery(transcript);
+          }
+          handleSearch(transcript);
+        }
+      };
+
+      recognition.onerror = (e: any) => {
+        console.error('Speech recognition error:', e);
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current = recognition;
+    }
+  }, [isControlled, onQueryChange]);
+
+  const toggleListening = () => {
+    if (!recognitionRef.current) {
+      toast.warning('Speech Recognition is not supported by your browser. Please use Chrome or Edge.');
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current.stop();
+    } else {
+      const activeLang = localStorage.getItem('language') || 'en';
+      recognitionRef.current.lang = activeLang === 'hi' ? 'hi-IN' : 'en-US';
+      recognitionRef.current.start();
+    }
+  };
 
   const handleSearch = async (searchQuery: string) => {
     if (!searchQuery.trim() || searchQuery.trim().length < 3) {
@@ -184,9 +243,35 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
           onFocus={onFocus}
           onBlur={handleBlur}
           placeholder={placeholder}
-          className="w-full pl-12 pr-32 py-5 sm:py-[22px] rounded-[26px] border border-border bg-card text-sm sm:text-base text-ink placeholder-ink-faint focus:outline-none focus:border-accent focus:bg-card transition-all duration-300 shadow-[0_14px_34px_rgba(31,41,51,0.07)]"
+          className="w-full pl-12 pr-[160px] py-5 sm:py-[22px] rounded-[26px] border border-border bg-card text-sm sm:text-base text-ink placeholder-ink-faint focus:outline-none focus:border-accent focus:bg-card transition-all duration-300 shadow-[0_14px_34px_rgba(31,41,51,0.07)]"
           autoComplete="off"
         />
+
+        <button
+          type="button"
+          onClick={toggleListening}
+          className={`absolute right-[108px] top-1/2 -translate-y-1/2 p-2.5 rounded-full transition-all duration-300 flex items-center justify-center ${
+            isListening
+              ? 'bg-danger/20 text-danger animate-pulse shadow-[0_0_12px_rgba(220,74,74,0.4)]'
+              : 'text-ink-faint hover:text-accent hover:bg-cream/40'
+          }`}
+          title={isListening ? 'Listening... Click to stop' : 'Search with voice'}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="w-[18px] h-[18px]"
+          >
+            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+            <line x1="12" x2="12" y1="19" y2="22" />
+          </svg>
+        </button>
 
         <button
           type="submit"

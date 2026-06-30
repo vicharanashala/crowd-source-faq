@@ -1,9 +1,12 @@
 import { Request, Response } from 'express';
 import mongoose, { Types } from 'mongoose';
+import jwt from 'jsonwebtoken';
 import FAQ, { type IFAQ } from '../models/FAQ.js';
 import { generateEmbedding, generateQueryEmbedding } from '../utils/ai/embeddings.js';
 import { adminLog } from '../utils/http/logger.js';
+import { trackUserActivity } from '../services/streakService.js';
 import { invalidateCache } from '../utils/http/cache.js';
+import { translateFAQInBackground } from '../services/translationService.js';
 import { createTeaDropsForFAQ } from './teaNotificationController.js';
 import FreshReviewVote from '../models/FreshReviewVote.js';
 import FreshReviewLog, { type FreshReviewEventType } from '../models/FreshReviewLog.js';
@@ -12,6 +15,9 @@ import ReputationLog from '../models/ReputationLog.js';
 import { autoAwardBadges } from './reputationController.js';
 import { sanitizeHtml } from '../utils/http/sanitize.js';
 import Batch from '../models/Batch.js';
+import { ZoomMeeting } from '../models/ZoomMeeting.js';
+import CommunityPost from '../models/CommunityPost.js';
+import DocumentRecord from '../models/DocumentRecord.js';
 import { invalidatePublicCaches } from './publicFaqController.js';
 // v1.69 — Phase 3a: every public read in this file funnels its
 // Mongoose filter through withProgramScope. Single tenant callers
@@ -197,6 +203,25 @@ export const getFAQById = async (req: Request<{ id: string }>, res: Response): P
       return;
     }
 
+    // Track user streak activity on FAQ read
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      const secret = process.env.JWT_SECRET;
+      if (token && secret) {
+        try {
+          const decoded = jwt.verify(token, secret) as { id: string };
+          if (decoded && decoded.id) {
+            trackUserActivity(decoded.id, 'faq_read').catch((err) => {
+              adminLog.warn(`[faq] failed to track streak activity: ${err.message}`);
+            });
+          }
+        } catch {
+          // ignore invalid token for public read
+        }
+      }
+    }
+
     res.json(faq);
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
@@ -364,6 +389,9 @@ export const createFAQ = async (req: Request, res: Response): Promise<void> => {
       flaggedBy: null,
       reviewCycle: 0,
     });
+
+    // Trigger Hindi translation in the background
+    translateFAQInBackground(faq._id);
 
     // Invalidate search cache so new FAQ appears in results immediately
     await invalidateCache();
@@ -679,6 +707,89 @@ export const createFAQSuggestion = async (req: Request<{ id: string }, {}, { sug
     res.json({ message: 'Suggestion submitted successfully.' });
   } catch (error) {
     res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
+  }
+};
+
+// GET /api/faq/:id/related — Fetch related questions, sessions, discussions, and resources
+export const getRelatedEntries = async (req: Request<{ id: string }>, res: Response): Promise<void> => {
+  try {
+    const faq = await FAQ.findById(req.params.id);
+    if (!faq) {
+      res.status(404).json({ message: 'FAQ not found.' });
+      return;
+    }
+
+    const batchId = faq.batchId;
+    const tags = faq.tags || [];
+    const category = faq.category || '';
+
+    // 1. Related questions (other FAQs via tag overlap)
+    const relatedFAQs = tags.length > 0
+      ? await FAQ.find({
+          batchId,
+          _id: { $ne: faq._id },
+          tags: { $in: tags },
+          status: 'approved'
+        }).limit(5).lean()
+      : [];
+
+    if (relatedFAQs.length < 5) {
+      const extraFAQs = await FAQ.find({
+        batchId,
+        _id: { $ne: faq._id, $nin: relatedFAQs.map(f => f._id) },
+        category,
+        status: 'approved'
+      }).limit(5 - relatedFAQs.length).lean();
+      relatedFAQs.push(...(extraFAQs as any[]));
+    }
+
+    // 2. Related sessions (Zoom meetings matching FAQ tags/topic)
+    const sessionOrConditions: any[] = [{ topic: { $regex: category, $options: 'i' } }];
+    if (tags.length > 0) {
+      sessionOrConditions.push(...(tags.map(t => ({ topic: { $regex: t, $options: 'i' } }))));
+    }
+    const relatedSessions = await ZoomMeeting.find({
+      batchId,
+      $or: sessionOrConditions
+    }).limit(5).lean();
+
+    // 3. Related discussions (Community posts matching FAQ tags)
+    const relatedDiscussions = tags.length > 0
+      ? await CommunityPost.find({
+          batchId,
+          tags: { $in: tags }
+        }).limit(5).lean()
+      : [];
+
+    if (relatedDiscussions.length < 5) {
+      const words = faq.question.split(' ').filter(w => w.length > 4);
+      if (words.length > 0) {
+        const extraDiscussions = await CommunityPost.find({
+          batchId,
+          _id: { $nin: relatedDiscussions.map(d => d._id) },
+          title: { $regex: words.join('|'), $options: 'i' }
+        }).limit(5 - relatedDiscussions.length).lean();
+        relatedDiscussions.push(...(extraDiscussions as any[]));
+      }
+    }
+
+    // 4. Related resources (Document records matching FAQ tags/topic)
+    const docOrConditions: any[] = [{ title: { $regex: category, $options: 'i' } }];
+    if (tags.length > 0) {
+      docOrConditions.push(...(tags.map(t => ({ title: { $regex: t, $options: 'i' } }))));
+    }
+    const relatedResources = await DocumentRecord.find({
+      $or: docOrConditions
+    }).limit(5).lean();
+
+    res.json({
+      relatedFAQs,
+      relatedSessions,
+      relatedDiscussions,
+      relatedResources
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: (error as Error).message });
   }
 };
 

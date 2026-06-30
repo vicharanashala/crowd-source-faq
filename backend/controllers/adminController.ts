@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { Types } from 'mongoose';
 import FAQ, { IFAQ } from '../models/FAQ.js';
+import { translateFAQInBackground } from '../services/translationService.js';
 import User, { IUser } from '../models/User.js';
 import SearchLog from '../models/SearchLog.js';
 import AdminLog from '../models/AdminLog.js';
@@ -396,6 +397,9 @@ export const createFAQ = async (req: Request, res: Response): Promise<void> => {
     });
     await logAction(req.user!._id.toString(), 'create_faq', faq._id.toString(), 'faq', faq.question);
 
+    // Trigger Hindi translation in the background
+    translateFAQInBackground(faq._id);
+
     // Invalidate search cache so new FAQ appears in results immediately
     await invalidateCache();
 
@@ -530,6 +534,7 @@ export const getCommunityPosts = async (req: Request, res: Response): Promise<vo
     const skip = (page - 1) * limit;
     const search = (req.query.search as string) || '';
     const status = (req.query.status as string) || '';
+    const priority = (req.query.priority as string) || '';
     const batchId = (req.query.batchId as string | undefined) ?? null;
 
     const base: Record<string, unknown> = {};
@@ -540,6 +545,7 @@ export const getCommunityPosts = async (req: Request, res: Response): Promise<vo
       ];
     }
     if (status) base.status = status;
+    if (priority) base.priority = priority;
     const query = withProgramScope(base, batchId);
 
     const [posts, total] = await Promise.all([

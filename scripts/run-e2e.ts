@@ -54,6 +54,7 @@ const run = async () => {
       ...process.env,
       MONGODB_URI: uri,
       PORT: '6767',
+      BACKEND_PORT: '6767',
       JWT_SECRET: 'supersecretjwtkeyforintegrationtests32charslong',
       CLOUDINARY_CLOUD_NAME: 'test_cloud',
       CLOUDINARY_API_KEY: 'test_key',
@@ -95,6 +96,7 @@ const run = async () => {
     console.log('[E2E Orchestrator] Starting Frontend server...');
     frontendProcess = spawn('npx', ['vite', '--host', '127.0.0.1', '--port', '5173'], {
       cwd: path.join(rootDir, 'frontend'),
+      env,
       stdio: 'inherit',
       shell: true,
     });

@@ -117,7 +117,6 @@ const programSettingsSchema = new MongooseSchema<IProgramSettings>(
       ref: 'Batch',
       required: true,
       unique: true, // 1:1 with Batch
-      index: true,
     },
     theme: {
       primaryColor: { type: String, default: '#5a7a5a', match: /^#[0-9a-fA-F]{6}$/ },

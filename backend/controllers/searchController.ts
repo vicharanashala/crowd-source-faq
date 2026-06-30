@@ -13,6 +13,7 @@ import {
 } from '../utils/http/search.js';
 import { searchRequests, searchResultsReturned, searchLogFlushActive, searchLogFlushes } from '../utils/http/metrics.js';
 import { searchKnowledge } from '../services/knowledgeBase.js';
+import { translateText } from '../services/translationService.js';
 
 // Cache configuration: Store up to 500 recent queries for 1 hour to reduce DB/AI loads
 const searchCache = new LRUCache<string, SearchResultItem[]>({
@@ -272,15 +273,21 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
       return;
     }
 
+    // Translate Hindi query to English if Devanagari characters are present
+    let queryForSearch = query;
+    if (/[\u0900-\u097F]/.test(query)) {
+      queryForSearch = await translateText(query, 'English');
+    }
+
     // 2. Compute AI Embedding for the search term
-    const embedding = await generateQueryEmbedding(query);
+    const embedding = await generateQueryEmbedding(queryForSearch);
 
     // 3. Execute Vector and Text searches in parallel across both collections for maximum speed
     const [faqVec, commVec, faqTxt, commTxt] = await Promise.all([
       runVectorSearch('yaksha_faq_faqs', embedding, 5, batchIdObjectId),
       runVectorSearch('yaksha_faq_communityposts', embedding, 5, batchIdObjectId),
-      runTextSearch('yaksha_faq_faqs', query, 5, batchIdObjectId),
-      runTextSearch('yaksha_faq_communityposts', query, 5, batchIdObjectId)
+      runTextSearch('yaksha_faq_faqs', queryForSearch, 5, batchIdObjectId),
+      runTextSearch('yaksha_faq_communityposts', queryForSearch, 5, batchIdObjectId)
     ]);
     
     // Tag results with their origin source (FAQ vs Community)
@@ -302,7 +309,7 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
     // frontend can render with a "from meeting" badge.
     if (filtered.length === 0) {
       try {
-        const knowledgeHits = await searchKnowledge(query, 5);
+        const knowledgeHits = await searchKnowledge(queryForSearch, 5);
         if (knowledgeHits.length > 0) {
           const knowledgeResults: SearchResultItem[] = knowledgeHits.map((k) => ({
             _id: new Types.ObjectId(k._id),

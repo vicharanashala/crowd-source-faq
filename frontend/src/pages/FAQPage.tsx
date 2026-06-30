@@ -9,7 +9,6 @@
 
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import UserActiveProgramIndicator from '../components/layout/UserActiveProgramIndicator';
 import SearchBar from '../components/search/SearchBar';
@@ -238,7 +237,6 @@ export default function FAQPage() {
   return (
     <div className="min-h-screen bg-bg grid-bg relative">
       <HomeDoodles />
-      <Navbar />
 
       <main className="max-w-[1200px] mx-auto px-4 sm:px-6 pt-[112px] sm:pt-[128px] pb-10 relative z-10">
         {/* Active program pill */}
@@ -450,7 +448,7 @@ export default function FAQPage() {
                   <div
                     key={cat}
                     onClick={() => handleCategoryOpen(cat)}
-                    className="group bg-card rounded-2xl border border-border/60 shadow-subtle p-5 hover:shadow-card-hover hover:-translate-y-0.5 hover:border-accent/30 transition-all duration-300 ease-smooth cursor-pointer text-left flex flex-col justify-between"
+                    className="faq-card-clay group bg-card rounded-2xl border border-border/60 shadow-subtle p-5 hover:shadow-card-hover hover:-translate-y-0.5 hover:border-accent/30 transition-all duration-300 ease-smooth cursor-pointer text-left flex flex-col justify-between"
                   >
                     <div>
                       {/* Card Header */}

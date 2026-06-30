@@ -295,6 +295,18 @@ export default function CommunityPage() {
             )}
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              onClick={handleAskQuestion}
+              id="ask-question-btn"
+              size="sm"
+              className="sm:!px-4 sm:!py-2 sm:!text-xs flex-shrink-0"
+            >
+              <svg width="12" height="12" viewBox="0 0 14 14" fill="none" className="mr-1 inline-block">
+                <path d="M7 2V12M2 7H12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+              <span className="hidden sm:inline">Ask Question</span>
+              <span className="sm:hidden">Ask</span>
+            </Button>
             {/* Share button */}
             <button
               onClick={handleShareCommunity}

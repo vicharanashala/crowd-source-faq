@@ -20,6 +20,8 @@ export interface IPromotionMetadata {
 export interface IFAQ extends Document {
   question: string;
   answer: string;
+  questionHindi?: string;
+  answerHindi?: string;
   tags: string[];
   category: string;
   embedding?: number[];
@@ -107,6 +109,14 @@ const faqSchema = new MongooseSchema(
     answer: {
       type: String,
       required: [true, 'Answer is required'],
+    },
+    questionHindi: {
+      type: String,
+      default: '',
+    },
+    answerHindi: {
+      type: String,
+      default: '',
     },
     tags: {
       type: [String],

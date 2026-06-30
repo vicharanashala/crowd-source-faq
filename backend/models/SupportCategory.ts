@@ -124,7 +124,6 @@ const supportCategorySchema = new MongooseSchema<ISupportCategory>(
     issueType: {
       type: String,
       required: true,
-      unique: true, // legacy global uniqueness — Phase 9+ relies on (batchId, issueType)
       trim: true,
       lowercase: true,
       maxlength: 60,

@@ -44,6 +44,18 @@ export function getCloudinaryConfig(): CloudinaryConfig {
   const folder = process.env.CLOUDINARY_FOLDER ?? 'yaksha';
 
   if (!cloudName || !apiKey || !apiSecret) {
+    if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
+      console.warn(
+        'WARNING: Cloudinary is not configured. Falling back to mock credentials. ' +
+        'Uploads will not work, but startup will succeed.'
+      );
+      return {
+        cloudName: cloudName || 'mock-cloud-name',
+        apiKey: apiKey || 'mock-api-key',
+        apiSecret: apiSecret || 'mock-api-secret',
+        folder,
+      };
+    }
     throw new Error(
       'Cloudinary is not configured. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, ' +
       'and CLOUDINARY_API_SECRET in backend/.env. The /api/upload/sign endpoint will not ' +

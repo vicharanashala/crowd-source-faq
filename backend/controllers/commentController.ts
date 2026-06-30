@@ -15,6 +15,7 @@ import { communityLog } from '../utils/http/logger.js';
 import { assertCanCreateContent } from '../utils/banUtils.js';
 // v1.69 — Phase 3e: program-scope guard for all comment writes.
 import { assertSameProgram } from '../utils/db/scopedQuery.js';
+import { trackUserActivity } from '../services/streakService.js';
 
 // Extend Express Request to include user (same pattern as auth middleware)
 declare global {
@@ -112,6 +113,11 @@ export const addComment = async (req: Request, res: Response): Promise<void> => 
 
     post.comments.push(commentObj as any);
     await post.save();
+
+    // Track user streak activity on comment/answer submission
+    trackUserActivity(req.user!._id.toString(), 'answer').catch((err) => {
+      communityLog.warn(`[comment] Failed to track streak activity: ${err.message}`);
+    });
 
     await post.populate('comments.author', 'name');
     const newComment = post.comments[post.comments.length - 1];

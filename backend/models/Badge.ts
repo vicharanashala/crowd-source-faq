@@ -37,6 +37,9 @@ const DEFAULT_BADGES: Array<{
   { name: 'Legend',            slug: 'legend',             description: 'Reached legend tier',                   icon: '⭐', type: 'positive', pointsRequired: 2500,actionTrigger: 'auto' },
   { name: 'Bug Hunter',        slug: 'bug-hunter',         description: 'Reported a valid issue',                icon: '🐛', type: 'positive', actionTrigger: 'auto' },
   { name: 'On Fire',           slug: 'on-fire',            description: '10+ helpful votes in one day',          icon: '🔥', type: 'positive', actionTrigger: 'auto' },
+  { name: '3-Day Streak',      slug: '3-day-streak',       description: 'Active for 3 consecutive days',          icon: '🔥', type: 'positive', actionTrigger: 'auto' },
+  { name: '7-Day Streak',      slug: '7-day-streak',       description: 'Active for 7 consecutive days',          icon: '⚡', type: 'positive', actionTrigger: 'auto' },
+  { name: '30-Day Streak',     slug: '30-day-streak',      description: 'Active for 30 consecutive days',         icon: '👑', type: 'positive', actionTrigger: 'auto' },
   // Negative
   { name: 'Warning',           slug: 'warning',            description: 'Received an admin warning',               icon: '⚠️', type: 'negative', actionTrigger: 'manual' },
   { name: 'Point Penalty',     slug: 'point-penalty',      description: 'Lost points due to rule violation',     icon: '📉', type: 'negative', actionTrigger: 'manual' },

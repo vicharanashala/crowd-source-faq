@@ -9,7 +9,9 @@
 
 import { Request, Response } from 'express';
 import mongoose, { Types } from 'mongoose';
+import jwt from 'jsonwebtoken';
 import CommunityPost from '../models/CommunityPost.js';
+import User from '../models/User.js';
 import { withProgramScope } from '../utils/db/scopedQuery.js';
 
 function batchIdFromQuery(req: Request): string | null {
@@ -19,9 +21,30 @@ function batchIdFromQuery(req: Request): string | null {
 import { communityLog } from '../utils/http/logger.js';
 import { buildCommentTree, timeTrialHoursRemaining } from './postCore.js';
 
+async function isRequesterPrivileged(req: Request): Promise<boolean> {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    return false;
+  }
+  const token = authHeader.split(' ')[1];
+  const secret = process.env.JWT_SECRET;
+  if (!token || !secret) {
+    return false;
+  }
+  try {
+    const decoded = jwt.verify(token, secret) as { id: string };
+    if (!decoded?.id) return false;
+    const user = await User.findById(decoded.id).select('role');
+    return user?.role === 'admin' || user?.role === 'moderator';
+  } catch {
+    return false;
+  }
+}
+
 // GET /api/community — All posts (cursor-paginated, filterable, sortable, searchable)
 export const getAllPosts = async (req: Request, res: Response): Promise<void> => {
   try {
+    const privileged = await isRequesterPrivileged(req);
     const limit = Math.max(1, Math.min(50, parseInt(req.query.limit as string) || 20));
     const cursor = (req.query.cursor as string) || '';
 
@@ -41,28 +64,6 @@ export const getAllPosts = async (req: Request, res: Response): Promise<void> =>
       query.title = { $regex: escaped, $options: 'i' };
     }
 
-    // Decode cursor to ObjectId for keyset pagination
-    let cursorId: mongoose.Types.ObjectId | null = null;
-    if (cursor && sortParam !== 'popular') {
-      try {
-        const decoded = Buffer.from(cursor, 'base64').toString('utf8');
-        cursorId = new mongoose.Types.ObjectId(decoded);
-        if (sortParam === 'oldest') {
-          query._id = { $gt: cursorId };
-        } else {
-          query._id = { $lt: cursorId };
-        }
-      } catch {
-        res.status(400).json({ message: 'Invalid cursor.' });
-        return;
-      }
-    }
-
-    // Build sort — always by _id desc (required for cursor pagination to work)
-    let sortObj: Record<string, 1 | -1> = { _id: -1 };
-    if (sortParam === 'oldest') sortObj = { _id: 1 };
-    else if (sortParam === 'popular') sortObj = { 'upvotes.length': -1, _id: -1 };
-
     // v1.69 — Phase 3b: scope every read by program.
     const scoped = withProgramScope(query, batchIdFromQuery(req));
 
@@ -77,56 +78,67 @@ export const getAllPosts = async (req: Request, res: Response): Promise<void> =>
       { path: 'comments.replies.downvotes', select: 'name' },
     ];
 
-    // ── Sort by upvotes — cursor is incompatible with in-memory sort,
-    // so when sorting by popularity we load the full upvote count for all posts
-    // rather than using keyset pagination. This is acceptable since the community
-    // post list is small enough that loading all posts at once is fast.
-    if (sortParam === 'popular') {
-      // v1.69 — Phase 3b: use the scoped filter here too.
+    // Load matching posts (cap at 200 to keep it efficient)
     const allPosts = await CommunityPost.find(scoped)
-        .select('-embedding')
-        .populate(populateFields)
-        .sort({ _id: -1 })
-        .limit(200) // cap at 200 to keep query fast; not cursor-limited
-        .exec();
-
-      const sorted = allPosts.sort((a, b) => (b.upvotes?.length ?? 0) - (a.upvotes?.length ?? 0));
-      const hasMore = allPosts.length > limit;
-      const paged = hasMore ? sorted.slice(0, limit) : sorted;
-      const nextCursor = hasMore && paged.length > 0
-        ? Buffer.from(paged[paged.length - 1]._id.toString()).toString('base64')
-        : null;
-
-      res.json({
-        posts: paged.map((p) => {
-          const doc = p.toObject() as unknown as Record<string, unknown>;
-          doc.timeTrialHoursRemaining = timeTrialHoursRemaining(doc as never);
-          return doc;
-        }),
-        total,
-        limit,
-        hasMore,
-        nextCursor,
-      });
-      return;
-    }
-
-    const posts = await CommunityPost.find(scoped)
       .select('-embedding')
       .populate(populateFields)
-      .sort(sortObj)
-      .limit(limit + 1);
+      .limit(200)
+      .exec();
 
-    const hasMore = posts.length > limit;
-    const results = hasMore ? posts.slice(0, limit) : posts;
-    const nextCursor = hasMore && results.length > 0
-      ? Buffer.from(results[results.length - 1]._id.toString()).toString('base64')
+    // Priority sorting weights
+    const getPriorityWeight = (p?: string) => {
+      if (p === 'critical') return 4;
+      if (p === 'urgent') return 3;
+      if (p === 'medium') return 2;
+      return 1; // 'low' or default
+    };
+
+    // Sort: priority first, then requested parameter
+    const sorted = allPosts.sort((a, b) => {
+      const wA = getPriorityWeight(a.priority);
+      const wB = getPriorityWeight(b.priority);
+      if (wA !== wB) {
+        return wB - wA; // higher priority first
+      }
+
+      // Secondary sorting
+      if (sortParam === 'popular') {
+        return (b.upvotes?.length ?? 0) - (a.upvotes?.length ?? 0);
+      }
+      if (sortParam === 'oldest') {
+        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return timeA - timeB || a._id.toString().localeCompare(b._id.toString());
+      }
+      // default: newest
+      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return timeB - timeA || b._id.toString().localeCompare(a._id.toString());
+    });
+
+    // Keyset pagination using index of cursor in sorted array
+    let startIndex = 0;
+    if (cursor) {
+      const decodedId = Buffer.from(cursor, 'base64').toString('utf8');
+      const idx = sorted.findIndex((p) => p._id.toString() === decodedId);
+      if (idx !== -1) {
+        startIndex = idx + 1;
+      }
+    }
+
+    const paged = sorted.slice(startIndex, startIndex + limit);
+    const hasMore = startIndex + limit < sorted.length;
+    const nextCursor = (hasMore && paged.length > 0)
+      ? Buffer.from(paged[paged.length - 1]._id.toString()).toString('base64')
       : null;
 
     res.json({
-      posts: results.map((p) => {
+      posts: paged.map((p) => {
         const doc = p.toObject() as unknown as Record<string, unknown>;
         doc.timeTrialHoursRemaining = timeTrialHoursRemaining(doc as never);
+        if (doc.isAnonymous && !privileged) {
+          doc.author = { _id: null, name: 'Anonymous User' };
+        }
         return doc;
       }),
       total,
@@ -165,6 +177,11 @@ export const getPostById = async (req: Request, res: Response): Promise<void> =>
     // Add timeTrialHoursRemaining for pending Time-Trial posts
     postObj.timeTrialHoursRemaining = timeTrialHoursRemaining(postObj as never, 24);
 
+    const privileged = await isRequesterPrivileged(req);
+    if (postObj.isAnonymous && !privileged) {
+      postObj.author = { _id: null, name: 'Anonymous User' };
+    }
+
     res.json(postObj);
   } catch (error) {
     communityLog.error(`[post] getPostById failed: ${(error as Error).message}`);
@@ -190,7 +207,15 @@ export const getSolvedPosts = async (req: Request, res: Response): Promise<void>
       .populate('author', 'name')
       .lean();
 
-    res.json({ posts });
+    const privileged = await isRequesterPrivileged(req);
+    const sanitizedPosts = posts.map((p: any) => {
+      if (p.isAnonymous && !privileged) {
+        p.author = { _id: null, name: 'Anonymous User' };
+      }
+      return p;
+    });
+
+    res.json({ posts: sanitizedPosts });
   } catch (error) {
     communityLog.error(`[post] getSolvedPosts failed: ${(error as Error).message}`);
     res.status(500).json({ message: 'Server error' });

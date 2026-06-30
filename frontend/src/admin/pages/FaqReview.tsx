@@ -260,7 +260,7 @@ export default function FaqReview() {
                                 <button
                                   onClick={() => handleApprove(item)}
                                   disabled={actioning === item._id}
-                                  className="text-xs px-3 py-1 rounded-lg bg-success/10 text-success border border-success/20 hover:bg-success/20 disabled:opacity-50 transition-colors"
+                                  className="btn-verify-reported text-xs px-3 py-1 rounded-lg bg-success/10 text-success border border-success/20 hover:bg-success/20 disabled:opacity-50 transition-colors"
                                 >
                                   {actioning === item._id ? '...' : (item as any).isReportedFAQ ? '✓ Verify' : '✓ Approve'}
                                 </button>

@@ -114,7 +114,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // the JWT's natural expiry window if the call succeeded.
     const token = localStorage.getItem('yaksha_token');
     if (token) {
-      api.post('/auth/logout').catch(() => {});
+      api.post('/auth/logout', null, {
+        headers: { Authorization: `Bearer ${token}` }
+      }).catch(() => {});
     }
     localStorage.removeItem('yaksha_token');
     localStorage.removeItem('yaksha_user');

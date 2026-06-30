@@ -11,11 +11,23 @@
 import { Redis } from '@upstash/redis';
 import { logger } from './logger.js';
 
-// Lazy singleton — only initialized when REDIS_URL is set
+function isPlaceholder(value: string | undefined): boolean {
+  if (!value) return true;
+  const trimmed = value.trim();
+  return (
+    trimmed === '' ||
+    trimmed.startsWith('<') ||
+    trimmed.includes('YOUR_') ||
+    trimmed.includes('your-') ||
+    trimmed.includes('placeholder')
+  );
+}
 let redis: Redis | null = null;
 
 function getRedis(): Redis | null {
-  if (!process.env.REDIS_URL || !process.env.REDIS_TOKEN) {
+  const url = process.env.REDIS_URL;
+  const token = process.env.REDIS_TOKEN;
+  if (isPlaceholder(url) || isPlaceholder(token)) {
     return null;
   }
   if (!redis) {

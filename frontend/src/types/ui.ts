@@ -56,6 +56,9 @@ export interface Post {
   };
   // Bookmark count (array of user IDs)
   bookmarks?: (string | { _id?: string })[];
+  priority?: 'low' | 'medium' | 'urgent' | 'critical';
+  titleHindi?: string;
+  bodyHindi?: string;
   [key: string]: unknown;
 }
 

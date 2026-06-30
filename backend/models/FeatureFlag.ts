@@ -57,7 +57,6 @@ const featureFlagSchema = new MongooseSchema<IFeatureFlag>(
     key: {
       type: String,
       required: true,
-      unique: true,
       trim: true,
       maxlength: 60,
     },

@@ -19,6 +19,13 @@ const LIFECYCLE_CONFIG: Record<string, { label: string; cls: string }> = {
   converted_to_faq:   { label: 'Official FAQ',      cls: 'bg-stone-100 text-stone-700 border-stone-300' },
 };
 
+const PRIORITY_BADGES: Record<string, { label: string; cls: string }> = {
+  low:      { label: 'Low',      cls: 'bg-gray-50 text-gray-500 border-gray-200' },
+  medium:   { label: 'Medium',   cls: 'bg-blue-50 text-blue-700 border-blue-200' },
+  urgent:   { label: 'Urgent',   cls: 'bg-amber-50 text-amber-700 border-amber-300' },
+  critical: { label: 'Critical', cls: 'bg-red-50 text-red-700 border-red-300 font-bold animate-pulse' },
+};
+
 interface CommunityPostCardProps {
   post: Post;
   onClick?: (post: Post) => void;
@@ -51,6 +58,10 @@ export default function CommunityPostCard({ post, onClick, currentUserId, onTogg
     ? 'border-l-4 border-l-red-500'
     : '';
 
+  const lang = (typeof localStorage !== 'undefined' ? localStorage.getItem('language') : 'en') || 'en';
+  const postTitle = lang === 'hi' ? post.titleHindi || post.title : post.title;
+  const postBody = lang === 'hi' ? post.bodyHindi || post.body : post.body;
+
   return (
     <button
       onClick={() => onClick?.(post)}
@@ -71,12 +82,12 @@ export default function CommunityPostCard({ post, onClick, currentUserId, onTogg
           </svg>
         )}
       </div>
-
+ 
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-ink group-hover:text-accent transition-colors leading-snug">
-          {post.title}
+          {postTitle}
         </p>
-        <p className="mt-1 text-xs text-ink-soft leading-relaxed line-clamp-1">{post.body}</p>
+        <p className="mt-1 text-xs text-ink-soft leading-relaxed line-clamp-1">{postBody}</p>
 
         {post.tags && post.tags.length > 0 && (
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -124,6 +135,11 @@ export default function CommunityPostCard({ post, onClick, currentUserId, onTogg
               ⚠ Escalated
             </span>
           )}
+          {post.priority && PRIORITY_BADGES[post.priority] && (
+            <span className={`inline-flex items-center px-2 py-0.5 rounded border text-[10px] font-semibold ${PRIORITY_BADGES[post.priority].cls}`}>
+              {PRIORITY_BADGES[post.priority].label}
+            </span>
+          )}
           <Badge variant={isAnswered ? 'success' : 'warning'}>
             {isAnswered ? '✓ Answered' : '○ Open'}
           </Badge>
@@ -132,7 +148,13 @@ export default function CommunityPostCard({ post, onClick, currentUserId, onTogg
               {LIFECYCLE_CONFIG[post.lifecycle.status].label}
             </span>
           )}
-          <span className="text-xs text-ink-faint">{post.author?.name || 'Student'}</span>
+          <span className="text-xs text-ink-faint">
+            {post.isAnonymous
+              ? isPrivileged && post.author?.name
+                ? `${post.author.name} (Anonymous)`
+                : 'Anonymous User'
+              : post.author?.name || 'Student'}
+          </span>
           <span className="text-ink-faint text-xs">·</span>
           <span className="text-xs text-ink-faint">{formatDate(post.createdAt || '')}</span>
           <span className={`ml-auto flex items-center gap-1 text-xs ${hasUpvoted ? 'text-accent font-medium' : 'text-ink-faint'}`}>

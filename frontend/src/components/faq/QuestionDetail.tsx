@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { FAQItem, getQuestionTitle, getAnswerText, formatDate, getCategoryIcon, formatCategoryName, TrustBadge } from './faqUtils';
 import ReportFAQButton from './ReportFAQButton';
 import FreshnessBadge from '../faq/FreshnessBadge';
+import api from '../../utils/api';
 
 interface QuestionDetailProps {
   item: FAQItem;
@@ -19,6 +20,28 @@ export default function QuestionDetail({ item, relatedItems, onBack, onSelectRel
   const sourceLabel = item?.source ? (item.source === 'faq' ? 'FAQ' : 'Community') : '';
   const trustLevel = item?.trustLevel;
   const highlight = answer ? answer.split('. ').slice(0, 1).join('. ') : '';
+  const [relatedData, setRelatedData] = useState<{
+    relatedFAQs: FAQItem[];
+    relatedSessions: any[];
+    relatedDiscussions: any[];
+    relatedResources: any[];
+  } | null>(null);
+  const [loadingRelated, setLoadingRelated] = useState(false);
+
+  useEffect(() => {
+    if (!item?._id) return;
+    setLoadingRelated(true);
+    api.get(`/faq/${item._id}/related`)
+      .then((res) => {
+        setRelatedData(res.data);
+      })
+      .catch((err) => {
+        console.error('Failed to fetch related data:', err);
+      })
+      .finally(() => {
+        setLoadingRelated(false);
+      });
+  }, [item?._id]);
 
   return (
     <div className="grid lg:grid-cols-[260px_1fr] gap-6">
@@ -33,22 +56,107 @@ export default function QuestionDetail({ item, relatedItems, onBack, onSelectRel
           </div>
         </div>
 
-        <div className="rounded-2xl border border-border/70 bg-card/80 p-4">
-          <p className="text-xs font-semibold text-ink-faint uppercase tracking-wide">Related questions</p>
-          <div className="mt-3 space-y-2">
-            {relatedItems.length === 0 && (
-              <p className="text-xs text-ink-soft">No related questions yet.</p>
-            )}
-            {relatedItems.map((rel) => (
-              <button
-                key={rel._id}
-                onClick={() => onSelectRelated(rel)}
-                className="w-full text-left text-xs text-ink hover:text-accent transition-colors line-clamp-2"
-              >
-                {rel.questionNumber ? `${rel.questionNumber}. ` : ''}{getQuestionTitle(rel)}
-              </button>
-            ))}
+        {/* Smart Knowledge Graph Sidebar */}
+        <div className="rounded-2xl border border-border/70 bg-card/80 p-4 flex flex-col gap-4">
+          <div className="border-b border-border/50 pb-2">
+            <h3 className="text-xs font-bold text-ink uppercase tracking-wider flex items-center gap-1.5">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-accent animate-pulse">
+                <circle cx="12" cy="12" r="3"/>
+                <circle cx="18" cy="18" r="3"/>
+                <circle cx="6" cy="6" r="3"/>
+                <line x1="12" y1="12" x2="18" y2="18"/>
+                <line x1="12" y1="12" x2="6" y2="6"/>
+              </svg>
+              Smart Knowledge Graph
+            </h3>
+            <p className="text-[10px] text-ink-faint mt-0.5">Explore connected entries</p>
           </div>
+
+          {loadingRelated ? (
+            <div className="py-6 flex flex-col items-center justify-center gap-2">
+              <span className="w-5 h-5 border-2 border-accent/25 border-t-accent rounded-full animate-spin" />
+              <span className="text-[10px] text-ink-faint">Traversing connections...</span>
+            </div>
+          ) : relatedData ? (
+            <div className="space-y-4 max-h-[480px] overflow-y-auto pr-1">
+              {/* Related FAQs */}
+              <div>
+                <p className="text-[10px] font-bold text-accent uppercase tracking-wider mb-2">Connected Questions</p>
+                {relatedData.relatedFAQs.length === 0 ? (
+                  <p className="text-[11px] text-ink-faint">No connected questions.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {relatedData.relatedFAQs.map((rel) => (
+                      <button
+                        key={rel._id}
+                        onClick={() => onSelectRelated(rel)}
+                        className="w-full text-left text-xs text-ink hover:text-accent hover:bg-mist/30 p-2 rounded-lg border border-border/30 transition-all line-clamp-2 block"
+                      >
+                        {rel.questionNumber ? `${rel.questionNumber}. ` : ''}{getQuestionTitle(rel)}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Related Sessions */}
+              <div>
+                <p className="text-[10px] font-bold text-accent uppercase tracking-wider mb-2">Connected Sessions</p>
+                {relatedData.relatedSessions.length === 0 ? (
+                  <p className="text-[11px] text-ink-faint">No matching sessions.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {relatedData.relatedSessions.map((session) => (
+                      <div key={session._id} className="text-xs text-ink-soft bg-mist/40 p-2 rounded-lg border border-border/30">
+                        <p className="font-semibold text-ink line-clamp-1">🎥 {session.topic}</p>
+                        {session.summary && <p className="text-[10px] text-ink-faint line-clamp-2 mt-0.5">{session.summary}</p>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Related Discussions */}
+              <div>
+                <p className="text-[10px] font-bold text-accent uppercase tracking-wider mb-2">Community Discussions</p>
+                {relatedData.relatedDiscussions.length === 0 ? (
+                  <p className="text-[11px] text-ink-faint">No matching community threads.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {relatedData.relatedDiscussions.map((disc) => (
+                      <a
+                        key={disc._id}
+                        href={`/community?post=${disc._id}`}
+                        className="block text-xs text-ink hover:text-accent hover:bg-mist/30 p-2 rounded-lg border border-border/30 transition-all"
+                      >
+                        <p className="font-medium line-clamp-1">💬 {disc.title}</p>
+                        <p className="text-[10px] text-ink-faint mt-0.5 line-clamp-1">{disc.body}</p>
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Related Resources */}
+              <div>
+                <p className="text-[10px] font-bold text-accent uppercase tracking-wider mb-2">Matching Resources</p>
+                {relatedData.relatedResources.length === 0 ? (
+                  <p className="text-[11px] text-ink-faint">No matching files.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {relatedData.relatedResources.map((res) => (
+                      <div key={res._id} className="text-xs text-ink-soft bg-mist/40 p-2 rounded-lg border border-border/30">
+                        <p className="font-medium text-ink line-clamp-1">📄 {res.title || res.fileName}</p>
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-ink-faint">{res.fileType}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs text-ink-soft">Could not load graph connections.</p>
+          )}
         </div>
       </aside>
 

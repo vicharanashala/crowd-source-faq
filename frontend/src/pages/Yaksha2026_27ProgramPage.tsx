@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import { HomeDoodles } from '../components/ui/PageDoodles';
 import api from '../utils/api';
@@ -93,7 +92,6 @@ export default function Yaksha2026_27ProgramPage() {
 
   return (
     <div className="bg-bg text-ink min-h-screen relative z-0">
-      <Navbar />
 
       <div className="pointer-events-none absolute inset-0 z-[-1] overflow-hidden mt-16">
         <HomeDoodles />

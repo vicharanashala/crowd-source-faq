@@ -100,7 +100,7 @@ const batchSchema = new MongooseSchema<IBatch>(
     },
     // v1.69 — Phase 1: optional enrollment cap. Null = unlimited.
     maxEnrollment: { type: Number, default: null, min: 1 },
-    isDefault: { type: Boolean, default: false, index: true },
+    isDefault: { type: Boolean, default: false },
     createdBy: { type: MongooseSchema.Types.ObjectId, ref: 'User', default: null },
   },
   { timestamps: true }

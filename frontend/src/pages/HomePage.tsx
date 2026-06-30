@@ -22,7 +22,6 @@
 
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import UserActiveProgramIndicator from '../components/layout/UserActiveProgramIndicator';
 import SearchBar from '../components/search/SearchBar';
@@ -50,6 +49,7 @@ import TopSolved from '../components/community/TopSolved';
 import TrendingIssues from '../components/search/TrendingIssues';
 import FromMeetings from '../components/faq/FromMeetings';
 import CTA from '../components/ui/CTA';
+import AiPersonalMentor from '../components/mentor/AiPersonalMentor';
 
 // ── Public-popular FAQ shape (extends FAQItem with view / read metrics) ──
 interface PublicPopularFaq extends FAQItem {
@@ -495,7 +495,6 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-bg grid-bg relative">
       <HomeDoodles />
-      <Navbar />
 
       <main className="max-w-[1200px] mx-auto px-4 sm:px-6 pt-[112px] sm:pt-[128px] pb-10 relative z-10">
         {/* Active program pill (v1.69) */}
@@ -817,6 +816,9 @@ export default function HomePage() {
 
               {/* RIGHT — sticky sidebar */}
               <aside className="space-y-6 lg:sticky lg:top-28 lg:self-start">
+                {/* AI Personal Mentor Suggestions */}
+                <AiPersonalMentor />
+
                 {/* 4×2 icon grid — Browse Categories */}
                 <div className="bg-card rounded-2xl border border-border p-5 sm:p-6 shadow-subtle">
                   <div className="flex items-center justify-between mb-4">

@@ -309,6 +309,9 @@ export default function AdminUsers() {
 
   return (
     <div className="space-y-4 max-w-6xl">
+      <header>
+        <h1 className="text-xl font-bold text-ink">Users</h1>
+      </header>
       <AnimatePresence>{editUser && <RoleModal user={editUser} onClose={() => setEditUser(null)} onUpdated={handleRoleUpdated} />}{deleteUser && <DeleteModal user={deleteUser} onClose={() => setDeleteUser(null)} onDeleted={handleDeleted} />}{detailUser && <UserDetailModal user={detailUser} onClose={() => setDetailUser(null)} onRefresh={fetchUsers} />}</AnimatePresence>
       <p className="text-sm text-ink-faint -mt-2">{total} registered</p>
 

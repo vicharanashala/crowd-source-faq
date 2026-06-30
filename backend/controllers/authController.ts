@@ -8,6 +8,7 @@ import RevokedToken from '../models/RevokedToken.js';
 import { registerSchema, loginSchema, changePasswordSchema } from '../utils/auth/validation.js';
 import { sanitizeHtml } from '../utils/http/sanitize.js';
 import { logger, authLog, securityLog } from '../utils/http/logger.js';
+import { trackUserActivity } from '../services/streakService.js';
 
 // Helper: Generates a signed JWT using the user's ID, embedding a unique
 // `jti` so the token can be server-side revoked via RevokedToken.
@@ -146,6 +147,11 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     const { token } = generateToken(user._id.toString());
 
     authLog.info('login ok', { userId: user._id.toString(), email, ip });
+
+    // Track user streak activity on login
+    trackUserActivity(user._id.toString(), 'login').catch((err) => {
+      authLog.warn(`[auth] failed to track streak activity: ${err.message}`);
+    });
 
     const userResponse: UserResponse = {
       id: user._id.toString(),

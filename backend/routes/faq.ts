@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getAllFAQs, getFAQById, getRecentFAQs, createFAQ, updateFAQ, deleteFAQ, checkFAQMatch, getPaginatedFAQs, submitFeedback, reportFAQ, getFAQHistory, createFAQSuggestion } from '../controllers/faqController.js';
+import { getAllFAQs, getFAQById, getRecentFAQs, createFAQ, updateFAQ, deleteFAQ, checkFAQMatch, getPaginatedFAQs, submitFeedback, reportFAQ, getFAQHistory, createFAQSuggestion, getRelatedEntries } from '../controllers/faqController.js';
 import { flagFAQ, voteReview } from '../controllers/freshnessController.js';
 import { protect, authorize } from '../middleware/auth.js';
 import { validateBody, createFAQSchema, updateFAQSchema, flagFAQSchema, voteReviewSchema } from '../utils/auth/validation.js';
@@ -18,6 +18,9 @@ router.get('/recent', getRecentFAQs);
 
 // POST /api/faq/check-match — Check if a question already exists in the FAQ (before posting on community)
 router.post('/check-match', protect, checkFAQMatch);
+
+// GET /api/faq/:id/related — Fetch related questions, sessions, discussions, and resources (public)
+router.get('/:id/related', getRelatedEntries);
 
 // GET /api/faq/:id — Fetch a single FAQ by ID (public)
 router.get('/:id', getFAQById);

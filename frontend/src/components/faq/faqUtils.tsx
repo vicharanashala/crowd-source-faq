@@ -24,6 +24,10 @@ export interface FAQItem {
   lastVerifiedDate?: string;
   reviewIntervalDays?: number;
   freshnessTier?: 'evergreen' | 'seasonal' | 'volatile';
+  questionHindi?: string;
+  titleHindi?: string;
+  answerHindi?: string;
+  bodyHindi?: string;
   [key: string]: unknown;
 }
 
@@ -368,8 +372,21 @@ export const formatCategoryName = (name: string = ''): string => (
   name.replace(/^\s*\d+\s*[.)-]?\s*/g, '').trim()
 );
 
-export const getQuestionTitle = (item: FAQItem): string => item?.question || item?.title || 'Untitled question';
-export const getAnswerText = (item: FAQItem): string => item?.answer || item?.body || '';
+export const getQuestionTitle = (item: FAQItem): string => {
+  const lang = (typeof localStorage !== 'undefined' ? localStorage.getItem('language') : 'en') || 'en';
+  if (lang === 'hi') {
+    return item?.questionHindi || item?.titleHindi || item?.question || item?.title || 'Untitled question';
+  }
+  return item?.question || item?.title || 'Untitled question';
+};
+
+export const getAnswerText = (item: FAQItem): string => {
+  const lang = (typeof localStorage !== 'undefined' ? localStorage.getItem('language') : 'en') || 'en';
+  if (lang === 'hi') {
+    return item?.answerHindi || item?.bodyHindi || item?.answer || item?.body || '';
+  }
+  return item?.answer || item?.body || '';
+};
 
 export const formatDate = (value: unknown): string => {
   if (!value) return '';

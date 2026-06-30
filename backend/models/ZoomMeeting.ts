@@ -72,6 +72,8 @@ export interface IZoomMeeting extends Document {
   insightCount: number;
   status: ZoomMeetingStatus;
   errorMessage?: string;
+  summary?: string;
+  revisionNotes?: string;
   processingStartedAt?: Date;
   processingCompletedAt?: Date;
 
@@ -215,6 +217,8 @@ const zoomMeetingSchema = new MongooseSchema<IZoomMeeting>(
       default: 'pending',
     },
     errorMessage: String,
+    summary: String,
+    revisionNotes: String,
     processingStartedAt: Date,
     processingCompletedAt: Date,
     // ── Provenance ───────────────────────────────────────────────────────────

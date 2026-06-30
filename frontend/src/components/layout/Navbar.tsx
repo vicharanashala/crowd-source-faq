@@ -3,9 +3,11 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useAuthModal, useAuthGate } from '../../context/AuthModalContext';
 import { useFeatureFlag } from '../../context/FeatureFlagContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { buildTransformedUrl } from '../../hooks/useCloudinaryUpload';
 import NotificationBell from '../../components/notifications/NotificationBell';
 import SpurtiChip from './SpurtiChip';
+import StreakChip from './StreakChip';
 
 // v1.65.1 — `xlOnly?: true` flags a nav tab as hidden below the xl
 // breakpoint (1280px). Used by Golden Ticket when the center
@@ -16,6 +18,7 @@ type NavItem = { label: string; to: string; xlOnly?: true };
 const navItems: NavItem[] = [
   { label: 'Home', to: '/' },
   { label: 'FAQ', to: '/faq' },
+  { label: 'Recovery', to: '/recovery' },
   { label: 'Welcome Package', to: '/welcome' },
   { label: 'Community', to: '/community' },
   { label: 'Leaderboard', to: '/leaderboard' },
@@ -78,6 +81,12 @@ export default function Navbar({ showProgramSwitcher: _showProgramSwitcher = fal
   const handleThemeChange = (newTheme: Theme) => {
     setTheme(newTheme);
     applyTheme(newTheme);
+  };
+
+  const { language, setLanguage } = useLanguage();
+  
+  const toggleLanguage = () => {
+    setLanguage(language === 'en' ? 'hi' : 'en');
   };
 
   const { user, isAuthenticated, logout } = useAuth();
@@ -229,6 +238,19 @@ export default function Navbar({ showProgramSwitcher: _showProgramSwitcher = fal
 
         {/* Right side actions */}
         <div className="flex items-center justify-self-end gap-2 sm:gap-3">
+          {/* Language Switcher */}
+          <button
+            onClick={toggleLanguage}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold border border-[rgb(var(--border-rgb)_/_0.4)] bg-[rgb(var(--bg-card-rgb)_/_0.5)] text-ink-soft hover:text-ink hover:bg-[rgb(var(--border-rgb)_/_0.15)] transition-all duration-300 shadow-sm"
+            title={language === 'en' ? 'Switch to Hindi' : 'अंग्रेजी में बदलें'}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-75">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="2" y1="12" x2="22" y2="12"/>
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+            </svg>
+            <span>{language === 'en' ? 'EN' : 'हि'}</span>
+          </button>
 
           {/* Unauthenticated — Sign in (text) + Get started (filled) */}
           {!isAuthenticated && (
@@ -271,6 +293,9 @@ export default function Navbar({ showProgramSwitcher: _showProgramSwitcher = fal
               <div className="flex items-center gap-2">
                 {/* Spurti Points chip */}
                 <SpurtiChip />
+
+                {/* Learning Streak chip */}
+                <StreakChip />
 
                 <NotificationBell />
 

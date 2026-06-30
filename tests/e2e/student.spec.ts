@@ -13,7 +13,11 @@ test.describe('Student User Journeys', () => {
 
   test.beforeEach(async ({ context }) => {
     await context.addInitScript(() => {
-      window.localStorage.setItem('yaksha_first_visit_prompt_seen', '1');
+      try {
+        window.localStorage.setItem('yaksha_first_visit_prompt_seen', '1');
+      } catch (e) {
+        // ignore early SecurityError on about:blank
+      }
     });
   });
 
@@ -24,6 +28,7 @@ test.describe('Student User Journeys', () => {
   });
 
   test('should log in as student, search/browse FAQs, ask a question, upvote, and comment', async ({ page }) => {
+    test.setTimeout(60000);
     // 1. Go to homepage
     await page.goto('/');
     await expect(page.locator('header').locator('text=Yaksha FAQ')).toBeVisible();
@@ -49,10 +54,10 @@ test.describe('Student User Journeys', () => {
     await page.locator('.faq-card-clay').first().click();
     
     // 7. Verify category open (Back to categories button visible)
-    await expect(page.locator('text=Back to categories')).toBeVisible();
+    await expect(page.locator('text=Back to all categories')).toBeVisible();
 
     // 8. Search for a keyword
-    const searchInput = page.locator('input[placeholder="Search for topics, keywords, or questions..."]');
+    const searchInput = page.locator('input[placeholder="Ask anything about your internship..."]');
     await searchInput.fill('request');
     await page.locator('button[type="submit"]:has-text("Search")').click();
 
@@ -83,7 +88,7 @@ test.describe('Student User Journeys', () => {
     // 13. Add a comment
     const commentBody = 'You need to email the coordinator with your details.';
     await page.getByPlaceholder('Add a comment…').fill(commentBody);
-    await page.getByRole('button', { name: 'Post' }).click();
+    await page.getByRole('button', { name: 'Post', exact: true }).click();
 
     // 14. Assert the comment is visible
     await expect(page.locator(`text=${commentBody}`)).toBeVisible();

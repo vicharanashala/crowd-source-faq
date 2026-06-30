@@ -4,6 +4,8 @@ import { AuthProvider, useAuth } from './hooks/useAuth';
 import { AuthModalProvider, useAuthModal } from './context/AuthModalContext';
 import { BatchProvider } from './context/BatchContext';
 import { FeatureFlagProvider } from './context/FeatureFlagContext';
+import { LanguageProvider } from './context/LanguageContext';
+import { ToastProvider } from './context/ToastContext';
 import AuthModal from './components/auth/AuthModal';
 import Spinner from './components/ui/Spinner';
 import ErrorBoundary from './components/ui/ErrorBoundary';
@@ -27,10 +29,10 @@ const WelcomePackagePage = lazy(() => import('./pages/WelcomePackagePage'));
 const Yaksha2026_27ProgramPage = lazy(() => import('./pages/Yaksha2026_27ProgramPage'));
 const ProgramPortalPage = lazy(() => import('./pages/ProgramPortalPage'));
 const ProgramPage = lazy(() => import('./pages/ProgramPage'));
+const RecoveryPage = lazy(() => import('./pages/RecoveryPage'));
 
 // Admin pages
-// v1.68 — AdminLogin page is gone. The single global AuthModal
-// (rendered by AuthModalHost) handles sign-in for everyone.
+const AdminLogin = lazy(() => import('./admin/pages/AdminLogin'));
 const AdminDashboard = lazy(() => import('./admin/pages/AdminDashboard'));
 const AdminFAQs = lazy(() => import('./admin/pages/AdminFAQs'));
 const AdminUsers = lazy(() => import('./admin/pages/AdminUsers'));
@@ -172,6 +174,7 @@ function AppRoutes() {
               program portal — the BatchSwitcher in the navbar lets
               users change programs from there. */}
           <Route path="/program/:slug" element={<ProgramPage />} />
+          <Route path="/recovery" element={<RecoveryPage />} />
 
           {/* Member-only: a user's own settings */}
           <Route
@@ -193,7 +196,7 @@ function AppRoutes() {
             to /admin. Same UX, one login page. */}
         <Route
           path="/admin/login"
-          element={<Navigate to="/?next=/admin" replace />}
+          element={<AdminLogin />}
         />
         <Route path="/admin" element={<AdminRoute><AdminLayout><AdminDashboard /></AdminLayout></AdminRoute>} />
         <Route path="/admin/faqs" element={<AdminRoute><AdminLayout><AdminFAQs /></AdminLayout></AdminRoute>} />
@@ -287,7 +290,8 @@ function FirstVisitAuthPrompt() {
     if (
       pathname === '/' ||
       pathname.startsWith('/explore') ||
-      pathname.startsWith('/home')
+      pathname.startsWith('/home') ||
+      pathname.startsWith('/admin')
     ) {
       return;
     }
@@ -327,18 +331,22 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <FeatureFlagProvider>
-          <BatchProvider>
-            <AuthModalHost>
-              <Suspense fallback={<div className="min-h-screen bg-bg flex items-center justify-center"><Spinner size="md" /></div>}>
-                {/* H2 fix (v1.68): top-level ErrorBoundary catches any
-                    render-time exception from any page. Without it, a
-                    single bad render unmounts the whole app. */}
-                <ErrorBoundary sectionName="App (top-level)">
-                  <AppRoutes />
-                </ErrorBoundary>
-              </Suspense>
-            </AuthModalHost>
-          </BatchProvider>
+          <LanguageProvider>
+            <BatchProvider>
+              <ToastProvider>
+                <AuthModalHost>
+                  <Suspense fallback={<div className="min-h-screen bg-bg flex items-center justify-center"><Spinner size="md" /></div>}>
+                    {/* H2 fix (v1.68): top-level ErrorBoundary catches any
+                        render-time exception from any page. Without it, a
+                        single bad render unmounts the whole app. */}
+                    <ErrorBoundary sectionName="App (top-level)">
+                      <AppRoutes />
+                    </ErrorBoundary>
+                  </Suspense>
+                </AuthModalHost>
+              </ToastProvider>
+            </BatchProvider>
+          </LanguageProvider>
         </FeatureFlagProvider>
       </AuthProvider>
     </BrowserRouter>

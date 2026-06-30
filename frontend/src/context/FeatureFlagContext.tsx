@@ -8,6 +8,7 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import api from '../utils/api';
+import { useAuth } from '../hooks/useAuth';
 
 export interface FeatureFlag {
   key: string;
@@ -51,11 +52,17 @@ export function useFeatureFlag(key: string): boolean | undefined {
 interface ProviderProps { children: React.ReactNode }
 
 export function FeatureFlagProvider({ children }: ProviderProps): React.ReactElement {
+  const { isAuthenticated } = useAuth();
   const [flags, setFlags] = useState<Record<string, FeatureFlag>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    if (!isAuthenticated) {
+      setFlags({});
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const res = await api.get<{ flags: FeatureFlag[] }>('/feature-flags');
@@ -72,7 +79,7 @@ export function FeatureFlagProvider({ children }: ProviderProps): React.ReactEle
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isAuthenticated]);
 
   useEffect(() => { void load(); }, [load]);
 

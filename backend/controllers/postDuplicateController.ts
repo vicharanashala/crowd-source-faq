@@ -252,6 +252,62 @@ export async function checkDuplicate(
 // ─── Route handler ─────────────────────────────────────────────────────────────
 
 // POST /api/community/check-duplicate
+export async function getDuplicates(query: string, batchId: any = null): Promise<DuplicateMatch[]> {
+  let aiAvailable = false;
+  try {
+    await resolveProviderAsync();
+    aiAvailable = true;
+  } catch {
+    aiAvailable = false;
+  }
+
+  let matches: DuplicateMatch[] = [];
+
+  if (aiAvailable) {
+    matches = await detectDuplicatesWithAI(query);
+  } else {
+    try {
+      const { searchKnowledge } = await import('../services/knowledgeBase.js');
+      const knowledgeMatches = await searchKnowledge(query, 3);
+      for (const km of knowledgeMatches) {
+        if (km.score < 0.50) continue;
+        matches.push({
+          _id: km._id,
+          title: km.question,
+          question: km.question,
+          answer: km.answer,
+          source: 'knowledge' as const,
+          sourceTitle: km.sourceTitle,
+          score: km.score,
+          confidence: km.confidence,
+          reason: km.reason ?? `From ${km.source}: ${km.answer}`,
+          matchType: 'ai' as const,
+        });
+      }
+    } catch (err) {
+      communityLog.warn(`[checkDuplicate] knowledge search failed: ${(err as Error).message}`);
+    }
+
+    if (matches.length === 0) {
+      const words = query.split(' ').filter((w) => w.length >= 3);
+      const isShortQuery = words.length < 3;
+      matches = await checkDuplicate(query, isShortQuery, batchId);
+    }
+  }
+
+  // Sort and dedupe
+  const seen = new Set<string>();
+  const deduped: DuplicateMatch[] = [];
+  for (const m of matches.sort((a, b) => b.score - a.score)) {
+    if (!seen.has(m._id)) {
+      seen.add(m._id);
+      deduped.push(m);
+    }
+  }
+  return deduped;
+}
+
+// POST /api/community/check-duplicate
 export const checkDuplicateController = async (
   req: Request,
   res: Response
@@ -267,74 +323,7 @@ export const checkDuplicateController = async (
       return;
     }
 
-    const q = query.trim();
-
-    // Architecture: when ANY AI provider is configured, the AI is the SOLE
-    // evaluator. Its verdict is final — no knowledge base mixing, no keyword
-    // fallback. The AI returns nothing if the question is genuinely novel.
-    //
-    // KB + keyword heuristics are only used when no AI provider is configured
-    // (server running with no API keys at all). This keeps the AI's judgment
-    // uncontested and prevents low-quality KB noise from polluting results
-    // the AI has already evaluated.
-    let aiAvailable = false;
-    try {
-      await resolveProviderAsync();
-      aiAvailable = true;
-    } catch {
-      aiAvailable = false;
-    }
-
-    let matches: DuplicateMatch[] = [];
-
-    if (aiAvailable) {
-      // AI is the evaluator. Trust its verdict.
-      // v1.69 — Phase 3f: AI duplicate detection itself is not
-      // yet program-scoped (the AI's getVectorCandidates is a
-      // deeper refactor — Phase 4+). The caller still threads
-      // batchId so the keyword fallback below is scoped.
-      matches = await detectDuplicatesWithAI(q);
-    } else {
-      // No AI configured — use knowledge base + keyword fallback
-      try {
-        const { searchKnowledge } = await import('../services/knowledgeBase.js');
-        const knowledgeMatches = await searchKnowledge(q, 3);
-        for (const km of knowledgeMatches) {
-          if (km.score < 0.50) continue;
-          matches.push({
-            _id: km._id,
-            title: km.question,
-            question: km.question,
-            answer: km.answer,
-            source: 'knowledge' as const,
-            sourceTitle: km.sourceTitle,
-            score: km.score,
-            confidence: km.confidence,
-            reason: km.reason ?? `From ${km.source}: ${km.answer}`,
-            matchType: 'ai' as const,
-          });
-        }
-      } catch (err) {
-        communityLog.warn(`[checkDuplicate] knowledge search failed: ${(err as Error).message}`);
-      }
-
-      // Keyword heuristics if knowledge base is also empty
-      if (matches.length === 0) {
-        const words = q.split(' ').filter((w) => w.length >= 3);
-        const isShortQuery = words.length < 3;
-        matches = await checkDuplicate(q, isShortQuery, req.programContext?.batchId ?? null);
-      }
-    }
-
-    // Sort and dedupe
-    const seen = new Set<string>();
-    const deduped: DuplicateMatch[] = [];
-    for (const m of matches.sort((a, b) => b.score - a.score)) {
-      if (!seen.has(m._id)) {
-        seen.add(m._id);
-        deduped.push(m);
-      }
-    }
+    const deduped = await getDuplicates(query.trim(), req.programContext?.batchId ?? null);
 
     res.json({
       isDuplicate: deduped.length > 0,

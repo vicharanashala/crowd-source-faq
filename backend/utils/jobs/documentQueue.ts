@@ -39,8 +39,24 @@ import { processDocument } from './documentJob.js';
 
 const QUEUE_NAME = 'document-processing';
 
+function isPlaceholder(value: string | undefined): boolean {
+  if (!value) return true;
+  const trimmed = value.trim();
+  return (
+    trimmed === '' ||
+    trimmed.startsWith('<') ||
+    trimmed.includes('YOUR_') ||
+    trimmed.includes('your-') ||
+    trimmed.includes('placeholder')
+  );
+}
+
 function getRedisUrl(): string | null {
-  return process.env.REDIS_TCP_URL || null;
+  const url = process.env.REDIS_TCP_URL;
+  if (isPlaceholder(url)) {
+    return null;
+  }
+  return url || null;
 }
 
 export function isDocumentQueueEnabled(): boolean {

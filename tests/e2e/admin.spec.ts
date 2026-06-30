@@ -3,7 +3,11 @@ import { test, expect } from '@playwright/test';
 test.describe('Admin User Journeys', () => {
   test.beforeEach(async ({ context }) => {
     await context.addInitScript(() => {
-      window.localStorage.setItem('yaksha_first_visit_prompt_seen', '1');
+      try {
+        window.localStorage.setItem('yaksha_first_visit_prompt_seen', '1');
+      } catch (e) {
+        // ignore early SecurityError on about:blank
+      }
     });
   });
 

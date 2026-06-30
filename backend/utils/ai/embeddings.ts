@@ -179,6 +179,11 @@ export const warmEmbedder = async (): Promise<void> => {
  * retrieval prompt for documents, only for queries.
  */
 export const generateEmbedding = async (text: string): Promise<number[]> => {
+  if (process.env.NODE_ENV === 'test' || process.env.MOCK_EMBEDDINGS === 'true') {
+    const mockVec = new Array(EMBEDDING_DIM).fill(0);
+    mockVec[0] = 1.0;
+    return mockVec;
+  }
   if (shouldUseHfApi()) {
     return callHfApiEmbedding(text);
   }

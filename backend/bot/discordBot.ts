@@ -59,12 +59,24 @@ export interface BotConfig {
   internalApiKey: string | null;
 }
 
+function isPlaceholder(value: string | undefined): boolean {
+  if (!value) return true;
+  const trimmed = value.trim();
+  return (
+    trimmed === '' ||
+    trimmed.startsWith('<') ||
+    trimmed.includes('YOUR_') ||
+    trimmed.includes('your-') ||
+    trimmed.includes('placeholder')
+  );
+}
+
 /** Parse env vars. Returns null if any required one is missing. */
 export function loadBotConfig(): BotConfig | null {
   const botToken = process.env.DISCORD_BOT_TOKEN?.trim();
   const clientId = process.env.DISCORD_CLIENT_ID?.trim();
   const guildId = process.env.DISCORD_GUILD_ID?.trim();
-  if (!botToken || !clientId || !guildId) {
+  if (isPlaceholder(botToken) || isPlaceholder(clientId) || isPlaceholder(guildId)) {
     return null;
   }
   const adminUserIds = (process.env.DISCORD_ADMIN_USER_IDS ?? '')
@@ -72,9 +84,9 @@ export function loadBotConfig(): BotConfig | null {
     .map((s) => s.trim())
     .filter(Boolean);
   return {
-    botToken,
-    clientId,
-    guildId,
+    botToken: botToken!,
+    clientId: clientId!,
+    guildId: guildId!,
     adminUserIds,
     notificationChannelId: process.env.DISCORD_NOTIFICATION_CHANNEL_ID?.trim() || null,
     publicChannelId: process.env.DISCORD_PUBLIC_CHANNEL_ID?.trim() || null,

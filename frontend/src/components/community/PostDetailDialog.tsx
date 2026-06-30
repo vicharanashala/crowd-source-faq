@@ -463,6 +463,10 @@ export default function PostDetailDialog({ post: initialPost, onClose, currentUs
   const canResolve = userRole === 'admin' || userRole === 'moderator';
   const attachments = (post as Post & { attachments?: CloudinaryAsset[] }).attachments ?? [];
 
+  const lang = (typeof localStorage !== 'undefined' ? localStorage.getItem('language') : 'en') || 'en';
+  const postTitle = lang === 'hi' ? (post.titleHindi || post.title) : post.title;
+  const postBody = lang === 'hi' ? (post.bodyHindi || post.body) : post.body;
+
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
@@ -592,6 +596,13 @@ export default function PostDetailDialog({ post: initialPost, onClose, currentUs
     converted_to_faq:   { label: 'Official FAQ',      cls: 'bg-stone-100 text-stone-700 border-stone-300' },
   };
 
+  const PRIORITY_BADGES: Record<string, { label: string; cls: string }> = {
+    low:      { label: 'Low',      cls: 'bg-gray-50 text-gray-500 border-gray-200' },
+    medium:   { label: 'Medium',   cls: 'bg-blue-50 text-blue-700 border-blue-200' },
+    urgent:   { label: 'Urgent',   cls: 'bg-amber-50 text-amber-700 border-amber-300' },
+    critical: { label: 'Critical', cls: 'bg-red-50 text-red-700 border-red-300 font-bold animate-pulse' },
+  };
+
   return (
     <>
       <dialog ref={dialogRef} closedby="any" aria-labelledby="post-dialog-title"
@@ -619,12 +630,24 @@ export default function PostDetailDialog({ post: initialPost, onClose, currentUs
               )}
             </div>
             <div className="min-w-0">
-              <h2 id="post-dialog-title" className="text-base font-semibold text-ink leading-snug">{post.title}</h2>
+              <h2 id="post-dialog-title" className="text-base font-semibold text-ink leading-snug">{postTitle}</h2>
               <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                 <Badge variant={isAnswered ? 'success' : 'warning'}>{isAnswered ? '✓ Answered' : '○ Open'}</Badge>
-                <span className="text-xs text-ink-soft">by {post.author?.name || 'Student'}</span>
+                <span className="text-xs text-ink-soft">
+                  by{' '}
+                  {post.isAnonymous
+                    ? canResolve && post.author?.name
+                      ? `${post.author.name} (Anonymous)`
+                      : 'Anonymous User'
+                    : post.author?.name || 'Student'}
+                </span>
                 <span className="text-xs text-ink-faint">·</span>
                 <span className="text-xs text-ink-soft">{formatDate(post.createdAt)}</span>
+                {post.priority && PRIORITY_BADGES[post.priority] && (
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded border text-[10px] font-semibold ${PRIORITY_BADGES[post.priority].cls}`}>
+                    {PRIORITY_BADGES[post.priority].label}
+                  </span>
+                )}
                 {post.lifecycle?.status && LIFECYCLE_CONFIG[post.lifecycle.status] && (
                   <span className={`inline-flex items-center px-2 py-0.5 rounded border text-[10px] font-semibold ${LIFECYCLE_CONFIG[post.lifecycle.status].cls}`}>
                     {LIFECYCLE_CONFIG[post.lifecycle.status].label}
@@ -646,7 +669,7 @@ export default function PostDetailDialog({ post: initialPost, onClose, currentUs
           <div className="px-6 py-5">
           {/* Question Card */}
           <div className="bg-mist/60 rounded-2xl border border-border p-4">
-            <p className="text-sm text-ink/75 leading-relaxed whitespace-pre-wrap">{post.body}</p>
+            <p className="text-sm text-ink/75 leading-relaxed whitespace-pre-wrap">{postBody}</p>
             <AttachmentGrid assets={attachments} onPreview={(i) => { setLightboxIndex(i); setLightboxAssets(attachments); }} />
           </div>
 

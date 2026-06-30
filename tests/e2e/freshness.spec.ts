@@ -25,7 +25,11 @@ test.describe('FAQ Freshness Lifecycle', () => {
 
   test.beforeEach(async ({ context }) => {
     await context.addInitScript(() => {
-      window.localStorage.setItem('yaksha_first_visit_prompt_seen', '1');
+      try {
+        window.localStorage.setItem('yaksha_first_visit_prompt_seen', '1');
+      } catch (e) {
+        // ignore early SecurityError on about:blank
+      }
     });
   });
 
@@ -80,9 +84,8 @@ test.describe('FAQ Freshness Lifecycle', () => {
     await expect(page.locator('main h1')).toContainText('FAQ Review');
 
     // 7. Verify the reported FAQ is listed with correct report reason
-    const row = page.locator('tr').filter({ hasText: targetFaqQuestion });
+    const row = page.locator('tr').filter({ hasText: targetFaqQuestion }).filter({ hasText: reportReason });
     await expect(row).toBeVisible();
-    await expect(row).toContainText(reportReason);
 
     // 8. Click Verify to clear the reports and re-verify the FAQ
     await row.locator('button.btn-verify-reported').click();

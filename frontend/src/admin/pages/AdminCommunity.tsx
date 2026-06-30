@@ -6,7 +6,7 @@ import Modal from '../components/common/Modal';
 import { TableSkeleton } from '../components/common/SkeletonLoader';
 
 function useDebounce<T>(value: T, delay: number): T { const [v, setV] = useState(value); useEffect(() => { const t = setTimeout(() => setV(value), delay); return () => clearTimeout(t); }, [value, delay]); return v; }
-interface CommunityPost { _id: string; title: string; body: string; status: 'answered' | 'unanswered'; author: { _id: string; name: string; email: string }; comments: Array<{ _id: string; body: string; author: { name: string }; verified: boolean }>; upvotes: string[]; createdAt: string; answer?: string; reports?: Array<{ reportedBy: string; reason: string; createdAt?: string }>; }
+interface CommunityPost { _id: string; title: string; body: string; status: 'answered' | 'unanswered'; author: { _id: string; name: string; email: string }; comments: Array<{ _id: string; body: string; author: { name: string }; verified: boolean }>; upvotes: string[]; createdAt: string; answer?: string; priority?: 'low' | 'medium' | 'urgent' | 'critical'; reports?: Array<{ reportedBy: string; reason: string; createdAt?: string }>; }
 interface CommunityPostsResponse { posts: CommunityPost[]; total: number; page: number; pages: number; }
 interface Toast { msg: string; type: 'success' | 'warn' | 'error'; }
 
@@ -14,6 +14,13 @@ function Toast({ toast }: { toast: Toast }) {
   const c = toast.type === 'error' ? 'admin-toast-error' : toast.type === 'warn' ? 'admin-toast-warn' : 'admin-toast-success';
   return <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className={`fixed top-4 right-4 z-50 px-4 py-2.5 rounded-lg text-xs font-medium border ${c}`}>{toast.msg}</motion.div>;
 }
+
+const PRIORITY_BADGES: Record<string, { label: string; cls: string }> = {
+  low:      { label: 'Low',      cls: 'bg-gray-50 text-gray-500 border-gray-200' },
+  medium:   { label: 'Medium',   cls: 'bg-blue-50 text-blue-700 border-blue-200' },
+  urgent:   { label: 'Urgent',   cls: 'bg-amber-50 text-amber-700 border-amber-300' },
+  critical: { label: 'Critical', cls: 'bg-red-50 text-red-700 border-red-300 font-bold' },
+};
 
 export default function AdminCommunity() {
   const [posts, setPosts] = useState<CommunityPost[]>([]);
@@ -23,6 +30,7 @@ export default function AdminCommunity() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [priorityFilter, setPriorityFilter] = useState('');
   const [toast, setToast] = useState<Toast | null>(null);
   const [viewPost, setViewPost] = useState<CommunityPost | null>(null);
   const debouncedSearch = useDebounce(search, 350);
@@ -33,11 +41,12 @@ export default function AdminCommunity() {
     const params = new URLSearchParams({ page: String(page), limit: '12' });
     if (debouncedSearch) params.set('search', debouncedSearch);
     if (statusFilter) params.set('status', statusFilter);
+    if (priorityFilter) params.set('priority', priorityFilter);
     adminApi.get<CommunityPostsResponse>(`/admin/community/posts?${params}`).then(r => { setPosts(r.data.posts); setTotal(r.data.total); setPages(r.data.pages); }).finally(() => setLoading(false));
-  }, [page, debouncedSearch, statusFilter]);
+  }, [page, debouncedSearch, statusFilter, priorityFilter]);
 
   useEffect(() => { fetchPosts(); }, [fetchPosts]);
-  useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter]);
+  useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter, priorityFilter]);
   const handleDelete = async (id: string) => { if (!confirm('Delete this post?')) return; try { await adminApi.delete(`/admin/community/${id}`); showToast('Deleted', 'error'); fetchPosts(); } catch { showToast('Delete failed', 'error'); } };
 
   return (
@@ -53,22 +62,38 @@ export default function AdminCommunity() {
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="admin-select">
           <option value="">All Status</option><option value="unanswered">Unanswered</option><option value="answered">Answered</option>
         </select>
+        <select value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)} className="admin-select">
+          <option value="">All Priorities</option>
+          <option value="low">Low</option>
+          <option value="medium">Medium</option>
+          <option value="urgent">Urgent</option>
+          <option value="critical">Critical</option>
+        </select>
       </div>
 
       <div className="admin-table-wrap">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead><tr className="admin-thead-row">
-              <th className="admin-th">Title</th><th className="admin-th">Author</th><th className="admin-th">Status</th><th className="admin-th text-right">Reports</th><th className="admin-th text-right">Comments</th><th className="admin-th text-right">Upvotes</th><th className="admin-th">Date</th><th className="admin-th text-right">Actions</th>
+             <thead><tr className="admin-thead-row">
+              <th className="admin-th">Title</th><th className="admin-th">Author</th><th className="admin-th">Status</th><th className="admin-th">Priority</th><th className="admin-th text-right">Reports</th><th className="admin-th text-right">Comments</th><th className="admin-th text-right">Upvotes</th><th className="admin-th">Date</th><th className="admin-th text-right">Actions</th>
             </tr></thead>
             <tbody>
-              {loading ? <tr><td colSpan={8} className="px-3 py-6"><TableSkeleton rows={8} /></td></tr> :
-               posts.length === 0 ? <tr><td colSpan={8} className="admin-empty">No posts found</td></tr> :
+              {loading ? <tr><td colSpan={9} className="px-3 py-6"><TableSkeleton rows={8} /></td></tr> :
+               posts.length === 0 ? <tr><td colSpan={9} className="admin-empty">No posts found</td></tr> :
                posts.map(post => (
                 <tr key={post._id} className="admin-tr">
                   <td className="admin-td max-w-[180px] truncate" title={post.title}>{post.title}</td>
                   <td className="admin-td text-ink-faint">{post.author?.name ?? '—'}</td>
                   <td className="admin-td"><Badge status={post.status === 'answered' ? 'approved' : 'pending'} label={post.status} showDot={false} /></td>
+                  <td className="admin-td">
+                    {post.priority && PRIORITY_BADGES[post.priority] ? (
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded border text-[10px] font-semibold ${PRIORITY_BADGES[post.priority].cls}`}>
+                        {PRIORITY_BADGES[post.priority].label}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-ink-faint">—</span>
+                    )}
+                  </td>
                   <td className="admin-td text-right">
                     {(post.reports?.length ?? 0) > 0 ? (
                       <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-danger/10 border border-danger/20 text-[10px] font-bold text-danger">{post.reports!.length}</span>
@@ -100,6 +125,16 @@ export default function AdminCommunity() {
             <div><p className="admin-label">Author</p><p className="text-sm text-ink-soft">{viewPost.author?.name} ({viewPost.author?.email})</p></div>
             <div><p className="admin-label">Body</p><p className="text-sm text-ink-soft whitespace-pre-wrap">{viewPost.body}</p></div>
             <div><p className="admin-label">Status</p><Badge status={viewPost.status === 'answered' ? 'approved' : 'pending'} label={viewPost.status} showDot={false} /></div>
+            <div>
+              <p className="admin-label">Priority</p>
+              {viewPost.priority && PRIORITY_BADGES[viewPost.priority] ? (
+                <span className={`inline-flex items-center px-2.5 py-1 rounded border text-xs font-semibold ${PRIORITY_BADGES[viewPost.priority].cls}`}>
+                  {PRIORITY_BADGES[viewPost.priority].label}
+                </span>
+              ) : (
+                <span className="text-xs text-ink-faint">Low</span>
+              )}
+            </div>
             {viewPost.answer && <div><p className="admin-label">Official Answer</p><p className="text-sm text-success whitespace-pre-wrap border-l-2 border-success/40 pl-3">{viewPost.answer}</p></div>}
             {viewPost.reports && viewPost.reports.length > 0 && (
               <div className="p-3 rounded-lg bg-danger/10 border border-danger/20">

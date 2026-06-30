@@ -81,9 +81,13 @@ export interface ICommunityPost extends Document {
   _id: Types.ObjectId;
   title: string;
   body?: string;
+  titleHindi?: string;
+  bodyHindi?: string;
   tags: string[];
   author: Types.ObjectId;
   status: CommunityPostStatus;
+  isAnonymous?: boolean;
+  priority?: 'low' | 'medium' | 'urgent' | 'critical';
   createdAt?: Date;
   answer: string | null;
   answerIsExpert?: boolean;
@@ -187,6 +191,8 @@ const communityPostSchema = new MongooseSchema(
   {
     title: { type: String, required: true, trim: true },
     body: { type: String, required: true, trim: true },
+    titleHindi: { type: String, default: '' },
+    bodyHindi: { type: String, default: '' },
     tags: { type: [String], default: [] },
     author: { type: MongooseSchema.Types.ObjectId, ref: 'User', required: true },
     // v1.69 — see interface. Every community post is now tagged
@@ -201,6 +207,13 @@ const communityPostSchema = new MongooseSchema(
       type: String,
       enum: ['answered', 'unanswered'] as CommunityPostStatus[],
       default: 'unanswered',
+    },
+    isAnonymous: { type: Boolean, default: false },
+    priority: {
+      type: String,
+      enum: ['low', 'medium', 'urgent', 'critical'],
+      default: 'low',
+      index: true,
     },
     answer: { type: String, default: null },
     answerIsExpert: { type: Boolean, default: false },

@@ -14,6 +14,13 @@ import { useAuth } from '../../hooks/useAuth';
 import { useAuthGate } from '../../context/AuthModalContext';
 import { LIFECYCLE_CONFIG, formatDate, DEPTH_COLORS, DEPTH_BARS } from '../ui/threadUtils';
 
+const PRIORITY_BADGES: Record<string, { label: string; cls: string }> = {
+  low:      { label: 'Low',      cls: 'bg-gray-50 text-gray-500 border-gray-200' },
+  medium:   { label: 'Medium',   cls: 'bg-blue-50 text-blue-700 border-blue-200' },
+  urgent:   { label: 'Urgent',   cls: 'bg-amber-50 text-amber-700 border-amber-300' },
+  critical: { label: 'Critical', cls: 'bg-red-50 text-red-700 border-red-300 font-bold animate-pulse' },
+};
+
 export interface Comment {
   _id: string;
   author?: { name?: string; _id?: string };
@@ -42,6 +49,7 @@ export interface ThreadPost {
   body?: string;
   status?: 'answered' | 'unanswered' | string;
   author?: { name?: string; _id?: string };
+  isAnonymous?: boolean;
   createdAt?: string;
   upvotes?: (string | { _id?: string })[];
   downvotes?: (string | { _id?: string })[];
@@ -71,6 +79,9 @@ export interface ThreadPost {
     status: string;
     statusHistory?: LifecycleStatusHistoryEntry[];
   };
+  priority?: 'low' | 'medium' | 'urgent' | 'critical';
+  titleHindi?: string;
+  bodyHindi?: string;
   [key: string]: unknown;
 }
 
@@ -309,6 +320,10 @@ export default function ThreadDetail({ postId, onClose }: ThreadDetailProps) {
     );
   }
 
+  const lang = (typeof localStorage !== 'undefined' ? localStorage.getItem('language') : 'en') || 'en';
+  const postTitle = lang === 'hi' ? (post.titleHindi || post.title) : post.title;
+  const postBody = lang === 'hi' ? (post.bodyHindi || post.body) : post.body;
+
   return (
     <>
       {/* Background overlay that matches the search-overlay / chat-overlay premium blur */}
@@ -358,6 +373,11 @@ export default function ThreadDetail({ postId, onClose }: ThreadDetailProps) {
               {post.lifecycle?.status && LIFECYCLE_CONFIG[post.lifecycle.status] && (
                 <span className={`inline-flex items-center px-2 py-0.5 rounded border text-[10px] font-semibold ${LIFECYCLE_CONFIG[post.lifecycle.status].cls}`}>
                   {LIFECYCLE_CONFIG[post.lifecycle.status].label}
+                </span>
+              )}
+              {post.priority && PRIORITY_BADGES[post.priority] && (
+                <span className={`inline-flex items-center px-2 py-0.5 rounded border text-[10px] font-semibold ${PRIORITY_BADGES[post.priority].cls}`}>
+                  {PRIORITY_BADGES[post.priority].label}
                 </span>
               )}
             </div>
@@ -446,33 +466,39 @@ export default function ThreadDetail({ postId, onClose }: ThreadDetailProps) {
         </div>
 
         {/* ── Scrollable body ── */}
-                <div className="overflow-y-auto flex-1">
-                  {/* Post hero */}
-                  <div className="px-6 sm:px-8 py-6">
-                    <div className="flex items-start gap-3.5 mb-4">
-                      <Avatar name={post.author?.name} size="md" className="mt-0.5" />
-                      <div className="flex-1 min-w-0">
-                        <h1 className="text-base sm:text-lg font-semibold text-ink leading-snug">{post.title}</h1>
-                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                          <span className="text-sm font-medium text-ink-soft">{post.author?.name || 'Student'}</span>
-                          <span className="text-xs text-ink-faint">·</span>
-                          <span className="text-xs text-ink-faint">{formatDate(post.createdAt)}</span>
-                          {isPrivileged && post.timeTrialStatus === 'pending' && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 border border-red-200 text-red-600 text-[10px] font-semibold">
-                              ⚡ Time-Trial · {post.timeTrialHoursRemaining}h left
-                            </span>
-                          )}
-                          {isPrivileged && post.escalationStatus === 'escalated' && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 border border-red-200 text-red-600 text-[10px] font-semibold">
-                              ⚠ Escalated
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+        <div className="overflow-y-auto flex-1">
+          {/* Post hero */}
+          <div className="px-6 sm:px-8 py-6">
+            <div className="flex items-start gap-3.5 mb-4">
+              <Avatar name={post.isAnonymous ? (isPrivileged && post.author?.name ? post.author.name : 'Anonymous User') : (post.author?.name || 'Student')} size="md" className="mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <h1 className="text-base sm:text-lg font-semibold text-ink leading-snug">{postTitle}</h1>
+                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                  <span className="text-sm font-medium text-ink-soft">
+                    {post.isAnonymous
+                      ? isPrivileged && post.author?.name
+                        ? `${post.author.name} (Anonymous)`
+                        : 'Anonymous User'
+                      : post.author?.name || 'Student'}
+                  </span>
+                  <span className="text-xs text-ink-faint">·</span>
+                  <span className="text-xs text-ink-faint">{formatDate(post.createdAt)}</span>
+                  {isPrivileged && post.timeTrialStatus === 'pending' && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 border border-red-200 text-red-600 text-[10px] font-semibold">
+                      ⚡ Time-Trial · {post.timeTrialHoursRemaining}h left
+                    </span>
+                  )}
+                  {isPrivileged && post.escalationStatus === 'escalated' && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 border border-red-200 text-red-600 text-[10px] font-semibold">
+                      ⚠ Escalated
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
 
-                    {/* Body */}
-                    <p className="text-sm text-ink/80 leading-relaxed mt-1">{post.body}</p>
+            {/* Body */}
+            <p className="text-sm text-ink/80 leading-relaxed mt-1">{postBody}</p>
 
                     {/* Attachment thumbnails */}
                     {(() => {

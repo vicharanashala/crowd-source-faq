@@ -165,6 +165,7 @@ export default function AdminZoomInsights() {
 
   return (
     <div className="space-y-5 max-w-5xl">
+      <h1 className="text-xl font-bold text-ink">Zoom Insights</h1>
       <p className="text-sm text-ink-faint -mt-2">Review AI-extracted FAQs and announcements before publishing</p>
 
       {/* Stats row */}
