@@ -7,8 +7,8 @@
     "backend"
   ],
   "scripts": {
-    "dev:local": "tsx scripts/run-dev-local.ts",
-    "test:e2e": "tsx scripts/run-e2e.ts",
+    "dev:local": "npm run build --workspace=backend && tsc && node scripts/run-local.js",
+    "test:e2e": "npm run build --workspace=backend && tsc && node scripts/run-e2e.js",
     "test:all": "npm run test --workspace=backend && npm run test:run --workspace=frontend --if-present && npm run test:e2e"
   },
   "devDependencies": {
@@ -21,6 +21,7 @@
   "dependencies": {
     "ai": "^6.0.209",
     "discord-api-types": "^0.38.49",
+    "local": "^0.3.3",
     "sharp": "^0.34.5"
   }
 }

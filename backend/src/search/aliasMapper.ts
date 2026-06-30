@@ -27,7 +27,7 @@
  *   via setImmediate so it never blocks the response path.
  */
 
-import { readFileSync, writeFileSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { generateAcronym } from './acronymGenerator.js';
@@ -36,7 +36,14 @@ import { normalizeTypos } from './typoNormalizer.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const ALIASES_PATH = join(__dirname, 'aliases.json');
+
+let ALIASES_PATH = join(__dirname, 'aliases.json');
+if (!existsSync(ALIASES_PATH)) {
+  const srcPath = join(__dirname, '../../../src/search/aliases.json');
+  if (existsSync(srcPath)) {
+    ALIASES_PATH = srcPath;
+  }
+}
 
 // ── Master alias table ────────────────────────────────────────────────────────
 

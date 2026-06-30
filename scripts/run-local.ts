@@ -118,7 +118,7 @@ const run = async () => {
     };
 
     console.log('[Local Runner] Seeding database...');
-    const seedProcess = spawn('npx', ['tsx', 'backend/scripts/seed.ts'], {
+    const seedProcess = spawn('node', ['backend/dist/scripts/seed.js'], {
       cwd: rootDir,
       env,
       stdio: 'inherit',
@@ -137,7 +137,7 @@ const run = async () => {
     });
 
     console.log('[Local Runner] Starting Backend server...');
-    backendProcess = spawn('npx', ['tsx', 'backend/server.ts'], {
+    backendProcess = spawn('node', ['backend/dist/server.js'], {
       cwd: rootDir,
       env,
       stdio: 'inherit',

@@ -17,7 +17,7 @@ import {
   getUserActivityChart,
   getCommunityPosts,
   deleteCommunityPost,
-} from '../controllers/adminController';
+} from '../controllers/adminController.js';
 import {
   getCommunityPendingFAQs,
   promoteFAQ,
@@ -33,12 +33,12 @@ import {
   getUnresolvedSearches,
   resolveUnresolved,
   getUnresolvedStats,
-} from '../controllers/unresolvedSearchController';
+} from '../controllers/unresolvedSearchController.js';
 import {
   getEscalated,
   verifyEscalatedFAQ,
   dismissEscalatedFAQ,
-} from '../controllers/freshnessController';
+} from '../controllers/freshnessController.js';
 import {
   getEscalatedPosts,
   resolveEscalatedPost,

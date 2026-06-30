@@ -1,31 +1,100 @@
-/**
- * Redis Semantic Cache — Upstash Redis (serverless-compatible)
- *
- * Caches search query embeddings and results to avoid recomputing on repeat queries.
- * FAQ systems typically see 80-95% cache hit rates on queries.
- *
- * Also provides generic key-value caching for hot endpoints:
- *   faq:all          -- GET /api/faq (grouped, 5 min TTL)
- *   faq:recent:*     -- GET /api/faq/recent (2 min TTL per param set)
- *   faq:id:*         -- GET /api/faq/:id (10 min TTL per FAQ)
- *   stats:admin      -- GET /api/admin/stats (30 sec TTL)
- *   trending:*       -- GET /api/search/trending (5 min TTL)
- *
- * Setup: Create a free Upstash Redis database at https://upstash.com
- * Then set REDIS_URL and REDIS_TOKEN in your .env
- */
-
-import { Redis } from '@upstash/redis';
+import { Redis as UpstashRedis } from '@upstash/redis';
+import IoRedis from 'ioredis';
 import { logger } from './logger.js';
 
-let redis: Redis | null = null;
+interface CacheAdapter {
+  get<T>(key: string): Promise<T | null>;
+  set(key: string, value: unknown, ex?: number): Promise<void>;
+  del(...keys: string[]): Promise<void>;
+  scan(cursor: number, match: string, count: number): Promise<[number, string[]]>;
+}
 
-function getRedis(): Redis | null {
-  if (!process.env.REDIS_URL || !process.env.REDIS_TOKEN) return null;
-  if (!redis) {
-    redis = new Redis({ url: process.env.REDIS_URL, token: process.env.REDIS_TOKEN });
+let activeAdapter: CacheAdapter | null = null;
+
+const upstashAdapter = (client: UpstashRedis): CacheAdapter => ({
+  async get<T>(key: string) {
+    return await client.get<T>(key);
+  },
+  async set(key: string, value: unknown, ex?: number) {
+    if (ex) {
+      await client.set(key, value, { ex });
+    } else {
+      await client.set(key, value);
+    }
+  },
+  async del(...keys: string[]) {
+    if (keys.length > 0) {
+      await client.del(...keys);
+    }
+  },
+  async scan(cursor: number, match: string, count: number) {
+    const [nextCursor, keys] = await client.scan(cursor, { match, count });
+    return [Number(nextCursor), keys];
   }
-  return redis;
+});
+
+const tcpAdapter = (client: IoRedis): CacheAdapter => ({
+  async get<T>(key: string) {
+    const data = await client.get(key);
+    if (!data) return null;
+    try {
+      return JSON.parse(data) as T;
+    } catch {
+      return data as unknown as T;
+    }
+  },
+  async set(key: string, value: unknown, ex?: number) {
+    const data = typeof value === 'string' ? value : JSON.stringify(value);
+    if (ex) {
+      await client.set(key, data, 'EX', ex);
+    } else {
+      await client.set(key, data);
+    }
+  },
+  async del(...keys: string[]) {
+    if (keys.length > 0) {
+      await client.del(keys);
+    }
+  },
+  async scan(cursor: number, match: string, count: number) {
+    const [nextCursor, keys] = await client.scan(cursor, 'MATCH', match, 'COUNT', count);
+    return [Number(nextCursor), keys];
+  }
+});
+
+function getCache(): CacheAdapter | null {
+  if (activeAdapter) return activeAdapter;
+
+  const tcpUrl = process.env.REDIS_TCP_URL;
+  if (tcpUrl) {
+    try {
+      const IoRedisClass = (IoRedis as any).default || IoRedis;
+      const client = new IoRedisClass(tcpUrl);
+      client.on('error', (err: any) => {
+        logger.warn(`[cache] TCP Redis client error: ${err.message}`);
+      });
+      activeAdapter = tcpAdapter(client);
+      logger.info(`[cache] Connected to local TCP Redis: ${tcpUrl.split('@').pop()}`);
+      return activeAdapter;
+    } catch (err: any) {
+      logger.warn(`[cache] Failed to initialize local TCP Redis client: ${err.message}`);
+    }
+  }
+
+  const upstashUrl = process.env.REDIS_URL;
+  const upstashToken = process.env.REDIS_TOKEN;
+  if (upstashUrl && upstashToken) {
+    try {
+      const client = new UpstashRedis({ url: upstashUrl, token: upstashToken });
+      activeAdapter = upstashAdapter(client);
+      logger.info(`[cache] Connected to Upstash Redis: ${upstashUrl}`);
+      return activeAdapter;
+    } catch (err: any) {
+      logger.warn(`[cache] Failed to initialize Upstash Redis client: ${err.message}`);
+    }
+  }
+
+  return null;
 }
 
 function hashQuery(text: string): string {
@@ -41,7 +110,7 @@ function hashQuery(text: string): string {
 const RESULT_TTL = 15 * 60; // 15 minutes TTL to prevent Redis memory bloat on 1000+ concurrent users
 
 export async function getCachedResults(query: string): Promise<{ results: unknown[] } | null> {
-  const client = getRedis();
+  const client = getCache();
   if (!client) return null;
   try {
     const key = `result:${hashQuery(query)}`;
@@ -55,11 +124,11 @@ export async function getCachedResults(query: string): Promise<{ results: unknow
 }
 
 export async function setCachedResults(query: string, results: unknown[]): Promise<void> {
-  const client = getRedis();
+  const client = getCache();
   if (!client) return;
   try {
     const key = `result:${hashQuery(query)}`;
-    await client.set(key, { results }, { ex: RESULT_TTL });
+    await client.set(key, { results }, RESULT_TTL);
     logger.info(`[cache SET] "${query.slice(0, 40)}"`);
   } catch (err) {
     logger.warn(`[cache] set failed: ${(err as Error).message}`);
@@ -67,14 +136,14 @@ export async function setCachedResults(query: string, results: unknown[]): Promi
 }
 
 export async function invalidateCache(): Promise<void> {
-  const client = getRedis();
+  const client = getCache();
   if (!client) return;
   try {
     let cursor = 0;
     let totalDeleted = 0;
     do {
-      const [nextCursor, keys] = await client.scan<Record<string, unknown>>(cursor, { match: 'result:*', count: 100 });
-      cursor = Number(nextCursor);
+      const [nextCursor, keys] = await client.scan(cursor, 'result:*', 100);
+      cursor = nextCursor;
       if (keys.length > 0) { await client.del(...keys); totalDeleted += keys.length; }
     } while (cursor !== 0);
     if (totalDeleted > 0) logger.info(`[cache] invalidated ${totalDeleted} entries`);
@@ -83,12 +152,12 @@ export async function invalidateCache(): Promise<void> {
   }
 }
 
-export const cacheAvailable = (): boolean => getRedis() !== null;
+export const cacheAvailable = (): boolean => getCache() !== null;
 
 // ---- Generic key-value cache helpers ----------------------------------------
 
 export async function cacheGet<T>(key: string): Promise<T | null> {
-  const client = getRedis();
+  const client = getCache();
   if (!client) return null;
   try {
     const val = await client.get<T>(key);
@@ -101,10 +170,10 @@ export async function cacheGet<T>(key: string): Promise<T | null> {
 }
 
 export async function cacheSet(key: string, value: unknown, ttlSeconds: number): Promise<void> {
-  const client = getRedis();
+  const client = getCache();
   if (!client) return;
   try {
-    await client.set(key, value, { ex: ttlSeconds });
+    await client.set(key, value, ttlSeconds);
     logger.info(`[cache SET] ${key} (TTL ${ttlSeconds}s)`);
   } catch (err) {
     logger.warn(`[cache] cacheSet(${key}) failed: ${(err as Error).message}`);
@@ -112,7 +181,7 @@ export async function cacheSet(key: string, value: unknown, ttlSeconds: number):
 }
 
 export async function cacheDel(...keys: string[]): Promise<void> {
-  const client = getRedis();
+  const client = getCache();
   if (!client || keys.length === 0) return;
   try {
     await client.del(...keys);
@@ -123,14 +192,14 @@ export async function cacheDel(...keys: string[]): Promise<void> {
 }
 
 export async function invalidateByPattern(pattern: string): Promise<void> {
-  const client = getRedis();
+  const client = getCache();
   if (!client) return;
   try {
     let cursor = 0;
     let total = 0;
     do {
-      const [nextCursor, keys] = await client.scan<Record<string, unknown>>(cursor, { match: pattern, count: 100 });
-      cursor = Number(nextCursor);
+      const [nextCursor, keys] = await client.scan(cursor, pattern, 100);
+      cursor = nextCursor;
       if (keys.length > 0) { await client.del(...keys); total += keys.length; }
     } while (cursor !== 0);
     if (total > 0) logger.info(`[cache] invalidated ${total} keys matching "${pattern}"`);

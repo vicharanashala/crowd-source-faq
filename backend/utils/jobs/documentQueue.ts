@@ -113,8 +113,10 @@ export function getDocumentQueue(): Queue<DocumentJobData> | null {
   if (_queue) return _queue;
   const conn = buildConnectionOptions();
   if (!conn) return null;
-  // BullMQ creates its own ioredis connection from these options.
   _queue = new Queue<DocumentJobData>(QUEUE_NAME, { connection: conn });
+  _queue.on('error', (err) => {
+    logger.warn(`[documentQueue] Queue error: ${err.message}`);
+  });
   return _queue;
 }
 
@@ -186,6 +188,9 @@ export function startDocumentWorker(): boolean {
   _events = new QueueEvents(QUEUE_NAME, { connection: conn });
   _events.on('failed', ({ jobId, failedReason }) => {
     logger.warn(`[documentQueue] event failed ${jobId}: ${failedReason}`);
+  });
+  _events.on('error', (err) => {
+    logger.warn(`[documentQueue] QueueEvents error: ${err.message}`);
   });
 
   logger.info(`[documentQueue] worker started, queue=${QUEUE_NAME}, concurrency=3`);
