@@ -6,34 +6,32 @@
  *
  *   expandQuery(query)              — call on every search request
  *   initAcronymExtractor(faqTexts) — call once at server startup
- *   learnFromText(text)            — call after FAQ create/update/view
+ *   learnFromText(text)            — call after each FAQ create/update
  *
- * # Alias map structure
- * Map<normalized-key, Set<normalized-expansions>>
- * One key can expand to multiple known forms (e.g. "sp" → {"spurti points"}).
+ * # Alias Priority (highest → lowest)
+ * 1. Manual entries from aliases.json
+ * 2. Auto-generated acronyms derived from alias values (generateAcronym)
+ * 3. FAQ-extracted aliases from initAcronymExtractor (buildExtractedAliases)
  *
- * # How entries are added
- * Layer 1 — Manual: aliases.json loaded at module import (one-way; author
- *            controls direction, so typo corrections are not reversed).
- * Layer 2 — Generated: acronyms auto-derived from multi-word values via
- *            generateAcronym(); both directions inserted (bidirectional).
- * Layer 3 — Extracted: parenthetical patterns in FAQ text; both directions
- *            already explicit in the returned Map from extractAcronymsFromText.
+ * Later sources never overwrite earlier ones, so manual entries always win.
  *
- * # Performance contract
- * - All disk I/O and map construction happens at startup.
- * - After startup, expandQuery runs O(n_tokens) Map lookups — no I/O.
- * - learnFromText updates memory synchronously then defers any disk write
- *   via setImmediate so it never blocks the response path.
+ * # Performance
+ * - aliases.json is loaded once synchronously at module import time.
+ * - The master Map is built once; no file I/O occurs per request.
+ * - Per-request cost is O(n_tokens) Map lookups — negligible latency.
+ * - Thread-safe: Node.js is single-threaded; the Map is mutated only at
+ *   startup via initAcronymExtractor (before traffic begins).
  */
 
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { generateAcronym } from './acronymGenerator.js';
-import { buildExtractedAliases, extractAcronymsFromText } from './acronymExtractor.js';
+import { buildExtractedAliases } from './acronymExtractor.js';
 import { normalizeTypos } from './typoNormalizer.js';
 
+// ── Resolve the JSON path relative to this file ───────────────────────────────
+// Using import.meta.url keeps this compatible with ESM (the project's module type).
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -45,162 +43,96 @@ if (!existsSync(ALIASES_PATH)) {
   }
 }
 
-// ── Master alias table ────────────────────────────────────────────────────────
-
-/** Map<normalized-key, Set<normalized-expansions>> */
-const aliasMap = new Map<string, Set<string>>();
+// ── Build the master alias map ────────────────────────────────────────────────
 
 /**
- * Keys explicitly present in aliases.json on disk.
- * Separate from aliasMap which also contains in-memory-only generated entries.
- * Used by learnFromText and initAcronymExtractor to decide what to persist.
+ * The master alias table.
+ *
+ * Keys and values are always lowercase. Populated at module load time
+ * (manual + generated acronyms) and enriched once at startup (FAQ-extracted).
  */
-const persistedKeys = new Set<string>();
-
-// ── Normalization ─────────────────────────────────────────────────────────────
+const aliasMap = new Map<string, string>();
 
 /**
- * Normalize a string for consistent map storage and lookup.
- * Lowercases, converts hyphens/underscores to spaces, collapses whitespace.
+ * Normalise a key/value before insertion so the Map is always lowercase.
  */
-export function normalize(s: string): string {
-  return s.toLowerCase().replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
+function setAlias(key: string, value: string): void {
+  const k = key.trim().toLowerCase();
+  const v = value.trim().toLowerCase();
+  if (k && v && k !== v && !aliasMap.has(k)) {
+    aliasMap.set(k, v);
+  }
 }
 
-// ── Map mutation helpers ──────────────────────────────────────────────────────
-
-/**
- * Add a one-way alias: key → value only.
- * Used for manual aliases (aliases.json) so typo corrections are never reversed
- * and the JSON author retains full control over which directions are active.
- */
-function addUnidirectional(rawKey: string, rawValue: string): void {
-  const k = normalize(rawKey);
-  const v = normalize(rawValue);
-  if (!k || !v || k === v) return;
-  if (!aliasMap.has(k)) aliasMap.set(k, new Set());
-  aliasMap.get(k)!.add(v);
-}
-
-/**
- * Add both directions: key → value AND value → key.
- * Used for auto-generated entries (acronym generation) where both directions
- * are always semantically valid.
- */
-function addBidirectional(rawKey: string, rawValue: string): void {
-  addUnidirectional(rawKey, rawValue);
-  addUnidirectional(rawValue, rawKey);
-}
-
-// ── Layer 1: load manual aliases ──────────────────────────────────────────────
-
+// Step 1 — Load manual aliases from aliases.json
 (function loadManualAliases(): void {
   try {
     const raw = readFileSync(ALIASES_PATH, 'utf-8');
     const data = JSON.parse(raw) as Record<string, string>;
     for (const [key, value] of Object.entries(data)) {
-      addUnidirectional(key, value);
-      persistedKeys.add(normalize(key));
+      setAlias(key, value);
     }
   } catch (err) {
+    // Non-fatal: the search pipeline continues without alias expansion.
+    // This can happen in test environments where the JSON path differs.
     process.stderr.write(
       `[aliasMapper] WARNING: Could not load aliases.json: ${(err as Error).message}\n`
     );
   }
 })();
 
-// ── Layer 2: auto-generate acronyms from map values ───────────────────────────
-
-/**
- * For every multi-word value currently in the map, derive its acronym via
- * generateAcronym and insert both acronym→phrase and phrase→acronym.
- * Safe to call multiple times — Set storage is idempotent.
- */
-function buildGeneratedAcronyms(): void {
+// Step 2 — Auto-generate acronyms for every multi-word value in the map
+//           (e.g. value "no objection certificate" → generate "NOC" → add noc → "no objection certificate")
+(function buildGeneratedAcronyms(): void {
+  // Snapshot keys/values at this point (manual aliases only) so we don't
+  // iterate over our own insertions.
   const snapshot = [...aliasMap.entries()];
-  for (const [, valueSet] of snapshot) {
-    for (const value of valueSet) {
-      if (!value.includes(' ')) continue;
-      const acronym = generateAcronym(value);
-      if (!acronym) continue;
-      addBidirectional(acronym.toLowerCase(), value);
-    }
+  for (const [, value] of snapshot) {
+    // Only attempt generation for multi-word values
+    if (!value.includes(' ')) continue;
+    const acronym = generateAcronym(value);
+    if (!acronym) continue;
+    const acronymLower = acronym.toLowerCase();
+    // Add: acronym → long form  AND  long form → acronym
+    setAlias(acronymLower, value);
+    setAlias(value, acronymLower);
   }
-}
+})();
 
-// Run once at module load on the initial aliases.json values.
-buildGeneratedAcronyms();
-
-// ── Persistence helper ────────────────────────────────────────────────────────
-
-function persistNewAliases(newEntries: Record<string, string>): void {
-  try {
-    const raw = readFileSync(ALIASES_PATH, 'utf-8');
-    const existing = JSON.parse(raw) as Record<string, string>;
-    const merged = { ...existing, ...newEntries };
-    writeFileSync(ALIASES_PATH, JSON.stringify(merged, null, 2), 'utf-8');
-    for (const key of Object.keys(newEntries)) {
-      persistedKeys.add(key);
-    }
-    process.stdout.write(
-      `[aliasMapper] Persisted ${Object.keys(newEntries).length} new alias(es) to aliases.json\n`
-    );
-  } catch (err) {
-    process.stderr.write(
-      `[aliasMapper] WARNING: Could not persist new aliases: ${(err as Error).message}\n`
-    );
-  }
-}
-
-// ── Layer 3: startup FAQ corpus scan ─────────────────────────────────────────
+// ── Startup hook ──────────────────────────────────────────────────────────────
 
 /**
- * Enrich the alias map with acronyms extracted from FAQ text at startup,
- * then re-run acronym generation so any newly discovered long-forms also
- * get their abbreviations auto-derived.
+ * Enrich the alias map with acronyms extracted from FAQ text at startup.
  *
- * New entries from the FAQ corpus (not already in aliases.json) are persisted
- * so they survive restarts. Layer 2 entries are not persisted because they
- * are regenerated deterministically at every boot.
+ * Call this ONCE from server.ts after the FAQ data is available. It is
+ * intentionally synchronous and fast — no I/O is performed.
  *
  * @param faqTexts - Array of strings (FAQ question + answer concatenated).
  */
 export function initAcronymExtractor(faqTexts: string[]): void {
-  // Step 3a: extract parenthetical pairs from the FAQ corpus.
-  // buildExtractedAliases already returns both directions for each match.
   const extracted = buildExtractedAliases(faqTexts);
-
-  // Collect pairs that are genuinely new (not yet on disk) before inserting,
-  // so we persist only the FAQ-extracted discoveries, not Layer 2 re-runs.
-  const newEntries: Record<string, string> = {};
   for (const [key, value] of extracted) {
-    const k = normalize(key);
-    if (!persistedKeys.has(k)) newEntries[k] = normalize(value);
-    addUnidirectional(key, value);
+    setAlias(key, value);  // manual entries (already in map) take priority
   }
+}
 
-  // Step 3b: re-run acronym generation on ALL values now in the map
-  // (covers values from aliases.json AND newly extracted from the corpus).
-  buildGeneratedAcronyms();
-
-  if (Object.keys(newEntries).length > 0) {
-    persistNewAliases(newEntries);
-  }
+/**
+ * Learn new acronym↔long-form pairs from a single FAQ's text (question + answer).
+ * Safe to call on every FAQ create/update — I/O is deferred off the hot path.
+ *
+ * @param text - Concatenated question and answer string of one FAQ.
+ */
+export function learnFromText(text: string): void {
+  if (!text || !text.trim()) return;
+  setImmediate(() => {
+    const extracted = buildExtractedAliases([text]);
+    for (const [key, value] of extracted) {
+      setAlias(key, value);
+    }
+  });
 }
 
 // ── Core expansion logic ──────────────────────────────────────────────────────
-
-/**
- * Produce a display-friendly form of an expansion string.
- * Short single words (≤5 chars, e.g. "sp", "noc", "llm") are returned in
- * UPPERCASE because they are abbreviations. Longer single words get
- * title-cased; multi-word phrases get title-cased word-by-word.
- */
-function displayForm(expansion: string): string {
-  if (!expansion.includes(' ') && expansion.length <= 5) return expansion.toUpperCase();
-  if (!expansion.includes(' ')) return expansion.charAt(0).toUpperCase() + expansion.slice(1);
-  return expansion.split(' ').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-}
 
 /**
  * Expand a user query with aliases, acronyms, and typo corrections.
@@ -208,91 +140,101 @@ function displayForm(expansion: string): string {
  * Rules:
  * - The original query is ALWAYS preserved as the first line of the output.
  * - Terms are only APPENDED — never removed or replaced.
- * - Duplicates of terms already in the query are omitted.
+ * - Duplicates (case-insensitive) of terms already in the query are omitted.
  * - Empty / whitespace-only queries are returned as-is.
  *
  * @param query - The raw user query (any case, any length).
- * @returns The original query followed by unique expansion terms separated
- *          by newlines. Returns the original query unchanged if no expansion found.
+ * @returns The original query followed by any unique expansion terms,
+ *          separated by newlines. If no expansions are found, returns
+ *          the original query unchanged.
+ *
+ * @example
+ * expandQuery("Need NOC for VINS")
+ * // → "Need NOC for VINS\nNo Objection Certificate\nVicharanashala Internship"
+ *
+ * @example
+ * expandQuery("NOC noc NoC")
+ * // → "NOC noc NoC\nNo Objection Certificate"  (deduplicated)
  */
 export function expandQuery(query: string): string {
   if (!query || !query.trim()) return query;
 
-  // Typo-correct using the alias map, but keep the original string for output.
+  // Step 1 — Apply typo correction but preserve original for output
   const corrected = normalizeTypos(query, aliasMap);
+  // The original query is preserved exactly as input for the first line of output
   const queryForOutput = query;
-  const normalizedCorrected = normalize(corrected);
 
-  // Build the set of terms already present in the query (for deduplication).
-  const originalTermsLower = new Set(normalizedCorrected.split(/\s+/).filter(Boolean));
+  // Step 2 — Collect all unique terms already in the (corrected) query
+  //           for deduplication (case-insensitive)
+  const originalTermsLower = new Set(
+    corrected.toLowerCase().split(/\s+/).filter(Boolean)
+  );
 
+  // Step 3 — Also capture multi-word chunks (bigrams, trigrams, the full phrase)
+  //          so "No Objection Certificate" can be matched as a phrase alias
   const expansions: string[] = [];
-  const seenExpansions = new Set<string>();
+  const seenExpansions = new Set<string>(); // dedup expansions among themselves
 
+  /**
+   * Attempt to resolve a lowercase lookup key against the alias map.
+   * If found and not already present in the query, queue the expansion.
+   */
   function tryExpand(lookupKey: string): void {
-    // lookupKey is already normalized (lowercase, hyphens→spaces, etc.)
-    const expansionSet = aliasMap.get(lookupKey);
-    if (!expansionSet) return;
+    const expansion = aliasMap.get(lookupKey);
+    if (!expansion) return;
 
-    for (const expansion of expansionSet) {
-      // Skip if all words of the expansion are already in the query.
-      const expansionWords = expansion.split(/\s+/);
-      if (expansionWords.every((w) => originalTermsLower.has(w))) continue;
+    // Check if the expansion is already semantically present in the query
+    const expansionLower = expansion.toLowerCase();
+    const expansionWords = expansionLower.split(/\s+/);
 
-      if (seenExpansions.has(expansion)) continue;
-      seenExpansions.add(expansion);
+    // Consider it "already present" if ALL words of the expansion appear in the query
+    const alreadyInQuery = expansionWords.every((w) => originalTermsLower.has(w));
+    if (alreadyInQuery) return;
 
-      expansions.push(displayForm(expansion));
-    }
+    // Deduplicate across multiple expansions triggered in the same call
+    if (seenExpansions.has(expansionLower)) return;
+    seenExpansions.add(expansionLower);
+
+    // Title-case the expansion for readability
+    const titleCased = expansion
+      .split(' ')
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(' ');
+
+    expansions.push(titleCased);
   }
 
-  // Normalize the corrected query to produce clean tokens for lookup.
-  const tokens = normalizedCorrected.split(/\s+/).filter(Boolean);
-
-  // Token-level lookup (handles "noc", "vins", "llm", "sp", etc.)
+  // Step 4a — Token-level lookup (handles single-token aliases like "noc", "vins", "llm")
+  const tokens = corrected.trim().split(/\s+/).filter(Boolean);
   for (const token of tokens) {
-    tryExpand(token);
+    tryExpand(token.toLowerCase());
   }
 
-  // Phrase-level lookup for bigrams through 5-grams.
+  // Step 4b — Phrase-level lookup (handles multi-word aliases like "no objection certificate")
+  //           We check every contiguous subsequence of 2 to 5 tokens.
   const MAX_PHRASE_TOKENS = 5;
   for (let start = 0; start < tokens.length; start++) {
     for (let len = 2; len <= Math.min(MAX_PHRASE_TOKENS, tokens.length - start); len++) {
-      tryExpand(tokens.slice(start, start + len).join(' '));
+      const phrase = tokens
+        .slice(start, start + len)
+        .map((t) => t.toLowerCase())
+        .join(' ');
+      tryExpand(phrase);
     }
   }
 
+  // Step 5 — Compose the result
+  // Always preserve the original query as-is on the first line, then add expansions
   if (expansions.length === 0) return queryForOutput;
   return [queryForOutput, ...expansions].join('\n');
 }
 
-// ── Live learning ─────────────────────────────────────────────────────────────
+// ── Diagnostic export (test / admin use only) ─────────────────────────────────
 
 /**
- * Extract abbreviation↔long-form pairs from FAQ text and add them to the
- * in-memory alias map immediately. Any pairs not yet on disk are persisted
- * via a deferred (setImmediate) write so the response path is never blocked.
- *
- * @param text - FAQ question + answer concatenated.
+ * Returns the current size of the master alias map.
+ * Useful in unit tests to verify that the map was populated.
  */
-export function learnFromText(text: string): void {
-  const extracted = extractAcronymsFromText(text);
-  const newEntries: Record<string, string> = {};
-
-  for (const [key, value] of extracted) {
-    const k = normalize(key);
-    if (!persistedKeys.has(k)) newEntries[k] = normalize(value);
-    addUnidirectional(key, value);
-  }
-
-  if (Object.keys(newEntries).length > 0) {
-    // Defer disk write to after the current request cycle — keeps I/O off the hot path.
-    setImmediate(() => persistNewAliases(newEntries));
-  }
-}
-
-// ── Diagnostic ────────────────────────────────────────────────────────────────
-
 export function getAliasMapSize(): number {
   return aliasMap.size;
 }
