@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """Build faqs.json from the crawled endpoints.txt source."""
-import json, re, sys
+import json, re, sys, os
 
-SRC = '/Users/yashhwanth/Documents/yakhagama/endpoints.txt'
-OUT = '/Users/yashhwanth/Documents/shamagama/faqs.json'
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+_PROJECT_ROOT = os.path.dirname(_SCRIPT_DIR)
+
+SRC = os.path.join(_PROJECT_ROOT, 'endpoints.txt')
+OUT = os.path.join(_PROJECT_ROOT, 'faqs.json')
 
 with open(SRC) as f:
     content = f.read()

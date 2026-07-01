@@ -102,7 +102,7 @@ PUBLIC_URL=http://localhost:6767     # backend URL the bot calls
 The bot auto-registers on first connect (guild-scoped = instant). For production (global = 1 hr to propagate), run:
 
 ```bash
-cd /Users/yashhwanth/Documents/shamagama/backend
+cd /Users/yashhwanth/Documents/crowd-source-faq/backend
 
 # Dev: instant register against your test server
 npm run bot:register:guild
@@ -116,7 +116,7 @@ The bot also re-registers guild commands on every startup, so you usually don't 
 ## Restart the backend
 
 ```bash
-cd /Users/yashhwanth/Documents/shamagama
+cd /Users/yashhwanth/Documents/crowd-source-faq
 ./run.sh
 ```
 

@@ -1,4 +1,4 @@
-# Shamagama Documentation
+# Crowd Source FAQ Documentation
 
 ## Contents
 
@@ -6,18 +6,32 @@
 - [Pipelines](PIPELINES.md) — All automated pipelines: auto-answer, FAQ audit, FAQ freshness, search, Zoom ingestion, support escalation; includes flows, configuration, and API endpoints
 - [MCP Integration](MCP.md) — Model Context Protocol: Hermes MCP client setup, CodeGraphContext MCP server tools, adding new servers, troubleshooting
 - [AI Provider System](AI_PROVIDERS.md) — Per-pipeline AI provider configuration, chatWithConfig usage, provider resolution, adding new providers
-- [OpenAPI Specification](openapi.yaml) — Full REST API reference in Swagger/OpenAPI 3.0 format
-- [Batch Management Plan](BATCH_MANAGEMENT_PLAN.md) — Cohort-scoped FAQ + first-class `Category` model + guest portal design
-- [Public FAQ Plan](PUBLIC_FAQ_PLAN.md) — Anonymous-friendly FAQ portal: routes, controllers, page redesign
-- [Schema-Driven Context Plan](SCHEMA_DRIVEN_CONTEXT_PLAN.md) — Admin-editable per-support-category field schema, dynamic frontend inputs
 - [Backup & Restore](BACKUP.md) — MongoDB dump/restore workflow for the live data
-- [Wire Protocol](wire.md) — Low-level API event shapes
-- [Issue Tracking](issues.md) — Open / resolved P0 + P1 issues
-- [Context (legacy)](context.md) — Original project brief, preserved for reference
+- [Issue Tracking](ISSUES.md) — Open / resolved P0 + P1 issues
+- [Context](context.md) — Original project brief, preserved for reference
+- [Progress Log](PROGRESS.md) — Task and feature implementation history
+
+### Design Blueprints (`docs/design/`)
+- [Batch Management Plan](design/batch-management-plan.md) — Cohort-scoped FAQ + first-class `Category` model + guest portal design
+- [Public FAQ Plan](design/public-faq-plan.md) — Anonymous-friendly FAQ portal: routes, controllers, page redesign
+- [Schema-Driven Context Plan](design/schema-driven-context-plan.md) — Admin-editable per-support-category field schema, dynamic frontend inputs
+- [Knowledge Lifecycle Design](design/knowledge-lifecycle-design.md) — closed-loop community Q&A FAQ pipeline
+- [Multi-Program CMS Design](design/multi-program-cms-design.md) — multiple batch & category mapping
+- [Wire Protocol](design/wire.md) — Low-level API event shapes
+
+### Reference & Audits (`docs/reference/`)
+- [OpenAPI Specification](reference/openapi.yaml) — Full REST API reference in Swagger/OpenAPI 3.0 format
+- [Codebase Audit](reference/codebase-audit.md) — Monolithic/modular file maps & complexity metrics
+- [Database Schema Reference](reference/database-schema.md) — Fields, types, enums, & TTL indexes
+- [Routes Reference](reference/routes-reference.md) — Complete endpoint-to-controller mapping
+- [Schema Audit](reference/schema-audit.md) — Mongoose model audit notes
+
+### Archive & History (`docs/archive/`)
+- [June 4 Temp Context](archive/june-4-temp-context.md) — Snapshots of light-mode glassmorphism and rate limiting releases
 
 ## Project Overview
 
-Shamagama is a semantic search-powered FAQ and community Q&A platform targeting 1 million registered users. Questions are resolved through a hybrid vector + keyword search. Unanswered questions flow into a community board where subject-matter experts and community votes surface the best answers. Approved answers are promoted back into the official FAQ.
+Crowd Source FAQ is a semantic search-powered FAQ and community Q&A platform targeting 1 million registered users. Questions are resolved through a hybrid vector + keyword search. Unanswered questions flow into a community board where subject-matter experts and community votes surface the best answers. Approved answers are promoted back into the official FAQ.
 
 **GitHub:** https://github.com/vicharanashala/crowd-source-faq
 **Production Backend:** https://yaksha-faq-backend.vercel.app
@@ -52,12 +66,16 @@ Shamagama is a semantic search-powered FAQ and community Q&A platform targeting 
 # Option 1: Full-stack runner (recommended)
 ./run.sh
 
-# Option 2: Manual
-cd backend && npm run dev   # tsx server.ts on port 6767
-cd frontend && npm run dev # Vite on port 5173
+# Option 2: Manual (via pnpm workspaces)
+pnpm install                  # Install workspace dependencies
+pnpm dev                      # Starts both apps concurrently
 
-# Seed data
-cd backend && npm run seed  # 130 FAQs + users
+# Or individual apps:
+cd apps/backend && pnpm dev   # tsx server.ts on port 6767
+cd apps/frontend && pnpm dev  # Vite on port 5173
+
+# Seed data:
+cd apps/backend && pnpm run seed  # 130 FAQs + users
 ```
 
 ### run.sh details
@@ -71,7 +89,7 @@ cd backend && npm run seed  # 130 FAQs + users
 | Port check | Kills any existing process on ports 5173 or 6767 before starting |
 | Ngrok tunnel | Starts ngrok on port 6767 if `NGROK_AUTH_TOKEN` is set; auto-updates `ZOOM_REDIRECT_URI` in `.env.local` |
 | Backend | `tsx watch server.ts` — PID written to `/tmp/yaksha-backend.pid`, logs to `logs/session_*.txt` |
-| Health check | Polls `http://localhost:6767/api/health` until MongoDB is connected (max 20s) |
+| Health check | Polls `http://localhost:6767/csfaq/api/health` until MongoDB is connected (max 20s) |
 | Frontend | `npm run dev` — appends to the same session log |
 | Cleanup | `pkill -f "tsx.*server"` + kills PIDs on SIGINT/SIGTERM |
 

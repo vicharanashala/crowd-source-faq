@@ -12,8 +12,8 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$SCRIPT_DIR"
-BACKEND="$ROOT/backend"
-FRONTEND="$ROOT/frontend"
+BACKEND="$ROOT/apps/backend"
+FRONTEND="$ROOT/apps/frontend"
 
 # ── Terminal colors (ANSI) ───────────────────────────────────────────────────
 # Use bash ANSI-C quoting ($'...') so the values hold the
@@ -185,18 +185,16 @@ wait_for_backend() {
   log "waiting for backend to be ready..."
   while [ $waited -lt $max_wait ]; do
     local status
-    status=$(curl -sf --max-time 2 http://localhost:6767/api/health 2>/dev/null \
-      | grep -o '"db":"[^"]*"' 2>/dev/null | cut -d'"' -f4 \
-      || echo "waiting")
-    if [ "$status" = "connected" ]; then
-      ok "MongoDB connected"
+    status=$(curl -sf -o /dev/null -w "%{http_code}" --max-time 2 http://localhost:6767/csfaq/api/health || echo "000")
+    if [ "$status" = "200" ]; then
+      ok "backend ready"
       return 0
     fi
     sleep 2
     waited=$((waited + 2))
     echo -n "."
   done
-  warn "backend DB not connected after ${max_wait}s — continuing anyway"
+  warn "backend not ready after ${max_wait}s — continuing anyway"
 }
 
 # ── Start backend ──────────────────────────────────────────────────────────────
@@ -209,6 +207,7 @@ start_backend() {
   set +a
   # Kill any existing process on port 6767 before starting
   pkill -f "tsx.*server" 2>/dev/null || true
+  pkill -f "src/server.ts" 2>/dev/null || true
   sleep 1
 
   # Session log — timestamped, previous sessions preserved
@@ -218,11 +217,8 @@ start_backend() {
   touch "$SESSION_LOG"
   echo "$SESSION_LOG" > /tmp/yaksha-session-log
 
-  # Keep latest symlink for easy access
-  ln -sf "session_${SESSION_TIMESTAMP}.txt" "$ROOT/main_log.txt" 2>/dev/null || true
-
   # Run tsx — prefix each line with [backend] dim tag for greppable scrollback.
-  ../node_modules/.bin/tsx watch server.ts 2>&1 | \
+  ../../node_modules/.bin/tsx watch src/server.ts 2>&1 | \
     sed -u "s/^\([^[]]*\)/${F_DIM}[backend]${F_RESET} \1/" | \
     tee "$SESSION_LOG" &
   BACKEND_PID=$!
@@ -279,7 +275,7 @@ start_frontend() {
   fi
 
   # Run vite — prefix with [frontend] dim tag, append to session log
-  npm run dev 2>&1 | \
+  npx pnpm@9 run dev 2>&1 | \
     sed -u "s/^\([^[]]*\)/${F_DIM}[frontend]${F_RESET} \1/" | \
     tee -a "$SESSION_LOG" &
   FRONTEND_PID=$!
@@ -304,12 +300,129 @@ check_url_alive() {
   curl -sf --max-time 2 http://localhost:5173 > /dev/null 2>&1
 }
 
+# ── Check for remote updates on current branch ────────────────────────────────
+check_for_updates() {
+  # Skip if not in a git repo
+  if ! git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1; then
+    return 0
+  fi
+
+  cd "$ROOT"
+
+  # Get current branch
+  local current_branch
+  current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)
+  if [ -z "$current_branch" ] || [ "$current_branch" = "HEAD" ]; then
+    dim "not on a named branch — skipping update check"
+    return 0
+  fi
+
+  # Check upstream tracking branch exists
+  local upstream
+  upstream=$(git rev-parse --abbrev-ref --symbolic-full-name "@{u}" 2>/dev/null || true)
+  if [ -z "$upstream" ]; then
+    dim "branch '$current_branch' has no upstream tracking — skipping update check"
+    return 0
+  fi
+
+  log "checking for updates on $current_branch..."
+
+  # Fetch silently to update remote refs
+  if ! git fetch --quiet 2>/dev/null; then
+    warn "could not fetch from remote — skipping update check"
+    return 0
+  fi
+
+  # Count commits ahead/behind
+  local ahead behind
+  ahead=$(git rev-list --count "${upstream}..HEAD" 2>/dev/null || echo 0)
+  behind=$(git rev-list --count "HEAD..${upstream}" 2>/dev/null || echo 0)
+
+  # Nothing new on remote
+  if [ "$behind" -eq 0 ]; then
+    if [ "$ahead" -eq 0 ]; then
+      ok "branch '$current_branch' is up to date with $upstream"
+    else
+      dim "no new commits on $upstream ($ahead local commit(s) ahead)"
+    fi
+    return 0
+  fi
+
+  echo ""
+  warn "$behind new commit(s) available on $upstream"
+  dim "your local branch is behind by $behind commit(s):"
+  git log --oneline "HEAD..${upstream}" 2>/dev/null | head -5 | sed "s/^/${F_DIM}    ${F_RESET}/"
+  [ "$behind" -gt 5 ] && dim "    ... and $((behind - 5)) more"
+
+  # Warn if there are uncommitted local changes
+  if ! git diff --quiet HEAD 2>/dev/null || ! git diff --cached --quiet HEAD 2>/dev/null; then
+    warn "you have uncommitted local changes — pull may conflict"
+  fi
+
+  echo ""
+  echo -n "  Pull latest changes from '$upstream'? [y/N] (auto-skip in 7s): "
+  if read -t 7 -r reply; then
+    : # got a reply within timeout
+  else
+    echo ""
+    dim "no response in 7s — skipping pull"
+    return 0
+  fi
+  case "$reply" in
+    [yY]|[yY][eE][sS])
+      log "pulling from $upstream..."
+      if git pull 2>&1 | sed "s/^/${F_DIM}    ${F_RESET}/"; then
+        ok "pull complete"
+      else
+        warn "pull failed — resolve conflicts manually before starting servers"
+        return 0
+      fi
+      ;;
+    *)
+      dim "skipped — continuing with local state"
+      ;;
+  esac
+  echo ""
+}
+
+# ── Read a var from .env or .env.local ────────────────────────────────────────
+read_env_with_local() {
+  local var_name=$1
+  local val
+  val=$(grep "^${var_name}=" "$BACKEND/.env.local" 2>/dev/null | head -1 | cut -d'=' -f2- | sed "s/^['\"]//g;s/['\"]$//g" || echo "")
+  if [ -z "$val" ]; then
+    val=$(grep "^${var_name}=" "$BACKEND/.env" 2>/dev/null | head -1 | cut -d'=' -f2- | sed "s/^['\"]//g;s/['\"]$//g" || echo "")
+  fi
+  echo "$val"
+}
+
+# ── Check GCS credentials and connection ─────────────────────────────────────
+check_gcs_connection() {
+  local bucket
+  bucket=$(read_env_with_local "GCS_BUCKET")
+  if [ -z "$bucket" ] || [[ "$bucket" == dummy* ]]; then
+    dim "GCS is not configured or using dummy bucket ($bucket) — skipping GCS network check"
+    return 0
+  fi
+
+  log "verifying GCS connection..."
+  if (cd "$BACKEND" && npx tsx src/scripts/testGcsConnection.ts >/tmp/gcs-test.log 2>&1); then
+    ok "GCS connection check passed successfully"
+  else
+    warn "GCS connection check failed. Image uploads may 503."
+    dim "Check /tmp/gcs-test.log for full details."
+  fi
+}
+
 # ── Main ───────────────────────────────────────────────────────────────────────
+echo ""
+check_for_updates
 echo ""
 alert "Yaksha FAQ Portal — full stack runner"
 echo ""
 
 setup_env
+check_gcs_connection
 
 if check_url_alive; then
   warn "frontend already live on 5173 — clearing ports"

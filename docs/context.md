@@ -1,7 +1,7 @@
-# Project Context — Shamagama FAQ & Community Platform
+# Project Context — Crowd Source FAQ FAQ & Community Platform
 
 > Semantic search-powered FAQ and community Q&A platform targeting **10,00,000 users (10 lakh / 1 million)**.
-> Project name: **Shamagama** (also known internally as "yaksha-faq-portal").
+> Project name: **Crowd Source FAQ** (also known internally as "yaksha-faq-portal").
 
 ---
 
@@ -33,81 +33,47 @@
 ## 3. Project Structure
 
 ```
-shamagama/
-├── backend/
-│   ├── config/
-│   │   └── db.ts                  # Lazy MongoDB connection (cached across requests)
-│   ├── controllers/
-│   │   ├── adminController.ts     # Dashboard stats, FAQ/user/reports management
-│   │   ├── analyticsController.ts # Search analytics (failed/popular queries)
-│   │   ├── authController.ts      # Register, login, getMe, role management
-│   │   ├── postController.ts      # CRUD for community posts, upvotes, resolve, duplicate check
-│   │   ├── commentController.ts   # Comment creation, upvotes/downvotes, verify comment
-│   │   ├── communitySearchController.ts # Community-specific semantic search
-│   │   ├── faqController.ts       # FAQ CRUD + check-match (dedup)
-│   │   └── searchController.ts    # Hybrid search (vector + text, RRF merge)
-│   ├── middleware/
-│   │   ├── admin.ts               # adminOnly middleware (admin/moderator only)
-│   │   └── auth.ts                # protect + authorize() RBAC middleware
-│   ├── models/
-│   │   ├── AdminLog.ts            # Admin action audit log (approve/reject/edit/delete)
-│   │   ├── CommunityPost.ts       # Community posts + embedded comments sub-schema
-│   │   ├── FAQ.ts                 # FAQs with embedding field (select: false)
-│   │   ├── SearchLog.ts           # Search analytics log (TTL: 90 days)
-│   │   └── User.ts                # Users with bcrypt pre-save hook
-│   ├── routes/
-│   │   ├── admin.ts               # All /api/admin/* admin-only routes
-│   │   ├── analytics.ts           # /api/analytics (admin/mod only)
-│   │   ├── auth.ts                # /api/auth/* public + protected routes
-│   │   ├── community.ts           # /api/community/* routes
-│   │   ├── faq.ts                 # /api/faq/* routes (incl. /faq/paginated)
-│   │   └── search.ts              # /api/search/* routes
-│   ├── scripts/
-│   │   ├── addIndexes.ts          # Migration: creates TTL + compound indexes
-│   │   ├── backfillEmbeddings.ts  # Regenerate all stored embeddings via OpenAI
-│   │   ├── seed.ts                # Seeds users + FAQs + community posts
-│   │   └── seedPosts.ts           # Additional community post seeder
-│   ├── utils/
-│   │   └── embeddings.ts          # OpenAI embedding generator (text-embedding-3-small)
-│   ├── server.ts                  # Express app entry point
-│   ├── package.json
-│   └── .env.example
-├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── community/         # Decomposed Community components
-│   │   │   │   ├── CreatePostDialog.tsx # Post submission dialog with duplicate detection
-│   │   │   │   └── PostDetailDialog.tsx # Full post details & comments dialog
-│   │   │   ├── faq/               # Decomposed FAQ page sub-components
-│   │   │   │   ├── CategoryGrid.tsx     # FAQ category cards browser
-│   │   │   │   ├── QuestionDetail.tsx   # Detailed FAQ view with related queries
-│   │   │   │   ├── QuestionList.tsx     # FAQ question items accordion/list
-│   │   │   │   ├── ReportFAQButton.tsx  # Inappropriate FAQ report button & dialog
-│   │   │   │   ├── SearchDropdown.tsx   # FAQ search bar autocomplete dropdown
-│   │   │   │   ├── SearchFeedback.tsx   # Report missing FAQ modal/inline form
-│   │   │   │   └── faqUtils.tsx         # Common types, icons & helpers for FAQ components
-│   │   │   ├── layout/
-│   │   │   │   ├── Navbar.tsx
-│   │   │   │   └── Footer.tsx
-│   │   │   └── ui/                # 20+ UI components (SearchBar, FAQAccordion, etc.)
-│   │   ├── hooks/
-│   │   │   └── useAuth.tsx        # Auth context + JWT persistence
-│   │   ├── pages/
-│   │   │   ├── AdminPage.tsx      # Admin dashboard (analytics, FAQ/社区/user tabs)
-│   │   │   ├── CommunityPage.tsx  # Community Q&A board
-│   │   │   ├── FAQPage.tsx        # Decomposed FAQ category browser & search
-│   │   │   ├── HomePage.tsx       # Hero search + trending + category grid
-│   │   │   ├── LoginPage.tsx
-│   │   │   └── RegisterPage.tsx
-│   │   ├── utils/
-│   │   │   ├── api.ts             # Axios instance with JWT interceptor
-│   │   └── App.tsx / main.tsx
-│   ├── index.html
-│   ├── package.json
-│   └── .env.example
-├── openapi.yaml                   # Full OpenAPI 3.0.3 spec (1386 lines)
-├── samagama_faq.json              # Raw FAQ seed data (~150 entries)
-└── temp/                          # Stale copy (pre-refactor) — ignore for active dev
+crowd-source-faq/
+├── apps/
+│   ├── backend/               # Express + TypeScript API
+│   │   ├── src/
+│   │   │   ├── bootstrap/     # App startup & routes registration
+│   │   │   ├── config/        # Environment and DB loaders
+│   │   │   ├── core/          # Shared core infrastructure
+│   │   │   ├── integrations/  # Zoom, Discord, and Cloudinary integrations
+│   │   │   ├── middleware/    # Auth, RBAC, and validation middlewares
+│   │   │   ├── modules/       # Modular features (FAQ, Community, Search, Auth, etc.)
+│   │   │   │   ├── admin/     # Admin routes and controller
+│   │   │   │   ├── community/ # Community posts & comments controller and routes
+│   │   │   │   ├── faq/       # FAQ logic, freshness & review queues
+│   │   │   │   └── search/    # Hybrid semantic vector search controller and routes
+│   │   │   ├── scripts/       # Seeding and migration scripts
+│   │   │   └── utils/         # Common utility helpers
+│   │   ├── Dockerfile
+│   │   └── package.json
+│   └── frontend/              # React + Vite SPA
+│       ├── src/
+│       │   ├── admin/         # Admin pages and sub-components
+│       │   ├── components/    # Reusable UI & modular feature components (FAQ, community, search)
+│       │   ├── context/       # Program, Auth, and Batch React contexts
+│       │   ├── hooks/         # Custom React hooks (notifications, auth, etc.)
+│       │   ├── pages/         # User pages (HomePage, FAQPage, CommunityPage, etc.)
+│       │   ├── routes/        # App routing definitions and route guards
+│       │   └── styles/        # Global styles & Tailwind tokens
+│       ├── index.html
+│       └── package.json
+├── packages/                  # Workspace shared packages
+│   ├── config/                # Shared typescript & workspace configs
+│   ├── types/                 # Shared TypeScript models and API types
+│   ├── utils/                 # Common shared javascript utilities
+│   └── validation/            # Centralized Zod request schemas
+├── docs/                      # Centralized documentation
+│   ├── design/                # System design plans & blueprints
+│   ├── reference/             # Database schemas & route lists
+│   └── ARCHITECTURE.md        # Technical architecture document
+├── run.sh                     # Full-stack developer runner
+├── docker-compose.yml         # Local development Docker Compose
+└── pnpm-workspace.yaml        # Workspace package layout
 ```
 
 ---
@@ -440,13 +406,13 @@ Each collection (`faqs`, `communityposts`) needs a search index named `vector_in
 }
 ```
 
-> **Note:** Vector search is free on M0 (free tier) as of 2024+. No cluster upgrade needed. The `backend/scripts/addIndexes.js` creates non-vector indexes only — vector index must be created manually in Atlas UI.
+> **Note:** Vector search is free on M0 (free tier) as of 2024+. No cluster upgrade needed. The `apps/backend/src/scripts/addIndexes.ts` creates non-vector indexes only — vector index must be created manually in Atlas UI.
 
 ### 9.2 Running the Migration
 
 After pulling, set env vars and run:
 ```bash
-cd backend
+cd apps/backend
 export MONGODB_URI="mongodb+srv://<user>:***@cluster0.xxxxx.mongodb.net/yaksha_faq"
 npm run migrate        # Creates TTL + compound indexes
 npm run backfill:embeddings  # Regenerate stored embeddings (if switching models)
@@ -456,7 +422,7 @@ npm run backfill:embeddings  # Regenerate stored embeddings (if switching models
 
 ## 10. Environment Variables
 
-### Backend (`backend/.env`)
+### Backend (`apps/backend/.env`)
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
@@ -466,7 +432,7 @@ npm run backfill:embeddings  # Regenerate stored embeddings (if switching models
 | `PORT` | No | `6767` | Server port (Vercel overrides automatically) |
 | `CLIENT_URL` | No | — | Frontend URL for CORS |
 
-### Frontend (`frontend/.env`)
+### Frontend (`apps/frontend/.env`)
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -500,7 +466,7 @@ npm run backfill:embeddings  # Regenerate stored embeddings (if switching models
 ## 13. Key Implementation Notes
 
 - The search cache is **Upstash Redis** (shared across serverless instances). If Redis is unavailable, search falls back to direct DB queries.
-- The seed script (`backend/scripts/seed.ts`) reads from `../samagama_faq.json` at the backend root directory.
+- The seed script (`apps/backend/src/scripts/seed.ts`) reads from `../samagama_faq.json` at the backend root directory.
 - `CommunityPost.comments` is an **embedded subdocument array** — not a separate collection. Comment `_id` values are local to the post document.
 - **Comment voting** uses optimistic UI updates — upvote state is toggled locally before the API call resolves.
 - The "Faah" sound effect (`fahhhhh.mp3`) is played client-side when a comment is auto-deleted at net −5 score.

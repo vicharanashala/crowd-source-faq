@@ -1,0 +1,60 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Yaksha FAQ Portal — Docker Compose (Local Development)
+#
+#  Usage:
+#    docker-compose up -d          # start all services
+#    docker-compose logs -f        # tail logs
+#    docker-compose down           # stop
+#    docker-compose down -v        # stop + remove volumes (wipe DB)
+#
+#  Services:
+#    backend   → Express API on port 6767
+#    frontend  → Nginx SPA on port 8080 (routing to 80 in container)
+#    mongodb   → MongoDB 7 on port 27017
+#
+#  v2 — Redis removed. Document queue, cache, and rate-limit counters
+#  are now backed by MongoDB or in-process LRU.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    ports:
+      - "8080:6767"
+    depends_on:
+      mongodb:
+        condition: service_started
+    env_file:
+      - apps/backend/.env
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongodb:27017/yaksha-faq
+      - JWT_SECRET=${JWT_SECRET:-supersecretjwttokengeneratedfordockercompose32chars}
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - yaksha-net
+
+  mongodb:
+    image: mongo:7-jammy
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      - MONGO_INITDB_DATABASE=yaksha-faq
+    restart: unless-stopped
+    networks:
+      - yaksha-net
+
+volumes:
+  mongodb_data:
+
+networks:
+  yaksha-net:
+    driver: bridge

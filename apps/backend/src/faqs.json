@@ -1,0 +1,11 @@
+{
+  "faqs": [
+    {
+      "id": "1",
+      "section": "General",
+      "question": "What is the Yaksha research internship?",
+      "answer": "Yaksha is a two-month research internship program.",
+      "category": "General Info"
+    }
+  ]
+}

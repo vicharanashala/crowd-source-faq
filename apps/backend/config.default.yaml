@@ -1,0 +1,321 @@
+# ═══════════════════════════════════════════════════════════════════
+# Crowd Source FAQ Configuration -- Default Values
+# ═══════════════════════════════════════════════════════════════════
+# This file contains all tunable defaults. Environment-specific
+# overrides go in config.dev.yaml / config.prod.yaml.
+# SECRETS (API keys, DB URIs) stay in .env — never in YAML.
+# ═══════════════════════════════════════════════════════════════════
+
+# ── Server ────────────────────────────────────────────────────────
+server:
+  port: 6767
+  env: development                     # Overridden by NODE_ENV
+  trustProxyHops: 1
+  bodyLimit: "10mb"
+  shutdownTimeoutMs: 15000
+
+# ── CORS ──────────────────────────────────────────────────────────
+cors:
+  allowedOrigins:
+    - "http://localhost:5173"
+    - "http://127.0.0.1:5173"
+    - "http://localhost:5174"
+    - "http://127.0.0.1:5174"
+  allowVercelPreviews: true
+  allowLocalhostInDev: true
+  credentials: true
+
+# ── Database ──────────────────────────────────────────────────────
+database:
+  connectionTimeoutMs: 5000
+  maxPoolSize: 10
+  retryAttempts: 3
+  retryDelayMs: 1000
+
+# ── Authentication ────────────────────────────────────────────────
+auth:
+  jwt:
+    expiresIn: "7d"
+    issuer: "csfaq"
+    audience: "csfaq-api"
+  password:
+    minLength: 6
+    maxLength: 128
+    bcryptRounds: 10
+  session:
+    revokedTokenTtlDays: 7
+
+# ── Rate Limiting ─────────────────────────────────────────────────
+rateLimiting:
+  global:
+    windowMs: 900000                   # 15 minutes
+    maxRequests: 100
+  auth:
+    loginWindowMs: 900000
+    loginMaxAttempts: 5
+    registerWindowMs: 3600000
+    registerMaxAttempts: 3
+  search:
+    windowMs: 60000
+    maxRequests: 30
+  askAi:
+    windowMs: 86400000                 # 24 hours
+    anonymousMax: 5
+    authenticatedMax: 50
+  upload:
+    windowMs: 3600000
+    maxRequests: 20
+
+# ── Search ────────────────────────────────────────────────────────
+search:
+  hybrid:
+    vectorWeight: 0.6
+    keywordWeight: 0.4
+    rrfK: 60                           # RRF constant
+    maxResults: 20
+    minScore: 0.3
+  embedding:
+    model: "mixedbread-ai/mxbai-embed-large-v1"
+    dimensions: 1024
+    queryPrefix: "Represent this sentence for searching relevant passages:"
+    batchSize: 32
+    warmupOnStart: true
+  trending:
+    windowDays: 7
+    maxResults: 10
+  suggest:
+    maxResults: 5
+    minQueryLength: 2
+  log:
+    bufferSize: 50
+    flushIntervalMs: 30000
+
+# ── FAQ ───────────────────────────────────────────────────────────
+faq:
+  maxTitleLength: 200
+  maxAnswerLength: 10000
+  freshness:
+    tiers:
+      evergreen:
+        reviewIntervalDays: 90
+      seasonal:
+        reviewIntervalDays: 15
+      volatile:
+        reviewIntervalDays: 4
+    peerVoteThreshold: 3               # Votes to auto-verify
+    escalationDays: 3                  # Days before mod escalation
+    cronSchedule: "0 6 * * *"          # Daily 6 AM UTC
+  duplicateDetection:
+    similarityThreshold: 0.85
+    maxCandidates: 5
+
+# ── Community ─────────────────────────────────────────────────────
+community:
+  post:
+    titleMinLength: 5
+    titleMaxLength: 200
+    bodyMaxLength: 5000
+  comment:
+    maxLength: 2000
+    maxDepth: 5
+  escalation:
+    checkIntervalMs: 3600000           # 1 hour
+    autoEscalateAfterHours: 48
+
+# ── Support ───────────────────────────────────────────────────────
+support:
+  goldenTicket:
+    defaultCooldownHours: 48
+    maxCooldownHours: 720
+    spCostPerEscalation: 10
+  troubleshoot:
+    maxSteps: 4
+    evidenceMaxFiles: 5
+  ticket:
+    maxFollowUps: 20
+    autoCloseAfterDays: 14
+
+# ── AI Pipelines ──────────────────────────────────────────────────
+ai:
+  providers:
+    priority:
+      - anthropic
+      - openai
+      - xai
+      - minimax
+      - gemini
+  pipelines:
+    autoAnswer:
+      approveThreshold: 0.85
+      queueThreshold: 0.60
+      minConfidence: 0.35
+      scheduleCron: "0 */6 * * *"      # Every 6 hours
+      maxBatchSize: 50
+    faqAudit:
+      scheduleCron: "0 2 * * *"        # Daily 2 AM UTC
+      maxBatchSize: 100
+    duplicateDetection:
+      similarityThreshold: 0.80
+    zoomExtraction:
+      minTranscriptLength: 100
+      maxQuestionsPerMeeting: 20
+  pipelineResult:
+    ttlDays: 30
+
+# ── Zoom Integration ─────────────────────────────────────────────
+zoom:
+  oauth:
+    tokenCacheTtlMs: 300000            # 5 minutes
+    circuitBreaker:
+      failureThreshold: 5
+      resetTimeMs: 60000
+  webhook:
+    verifySignature: true
+  retry:
+    maxAttempts: 3
+    intervalMs: 300000                 # 5 minutes
+    backoffMultiplier: 2
+  topicBlacklist: []
+
+# ── Document Processing ──────────────────────────────────────────
+documents:
+  queue:
+    enabled: false                     # Requires REDIS_TCP_URL
+    concurrency: 3
+  autoPromote:
+    intervalMs: 900000                 # 15 minutes
+    minScore: 0.7
+  extraction:
+    maxFileSizeMb: 50
+    supportedFormats:
+      - pdf
+      - docx
+      - xlsx
+      - png
+      - jpg
+
+# ── Notifications ─────────────────────────────────────────────────
+notifications:
+  dispatch:
+    batchSize: 100
+    retryAttempts: 3
+  cleanup:
+    retentionDays: 90
+
+# ── Moderation ────────────────────────────────────────────────────
+moderation:
+  profanityFilter:
+    enabled: true
+    strategy: asterisk                 # asterisk | block | warn
+  contentLimits:
+    maxReportsBeforeAutoFlag: 3
+
+# ── Reputation ────────────────────────────────────────────────────
+reputation:
+  points:
+    postCreate: 5
+    commentCreate: 2
+    answerAccepted: 15
+    upvoteReceived: 1
+    downvoteReceived: -1
+    faqContribution: 10
+  tiers:
+    newcomer: 0
+    contributor: 50
+    expert: 200
+    mentor: 500
+    knowledge_master: 1000
+  promotion:
+    checkIntervalMs: 900000            # 15 minutes
+
+# ── Cron Schedules ────────────────────────────────────────────────
+cron:
+  timezone: "UTC"
+  promotionCycleIntervalMs: 900000     # 15 min
+  freshnessCheckIntervalMs: 86400000   # 24 hours
+  categoryClusterIntervalMs: 86400000  # 24 hours
+  popularityRecomputeIntervalMs: 300000 # 5 min
+  retentionPolicyIntervalMs: 86400000  # 24 hours
+  zoomRetryIntervalMs: 300000          # 5 min
+  searchLogFlushIntervalMs: 30000      # 30 sec
+
+# ── Data Retention ────────────────────────────────────────────────
+retention:
+  searchLogs:
+    ttlDays: 90
+  notifications:
+    ttlDays: 90
+  freshReviewLogs:
+    ttlDays: 180
+  moderationLogs:
+    ttlDays: 365
+  adminLogs:
+    ttlDays: 365
+  pipelineResults:
+    ttlDays: 30
+
+# ── Observability ─────────────────────────────────────────────────
+observability:
+  sentry:
+    enabled: true
+    tracesSampleRate: 0.1
+  logging:
+    level: info                        # debug | info | warn | error
+    colorize: true
+    discord:
+      enabled: false                   # Set true + DISCORD_WEBHOOK_URL
+      alertLevels:
+        - alert
+        - error
+  metrics:
+    enabled: true
+    endpoint: "/api/metrics"
+
+# ── Cloudinary ────────────────────────────────────────────────────
+cloudinary:
+  folder: "yaksha"
+  allowedFormats:
+    - jpg
+    - jpeg
+    - png
+    - gif
+    - webp
+    - pdf
+  maxFileSizeMb: 10
+
+# ── Google Cloud Storage (GCS) ────────────────────────────────────
+gcs:
+  bucket: ""
+  publicHost: "media.mydomain.com"
+  allowedSubfolders:
+    - avatar
+    - posts
+  maxFileSizeMb: 8
+  signedUrlTtlSeconds: 900
+
+# ── Program Management ───────────────────────────────────────────
+programs:
+  maxBatchesPerProgram: 50
+  maxCoursesPerBatch: 20
+  defaultTheme:
+    primaryColor: "#4A7C59"
+    accentColor: "#F4A261"
+
+# ── Feature Flags (defaults — overridden by MongoDB at runtime) ──
+featureFlags:
+  defaults:
+    sessionSupport: true
+    goldenTicket: true
+    communityDuplicateDetection: true
+    aiAutoAnswer: true
+    faqFreshness: true
+    publicFaqPage: true
+    documentPipeline: false
+    discordIntegration: false
+
+# ── Redis ──────────────────────────────────────────────────────────
+redis:
+  url: ""
+  token: ""
+  tcpUrl: ""
+
