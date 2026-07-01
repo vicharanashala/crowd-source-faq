@@ -17,6 +17,7 @@ import { assertCanCreateContent } from '../../utils/banUtils.js';
 import { assertSameProgram, withProgramScope } from '../../utils/db/scopedQuery.js';
 
 // Extend Express Request to include user (same pattern as auth middleware)
+/* eslint-disable @typescript-eslint/no-namespace */
 declare global {
   namespace Express {
     interface Request {
@@ -24,6 +25,7 @@ declare global {
     }
   }
 }
+/* eslint-enable @typescript-eslint/no-namespace */
 
 // GET /api/community/answers/list — Paginated list of posts with an official expert answer
 export const getAnswersList = async (req: Request, res: Response): Promise<void> => {
@@ -332,7 +334,10 @@ export const verifyComment = async (req: Request, res: Response): Promise<void> 
 };
 
 // PATCH /api/community/:id/comments/:commentId/accept-answer — Accept a comment as the official answer
-// Only the post author can accept an answer; sets answer, answerAuthorId, status=answered, clears escalation
+// The post author can accept their own question's answer; admins and
+// moderators can override and accept on behalf of the community
+// (otherwise admins would be hard-blocked from answering unanswered
+// questions whose author is offline or has churned).
 export const acceptCommentAnswer = async (req: Request, res: Response): Promise<void> => {
   if (!req.user) { res.status(401).json({ message: "Not authorized" }); return; }
   try {
@@ -343,9 +348,11 @@ export const acceptCommentAnswer = async (req: Request, res: Response): Promise<
     }
     if (assertSameProgram(post, req.programContext, res)) return;
 
-    // Only the post author can accept an answer
-    if (post.author.toString() !== req.user!._id.toString()) {
-      res.status(403).json({ message: 'Only the post author can accept an answer.' });
+    // Only the post author — or an admin/moderator — can accept an answer.
+    const isAuthor = post.author.toString() === req.user!._id.toString();
+    const isPrivileged = ['admin', 'moderator'].includes(req.user!.role);
+    if (!isAuthor && !isPrivileged) {
+      res.status(403).json({ message: 'Only the post author or a moderator can accept an answer.' });
       return;
     }
 
@@ -374,7 +381,9 @@ export const acceptCommentAnswer = async (req: Request, res: Response): Promise<
         to: 'answered',
         changedBy: req.user!._id,
         changedAt: new Date(),
-        note: 'Answer accepted by question author',
+        note: isPrivileged && !isAuthor
+          ? `Answer accepted by ${req.user!.role}`
+          : 'Answer accepted by question author',
       });
       post.lifecycle.status = 'answered';
     }
