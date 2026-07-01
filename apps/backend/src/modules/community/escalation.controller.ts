@@ -32,9 +32,14 @@ import { clearExpiredGoldenBans } from '../support/golden-ticket-admin.controlle
 // Operators expect env hot-reload to take effect without
 // restarting the process.
 function readConfig(): { days: number; trialHours: number } {
+  // BUGFIX (Phase 0 §2.3): previous literals were the JS expressions
+  // `readConfig().days` / `readConfig().trialHours` accidentally stringified
+  // into the env key. Restored to the real env-var names, matching the
+  // `UNANSWERED_ESCALATION_CHECK_MINUTES` pattern used in this file and the
+  // `UNANSWERED_ESCALATION_DAYS` reference in docs/ISSUES.md / docs/reference/codebase-audit.md.
   return {
-    days: parseInt(process.env['readConfig().days'] || '7', 10),
-    trialHours: parseInt(process.env['readConfig().trialHours'] || '16', 10),
+    days: parseInt(process.env['UNANSWERED_ESCALATION_DAYS'] || '7', 10),
+    trialHours: parseInt(process.env['UNANSWERED_ESCALATION_TRIAL_HOURS'] || '16', 10),
   };
 }
 
