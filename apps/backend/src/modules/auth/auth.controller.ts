@@ -456,6 +456,17 @@ export const deleteUser = async (req: Request, res: Response): Promise<void> => 
     // Clean up private data that shouldn't persist
     await Notification.deleteMany({ recipient: target._id });
 
+    // BUGFIX (Phase 0 §2.3): invalidate any outstanding refresh tokens AND
+    // server-side revoked-token entries that were tied to this user. Without
+    // this, an attacker holding a stolen refresh token issued before deletion
+    // could still keep minting new access tokens via /api/auth/refresh until
+    // the token's natural expiry. Mirrors the same `deleteMany({ userId })`
+    // call used in the `refresh` handler's breach-detection path (line ~626).
+    await Promise.all([
+      RefreshToken.deleteMany({ userId: target._id }),
+      RevokedToken.deleteMany({ userId: target._id }),
+    ]);
+
     authLog.audit?.('user_deleted', {
       adminId: req.user._id.toString(),
       targetId: req.params.id,
