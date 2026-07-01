@@ -366,37 +366,73 @@ export const acceptCommentAnswer = async (req: Request, res: Response): Promise<
       res.status(404).json({ message: 'Comment not found.' });
       return;
     }
-
-    // Set the comment body as the official answer
-    post.answer = comment.body;
-    post.answerIsExpert = false;
-    post.answerAuthorId = comment.author;
-    post.status = 'answered';
-    // Track which comment was accepted so FAQ promotion can reference it
-    post.promotionCandidateCommentId = new Types.ObjectId(commentId);
-    // Lifecycle: transition to 'answered' stage (knowledge-lifecycle-design.md)
-    if (post.lifecycle?.status === 'open') {
-      (post.lifecycle.statusHistory ??= []).push({
-        from: 'open',
-        to: 'answered',
-        changedBy: req.user!._id,
-        changedAt: new Date(),
-        note: isPrivileged && !isAuthor
-          ? `Answer accepted by ${req.user!.role}`
-          : 'Answer accepted by question author',
-      });
-      post.lifecycle.status = 'answered';
+    // Guard against accepting an answer twice on the same post (parallel
+    // admin actions previously could both run the save() below and
+    // double-award +20 points). The atomic update below is the actual
+    // concurrency fix; this pre-check just gives a clean 409 in the
+    // common case.
+    if (post.status === 'answered' && post.answer) {
+      res.status(409).json({ message: 'Post is already answered.' });
+      return;
     }
-    // Clear any pending escalation
-    post.escalationStatus = 'none';
-    post.escalatedAt = null;
-    post.escalationReason = null;
-    post.escalatedBy = null;
 
-    // Mark this comment as verified
-    comment.verified = true;
+    // Lifecycle statusHistory entry — build it here so the atomic
+    // $set below can persist it as part of the same operation.
+    const lifecycleNote =
+      isPrivileged && !isAuthor
+        ? `Answer accepted by ${req.user!.role}`
+        : 'Answer accepted by question author';
+    const statusHistoryEntry = {
+      from: post.lifecycle?.status ?? 'open',
+      to: 'answered',
+      changedBy: req.user!._id,
+      changedAt: new Date(),
+      note: lifecycleNote,
+    };
+    const existingHistory =
+      (post.lifecycle?.statusHistory as any[] | undefined) ?? [];
 
-    await post.save();
+    // BUGFIX (Phase 0 §2.3 — H3 mirror of commit 60c1af0 in
+    // post-lifecycle.controller.ts:resolvePost): the previous version
+    // mutated `post` fields in memory and called `post.save()` after the
+    // comment verification set, which meant two concurrent admins could
+    // both run to completion, both pass the pre-checks, both execute
+    // save(), and BOTH would issue a +20 award. Switch to an atomic
+    // `findOneAndUpdate` with positional `comments.$.verified`. The
+    // guard set+answer pre-check above turns the racing second request
+    // into a 409 before we touch the rewards logic. Keep the
+    // `isAuthor || isPrivileged` guard from commit b2a3794.
+    const updatedPost = await CommunityPost.findOneAndUpdate(
+      { _id: post._id },
+      {
+        $set: {
+          status: 'answered',
+          answer: comment.body,
+          answerIsExpert: false,
+          answerAuthorId: comment.author,
+          promotionCandidateCommentId: new Types.ObjectId(commentId),
+          escalationStatus: 'none',
+          escalatedAt: null,
+          escalationReason: null,
+          escalatedBy: null,
+          'comments.$[c].verified': true,
+          ...(post.lifecycle?.status === 'open'
+            ? {
+                'lifecycle.status': 'answered',
+                'lifecycle.statusHistory': [...existingHistory, statusHistoryEntry],
+              }
+            : {}),
+        },
+      },
+      {
+        arrayFilters: [{ 'c._id': new Types.ObjectId(commentId) }],
+        new: true,
+      }
+    );
+    if (!updatedPost) {
+      res.status(500).json({ message: 'Failed to update post.' });
+      return;
+    }
 
     // ── Award +20 to answer author for accepted answer ───────────────────────
     const answerAuthorId = (comment.author as Types.ObjectId).toString();
@@ -473,7 +509,7 @@ export const acceptCommentAnswer = async (req: Request, res: Response): Promise<
       });
     }
 
-    res.json({ message: 'Answer accepted.', post });
+    res.json({ message: 'Answer accepted.', post: updatedPost });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: (error as Error).message });
   }
