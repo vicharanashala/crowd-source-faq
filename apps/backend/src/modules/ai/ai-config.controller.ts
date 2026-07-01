@@ -45,18 +45,21 @@ export const getAiConfig = async (req: Request, res: Response): Promise<void> =>
     const batchIdObjectId = asObjectIdOrNull(batchIdRaw);
 
     // v1.69 — Phase 4: when batchId is supplied, look for the
-    // per-program override doc. If none exists, return a
-    // placeholder 'no override for this program' response so the
-    // admin UI can show the "no per-program override, falling
-    // back to global" hint.
-    let config = batchIdObjectId
+    // per-program override doc. `hasOverride` reflects whether one
+    // exists so the admin UI can show the "no per-program override,
+    // falling back to global" hint.
+    const override = batchIdObjectId
       ? await AiConfig.findOne({ batchId: batchIdObjectId, isActive: true })
-      : await AiConfig.findOne({ batchId: null, isActive: true });
+      : null;
 
-    if (!config && !batchIdObjectId) {
-      // Bootstrap the global default on first read (backwards
-      // compat with the singleton setup).
-      config = await AiConfig.create({
+    // The global default. Bootstrap it on first read (backwards
+    // compat with the singleton setup). This is also the fallback we
+    // return for a program that has no per-program override, so the
+    // admin UI always receives a fully-populated features/providers
+    // shape to render and edit (an empty {} crashed the editor).
+    let globalConfig = await AiConfig.findOne({ batchId: null, isActive: true });
+    if (!globalConfig) {
+      globalConfig = await AiConfig.create({
         activeProvider: 'anthropic',
         providers: {
           anthropic: { apiKeyCipher: '', baseURL: '', model: '' },
@@ -85,13 +88,18 @@ export const getAiConfig = async (req: Request, res: Response): Promise<void> =>
       });
     }
 
+    // Effective config: the per-program override when it exists,
+    // otherwise the inherited global default.
+    const effective = override ?? globalConfig;
+
     const activeProvider = await detectActiveProvider();
     res.json({
-      ...(config ? config.publicView() : { providers: {}, features: {} }),
+      ...effective.publicView(),
       activeProvider,
       // The shape the admin UI needs to render the 'no per-program
-      // override' state.
-      ...(batchIdObjectId && !config ? { hasOverride: false, batchId: batchIdObjectId } : { hasOverride: !!config }),
+      // override' state. Scoped-with-override → true; scoped without
+      // → false (next save creates one); global scope → true.
+      ...(batchIdObjectId ? { hasOverride: !!override, batchId: batchIdObjectId } : { hasOverride: true }),
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
