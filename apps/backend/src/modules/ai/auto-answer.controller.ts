@@ -587,7 +587,12 @@ let autoAnswerIntervalHandle: ReturnType<typeof setInterval> | null = null;
 /** Run the auto-answer processor (fire-and-forget). Call this on startup. */
 // v1.68 — M5: read interval fresh on every tick.
 function readCheckIntervalH(): number {
-  return parseInt(process.env['AUTO_ANSWER_INTERVAL_HOURS'] || '24', 10);
+  // BUGFIX (Phase 0 §2.3): guard against NaN if the env var is set to a
+  // non-numeric string. Previously `parseInt('abc', 10)` returned NaN, which
+  // propagated into `ms = NaN`, then `setInterval(fn, NaN)` defaulted to ~1ms
+  // and hammered the scheduler. Fall back to the documented default of 24h.
+  const parsed = parseInt(process.env['AUTO_ANSWER_INTERVAL_HOURS'] || '24', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 24;
 }
 
 export async function runScheduledAutoAnswer(): Promise<void> {
