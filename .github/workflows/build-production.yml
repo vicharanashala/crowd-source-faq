@@ -1,0 +1,163 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Yaksha FAQ Portal — Build & Deploy to Production
+#  Inspired by vicharanashala/wa-client
+#
+#  Triggers:
+#    • Push to `main` branch (auto build + deploy)
+#    • Manual workflow_dispatch with build/deploy toggles
+#
+#  Required GitHub Secrets (configured per-environment or globally):
+#    DOCKERHUB_USERNAME   — Docker Hub account username
+#    DOCKERHUB_TOKEN      — Docker Hub access token
+#    PROD_SSH_HOST        — Production VPS hostname / IP
+#    PROD_SSH_USER        — SSH username on production VPS
+#    PROD_SSH_KEY         — SSH private key for production VPS
+#    INFISICAL_TOKEN      — Infisical service token (production environment)
+#    INFISICAL_PROJECT_ID — Infisical project ID
+# ═══════════════════════════════════════════════════════════════════════════════
+
+name: Build & Deploy to Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      should_build:
+        description: "Build and Push Images"
+        required: true
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+      should_deploy:
+        description: "Deploy to Production VPS"
+        required: true
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+env:
+  BACKEND_IMAGE: csfaq-backend
+  INFISICAL_ENVIRONMENT: production
+  INFISICAL_SECRET_PATH: /
+
+jobs:
+  # ── Build & Push Docker Images ─────────────────────────────────────────────
+  build:
+    if: >-
+      github.event_name == 'push' ||
+      github.event.inputs.should_build == 'true'
+    name: Build & Push Images
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Generate image tags
+        id: tags
+        run: |
+          SHA_SHORT=$(echo "${{ github.sha }}" | cut -c1-7)
+          echo "sha_short=$SHA_SHORT" >> "$GITHUB_OUTPUT"
+          echo "backend_tags=${{ secrets.DOCKERHUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:latest,${{ secrets.DOCKERHUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:prod-$SHA_SHORT" >> "$GITHUB_OUTPUT"
+
+      - name: Build & Push Unified Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/backend/Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: ${{ steps.tags.outputs.backend_tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Summary
+        run: |
+          echo "### 🐳 Unified Image Pushed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Service | Tags |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend & Frontend (Unified) | \`latest\`, \`prod-${{ steps.tags.outputs.sha_short }}\` |" >> $GITHUB_STEP_SUMMARY
+
+  # ── Deploy to Production VPS ───────────────────────────────────────────────
+  deploy:
+    if: >-
+      github.event_name == 'push' ||
+      github.event.inputs.should_deploy == 'true'
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: build
+    environment: production
+    env:
+      PROD_SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+
+    steps:
+      - name: Deploy via SSH
+        if: ${{ env.PROD_SSH_HOST != '' }}
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.PROD_SSH_HOST }}
+          username: ${{ secrets.PROD_SSH_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          script: |
+            set -e
+
+            echo "📦 Pulling latest production unified image..."
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:latest
+
+            echo "🚀 Deploying with docker-compose..."
+            cd ~/yaksha-faq || cd /opt/yaksha-faq
+
+            export TAG=latest
+            export DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
+            export INFISICAL_TOKEN="${{ secrets.INFISICAL_TOKEN }}"
+            export INFISICAL_ENVIRONMENT=${{ env.INFISICAL_ENVIRONMENT }}
+            export INFISICAL_PROJECT_ID="${{ secrets.INFISICAL_PROJECT_ID }}"
+            export INFISICAL_SECRET_PATH=${{ env.INFISICAL_SECRET_PATH }}
+
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+            echo "🏥 Waiting for backend to become healthy (max 60s)..."
+            HEALTHY=0
+            for i in $(seq 1 30); do
+              if curl -sf --max-time 5 http://localhost:6767/csfaq/api/health > /dev/null 2>&1; then
+                echo "✅ Backend healthy after $((i * 2))s"
+                HEALTHY=1
+                break
+              fi
+              sleep 2
+            done
+
+            if [ "$HEALTHY" -eq 0 ]; then
+              echo "❌ Health check failed after 60s"
+              exit 1
+            fi
+
+            echo "✅ Production deployment complete!"
+
+      - name: Deployment Summary
+        if: ${{ env.PROD_SSH_HOST != '' }}
+        run: |
+          echo "### 🚀 Production Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Deployed to production VPS at \`${{ secrets.PROD_SSH_HOST }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "Image: \`latest\` tag" >> $GITHUB_STEP_SUMMARY

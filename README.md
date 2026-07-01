@@ -1,4 +1,4 @@
-# Shamagama (Yaksha FAQ Portal)
+# Crowd Source FAQ (Yaksha FAQ Portal)
 
 Full-stack FAQ portal with semantic vector search, AI-powered community moderation, and an expert promotion layer. Built to handle 1 million registered users.
 
@@ -51,7 +51,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the architecture deep-dive 
 ./run.sh        # Full-stack runner: env setup, ngrok, backend + frontend
 ```
 
-`run.sh` prompts for `MONGODB_URI` and `JWT_SECRET` on first run, then saves them to `backend/.env.local`. The script will not overwrite existing values. Session logs are written to `logs/session_*.txt`.
+`run.sh` prompts for `MONGODB_URI` and `JWT_SECRET` on first run, then saves them to `apps/backend/.env.local`. The script will not overwrite existing values. Session logs are written to `logs/session_*.txt`.
 
 ---
 
@@ -110,9 +110,10 @@ For per-route behaviour and field schemas, see [docs/ARCHITECTURE.md](docs/ARCHI
 ## Project Structure
 
 ```
-Shamagama/
-├── backend/           # Express + TypeScript API
-├── frontend/          # React + Vite SPA
+Crowd Source FAQ/
+├── apps/
+│   ├── backend/       # Express + TypeScript API
+│   └── frontend/      # React + Vite SPA
 ├── docs/              # Full documentation      
 └── run.sh             # Local dev runner (env setup, ngrok, backend + frontend)
 ```

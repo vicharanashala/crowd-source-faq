@@ -1,4 +1,4 @@
-# Contributing to Shamagama
+# Contributing to Crowd Source FAQ
 
 Thanks for your interest in contributing. This document covers the workflow and quality bar for getting changes into `main`.
 
@@ -8,7 +8,7 @@ By participating, you agree to abide by the [Code of Conduct](./CODE_OF_CONDUCT.
 
 ## Project Overview
 
-Shamagama is a full-stack TypeScript application:
+Crowd Source FAQ is a full-stack TypeScript application:
 
 - **Backend** — Express + Mongoose, ES modules, MongoDB Atlas. See [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md).
 - **Frontend** — React 18 + Vite + Tailwind, hooks-based.
@@ -21,15 +21,13 @@ Start with the [Vision section in the README](./README.md#vision) — every cont
 ```bash
 git clone https://github.com/vicharanashala/crowd-source-faq
 cd crowd-source-faq
-cd backend && npm install
-cd ../frontend && npm install
-cd ..
+pnpm install
 
 # Run the full stack (env setup, ngrok, backend + frontend)
 ./run.sh
 ```
 
-`run.sh` prompts for `MONGODB_URI` and `JWT_SECRET` on first run, saves to `backend/.env.local`, does not overwrite existing values.
+`run.sh` prompts for `MONGODB_URI` and `JWT_SECRET` on first run, saves to `apps/backend/.env.local`, does not overwrite existing values.
 
 Required env vars: `MONGODB_URI`, `JWT_SECRET`, at least one AI provider key (`ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `XAI_API_KEY` / `MINIMAX_API_KEY`). Optional: Zoom OAuth, Cloudinary, Sentry, Twilio, SMTP, Upstash Redis. Full list: [docs/ARCHITECTURE.md#10-env-variables-reference](./docs/ARCHITECTURE.md#10-env-variables-reference).
 
@@ -38,7 +36,7 @@ Required env vars: `MONGODB_URI`, `JWT_SECRET`, at least one AI provider key (`A
 1. Find or open an issue describing the change.
 2. Branch from `main` with a descriptive name (`fix/handle-empty-transcript`, `feat/zoom-retry-dlq`, `docs/architecture-overview`).
 3. Make the change. **One logical change per PR.** No unrelated refactors.
-4. Run quality checks locally (`tsc --noEmit` in both `backend/` and `frontend/`, plus tests).
+4. Run quality checks locally (`tsc --noEmit` in both `apps/backend/` and `apps/frontend/`, plus tests).
 5. Open a PR targeting `main`. Reference the issue with `Closes #N` or `Refs #N`.
 6. Address review feedback. Approval + green CI = merge.
 
@@ -49,7 +47,7 @@ Every PR should:
 - **Implement only what the issue describes.** If you spot something broken but unrelated, note it in the PR description — do not fix it in the same change.
 - **Add or update tests** for backend logic (controllers, routes, utils).
 - **Update docs** if the change touches architecture, public APIs, env vars, or pipeline behaviour. The relevant `docs/*.md` file should reflect the new state in the same PR.
-- **Run `tsc --noEmit`** in `backend/` and `frontend/`. Both must be clean.
+- **Run `tsc --noEmit`** in `apps/backend/` and `apps/frontend/`. Both must be clean.
 - **Be mergeable cleanly.** Rebase onto `main` before review.
 
 ## Code Style
@@ -78,7 +76,7 @@ Every PR should:
 ## Quality Checks Before Commit
 
 ```bash
-cd backend && npx tsc --noEmit && npm test
+cd apps/backend && npx tsc --noEmit && npm test
 cd ../frontend && npx tsc --noEmit && npm test
 ```
 
@@ -88,13 +86,13 @@ The auto-answer, FAQ audit, and Zoom ingestion pipelines are the highest-leverag
 
 Pitfalls:
 
-- **Route prefix when adding admin pipeline routes.** Files under `backend/routes/admin*.ts` mount at `/api/admin`. The router path MUST include the full segment. `router.get('/auto-answer/queue', ...)` creates `/api/admin/auto-answer/queue` — correct. `router.get('/queue', ...)` creates `/api/admin/queue` — wrong, silently 404s.
+- **Route prefix when adding admin pipeline routes.** Files under `apps/backend/src/modules/admin/*.routes.ts` mount at `/api/admin`. The router path MUST include the full segment. `router.get('/auto-answer/queue', ...)` creates `/api/admin/auto-answer/queue` — correct. `router.get('/queue', ...)` creates `/api/admin/queue` — wrong, silently 404s.
 - **Process-post scope nesting in `autoAnswerController`.** `processPost` is an inner function inside `runScheduledAutoAnswer`. Helpers it uses (like `logResult`) MUST be declared at the same scope level. Multi-patch operations on this file corrupt the indentation; use `write_file` if you're doing structural work.
 - **Per-pipeline AI provider config.** Always use `getPipelineProviderConfig(pipeline)` + `chatWithConfig(cfg, messages)`. Never `chat('openai', ...)`.
 
 ## Working on Search
 
-The hybrid search pipeline (vector + keyword + RRF) lives in `backend/controllers/searchController.ts` and `backend/utils/search.ts`. Known constraints:
+The hybrid search pipeline (vector + keyword + RRF) lives in `apps/backend/src/modules/search/search.controller.ts` and `apps/backend/src/utils/http/search.ts`. Known constraints:
 
 - `POST /api/search` is **public** (no `protect`). The frontend SearchBar sends no JWT.
 - The LRU cache is in-memory and per-instance — does not survive restarts. Upstash Redis is the multi-instance cache when configured.

@@ -6,11 +6,8 @@
     "esModuleInterop": true,
     "strict": true,
     "skipLibCheck": true,
-    "allowJs": false,
+    "allowJs": true,
     "resolveJsonModule": true
   },
-  "include": [
-    "tests/**/*",
-    "scripts/**/*"
-  ]
+  "include": ["tests/**/*", "scripts/**/*"]
 }

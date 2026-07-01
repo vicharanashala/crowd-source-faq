@@ -1,4 +1,4 @@
-# Shamagama — Product Overview
+# Crowd Source FAQ — Product Overview
 
 A self-maintaining FAQ + community Q&A portal. Combines semantic vector search, AI-powered ingestion, and an expert promotion layer so the right answer is in front of a user before they finish typing.
 

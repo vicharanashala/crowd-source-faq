@@ -1,6 +1,6 @@
 # Architecture Overview
 
-Complete map of the Shamagama codebase — every layer, every file, every pattern.
+Complete map of the Crowd Source FAQ codebase — every layer, every file, every pattern.
 
 ---
 
@@ -22,7 +22,7 @@ Complete map of the Shamagama codebase — every layer, every file, every patter
 ## 1. Directory Structure
 
 ```
-shamagama/
+crowd-source-faq/
 ├── backend/
 │   ├── __tests__/              # Vitest unit tests
 │   │   ├── authorize.test.ts

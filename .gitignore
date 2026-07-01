@@ -12,20 +12,22 @@ pnpm-store/
 # =============================================================================
 
 # Backend
-backend/.env
-backend/.env.local
-backend/.env.development
-backend/.env.production
-backend/.env.test
-backend/.env.*.local
+apps/backend/.env
+apps/backend/.env.local
+apps/backend/.env.development
+apps/backend/.env.production
+apps/backend/.env.test
+apps/backend/.env.*.local
+apps/backend/.new.env
+
 
 # Frontend
-frontend/.env
-frontend/.env.local
-frontend/.env.development
-frontend/.env.production
-frontend/.env.test
-frontend/.env.*.local
+apps/frontend/.env
+apps/frontend/.env.local
+apps/frontend/.env.development
+apps/frontend/.env.production
+apps/frontend/.env.test
+apps/frontend/.env.*.local
 
 # Root-level env files (all variants)
 .env
@@ -51,15 +53,15 @@ secrets*
 # =============================================================================
 
 # Backend compiled JS (runs via tsx in dev, compiled for Vercel)
-backend/dist/
-backend/build/
-backend/*.js                    # compiled server output (server.js, etc.)
-backend/**/*.js                 # compiled subdirectory output
+apps/backend/dist/
+apps/backend/build/
+apps/backend/*.js                    # compiled server output (server.js, etc.)
+apps/backend/**/*.js                 # compiled subdirectory output
 
 # Frontend build
-frontend/dist/
-frontend/build/
-frontend/.vite/
+apps/frontend/dist/
+apps/frontend/build/
+apps/frontend/.vite/
 
 # General
 dist/
@@ -68,6 +70,7 @@ out/
 .next/
 .nuxt/
 .cache/
+.turbo/
 vite/
 .svelte-kit/
 
@@ -170,11 +173,15 @@ scraper.js
 session_*.txt
 main_log.txt
 server-debug.log
+guide_me.md
+*sa-key*.json
+.agents/
+.hermes/
 
 # ==============================================================================
 # Ignore Vite timestamp backups
 # ==============================================================================
-frontend/vite.config.ts.timestamp-*
+apps/frontend/vite.config.ts.timestamp-*
 *.mjs
 
 # E2E Test Outputs
@@ -183,8 +190,11 @@ tests/reports/
 
 
 # Document OCR pipeline (Tesseract language models — 5MB each)
-backend/eng.traineddata
-backend/tessdata/
+apps/backend/eng.traineddata
+apps/backend/tessdata/
 *.traineddata
 # v1.68 — .env.bak.* is created by some env-saving script.
 .env.bak.*
+apps/backend/uploads/*
+!apps/backend/uploads/onboarding-resources/
+apps/backend/faqs.json

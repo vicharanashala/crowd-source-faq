@@ -37,7 +37,7 @@ test.describe('FAQ Freshness Lifecycle', () => {
 
   test('should report FAQ as student and verify/clear report as admin', async ({ page }) => {
     // 1. Go to homepage and log in as student
-    await page.goto('/');
+    await page.goto('');
     await page.locator('text=Sign in').first().click();
     await page.locator('#modal-login-email').fill('user@yaksha.com');
     await page.locator('#modal-login-password').fill('password123');
@@ -47,7 +47,7 @@ test.describe('FAQ Freshness Lifecycle', () => {
     await expect(page.locator('header').locator('text=Sign in').first()).not.toBeVisible();
 
     // 2. Navigate to target FAQ detail page directly
-    await page.goto(`/faq/${targetFaqId}`);
+    await page.goto(`faq/${targetFaqId}`);
     await expect(page.locator('h1')).toContainText('Intern FAQs — solved');
     await expect(page.locator(`text=${targetFaqQuestion}`)).toBeVisible();
 
@@ -69,14 +69,14 @@ test.describe('FAQ Freshness Lifecycle', () => {
     await expect(page.locator('text=Sign in').first()).toBeVisible();
 
     // 5. Log in as admin
-    await page.goto('/admin/login');
+    await page.goto('admin/login');
     await page.locator('input[type="email"]').fill('admin@yaksha.com');
     await page.locator('input[type="password"]').fill('admin123');
     await page.getByRole('button', { name: 'Sign in to Admin' }).click();
     await expect(page).toHaveURL(/\/admin$/);
 
     // 6. Go to FaqReview page
-    await page.goto('/admin/faqs/review');
+    await page.goto('admin/faqs/review');
     await expect(page.locator('main h1')).toContainText('FAQ Review');
 
     // 7. Verify the reported FAQ is listed with correct report reason

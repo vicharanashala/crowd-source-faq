@@ -134,7 +134,7 @@ Add a repository to the knowledge graph. Modes:
 
 ```ts
 mcp_codegraphcontext_index_repository(
-  repo_path="/Users/yashhwanth/Documents/shamagama",
+  repo_path="/Users/yashhwanth/Documents/crowd-source-faq",
   mode="full",
   is_dependency=false
 )
@@ -146,7 +146,7 @@ Semantic code search with BM25 + structural label boosting.
 ```ts
 mcp_codegraphcontext_find_code(
   query="authentication middleware protect route",
-  repo_path="/Users/yashhwanth/Documents/shamagama"
+  repo_path="/Users/yashhwanth/Documents/crowd-source-faq"
 )
 // Returns ranked results with relevance scores
 // Modes: compact (signatures only), full (with source), files (just paths)
@@ -163,7 +163,7 @@ mcp_codegraphcontext_trace_path(
   function_name="toggleUpvote",
   mode="calls",
   depth=3,
-  repo_path="/Users/yashhwanth/Documents/shamagama"
+  repo_path="/Users/yashhwanth/Documents/crowd-source-faq"
 )
 ```
 
@@ -173,7 +173,7 @@ Run Cypher queries directly against the knowledge graph.
 ```ts
 mcp_codegraphcontext_query_graph(
   query="MATCH (f:Function)-[:CALLS]->(c:Function {name: 'protect'}) RETURN f.name, f.file LIMIT 20",
-  repo_path="/Users/yashhwanth/Documents/shamagama"
+  repo_path="/Users/yashhwanth/Documents/crowd-source-faq"
 )
 ```
 

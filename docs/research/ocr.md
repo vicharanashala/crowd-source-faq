@@ -19,11 +19,11 @@ To implement a robust, backend-driven pipeline for extracting text from images (
 
 ### Backend: Models
 
-#### [NEW] [DocumentRecord.ts](file:///Users/yashhwanth/Documents/shamagama/backend/models/DocumentRecord.ts)
+#### [NEW] [DocumentRecord.ts](file:///Users/yashhwanth/Documents/crowd-source-faq/backend/models/DocumentRecord.ts)
 - Create a new Mongoose model to track uploaded documents.
 - Fields: `userId`, `fileName`, `fileType` (image, pdf, docx), `status` (pending, extracting, ai_processing, completed, failed), `rawExtractedText`.
 
-#### [NEW] [DocumentInsight.ts](file:///Users/yashhwanth/Documents/shamagama/backend/models/DocumentInsight.ts)
+#### [NEW] [DocumentInsight.ts](file:///Users/yashhwanth/Documents/crowd-source-faq/backend/models/DocumentInsight.ts)
 - Similar to `ZoomInsight`, but tailored for static documents.
 - Fields: `documentId`, `type`, `question`, `answer_or_content`, `pageNumber`/`location`, `status` (default: `pending_review`), `searchMatchCount`.
 
@@ -31,12 +31,12 @@ To implement a robust, backend-driven pipeline for extracting text from images (
 
 ### Backend: OCR & Extraction Services
 
-#### [NEW] [documentExtractor.ts](file:///Users/yashhwanth/Documents/shamagama/backend/utils/documentExtractor.ts)
+#### [NEW] [documentExtractor.ts](file:///Users/yashhwanth/Documents/crowd-source-faq/backend/utils/documentExtractor.ts)
 - Expose a unified function: `extractTextFromFile(buffer, mimeType)`.
 - **Images (`image/png`, `image/jpeg`)**: Use `tesseract.js` to run OCR and extract text.
 - **Documents (`application/pdf`, etc.)**: Use `markitdown-ts` to extract structural markdown text from the file.
 
-#### [NEW] [documentAiPipeline.ts](file:///Users/yashhwanth/Documents/shamagama/backend/utils/ai/documentAiPipeline.ts)
+#### [NEW] [documentAiPipeline.ts](file:///Users/yashhwanth/Documents/crowd-source-faq/backend/utils/ai/documentAiPipeline.ts)
 - A dedicated AI prompt specifically for static files (different from the conversational Zoom prompt).
 - Instructs the AI to identify factual statements, policies, or how-to steps and format them as Q&A pairs (Insights).
 
@@ -44,18 +44,18 @@ To implement a robust, backend-driven pipeline for extracting text from images (
 
 ### Backend: API Routes & Controllers
 
-#### [NEW] [documentController.ts](file:///Users/yashhwanth/Documents/shamagama/backend/controllers/documentController.ts)
+#### [NEW] [documentController.ts](file:///Users/yashhwanth/Documents/crowd-source-faq/backend/controllers/documentController.ts)
 - `POST /api/documents/upload`: Accepts `multipart/form-data`.
 - Validates the file, creates a `DocumentRecord`, and offloads the extraction and AI processing asynchronously to prevent HTTP timeouts.
 
-#### [MODIFY] [server.ts](file:///Users/yashhwanth/Documents/shamagama/backend/server.ts)
+#### [MODIFY] [server.ts](file:///Users/yashhwanth/Documents/crowd-source-faq/backend/server.ts)
 - Register the new `/api/documents` routes.
 
 ---
 
 ### Backend: Automated Promotion Job
 
-#### [MODIFY] [faqAuditController.ts](file:///Users/yashhwanth/Documents/shamagama/backend/controllers/faqAuditController.ts) (or create new cron)
+#### [MODIFY] [faqAuditController.ts](file:///Users/yashhwanth/Documents/crowd-source-faq/backend/controllers/faqAuditController.ts) (or create new cron)
 - Add a scheduled function `promotePopularDocumentInsights()`.
 - Logic: Queries `UnresolvedSearch` logs. Groups them by semantic similarity. Queries `DocumentInsight` embeddings. If a pending document insight answers a high-frequency search query, automatically update its status to `approved` and create an official `FAQ`.
 
@@ -63,12 +63,12 @@ To implement a robust, backend-driven pipeline for extracting text from images (
 
 ### Frontend: UI & Upload Flow
 
-#### [MODIFY] [AccountPage.tsx](file:///Users/yashhwanth/Documents/shamagama/frontend/src/pages/AccountPage.tsx)
+#### [MODIFY] [AccountPage.tsx](file:///Users/yashhwanth/Documents/crowd-source-faq/frontend/src/pages/AccountPage.tsx)
 - Add a new "Upload Knowledge Document" section alongside the Zoom VTT upload.
 - Support file types: `.png, .jpg, .pdf, .docx, .xlsx`.
 - Add modern, glassmorphic UI elements and subtle upload progress animations following our modern web guidelines.
 
-#### [NEW] [DocumentInsightsAdmin.tsx](file:///Users/yashhwanth/Documents/shamagama/frontend/src/pages/admin/DocumentInsightsAdmin.tsx)
+#### [NEW] [DocumentInsightsAdmin.tsx](file:///Users/yashhwanth/Documents/crowd-source-faq/frontend/src/pages/admin/DocumentInsightsAdmin.tsx)
 - An admin view (similar to the Zoom Insights view) to manually review and promote document insights that haven't yet reached the auto-promote threshold.
 
 ## Verification Plan

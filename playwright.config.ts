@@ -12,7 +12,7 @@ export default defineConfig({
     ['html', { outputFolder: 'tests/reports', open: 'never' }]
   ],
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: 'http://localhost:5173/csfaq/',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },

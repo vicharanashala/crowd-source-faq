@@ -25,8 +25,8 @@ test.describe('Student User Journeys', () => {
 
   test('should log in as student, search/browse FAQs, ask a question, upvote, and comment', async ({ page }) => {
     // 1. Go to homepage
-    await page.goto('/');
-    await expect(page.locator('header').locator('text=Yaksha FAQ')).toBeVisible();
+    await page.goto('');
+    await expect(page.locator('header').locator('img[alt="Yaksha FAQ"]')).toBeVisible();
 
     // 2. Click Sign in in navbar to open auth modal
     await page.locator('text=Sign in').first().click();
@@ -42,7 +42,7 @@ test.describe('Student User Journeys', () => {
     await expect(page.getByRole('button', { name: 'T', exact: true })).toBeVisible();
 
     // 5. Navigate to FAQ Page
-    await page.goto('/faq');
+    await page.goto('faq');
     await expect(page.locator('h1')).toContainText('Intern FAQs — solved');
 
     // 6. Click on the first category card
@@ -57,7 +57,7 @@ test.describe('Student User Journeys', () => {
     await page.locator('button[type="submit"]:has-text("Search")').click();
 
     // 9. Go to Community Board
-    await page.goto('/community');
+    await page.goto('community');
     await expect(page.locator('h1')).toContainText('Community Board');
 
     // 10. Ask a community question

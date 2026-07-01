@@ -12,7 +12,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$SCRIPT_DIR/.."
-BACKEND="$ROOT/backend"
+BACKEND="$ROOT/apps/backend"
 
 TSX="$BACKEND/node_modules/.bin/tsx"
 
@@ -34,7 +34,7 @@ dim()   { echo -e "${F_DIM}       $1${F_RESET}"; }
 die()   { alert "$1" >&2; exit 1; }
 
 is_running() {
-  curl -sf --max-time 3 http://localhost:6767/api/health > /dev/null 2>&1
+  curl -sf --max-time 3 http://localhost:6767/csfaq/api/health > /dev/null 2>&1
 }
 
 stop_port() {
@@ -63,7 +63,7 @@ fi
 # ── Check / start backend ───────────────────────────────────────────────────
 if is_running; then
   ok "backend already running on http://localhost:6767"
-  ok "health → http://localhost:6767/api/health"
+  ok "health → http://localhost:6767/csfaq/api/health"
 else
   stop_port 6767
   cd "$BACKEND"
@@ -75,7 +75,7 @@ else
 
   log "checking Node.js..."
   node --version > /dev/null || die "Node.js not found"
-  [ ! -x "$TSX" ] && die "tsx not found at $TSX — run: cd backend && npm install"
+  [ ! -x "$TSX" ] && die "tsx not found at $TSX — run: npx pnpm@9 install"
 
   # Session log — timestamped, kept in logs/ next to run.sh
   SESSION_TIMESTAMP=$(date '+%Y-%m-%d_%H-%M-%S')
@@ -83,7 +83,7 @@ else
   mkdir -p "$ROOT/logs"
   ln -sf "backend_${SESSION_TIMESTAMP}.txt" "$ROOT/backend_log.txt" 2>/dev/null || true
 
-  log "starting backend (tsx watch server.ts)..."
+  log "starting backend (tsx watch src/server.ts)..."
   echo ""
 
   # Kill orphaned tsx on port 6767 before starting
@@ -91,7 +91,7 @@ else
   sleep 1
 
   # tee to /tmp log (back-compat with old behavior) AND the session log
-  "$TSX" watch server.ts 2>&1 | \
+  "$TSX" watch src/server.ts 2>&1 | \
     sed -u "s/^\([^[]]*\)/${F_DIM}[backend]${F_RESET} \1/" | \
     tee "$SESSION_LOG" > /tmp/yaksha-backend.log &
 

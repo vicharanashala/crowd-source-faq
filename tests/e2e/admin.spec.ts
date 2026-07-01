@@ -9,7 +9,7 @@ test.describe('Admin User Journeys', () => {
 
   test('should log in as admin, browse dashboard, and access AI answers queue', async ({ page }) => {
     // 1. Go to Admin login
-    await page.goto('/admin/login');
+    await page.goto('admin/login');
     await expect(page.locator('h1')).toContainText('Yaksha Admin');
 
     // 2. Fill login details (using default seeded admin user)

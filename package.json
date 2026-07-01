@@ -1,27 +1,38 @@
 {
-  "name": "yaksha-faq-e2e-tests",
+  "name": "crowd-source-faq",
   "version": "0.1.0",
+  "private": true,
   "type": "module",
-  "workspaces": [
-    "frontend",
-    "backend"
-  ],
   "scripts": {
-    "dev:local": "npm run build --workspace=backend && tsc && node scripts/run-local.js",
-    "test:e2e": "npm run build --workspace=backend && tsc && node scripts/run-e2e.js",
-    "test:all": "npm run test --workspace=backend && npm run test:run --workspace=frontend --if-present && npm run test:e2e"
+    "dev": "turbo dev",
+    "dev:backend": "turbo dev --filter=yaksha-faq-backend",
+    "dev:frontend": "turbo dev --filter=yaksha-faq-frontend",
+    "build": "turbo build",
+    "test": "turbo test",
+    "test:run": "turbo test:run",
+    "test:e2e": "tsx scripts/run-e2e.ts",
+    "test:all": "turbo test:run && npm run test:e2e",
+    "lint": "eslint . --ext .ts,.tsx",
+    "format:check": "prettier --check .",
+    "format:write": "prettier --write .",
+    "typecheck": "turbo typecheck"
   },
   "devDependencies": {
     "@playwright/test": "^1.44.1",
     "@types/node": "^25.9.1",
+    "@types/range-parser": "^1.2.7",
+    "@typescript-eslint/eslint-plugin": "^7.1.0",
+    "@typescript-eslint/parser": "^7.1.0",
+    "eslint": "^8.57.0",
     "mongodb-memory-server": "^9.2.0",
+    "mongoose": "^8.0.3",
+    "prettier": "^3.2.5",
     "tsx": "^4.22.3",
+    "turbo": "^2.5.0",
     "typescript": "^6.0.3"
   },
   "dependencies": {
-    "ai": "^6.0.209",
-    "discord-api-types": "^0.38.49",
-    "local": "^0.3.3",
     "sharp": "^0.34.5"
-  }
+  },
+  "packageManager": "pnpm@9.15.0"
 }

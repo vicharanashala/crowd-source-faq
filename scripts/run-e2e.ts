@@ -66,8 +66,8 @@ const run = async () => {
     };
 
     console.log('[E2E Orchestrator] Seeding database...');
-    const seedProcess = spawn('node', ['backend/dist/scripts/seed.js'], {
-      cwd: rootDir,
+    const seedProcess = spawn('npx', ['tsx', 'src/scripts/seed.ts'], {
+      cwd: path.join(rootDir, 'apps/backend'),
       env,
       stdio: 'inherit',
       shell: true,
@@ -85,8 +85,8 @@ const run = async () => {
     });
 
     console.log('[E2E Orchestrator] Starting Backend server...');
-    backendProcess = spawn('node', ['backend/dist/server.js'], {
-      cwd: rootDir,
+    backendProcess = spawn('npx', ['tsx', 'src/server.ts'], {
+      cwd: path.join(rootDir, 'apps/backend'),
       env,
       stdio: 'inherit',
       shell: true,
@@ -94,7 +94,7 @@ const run = async () => {
 
     console.log('[E2E Orchestrator] Starting Frontend server...');
     frontendProcess = spawn('npx', ['vite', '--host', '127.0.0.1', '--port', '5173'], {
-      cwd: path.join(rootDir, 'frontend'),
+      cwd: path.join(rootDir, 'apps/frontend'),
       stdio: 'inherit',
       shell: true,
     });
@@ -108,7 +108,7 @@ const run = async () => {
     console.log('[E2E Orchestrator] Frontend is ready!');
 
     console.log('[E2E Orchestrator] Running Playwright E2E Tests...');
-    
+
     // Install playwright browsers if not installed
     const installPlaywright = spawn('npx', ['playwright', 'install', 'chromium'], {
       cwd: rootDir,
@@ -144,7 +144,7 @@ const run = async () => {
     process.exitCode = 1;
   } finally {
     console.log('[E2E Orchestrator] Cleaning up servers and resources...');
-    
+
     if (backendProcess) {
       console.log('[E2E Orchestrator] Terminating Backend process...');
       backendProcess.kill('SIGTERM');
