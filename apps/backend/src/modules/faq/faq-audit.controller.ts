@@ -39,7 +39,11 @@ import {
 // v1.68 — M5: read interval fresh on every tick.
 const AUDIT_BATCH_SIZE = parseInt(process.env['FAQ_AUDIT_BATCH_SIZE'] || '20', 10);
 function readAuditIntervalH(): number {
-  return parseInt(process.env['FAQ_AUDIT_readAuditIntervalH()OURS'] || '6', 10);
+  // BUGFIX (Phase 0 §2.3): the env key was the JS expression
+  // `FAQ_AUDIT_readAuditIntervalH()OURS` accidentally stringified into the
+  // key (note the `()` mid-name). Renamed to the conventional
+  // `FAQ_AUDIT_INTERVAL_HOURS` so the env var is actually read.
+  return parseInt(process.env['FAQ_AUDIT_INTERVAL_HOURS'] || '6', 10);
 }
 const _FLAG_THRESHOLD   = parseFloat(process.env['FAQ_AUDIT_FLAG_THRESHOLD'] || '0.65');
 const MIN_CONFIDENCE   = 0.35; // Below this confidence in AI's judgment → skip flagging
