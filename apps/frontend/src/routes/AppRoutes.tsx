@@ -1,6 +1,7 @@
 import React, { lazy, Suspense, useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useFeatureFlag } from '../context/FeatureFlagContext';
 import Spinner from '../components/ui/Spinner';
 import { FeatureGate } from '../components/support/FeatureGate';
 import MainLayout from '../components/layout/MainLayout';
@@ -80,6 +81,7 @@ function GoldenRoute() {
 export default function AppRoutes() {
   const { loading } = useAuth();
   const location = useLocation();
+  const askAiEnabled = useFeatureFlag('askAiChatbot');
   const [mounted, setMounted] = useState(false);
 
   // Prevent flash: only render routes after first auth resolution
@@ -95,9 +97,11 @@ export default function AppRoutes() {
     );
   }
 
-  // Chatbot temporarily disabled from the frontend. To re-enable, restore:
-  // const showAskAI = !location.pathname.startsWith('/admin');
-  const showAskAI = false;
+  // Chatbot visibility is admin-controlled via the `askAiChatbot` feature
+  // flag (/admin/features). Never shown on admin pages. `askAiEnabled` is
+  // undefined while flags load and null for an unknown key — both treated
+  // as off so the button never flashes in.
+  const showAskAI = askAiEnabled === true && !location.pathname.startsWith('/admin');
 
   return (
     <>
@@ -128,7 +132,9 @@ export default function AppRoutes() {
               path="/welcome"
               element={
                 <AccountRoute>
-                  <WelcomePackagePage />
+                  <FeatureGate featureKey="welcomePackage" featureLabel="Welcome Package">
+                    <WelcomePackagePage />
+                  </FeatureGate>
                 </AccountRoute>
               }
             />

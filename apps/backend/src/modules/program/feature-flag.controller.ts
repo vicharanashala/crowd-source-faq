@@ -37,6 +37,21 @@ export const FEATURE_FLAGS = {
       'When disabled, document uploads are gated and the worker is stopped to free up resources.',
     defaultEnabled: true,
   },
+  welcomePackage: {
+    label: 'Welcome Package',
+    description:
+      'The student onboarding / orientation hub at /welcome (project discovery, ' +
+      'getting-started checklist, etc.). When disabled, the nav link is hidden and ' +
+      'the page shows the unavailable panel.',
+    defaultEnabled: true,
+  },
+  askAiChatbot: {
+    label: 'Ask AI Chatbot',
+    description:
+      'The floating AskAI assistant button shown on non-admin pages. When disabled, ' +
+      'the button is hidden from the UI. Toggle on to re-enable the chatbot for users.',
+    defaultEnabled: false,
+  },
 } as const;
 
 export type FeatureFlagKey = keyof typeof FEATURE_FLAGS;

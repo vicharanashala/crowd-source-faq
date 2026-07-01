@@ -16,14 +16,22 @@ export function useNavItems() {
   const { user } = useAuth();
   const supportOn = useFeatureFlag('sessionSupport');
   const goldenOn = useFeatureFlag('goldenTicket');
+  const welcomeOn = useFeatureFlag('welcomePackage');
 
   const goldenExtras: NavItem[] = goldenOn
     ? [{ label: 'Golden', to: '/golden', xlOnly: true as const }]
     : [];
-  
-  let allNavItems: NavItem[] = supportOn
-    ? [...baseNavItems, { label: 'Support', to: '/support' }, ...goldenExtras]
+
+  // Welcome Package nav link is admin-controlled. `welcomeOn` is undefined
+  // while flags load and null for an unknown key — only hide on an explicit
+  // `false` so the link doesn't disappear mid-load.
+  const visibleBaseItems = welcomeOn === false
+    ? baseNavItems.filter((item) => item.to !== '/welcome')
     : baseNavItems;
+
+  let allNavItems: NavItem[] = supportOn
+    ? [...visibleBaseItems, { label: 'Support', to: '/support' }, ...goldenExtras]
+    : visibleBaseItems;
 
   if (user?.role === 'admin') {
     allNavItems = allNavItems
