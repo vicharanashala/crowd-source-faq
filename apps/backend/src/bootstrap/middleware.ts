@@ -13,11 +13,15 @@ import { programScope } from '../middleware/programScope.js';
 
 // Absolute path to the `uploads/` directory.
 // Resolved from the source file location so it works regardless of
-// process.cwd() — which Vercel serverless sets to /var/task, not
-// the backend root, causing express.static('uploads') to miss the
-// directory entirely and return 404 for every uploaded asset.
+// process.cwd() — which may not be the backend root (e.g. on a
+// compiled-dist server run via `node dist/server.js`).
+//
+// Depth calculation (same in dev src/ and prod dist/ because
+// rootDir=src outDir=dist preserves the folder structure):
+//   dist/bootstrap/middleware.js → 2 levels up → apps/backend/
+//   so: ../../uploads → apps/backend/uploads ✔
 const __dirname_mw = path.dirname(fileURLToPath(import.meta.url));
-const uploadsStaticPath = path.resolve(__dirname_mw, '../../../uploads');
+const uploadsStaticPath = path.resolve(__dirname_mw, '../../uploads');
 
 export function registerMiddleware(app: Express, config: any): void {
   // 1. Trust the proxy hops

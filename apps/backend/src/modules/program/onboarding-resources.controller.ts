@@ -64,13 +64,16 @@ function batchIdFromInput(req: { query: any; body?: any; headers?: any }): strin
 // so cascade-delete can wipe a program's uploads by directory.
 //
 // v1.70 — Use import.meta.url to anchor the path to the source file
-// location instead of process.cwd(). In Vercel serverless, cwd is
-// /var/task which does NOT contain the uploads directory, causing
-// multer to write to an inaccessible path and express.static to
-// serve 404s. Anchoring to __filename gives a stable absolute path
-// that matches where the files were committed in the repo.
+// location instead of process.cwd(). When the server runs from the
+// compiled dist/ folder, cwd may not be the backend root, so a bare
+// relative path like './uploads' resolves to the wrong directory.
+//
+// Depth (same in dev src/ and compiled dist/ because rootDir=src
+// outDir=dist mirrors the directory structure):
+//   dist/modules/program/ → 3 levels up → apps/backend/
+//   so: ../../../uploads/onboarding-resources → apps/backend/uploads/onboarding-resources ✔
 const __dirname_ctrl = path.dirname(fileURLToPath(import.meta.url));
-const uploadsRoot = path.resolve(__dirname_ctrl, '../../../../uploads/onboarding-resources');
+const uploadsRoot = path.resolve(__dirname_ctrl, '../../../uploads/onboarding-resources');
 if (!fs.existsSync(uploadsRoot)) {
   fs.mkdirSync(uploadsRoot, { recursive: true });
 }
