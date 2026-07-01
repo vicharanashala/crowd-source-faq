@@ -309,21 +309,28 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     if (faqContainer.innerHTML === '') {
-      faqContainer.innerHTML = '<p>No FAQs match your search. Your issue has been raised on to the admin page.</p>';
+      faqContainer.innerHTML = `
+        <div style="text-align: center; padding: 2rem;">
+          <p style="margin-bottom: 1rem;">No FAQs match your search.</p>
+          <button id="redirect-ask-btn" class="btn primary-btn">Click here to Ask a Query</button>
+        </div>
+      `;
       
-      // Record unresolved query
-      if (searchTerm && currentUserEmail) {
-        const now = new Date();
-        const dateStr = now.toISOString().split('T')[0];
-        const timeStr = now.toTimeString().split(' ')[0];
-        unresolvedQueries.push({ 
-          term: searchTerm, 
-          userName: currentUserName, 
-          userEmail: currentUserEmail, 
-          date: dateStr, 
-          time: timeStr 
+      const redirectBtn = document.getElementById('redirect-ask-btn');
+      if (redirectBtn) {
+        redirectBtn.addEventListener('click', () => {
+          document.querySelector('[data-target="my-queries"]')?.click();
+          // Select Ask a Query tab
+          const askTabBtn = document.querySelector('.query-tab-btn[data-qtab="ask"]') as HTMLElement;
+          if (askTabBtn) askTabBtn.click();
+          
+          const askInput = document.getElementById('ask-query-input') as HTMLInputElement;
+          const askBtn = document.getElementById('ask-query-search-btn') as HTMLElement;
+          if (askInput && askBtn) {
+            askInput.value = searchTerm;
+            askBtn.click();
+          }
         });
-        saveState();
       }
     }
   }
@@ -398,27 +405,133 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   const navMyQueries = document.getElementById('nav-my-queries');
-  const myQueriesContainer = document.getElementById('my-queries-container');
+  const myUnresolvedContainer = document.getElementById('my-unresolved-container');
+  const myResolvedContainer = document.getElementById('my-resolved-container');
+  
+  // Tab logic
+  const queryTabBtns = document.querySelectorAll('.query-tab-btn');
+  const queryTabContents = document.querySelectorAll('.query-tab-content');
+  
+  queryTabBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      queryTabBtns.forEach(b => b.classList.remove('active'));
+      queryTabContents.forEach(c => c.classList.remove('active'));
+      
+      btn.classList.add('active');
+      const targetId = 'qtab-' + btn.getAttribute('data-qtab');
+      const targetContent = document.getElementById(targetId);
+      if (targetContent) targetContent.classList.add('active');
+    });
+  });
+
+  // Ask a Query Logic
+  const askQueryInput = document.getElementById('ask-query-input') as HTMLInputElement;
+  const askQuerySearchBtn = document.getElementById('ask-query-search-btn');
+  const askQueryResults = document.getElementById('ask-query-results');
+  const raiseQueryContainer = document.getElementById('raise-query-container');
+  const raiseQueryBtn = document.getElementById('raise-query-btn');
+  let currentAskTerm = '';
+
+  if (askQuerySearchBtn) {
+    askQuerySearchBtn.addEventListener('click', () => {
+      currentAskTerm = askQueryInput.value.trim();
+      if (!currentAskTerm) return;
+      
+      const lowerSearch = currentAskTerm.toLowerCase();
+      let foundMatches = false;
+      askQueryResults!.innerHTML = '';
+      
+      faqData.forEach(cat => {
+        const filteredQs = cat.questions.filter(qObj => 
+          qObj.q.toLowerCase().includes(lowerSearch) || qObj.a.toLowerCase().includes(lowerSearch)
+        );
+        
+        if (filteredQs.length > 0) {
+          foundMatches = true;
+          filteredQs.forEach(qObj => {
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'faq-item';
+            
+            let questionText = qObj.q;
+            let answerText = qObj.a;
+            const regex = new RegExp(`(${currentAskTerm})`, 'gi');
+            questionText = questionText.replace(regex, '<span class="highlight">$1</span>');
+            answerText = answerText.replace(regex, '<span class="highlight">$1</span>');
+            
+            const btn = document.createElement('button');
+            btn.className = 'faq-question';
+            btn.innerHTML = `<span>${questionText}</span> <span class="faq-icon">▼</span>`;
+            
+            const ansDiv = document.createElement('div');
+            ansDiv.className = 'faq-answer';
+            ansDiv.innerHTML = `<div class="faq-answer-inner">${answerText}</div>`;
+            
+            btn.addEventListener('click', () => {
+              itemDiv.classList.toggle('active');
+            });
+            
+            itemDiv.appendChild(btn);
+            itemDiv.appendChild(ansDiv);
+            askQueryResults!.appendChild(itemDiv);
+          });
+        }
+      });
+      
+      if (foundMatches) {
+        raiseQueryContainer!.style.display = 'none';
+      } else {
+        askQueryResults!.innerHTML = '<p class="text-center" style="margin-bottom: 1rem;">No matching FAQs found for your question.</p>';
+        raiseQueryContainer!.style.display = 'block';
+      }
+    });
+    
+    askQueryInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') askQuerySearchBtn.click();
+    });
+  }
+
+  if (raiseQueryBtn) {
+    raiseQueryBtn.addEventListener('click', () => {
+      if (currentAskTerm && currentUserEmail) {
+        const now = new Date();
+        const dateStr = now.toISOString().split('T')[0];
+        const timeStr = now.toTimeString().split(' ')[0];
+        unresolvedQueries.push({ 
+          term: currentAskTerm, 
+          userName: currentUserName || 'Unknown', 
+          userEmail: currentUserEmail, 
+          date: dateStr, 
+          time: timeStr 
+        });
+        saveState();
+        
+        askQueryInput.value = '';
+        askQueryResults!.innerHTML = '';
+        raiseQueryContainer!.style.display = 'none';
+        
+        // Switch to unresolved tab
+        const unresolvedTabBtn = document.querySelector('.query-tab-btn[data-qtab="unresolved"]') as HTMLElement;
+        if (unresolvedTabBtn) unresolvedTabBtn.click();
+        
+        renderMyQueries();
+        alert('Your query has been raised to the admins and community!');
+      }
+    });
+  }
 
   function renderMyQueries() {
-    myQueriesContainer.innerHTML = '';
+    if (!myUnresolvedContainer || !myResolvedContainer) return;
+    myUnresolvedContainer.innerHTML = '';
+    myResolvedContainer.innerHTML = '';
     
     const myResolved = resolvedQueries.filter(q => q.userEmail === currentUserEmail);
     const myUnresolved = unresolvedQueries.filter(q => q.userEmail === currentUserEmail);
     
-    if (myResolved.length === 0 && myUnresolved.length === 0) {
-      myQueriesContainer.innerHTML = '<p>You have no queries yet.</p>';
-      return;
-    }
-
     // Render Unresolved
-    if (myUnresolved.length > 0) {
-      const unresolvedTitle = document.createElement('h3');
-      unresolvedTitle.className = 'color-heading-2 mt-2';
-      unresolvedTitle.textContent = 'Pending Queries';
-      myQueriesContainer.appendChild(unresolvedTitle);
-
-      myUnresolved.forEach((q, i) => {
+    if (myUnresolved.length === 0) {
+      myUnresolvedContainer.innerHTML = '<p>You have no pending queries.</p>';
+    } else {
+      myUnresolved.forEach((q) => {
         const itemDiv = document.createElement('div');
         itemDiv.className = 'faq-item';
         
@@ -435,21 +548,17 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.addEventListener('click', () => {
           itemDiv.classList.toggle('active');
         });
-
         itemDiv.appendChild(btn);
         itemDiv.appendChild(ansDiv);
-        myQueriesContainer.appendChild(itemDiv);
+        myUnresolvedContainer.appendChild(itemDiv);
       });
     }
 
     // Render Resolved
-    if (myResolved.length > 0) {
-      const resolvedTitle = document.createElement('h3');
-      resolvedTitle.className = 'color-heading-3 mt-2';
-      resolvedTitle.textContent = 'Resolved Queries';
-      myQueriesContainer.appendChild(resolvedTitle);
-
-      myResolved.forEach((q, i) => {
+    if (myResolved.length === 0) {
+      myResolvedContainer.innerHTML = '<p>You have no resolved queries yet.</p>';
+    } else {
+      myResolved.forEach((q) => {
         const itemDiv = document.createElement('div');
         itemDiv.className = 'faq-item';
         
@@ -467,10 +576,9 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.addEventListener('click', () => {
           itemDiv.classList.toggle('active');
         });
-
         itemDiv.appendChild(btn);
         itemDiv.appendChild(ansDiv);
-        myQueriesContainer.appendChild(itemDiv);
+        myResolvedContainer.appendChild(itemDiv);
       });
     }
   }
@@ -546,6 +654,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const navSpHistory = document.getElementById('nav-sp-history');
   const spHistoryTableBody = document.getElementById('sp-history-table-body');
   const userSpCount = document.getElementById('user-sp-count');
+  const navLeaderboard = document.getElementById('nav-leaderboard');
+  const leaderboardTableBody = document.getElementById('leaderboard-table-body');
+  const spGraphContainer = document.getElementById('sp-graph-container');
+  const leaderboardRankBanner = document.getElementById('leaderboard-rank-banner');
 
   function renderSpHistory() {
     spHistoryTableBody.innerHTML = '';
@@ -570,6 +682,100 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  function renderLeaderboard() {
+    if (!leaderboardTableBody || !spGraphContainer || !leaderboardRankBanner) return;
+    
+    // Sort active users by SP
+    const activeUsers = users.filter(u => u.status === 'Active').sort((a, b) => (b.sp || 0) - (a.sp || 0));
+    
+    leaderboardTableBody.innerHTML = '';
+    let currentUserRank = -1;
+    
+    activeUsers.forEach((u, index) => {
+      const rank = index + 1;
+      if (u.email === currentUserEmail) currentUserRank = rank;
+      
+      const tr = document.createElement('tr');
+      if (u.email === currentUserEmail) tr.className = 'highlight-row';
+      tr.innerHTML = `
+        <td style="font-weight: bold; font-size: 1.1rem;">${rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank}</td>
+        <td>${u.name || 'Unknown'} ${u.email === currentUserEmail ? '(You)' : ''}</td>
+        <td style="font-weight: bold;">${u.sp || 0} SP</td>
+      `;
+      leaderboardTableBody.appendChild(tr);
+    });
+    
+    if (currentUserRank !== -1) {
+      leaderboardRankBanner.textContent = `You are Rank #${currentUserRank} out of ${activeUsers.length} students!`;
+    } else {
+      leaderboardRankBanner.textContent = `See where you stand among your peers!`;
+    }
+    
+    renderSPGraph();
+  }
+
+  function renderSPGraph() {
+    if (!spGraphContainer) return;
+    spGraphContainer.innerHTML = '';
+    
+    const user = users.find(u => u.email === currentUserEmail);
+    if (!user || !user.spHistory || user.spHistory.length === 0) {
+      spGraphContainer.innerHTML = '<p style="color: var(--text-secondary); width: 100%; text-align: center; margin-bottom: 2rem;">No SP activity found.</p>';
+      return;
+    }
+    
+    // Aggregate by Date
+    const dailySP: Record<string, number> = {};
+    user.spHistory.forEach(entry => {
+      if (!dailySP[entry.date]) dailySP[entry.date] = 0;
+      dailySP[entry.date] += entry.amount;
+    });
+    
+    const dates = Object.keys(dailySP);
+    const recentDates = dates.slice(-7); 
+    
+    let maxAbsValue = 10; 
+    recentDates.forEach(d => {
+      if (Math.abs(dailySP[d]) > maxAbsValue) maxAbsValue = Math.abs(dailySP[d]);
+    });
+    
+    recentDates.forEach(d => {
+      const val = dailySP[d];
+      let typeClass = 'neutral';
+      if (val > 0) typeClass = 'positive';
+      else if (val < 0) typeClass = 'negative';
+      
+      const heightPercent = Math.max(10, Math.floor((Math.abs(val) / maxAbsValue) * 100));
+      
+      const wrapper = document.createElement('div');
+      wrapper.className = 'graph-bar-wrapper';
+      
+      const bar = document.createElement('div');
+      bar.className = `graph-bar ${typeClass}`;
+      bar.style.height = '0%';
+      
+      const valLabel = document.createElement('div');
+      valLabel.className = 'graph-value';
+      valLabel.textContent = val > 0 ? '+' + val : val.toString();
+      
+      bar.appendChild(valLabel);
+      
+      const dateLabel = document.createElement('div');
+      dateLabel.className = 'graph-label';
+      dateLabel.textContent = d.split('/')[0] + '/' + d.split('/')[1]; // Shorten date
+      
+      wrapper.appendChild(bar);
+      wrapper.appendChild(dateLabel);
+      
+      spGraphContainer.appendChild(wrapper);
+      
+      // Animate
+      setTimeout(() => {
+        bar.style.height = `${heightPercent}%`;
+      }, 50);
+    });
+  }
+
   function loginUser(email) {
     currentUserEmail = email;
     loginModal.classList.remove('active');
@@ -584,6 +790,7 @@ document.addEventListener('DOMContentLoaded', () => {
     navMyQueries.style.display = 'flex';
     navCommunityQueries.style.display = 'flex';
     navSpHistory.style.display = 'flex';
+    if (navLeaderboard) navLeaderboard.style.display = 'flex';
     document.getElementById('popular-faq-list-container').style.display = 'block';
     document.getElementById('popular-faq-login-msg').style.display = 'none';
     
@@ -600,6 +807,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderMyQueries();
     renderCommunityQueries();
     renderSpHistory();
+    renderLeaderboard();
 
     // Switch back to Home page
     document.querySelector('[data-target="home"]').click();
@@ -615,10 +823,12 @@ document.addEventListener('DOMContentLoaded', () => {
     navMyQueries.style.display = 'none';
     navCommunityQueries.style.display = 'none';
     navSpHistory.style.display = 'none';
+    if (navLeaderboard) navLeaderboard.style.display = 'none';
     document.getElementById('popular-faq-list-container').style.display = 'none';
     document.getElementById('popular-faq-login-msg').style.display = 'block';
     
-    myQueriesContainer.innerHTML = '';
+    if (myUnresolvedContainer) myUnresolvedContainer.innerHTML = '';
+    if (myResolvedContainer) myResolvedContainer.innerHTML = '';
     communityQueriesContainer.innerHTML = '';
     
     // Clear search bar

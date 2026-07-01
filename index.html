@@ -24,6 +24,7 @@
         <a href="#" data-target="my-queries" id="nav-my-queries" style="display: none;"><span class="icon">📩</span> <span class="nav-text">My Queries</span></a>
         <a href="#" data-target="community-queries" id="nav-community-queries" style="display: none;"><span class="icon">🤝</span> <span class="nav-text">Help Community</span></a>
         <a href="#" data-target="sp-history" id="nav-sp-history" style="display: none;"><span class="icon">✨</span> <span class="nav-text">Spurti Points (<span id="user-sp-count">0</span>)</span></a>
+        <a href="#" data-target="leaderboard" id="nav-leaderboard" style="display: none;"><span class="icon">🏆</span> <span class="nav-text">Leaderboard</span></a>
         <a href="#" data-target="admin" id="nav-admin"><span class="icon">🔒</span> <span class="nav-text">Admin</span></a>
       </nav>
     </aside>
@@ -180,9 +181,40 @@
         <!-- My Queries Section -->
         <section id="my-queries" class="content-section">
           <h2>My Queries</h2>
-          <p class="subtitle">Questions you've asked that have been answered by an Admin.</p>
-          <div class="faq-container" id="my-queries-container">
-            <!-- Dynamically populated by JS -->
+          <div class="query-tabs-container glass-card">
+            <div class="query-tabs-header">
+              <button class="query-tab-btn active" data-qtab="ask">Ask a Query</button>
+              <button class="query-tab-btn" data-qtab="unresolved">Unresolved</button>
+              <button class="query-tab-btn" data-qtab="resolved">Resolved</button>
+            </div>
+            
+            <div class="query-tab-content active" id="qtab-ask">
+              <h3 class="color-heading-2 mb-1">Search the FAQs first</h3>
+              <div class="search-flex mb-1">
+                <input type="text" id="ask-query-input" placeholder="What is your question?" autocomplete="off">
+                <button id="ask-query-search-btn" class="btn primary-btn btn-small">Search</button>
+              </div>
+              <div id="ask-query-results" class="faq-container"></div>
+              
+              <div id="raise-query-container" style="display: none; margin-top: 1rem; text-align: center;">
+                <p style="margin-bottom: 0.5rem; color: var(--text-secondary);">Couldn't find an answer?</p>
+                <button id="raise-query-btn" class="btn primary-btn">Raise Query to Admin</button>
+              </div>
+            </div>
+
+            <div class="query-tab-content" id="qtab-unresolved">
+              <h3 class="color-heading-2 mb-1">Pending Queries</h3>
+              <div class="faq-container" id="my-unresolved-container">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+
+            <div class="query-tab-content" id="qtab-resolved">
+              <h3 class="color-heading-3 mb-1">Resolved Queries</h3>
+              <div class="faq-container" id="my-resolved-container">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
           </div>
         </section>
 
@@ -211,6 +243,37 @@
                   </tr>
                 </thead>
                 <tbody id="sp-history-table-body">
+                  <!-- Dynamically populated -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- Leaderboard Section -->
+        <section id="leaderboard" class="content-section">
+          <h2>🏆 Cohort Leaderboard</h2>
+          <p class="subtitle" id="leaderboard-rank-banner">See where you stand among your peers!</p>
+          
+          <div class="glass-card full-width-card mt-2">
+            <h3 class="color-heading-2">Your SP Activity</h3>
+            <div id="sp-graph-container" class="graph-container mt-1">
+              <!-- Dynamically populated by JS -->
+            </div>
+          </div>
+
+          <div class="glass-card full-width-card mt-2">
+            <h3 class="color-heading-3">Top Students</h3>
+            <div class="table-container mt-1">
+              <table class="users-table">
+                <thead>
+                  <tr>
+                    <th>Rank</th>
+                    <th>Name</th>
+                    <th>Total SP</th>
+                  </tr>
+                </thead>
+                <tbody id="leaderboard-table-body">
                   <!-- Dynamically populated -->
                 </tbody>
               </table>

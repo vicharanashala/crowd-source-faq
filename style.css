@@ -898,3 +898,114 @@ body {
     border-right: none;
   }
 }
+
+/* Leaderboard & SP Graph Styles */
+.graph-container {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  height: 250px;
+  padding: 1rem 0;
+  border-bottom: 2px solid var(--border-color);
+  margin-top: 1rem;
+  gap: 10px;
+}
+
+.graph-bar-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  flex: 1;
+}
+
+.graph-bar {
+  width: 100%;
+  max-width: 40px;
+  border-radius: 4px 4px 0 0;
+  transition: height 0.5s ease-out, background-color 0.3s;
+  position: relative;
+}
+
+.graph-bar.positive {
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.8) 0%, rgba(16, 185, 129, 0.2) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.5);
+  border-bottom: none;
+}
+
+.graph-bar.negative {
+  background: linear-gradient(180deg, rgba(239, 68, 68, 0.8) 0%, rgba(239, 68, 68, 0.2) 100%);
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  border-bottom: none;
+}
+
+.graph-bar.neutral {
+  background: linear-gradient(180deg, rgba(156, 163, 175, 0.8) 0%, rgba(156, 163, 175, 0.2) 100%);
+  border: 1px solid rgba(156, 163, 175, 0.5);
+  border-bottom: none;
+}
+
+.graph-label {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.graph-value {
+  position: absolute;
+  top: -25px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.highlight-row {
+  background-color: rgba(99, 102, 241, 0.15) !important;
+  font-weight: 600;
+}
+
+/* My Queries Tabs */
+.query-tabs-header {
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+}
+
+.query-tab-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  transition: all 0.3s;
+}
+
+.query-tab-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+}
+
+.query-tab-btn.active {
+  background: var(--accent-primary);
+  color: white;
+}
+
+.query-tab-content {
+  display: none;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.query-tab-content.active {
+  display: block;
+}

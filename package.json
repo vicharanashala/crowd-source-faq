@@ -8,7 +8,8 @@
   ],
   "scripts": {
     "test:e2e": "tsx scripts/run-e2e.ts",
-    "test:all": "npm run test --workspace=backend && npm run test:run --workspace=frontend --if-present && npm run test:e2e"
+    "test:all": "npm run test --workspace=backend && npm run test:run --workspace=frontend --if-present && npm run test:e2e",
+    "dev": "vite"
   },
   "devDependencies": {
     "@playwright/test": "^1.44.1",
