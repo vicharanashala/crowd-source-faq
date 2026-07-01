@@ -13,6 +13,7 @@ import {
 } from '../../utils/http/search.js';
 import { searchRequests, searchResultsReturned, searchLogFlushActive, searchLogFlushes } from '../../utils/http/metrics.js';
 import { searchKnowledge } from '../knowledge/knowledge-base.service.js';
+import { expandQuery, learnFromText } from '../../search/aliasMapper.js';
 
 // Cache configuration: Store up to 500 recent queries for 1 hour to reduce DB/AI loads
 const searchCache = new LRUCache<string, SearchResultItem[]>({
@@ -248,6 +249,10 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
         userId: userObjectId,
         batchId: batchIdObjectId,
       });
+      for (const result of cachedResults) {
+        const text = `${(result as any).question ?? ''} ${(result as any).body ?? (result as any).answer ?? ''}`.trim();
+        if (text) learnFromText(text);
+      }
       res.json({ results: cachedResults, total: cachedResults.length, cached: true });
       return;
     }
@@ -267,31 +272,38 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
         userId: userObjectId,
         batchId: batchIdObjectId,
       });
+      for (const result of cachedResults) {
+        const text = `${(result as any).question ?? ''} ${(result as any).body ?? (result as any).answer ?? ''}`.trim();
+        if (text) learnFromText(text);
+      }
       res.json({ results: cachedResults, total: cachedResults.length, cached: true });
       return;
     }
 
-    // 2. Compute AI Embedding for the search term. If the embedding service
+    // 2. Expand query with aliases, acronyms, and typo corrections before embedding/search
+    const expandedQuery = expandQuery(query);
+
+    // 3. Compute AI Embedding for the search term. If the embedding service
     //    is unreachable (e.g. local model/endpoint down), DON'T fail the whole
     //    request — degrade gracefully to keyword-only search. The hybrid
     //    pipeline already runs a $text ranker, so results still come back.
     let embedding: number[] | null = null;
     try {
-      embedding = await generateQueryEmbedding(query);
+      embedding = await generateQueryEmbedding(expandedQuery);
     } catch (embErr) {
       httpLog.warn('search.embedding.failed — falling back to keyword-only search', {
         error: embErr instanceof Error ? embErr.message : String(embErr),
       });
     }
 
-    // 3. Execute Vector (when an embedding is available) + Text searches in
+    // 4. Execute Vector (when an embedding is available) + Text searches in
     //    parallel across both collections for maximum speed.
     const empty = Promise.resolve([] as SearchResultItem[]);
     const [faqVec, commVec, faqTxt, commTxt] = await Promise.all([
       embedding ? runVectorSearch('yaksha_faq_faqs', embedding, 5, batchIdObjectId) : empty,
       embedding ? runVectorSearch('yaksha_faq_communityposts', embedding, 5, batchIdObjectId) : empty,
-      runTextSearch('yaksha_faq_faqs', query, 5, batchIdObjectId),
-      runTextSearch('yaksha_faq_communityposts', query, 5, batchIdObjectId)
+      runTextSearch('yaksha_faq_faqs', expandedQuery, 5, batchIdObjectId),
+      runTextSearch('yaksha_faq_communityposts', expandedQuery, 5, batchIdObjectId)
     ]);
     
     // Tag results with their origin source (FAQ vs Community)
@@ -360,6 +372,11 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
 
     searchRequests.inc({ source: 'fresh', cached: 'false' });
     searchResultsReturned.observe({ source: 'fresh' }, filtered.length);
+
+    for (const result of filtered) {
+      const text = `${(result as any).question ?? ''} ${(result as any).body ?? (result as any).answer ?? ''}`.trim();
+      if (text) learnFromText(text);
+    }
 
     res.json({ results: filtered, total: filtered.length, cached: false });
   } catch (error) {

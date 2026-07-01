@@ -42,6 +42,18 @@ export async function startup(config: any): Promise<void> {
     startupLog.error('startup DB connect / migrate failed', { error: (e as Error).message });
   }
 
+  // Load FAQs and initialize the acronym/alias search engine
+  try {
+    const { default: FAQ } = await import('../modules/faq/faq.model.js');
+    const { initAcronymExtractor } = await import('../search/aliasMapper.js');
+    const faqs = await FAQ.find({}).select('question answer');
+    const faqTexts = faqs.map(f => `${f.question} ${f.answer}`);
+    initAcronymExtractor(faqTexts);
+    startupLog.info(`[aliasMapper] Extractor initialized with ${faqs.length} FAQs`);
+  } catch (err) {
+    startupLog.error(`[aliasMapper] Initialization failed: ${(err as Error).message}`);
+  }
+
   // Lazy-init the RegistrationConfig singleton
   try {
     const { ensureRegistrationConfig } = await import('../modules/program/registration-config.model.js');

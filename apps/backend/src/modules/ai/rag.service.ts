@@ -20,6 +20,7 @@ import { generateQueryEmbedding } from '../../utils/ai/embeddings.js';
 import { resolveProviderAsync } from '../../utils/ai/aiProvider.js';
 import { searchKnowledge } from '../knowledge/knowledge-base.service.js';
 import { logger } from '../../utils/http/logger.js';
+import { expandQuery } from '../../search/aliasMapper.js';
 
 export interface RagSource {
   /** Stable id — the client uses this as a React key and to link out. */
@@ -239,20 +240,21 @@ export interface RagAttachment {
  */
 export async function runRag(question: string, attachments: RagAttachment[] = []): Promise<RagResult> {
   const t0 = Date.now();
-  const embedding = await generateQueryEmbedding(question);
+  const expandedQuestion = expandQuery(question);
+  const embedding = await generateQueryEmbedding(expandedQuestion);
   logger.info('rag.embedding.done', { ms: Date.now() - t0 });
 
   // Fan out — 3 sources, top-K each, in parallel.
   const [faqHits, postHits, knowledgeHits] = await Promise.all([
-    searchFaqs(embedding, question, TOP_K_PER_SOURCE).catch((e) => {
+    searchFaqs(embedding, expandedQuestion, TOP_K_PER_SOURCE).catch((e) => {
       logger.warn('rag.faq.search.failed', { error: (e as Error).message });
       return [] as FaqHit[];
     }),
-    searchCommunity(embedding, question, TOP_K_PER_SOURCE).catch((e) => {
+    searchCommunity(embedding, expandedQuestion, TOP_K_PER_SOURCE).catch((e) => {
       logger.warn('rag.community.search.failed', { error: (e as Error).message });
       return [] as PostHit[];
     }),
-    searchKnowledge(question, TOP_K_PER_SOURCE).catch((e) => {
+    searchKnowledge(expandedQuestion, TOP_K_PER_SOURCE).catch((e) => {
       logger.warn('rag.knowledge.search.failed', { error: (e as Error).message });
       return [] as Awaited<ReturnType<typeof searchKnowledge>>;
     }),

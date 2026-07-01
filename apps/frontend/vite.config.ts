@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
@@ -16,7 +17,7 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/csfaq/api': { target: 'http://localhost:6767', changeOrigin: true },
+      '/csfaq/api': { target: 'http://127.0.0.1:6767', changeOrigin: true },
     },
   },
   optimizeDeps: {
