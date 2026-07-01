@@ -5,6 +5,11 @@ import api from '../utils/api';
 import Footer from '../components/layout/Footer';
 import ProfileCard from '../components/account/ProfileCard';
 import PasswordCard from '../components/account/PasswordCard';
+import ContributionSummaryCard from '../components/account/ContributionSummaryCard';
+import SavedKnowledgeCard from '../components/account/SavedKnowledgeCard';
+import RecentActivityCard from '../components/account/RecentActivityCard';
+import BadgeShowcaseCard from '../components/account/BadgeShowcaseCard';
+import NextActionsCard from '../components/account/NextActionsCard';
 
 interface ZoomStatus {
   connected: boolean;
@@ -285,6 +290,27 @@ export default function AccountPage() {
 
         {/* Password card */}
         <PasswordCard />
+
+        <ContributionSummaryCard />
+        <SavedKnowledgeCard />
+        <RecentActivityCard />
+        <BadgeShowcaseCard />
+        <NextActionsCard />
+
+        <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-ink">Achievement Hub</h2>
+              <p className="text-xs text-ink-faint mt-0.5">See your contribution history and next milestones.</p>
+            </div>
+            <button
+              onClick={() => navigate('/account/achievements')}
+              className="rounded-full border border-border bg-bg px-3 py-1.5 text-sm font-medium text-ink hover:bg-accent/10 transition-colors"
+            >
+              View
+            </button>
+          </div>
+        </div>
 
         {user?.role === 'admin' && (
           /* Zoom integration card */

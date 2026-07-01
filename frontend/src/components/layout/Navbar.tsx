@@ -16,6 +16,8 @@ type NavItem = { label: string; to: string; xlOnly?: true };
 const navItems: NavItem[] = [
   { label: 'Home', to: '/' },
   { label: 'FAQ', to: '/faq' },
+  { label: 'Knowledge Sprint', to: '/knowledge-sprint' },
+  { label: 'Topic Radar', to: '/topic-radar' },
   { label: 'Welcome Package', to: '/welcome' },
   { label: 'Community', to: '/community' },
   { label: 'Leaderboard', to: '/leaderboard' },
