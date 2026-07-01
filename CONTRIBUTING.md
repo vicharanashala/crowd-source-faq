@@ -19,7 +19,7 @@ Start with the [Vision section in the README](./README.md#vision) — every cont
 ## Local Setup
 
 ```bash
-git clone https://github.com/vicharanashala/crowd-source-faq
+git clone https://github.com/Sarthak-Kushwah/crowd-source-faq
 cd crowd-source-faq
 pnpm install
 

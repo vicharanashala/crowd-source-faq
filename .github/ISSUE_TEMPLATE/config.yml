@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Security vulnerability
-    url: https://github.com/vicharanashala/crowd-source-faq/security/advisories/new
+    url: https://github.com/Sarthak-Kushwah/crowd-source-faq/security/advisories/new
     about: Do NOT open a public issue for security bugs — use GitHub's private advisory instead
   - name: Question / discussion
-    url: https://github.com/vicharanashala/crowd-source-faq/discussions
+    url: https://github.com/Sarthak-Kushwah/crowd-source-faq/discussions
     about: Questions, ideas, architecture discussions

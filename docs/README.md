@@ -33,7 +33,7 @@
 
 Shamagama is a semantic search-powered FAQ and community Q&A platform targeting 1 million registered users. Questions are resolved through a hybrid vector + keyword search. Unanswered questions flow into a community board where subject-matter experts and community votes surface the best answers. Approved answers are promoted back into the official FAQ.
 
-**GitHub:** https://github.com/vicharanashala/crowd-source-faq
+**GitHub:** https://github.com/Sarthak-Kushwah/crowd-source-faq
 **Production Backend:** https://yaksha-faq-backend.vercel.app
 **Production Frontend:** https://yaksha-faq-frontend.vercel.app
 

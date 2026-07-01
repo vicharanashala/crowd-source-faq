@@ -8,7 +8,7 @@
 #  pre-built images from Docker Hub instead of building locally.
 #
 #  Required env vars (set on VPS or in .env):
-#    DOCKERHUB_USERNAME  — Docker Hub account (e.g., vicharanashala)
+#    DOCKERHUB_USERNAME  — Docker Hub account name used for the image namespace
 #    TAG                 — Image tag (defaults to "latest")
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -16,8 +16,7 @@ version: '3.8'
 
 services:
   backend:
-    image: ${DOCKERHUB_USERNAME:-vicharanashala}/csfaq-backend:${TAG:-latest}
-    build: !reset null
+    image: ${DOCKERHUB_USERNAME:?DOCKERHUB_USERNAME is required}/csfaq-backend:${TAG:-latest}
     env_file: []
     environment:
       - NODE_ENV=production
