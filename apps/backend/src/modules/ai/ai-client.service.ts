@@ -297,6 +297,18 @@ export class AiClient {
     }
 
     const featureConfig = dbConfig?.features?.[feature];
+    // BUGFIX (Phase 0 §2.3): the AiConfig schema has `features[feature].enabled`
+    // but the dispatcher in chat() never read it, so per-program feature
+    // toggles in the admin UI were silently ignored. Now honour the flag:
+    // if an operator sets `enabled: false` for this feature, surface a clear
+    // error so the caller (and the logs) know the gate, rather than letting
+    // the call proceed with the fallback config.
+    if (featureConfig && featureConfig.enabled === false) {
+      throw new Error(
+        `AI feature '${feature}' is disabled in the active AiConfig. ` +
+        `Enable it in Admin Settings → AI Config, or pick a different batch with it enabled.`
+      );
+    }
     const rawModel = overrides?.model || featureConfig?.model || config.model;
     const model = getModelForProvider(rawModel, config.provider, config.model);
 
