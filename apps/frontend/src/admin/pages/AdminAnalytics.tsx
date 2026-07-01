@@ -73,12 +73,19 @@ export default function AdminAnalytics() {
     setLoading(true);
     setError(null);
     try {
-      const batchParam = selectedBatchId ? `&batchId=${selectedBatchId}` : '';
+      // Pass batchId via axios `params`, NOT the URL string. The admin
+      // scoped-api interceptor auto-injects a `batchId` param and only
+      // skips when one is already present in `config.params` — a batchId
+      // baked into the URL string bypasses that guard and gets appended a
+      // second time, producing `batchId=id&batchId=id` (→ an invalid,
+      // comma-joined ObjectId → 400). Keeping the key here (undefined when
+      // global) makes the interceptor treat scoping as already handled.
+      const params = { days, batchId: selectedBatchId || undefined };
       const results = await Promise.allSettled([
-        adminApi.get<SummaryData>(`/analytics/summary?days=${days}${batchParam}`),
-        adminApi.get<TrendData[]>(`/analytics/trends?days=${days}${batchParam}`),
-        adminApi.get<CategoryData[]>(`/analytics/category-distribution?${batchParam}`),
-        adminApi.get<SearchLogResponse>(`/analytics?days=${days}${batchParam}`),
+        adminApi.get<SummaryData>('/analytics/summary', { params }),
+        adminApi.get<TrendData[]>('/analytics/trends', { params }),
+        adminApi.get<CategoryData[]>('/analytics/category-distribution', { params }),
+        adminApi.get<SearchLogResponse>('/analytics', { params }),
       ]);
 
       // Stale request protection

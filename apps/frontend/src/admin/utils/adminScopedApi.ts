@@ -93,8 +93,13 @@ export function installAdminScopedApiInterceptor(): void {
     const method = (config.method ?? 'get').toLowerCase();
     if (lastKnownProgramId && shouldAttachBatchId(url, method)) {
       // Merge batchId into existing params without clobbering them.
+      // Guard against BOTH sources of an existing batchId: the axios
+      // `params` object AND one already baked into the URL query string.
+      // Missing the URL-string case caused a duplicate `batchId=id&batchId=id`
+      // (collapsed to an invalid comma-joined ObjectId → 400).
       const existing = (config.params ?? {}) as Record<string, unknown>;
-      if (!('batchId' in existing)) {
+      const urlHasBatchId = /[?&]batchId=/.test(url);
+      if (!('batchId' in existing) && !urlHasBatchId) {
         config.params = { ...existing, batchId: lastKnownProgramId };
       }
     }
