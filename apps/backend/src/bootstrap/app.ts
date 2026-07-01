@@ -142,7 +142,10 @@ export function createApp(config: any): Express {
 
   // Serve static assets and SPA fallback
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
-  const frontendDistPath = path.resolve(__dirname, '../../../frontend/dist');
+  // v1.72 — fixed: __dirname = apps/backend/src/bootstrap → resolve via ../../apps/frontend/dist
+  // Previously resolves to ../../../frontend/dist → /app/frontend/dist (wrong, no such dir).
+  // Built frontend is at /app/apps/frontend/dist (see Dockerfile runtime stage COPY).
+  const frontendDistPath = path.resolve(__dirname, '../../apps/frontend/dist');
 
   // Serve static files under /csfaq base path
   app.use('/csfaq', express.static(frontendDistPath));

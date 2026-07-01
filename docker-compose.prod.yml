@@ -18,6 +18,8 @@ services:
   backend:
     image: ${DOCKERHUB_USERNAME:-vicharanashala}/csfaq-backend:${TAG:-latest}
     build: !reset null
+    # env_file cleared so Infisical CLI (via `command`) fully owns secrets injection.
+    # The .env file is created at runtime by the deploy script BEFORE container start.
     env_file: []
     environment:
       - NODE_ENV=production
@@ -25,7 +27,31 @@ services:
       - INFISICAL_ENVIRONMENT
       - INFISICAL_PROJECT_ID
       - INFISICAL_SECRET_PATH
+      # v1.72 — JWT_SECRET explicitly passed so the container can start even if
+      # Infisical hasn't been reached yet (the Infisical run command populates
+      # .env which is then read by the app — this is for local docker dev only).
+      - JWT_SECRET
     command: ["sh", "-c", "infisical run --env=\"$$INFISICAL_ENVIRONMENT\" --projectId=\"$$INFISICAL_PROJECT_ID\" --path=\"$$INFISICAL_SECRET_PATH\" -- node --import tsx src/server.ts"]
+
+  frontend:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      # Serve the pre-built frontend static files from the host.
+      # The deploy script builds the frontend and places dist/ here.
+      - ./apps/frontend/dist:/usr/share/nginx/html:ro
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - yaksha-net
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   mongodb:
     # Use same image, but persist data on a named volume
