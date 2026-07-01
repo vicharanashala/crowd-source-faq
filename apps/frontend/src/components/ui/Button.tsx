@@ -42,12 +42,14 @@ export default function Button({
   size = 'md',
   loading = false,
   disabled,
+  type = 'button',
   children,
   className = '',
   ...props
 }: ButtonProps) {
   return (
     <button
+      type={type}
       disabled={disabled || loading}
       style={variantStyles[variant]}
       className={`

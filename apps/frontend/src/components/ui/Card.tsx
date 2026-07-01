@@ -7,6 +7,10 @@ interface CardProps {
   className?: string;
   children: React.ReactNode;
   onClick?: () => void;
+  /** Forwarded to the underlying <button> wrapper when `onClick` is set.
+   *  Defaults to `'button'` so a Card inside a <form> never accidentally
+   *  submits. Pass `type="submit"` explicitly if you want form submission. */
+  type?: 'button' | 'submit' | 'reset';
 }
 
 const variantClasses: Record<CardVariant, string> = {
@@ -23,10 +27,12 @@ export default function Card({
   className = '',
   children,
   onClick,
+  type = 'button',
 }: CardProps) {
   const Tag = onClick ? 'button' : 'div';
   return (
     <Tag
+      type={onClick ? type : undefined}
       onClick={onClick}
       className={`${variantClasses[variant]} ${onClick ? 'w-full text-left' : ''} ${className}`}
     >
