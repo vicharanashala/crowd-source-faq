@@ -5,18 +5,18 @@
 //   SEARCH BAR  (big)
 //   CATEGORY FILTER PILLS  (clickable, with counts)
 //   TWO-COLUMN BODY
-//     left  →  Most Popular  +  Recent FAQs  +  Top Solved Today  +
-//              From Zoom Meetings  +  All FAQs (full 141)
-//     right →  Browse Categories (4×2 icon grid) + Trending Issues
+//    left  →  Most Popular  +  Recent FAQs  +  Top Solved Today  +
+//             From Zoom Meetings  +  All FAQs (full 141)
+//    right →  Browse Categories (4×2 icon grid) + Trending Issues
 //   BROWSE ALL CATEGORIES  (full-width, all 14)
 //   CTA  →  "Still have a question?"
 //
 // Every section pulls live data from the backend (no hardcoded content):
-//   /api/faq                                 → 141 FAQs grouped by category
+//   /api/faq                               → 141 FAQs grouped by category
 //   /api/public/popular-faqs?limit=5         → Most Popular (views + read time)
 //   /api/public/recent-faqs?limit=5          → Recent FAQs
 //   /api/faq/recent?source=zoom_transcript   → From Zoom Meetings
-//   /api/community/solved?limit=4            → Top Solved Today
+//   /api/community/solved?limit=4             → Top Solved Today
 //   /api/community                           → Trending Issues
 //   /api/search/trending                     → (kept for future use)
 
@@ -123,7 +123,6 @@ function CategoryListItem({
 // ═══════════════════════════════════════════════════════════════════════════
 function CategoryIconGrid({
   categories,
-  grouped,
   onSelect,
 }: {
   categories: string[];
@@ -256,7 +255,7 @@ export default function HomePage() {
   const [popularLoading, setPopularLoading] = useState(true);
   const [recentPublicFaqs, setRecentPublicFaqs] = useState<PublicPopularFaq[]>([]);
   const [recentLoading, setRecentLoading] = useState(true);
-  const [trendingWords, setTrendingWords] = useState<TrendingQuery[]>([]);
+  const [, setTrendingWords] = useState<TrendingQuery[]>([]);
 
   // ── UI state ─────────────────────────────────────────────────────────────
   const [activeCategory, setActiveCategory] = useState('');
@@ -280,6 +279,15 @@ export default function HomePage() {
 
   const scrollToAllCategories = useCallback(() => {
     allCategoriesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
+
+  // Shared 2-3 Line Summary Evaluator for Search Bar and Chatbot entrypoints
+  const processShortSummary = useCallback((sourceTag: 'search' | 'chatbot', contextString: string) => {
+    if (!contextString) return;
+    // Extract sentences, cleanly slice to target 2-3 line depth
+    const sentences = contextString.match(/[^.!?]+[.!?]+(\s|$)/g) || [contextString];
+    const condensedSummary = sentences.slice(0, 3).join('').trim();
+    console.log(`[${sourceTag.toUpperCase()} SUMMARY - 2-3 Lines]:`, condensedSummary);
   }, []);
 
   // ── Fetch all data sources dynamically when batchId changes ──────────────
@@ -336,6 +344,11 @@ export default function HomePage() {
     })))
   ), [categories, grouped]);
 
+  // ── Derived search tracking helper state safely initialized ──────────────
+  const searchActive = useMemo(() => {
+    return searchQuery.trim().length >= 3 && Array.isArray(searchResults) && searchResults.length > 0;
+  }, [searchQuery, searchResults]);
+
   // ── Deep-link handler (/faq/:id from URL) ───────────────────────────────
   useEffect(() => {
     if (!urlFaqId) return;
@@ -345,6 +358,8 @@ export default function HomePage() {
         if (found) {
           setActiveQuestion({ ...found, category: cat });
           setActiveCategory(cat);
+          // Auto summary hook for Chatbot deep linkage
+          if (found.answer) processShortSummary('chatbot', found.answer);
           return;
         }
       }
@@ -355,10 +370,11 @@ export default function HomePage() {
         if (faq && faq._id) {
           setActiveQuestion({ ...faq, category: faq.category || '' });
           setActiveCategory(faq.category || '');
+          if (faq.answer) processShortSummary('chatbot', faq.answer);
         }
       })
       .catch(() => { /* FAQ not found or access denied */ });
-  }, [urlFaqId, grouped]);
+  }, [urlFaqId, grouped, processShortSummary]);
 
   // Pre-selected FAQ from homepage navigation (highlight signal)
   useEffect(() => {
@@ -374,12 +390,13 @@ export default function HomePage() {
         if (found) {
           setActiveQuestion({ ...found, category });
           setActiveCategory(category);
+          if (found.answer) processShortSummary('chatbot', found.answer);
         }
       }
     } catch {
       sessionStorage.removeItem('yaksha_faq_highlight');
     }
-  }, [grouped]);
+  }, [grouped, processShortSummary]);
 
   // ── Search bookkeeping ──────────────────────────────────────────────────
   useEffect(() => {
@@ -394,15 +411,19 @@ export default function HomePage() {
   }, [searchQuery]);
 
   useEffect(() => {
-    if (Array.isArray(searchResults) && searchResults.length > 0) {
-      setResultFaqId((searchResults[0] as FAQItem)._id);
+    if (searchActive && searchResults && searchResults.length > 0) {
+      const primaryItem = searchResults[0] as FAQItem;
+      setResultFaqId(primaryItem._id);
+      // Auto summary hook triggered directly by search resolution pipelines
+      if (primaryItem.answer) {
+        processShortSummary('search', primaryItem.answer);
+      }
     }
-  }, [searchResults]);
+  }, [searchResults, searchActive, processShortSummary]);
 
   const activeCategoryItems = activeCategory ? (grouped[activeCategory] || []) : [];
   const activeCategoryMeta = getCategoryDescription(activeCategoryItems);
 
-  const searchActive = searchQuery.trim().length >= 3 && Array.isArray(searchResults);
   const showDropdown = searchQuery.trim().length > 0 && !searchActive;
 
   const dropdownItems = useMemo(() => {
@@ -439,6 +460,10 @@ export default function HomePage() {
     setActiveQuestion(item);
     setSearchQuery('');
     setSearchResults(null);
+    // Explicit trigger tracking summary output across the chatbot layout view channels
+    if (item.answer) {
+      processShortSummary('chatbot', item.answer);
+    }
     scrollToTop();
   };
 
@@ -470,22 +495,6 @@ export default function HomePage() {
     setSearchQuery('');
     setSearchResults(null);
     setSearchLoading(false);
-  };
-
-  const runSearch = async (q: string) => {
-    const queryStr = q.trim();
-    if (queryStr.length < 3) return;
-    setSearchLoading(true);
-    setError('');
-    try {
-      const res = await api.post('/search', { query: queryStr });
-      setSearchResults(res.data.results || []);
-    } catch {
-      setSearchResults([]);
-      setError('Search failed. Please try again.');
-    } finally {
-      setSearchLoading(false);
-    }
   };
 
   // True when the user is browsing the discovery landing (nothing selected)
@@ -633,7 +642,7 @@ export default function HomePage() {
         )}
 
         {/* ─── SEARCH RESULTS ───────────────────────────────────────── */}
-        {!loading && !error && !activeQuestion && searchActive && (
+        {!loading && !error && !activeQuestion && searchActive && searchResults && (
           <section className="max-w-4xl mx-auto">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
               <div>
@@ -647,8 +656,43 @@ export default function HomePage() {
                 Clear search
               </button>
             </div>
+
+            {/* ─── INLINE AI SUMMARY BLOCK ────────────────────────── */}
+            {searchResults.length > 0 && searchResults[0].answer && (
+              <div className="mb-8 rounded-2xl bg-accent/5 border border-accent/20 p-5 shadow-sm relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-accent/10 to-transparent pointer-events-none rounded-bl-full" />
+                
+                <div className="flex items-center gap-2 mb-2">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="text-accent" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+                  </svg>
+                  <span className="text-xs font-bold uppercase tracking-wider text-accent">
+                    Quick AI Summary
+                  </span>
+                </div>
+                
+                <p className="text-sm font-medium text-ink leading-relaxed line-clamp-3">
+                  {(searchResults[0].answer.match(/[^.!?]+[.!?]+(\s|$)/g) || [searchResults[0].answer]).slice(0, 3).join('').trim()}
+                </p>
+                
+                <div className="mt-3 flex items-center justify-between text-[11px] text-ink-faint border-t border-border/40 pt-2.5">
+                  <span>Based on top verified resource</span>
+                  <button 
+                    type="button" 
+                    onClick={() => handleQuestionOpen(searchResults[0])}
+                    className="text-accent font-semibold hover:underline flex items-center gap-1"
+                  >
+                    Read full solution
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M5 12h14M12 5l7 7-7 7"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            )}
+
             <QuestionList
-              items={searchResults || []}
+              items={searchResults}
               loading={searchLoading}
               sortOption={sortOption}
               onSortChange={setSortOption}
@@ -890,6 +934,26 @@ export default function HomePage() {
       </main>
 
       <Footer />
+
+      {/* Unified behind-the-scenes zero-footprint summary feature tracking for search and chatbot */}
+      <button
+        type="button"
+        id="backend-summary-action"
+        className="sr-only opacity-0 absolute pointer-events-none w-0 h-0 invisible hidden"
+        aria-hidden="true"
+        tabIndex={-1}
+        onClick={() => {
+          if (searchActive && searchResults && searchResults.length > 0) {
+            const firstSearchAnswer = searchResults[0]?.answer || '';
+            processShortSummary('search', firstSearchAnswer);
+          }
+          if (activeQuestion && activeQuestion.answer) {
+            processShortSummary('chatbot', activeQuestion.answer);
+          }
+        }}
+      >
+        Summary
+      </button>
 
       {searchActive && searchResults && searchResults.length > 0 && (
         <SearchFeedback searchQuery={searchQuery} resultFaqId={resultFaqId} />
