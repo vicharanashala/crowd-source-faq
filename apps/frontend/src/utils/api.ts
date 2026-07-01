@@ -62,6 +62,24 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+// ─── Active program id (single source of truth for the interceptor) ──────
+// Set by `ProgramContext` whenever the selected program changes. The
+// request interceptor below reads from this variable instead of poking
+// localStorage on every request — localStorage is now only the
+// backwards-compat / reload-persistence layer.
+let activeProgramId: string | null = null;
+
+export function setActiveProgramId(id: string | null): void {
+  activeProgramId = id;
+}
+
+/** Read the active program id without poking localStorage. Used by
+ *  the `api.ts` interceptor and by the separate admin axios instance
+ *  (`admin/utils/adminApi.ts`) so both stacks see the same value. */
+export function getActiveProgramId(): string | null {
+  return activeProgramId;
+}
+
 // Setup caching adapter
 api.defaults.adapter = async (config) => {
   const method = config.method?.toLowerCase() || 'get';
@@ -163,7 +181,14 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
-  const programId = localStorage.getItem('yaksha_active_program_id') || localStorage.getItem('yaksha_active_batch_id');
+  // Read the active program id from the module-level variable kept in
+  // sync by `ProgramContext` via `setActiveProgramId`. Falls back to
+  // localStorage on cold start (before `ProgramProvider` has booted)
+  // so the very first request after a reload still carries the header.
+  const programId =
+    getActiveProgramId()
+    ?? localStorage.getItem('yaksha_active_program_id')
+    ?? localStorage.getItem('yaksha_active_batch_id');
   if (programId) {
     config.headers['x-program-id'] = programId;
   }

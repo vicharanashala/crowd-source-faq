@@ -21,7 +21,7 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import api, { clearApiCache } from '../utils/api';
+import api, { clearApiCache, setActiveProgramId } from '../utils/api';
 
 export interface Program {
   _id: string;
@@ -207,6 +207,10 @@ export function ProgramProvider({ children }: ProgramProviderProps): React.React
         setCurrentProgramState(picked);
         if (picked) {
           try { window.localStorage.setItem(STORAGE_KEY_NEW, picked._id); } catch { /* ignore */ }
+          // Mirror to the module-level variable the api.ts interceptor
+          // reads from so the very first request after provider boot
+          // already carries the correct x-program-id header.
+          setActiveProgramId(picked._id);
           // Strip the query param so the URL is clean. Use history.replaceState
           // so we don't re-trigger this effect via the router.
           if (fromUrl) {
@@ -236,6 +240,10 @@ export function ProgramProvider({ children }: ProgramProviderProps): React.React
     setCurrentProgramState(found);
     try {
       window.localStorage.setItem(STORAGE_KEY_NEW, id);
+      // Mirror to the module-level variable the api.ts interceptor
+      // reads from. Keeping localStorage in sync too preserves the
+      // reload-survives behaviour.
+      setActiveProgramId(id);
       // Persist to URL too so a refresh / deep-link keeps the choice.
       // Uses history.replaceState so it doesn't trigger router re-renders.
       const url = new URL(window.location.href);
@@ -250,6 +258,9 @@ export function ProgramProvider({ children }: ProgramProviderProps): React.React
     setCurrentProgramState(null);
     try {
       window.localStorage.removeItem(STORAGE_KEY_NEW);
+      // Mirror to the module-level variable so the next request
+      // doesn't carry a stale x-program-id header.
+      setActiveProgramId(null);
       const url = new URL(window.location.href);
       url.searchParams.delete('batch');
       window.history.replaceState({}, '', url.toString());
@@ -292,6 +303,9 @@ export function ProgramProvider({ children }: ProgramProviderProps): React.React
       if (match) {
         setCurrentProgramState(match);
         try { window.localStorage.setItem(STORAGE_KEY_NEW, fromUrl); } catch { /* ignore */ }
+        // Mirror to the module-level variable so the very next request
+        // already carries the updated x-program-id header.
+        setActiveProgramId(fromUrl);
       }
     };
     window.addEventListener('popstate', onPopState);

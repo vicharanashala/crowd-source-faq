@@ -1,4 +1,5 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
+import { getActiveProgramId } from '../../utils/api';
 
 const adminApi = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/csfaq/api',
@@ -10,7 +11,15 @@ adminApi.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  const programId = localStorage.getItem('yaksha_active_program_id') || localStorage.getItem('yaksha_active_batch_id');
+  // Read the active program id from the same module-level variable
+  // the main api.ts interceptor uses (`utils/api.ts` -> `activeProgramId`,
+  // written by `ProgramContext` via `setActiveProgramId`). Falls back to
+  // localStorage on cold start (before `ProgramProvider` has booted) so
+  // the very first request after a reload still carries the header.
+  const programId =
+    getActiveProgramId()
+    ?? localStorage.getItem('yaksha_active_program_id')
+    ?? localStorage.getItem('yaksha_active_batch_id');
   if (programId) {
     config.headers['x-program-id'] = programId;
   }
