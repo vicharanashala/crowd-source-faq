@@ -270,13 +270,21 @@ async function processPost(post: InstanceType<typeof CommunityPost>): Promise<vo
     // Escalate sensitive topics regardless of confidence
     if (sensitive) {
       const escalatedAt = new Date();
+      // BUGFIX (Phase 0 §2.3): we set `aiAnswerStatus: 'escalated'` which
+      // means this goes to the human-review queue — but we were ALSO
+      // persisting the raw AI `answer`/`aiAnswer`/`aiAnswerConfidence` here,
+      // which means it was getting shown to users despite "needs review"
+      // semantics. Now we only write the escalation metadata + the post's
+      // own snapshot fields; the AI-generated text is intentionally
+      // suppressed so reviewers see "escalated" with the reason only.
       await CommunityPost.updateOne(
         { _id: post._id },
         {
-          aiAnswer: answer,
-          aiAnswerConfidence: confidence,
           aiAnswerStatus: 'escalated',
-          aiAnswerSource: source,
+          // `aiAnswer` is intentionally NOT set: sensitive content must not
+          // be surfaced until a human has reviewed it.
+          aiAnswerConfidence: null,
+          aiAnswerSource: source, // keep provenance for the reviewer
           aiAnswerSuggestedAt: new Date(),
           aiAnswerEscalatedAt: escalatedAt,
           aiAnswerEscalatedReason: 'Post contains sensitive topics — requires human review',
