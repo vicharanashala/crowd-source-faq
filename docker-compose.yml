@@ -11,9 +11,13 @@
 #    backend   → Express API on port 6767
 #    frontend  → Nginx SPA on port 8080 (routing to 80 in container)
 #    mongodb   → MongoDB 7 on port 27017
+#    redis     → Redis 7 on port 6379 (shared semantic/search cache)
 #
-#  v2 — Redis removed. Document queue, cache, and rate-limit counters
-#  are now backed by MongoDB or in-process LRU.
+#  v2 — Document queue and rate-limit counters are backed by MongoDB or
+#  in-process stores. v3 — Redis reintroduced as an optional shared cache
+#  backend: when REDIS_TCP_URL is set the semantic cache is shared across
+#  instances; when unset the backend falls back to an in-process LRU.
+#  For local dev without compose: docker run -d --name local-redis -p 6379:6379 redis
 # ═══════════════════════════════════════════════════════════════════════════════
 
 version: '3.8'
@@ -28,12 +32,15 @@ services:
     depends_on:
       mongodb:
         condition: service_started
+      redis:
+        condition: service_started
     env_file:
       - apps/backend/.env
     environment:
       - NODE_ENV=production
       - MONGODB_URI=mongodb://mongodb:27017/yaksha-faq
       - JWT_SECRET=${JWT_SECRET:-supersecretjwttokengeneratedfordockercompose32chars}
+      - REDIS_TCP_URL=redis://redis:6379
     volumes:
       - ./logs:/app/logs
     restart: unless-stopped
@@ -48,6 +55,14 @@ services:
       - mongodb_data:/data/db
     environment:
       - MONGO_INITDB_DATABASE=yaksha-faq
+    restart: unless-stopped
+    networks:
+      - yaksha-net
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
     restart: unless-stopped
     networks:
       - yaksha-net

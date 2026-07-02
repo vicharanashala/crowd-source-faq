@@ -53,6 +53,30 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the architecture deep-dive 
 
 `run.sh` prompts for `MONGODB_URI` and `JWT_SECRET` on first run, then saves them to `apps/backend/.env.local`. The script will not overwrite existing values. Session logs are written to `logs/session_*.txt`.
 
+### Manual setup (Windows / no bash)
+
+```bash
+pnpm install                                  # workspace deps (repo pins pnpm@9.15.0)
+cp apps/backend/.env.example apps/backend/.env # fill in MONGODB_URI + JWT_SECRET (your own values)
+pnpm --filter yaksha-faq-backend seed          # seed FAQs + admin account (admin@yaksha.com / admin123)
+pnpm run dev                                   # backend :6767 + frontend :5173
+```
+
+Open http://localhost:5173/csfaq/. Use `pnpm` (not `npm`) — Turbo requires the pinned pnpm binary.
+
+### Optional: shared Redis cache
+
+The semantic/search cache works out of the box with an in-process LRU. To get
+a shared, restart-surviving cache (and the production behavior), start Redis
+and point the backend at it:
+
+```bash
+docker compose up -d redis     # or: docker run -d --name local-redis -p 6379:6379 redis
+```
+
+then set `REDIS_TCP_URL=redis://127.0.0.1:6379` in `apps/backend/.env`.
+Details: [docs/REDIS_CONFIG.md](docs/REDIS_CONFIG.md).
+
 ---
 
 ## Key Features
