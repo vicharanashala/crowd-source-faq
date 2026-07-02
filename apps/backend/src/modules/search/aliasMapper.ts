@@ -39,7 +39,8 @@ const __dirname = dirname(__filename);
 
 let ALIASES_PATH = join(__dirname, 'aliases.json');
 if (!existsSync(ALIASES_PATH)) {
-  const srcPath = join(__dirname, '../../../src/search/aliases.json');
+  // Compiled dist/ fallback: dist/modules/search → ../../../src/modules/search
+  const srcPath = join(__dirname, '../../../src/modules/search/aliases.json');
   if (existsSync(srcPath)) {
     ALIASES_PATH = srcPath;
   }
@@ -297,4 +298,18 @@ export function learnFromText(text: string): void {
 
 export function getAliasMapSize(): number {
   return aliasMap.size;
+}
+
+/**
+ * Full live alias table (manual + learned + generated) as a plain object.
+ * Consumed by GET /search/aliases so the frontend's "Searching also for"
+ * hints stay in sync with runtime-learned entries instead of drifting on
+ * a hardcoded mirror.
+ */
+export function getAliasEntries(): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  for (const [key, expansions] of aliasMap) {
+    out[key] = [...expansions];
+  }
+  return out;
 }
