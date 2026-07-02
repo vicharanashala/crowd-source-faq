@@ -13,7 +13,7 @@ import {
 } from '../../utils/http/search.js';
 import { searchRequests, searchResultsReturned, searchLogFlushActive, searchLogFlushes } from '../../utils/http/metrics.js';
 import { searchKnowledge } from '../knowledge/knowledge-base.service.js';
-import { expandQuery, learnFromText } from './aliasMapper.js';
+import { expandQuery, learnFromText, getAliasEntries } from './aliasMapper.js';
 
 // Cache configuration: Store up to 500 recent queries for 1 hour to reduce DB/AI loads
 const searchCache = new LRUCache<string, SearchResultItem[]>({
@@ -480,4 +480,13 @@ export const getSuggest = async (req: Request, res: Response): Promise<void> => 
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
   }
+};
+
+/**
+ * GET /search/aliases — live alias table for frontend expansion hints.
+ * Includes runtime-learned entries (learnFromText), so the UI's
+ * "Searching also for" hints match what the backend actually expands.
+ */
+export const getAliases = (_req: Request, res: Response): void => {
+  res.json({ aliases: getAliasEntries() });
 };

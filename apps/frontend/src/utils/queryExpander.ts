@@ -66,11 +66,41 @@ const aliasMap = new Map<string, string>([
   ['version control', 'git'],
 ]);
 
+// ── Live alias sync ──────────────────────────────────────────────────────────
+//
+// The static map above is only a seed/fallback: the backend keeps learning new
+// abbreviations at runtime (learnFromText → aliases.json), so we pull the live
+// table from GET /search/aliases once and use it for hints. Multi-expansion
+// aware (backend maps a key to a Set of expansions).
+
+const liveAliasMap = new Map<string, string[]>(
+  [...aliasMap.entries()].map(([k, v]) => [k, [v]])
+);
+
+let aliasSyncStarted = false;
+
+function syncAliasesFromBackend(): void {
+  if (aliasSyncStarted) return;
+  aliasSyncStarted = true;
+  import('./api').then(({ default: api }) =>
+    api.get<{ aliases: Record<string, string[]> }>('/search/aliases')
+  ).then((res) => {
+    for (const [key, expansions] of Object.entries(res.data.aliases || {})) {
+      if (Array.isArray(expansions) && expansions.length > 0) {
+        liveAliasMap.set(key, expansions);
+      }
+    }
+  }).catch(() => {
+    // Backend unavailable — static seed map keeps working as fallback.
+  });
+}
+
 /**
  * Get expansion suggestions for a query (for UI display only)
  * Note: The actual expansion happens on the backend
  */
 export function getQueryExpansions(query: string): string[] {
+  syncAliasesFromBackend();
   if (!query || !query.trim()) return [];
 
   const expansions: string[] = [];
@@ -78,23 +108,25 @@ export function getQueryExpansions(query: string): string[] {
   const originalTermsLower = new Set(query.toLowerCase().split(/\s+/).filter(Boolean));
 
   function tryExpand(lookupKey: string): void {
-    const expansion = aliasMap.get(lookupKey);
-    if (!expansion) return;
+    const candidates = liveAliasMap.get(lookupKey);
+    if (!candidates) return;
 
-    const expansionLower = expansion.toLowerCase();
-    const expansionWords = expansionLower.split(/\s+/);
-    const alreadyInQuery = expansionWords.every((w) => originalTermsLower.has(w));
-    if (alreadyInQuery) return;
+    for (const expansion of candidates) {
+      const expansionLower = expansion.toLowerCase();
+      const expansionWords = expansionLower.split(/\s+/);
+      const alreadyInQuery = expansionWords.every((w) => originalTermsLower.has(w));
+      if (alreadyInQuery) continue;
 
-    if (seenExpansions.has(expansionLower)) return;
-    seenExpansions.add(expansionLower);
+      if (seenExpansions.has(expansionLower)) continue;
+      seenExpansions.add(expansionLower);
 
-    const titleCased = expansion
-      .split(' ')
-      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-      .join(' ');
+      const titleCased = expansion
+        .split(' ')
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ');
 
-    expansions.push(titleCased);
+      expansions.push(titleCased);
+    }
   }
 
   // Token-level lookup
