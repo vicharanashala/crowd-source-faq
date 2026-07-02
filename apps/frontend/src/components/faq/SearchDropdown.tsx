@@ -1,6 +1,15 @@
 import React from 'react';
 import { FAQItem, getCategoryIcon, formatCategoryName, getQuestionTitle, getAnswerText } from './faqUtils';
 
+// Condense an answer to its first 2-3 sentences for the inline summary card.
+// Ported from the pre-restructure HomePage "Quick AI Summary" feature.
+function condenseAnswer(text: string): string {
+  // Split on sentence-ending punctuation followed by whitespace, so dots
+  // inside domains/abbreviations (e.g. "samagama.in") don't break sentences.
+  const sentences = text.split(/(?<=[.!?])\s+/);
+  return sentences.slice(0, 3).join(' ').trim();
+}
+
 interface SearchDropdownProps {
   query: string;
   items: FAQItem[];
@@ -39,6 +48,40 @@ export default function SearchDropdown({
             Clear
           </button>
         </div>
+
+        {/* ─── INLINE AI SUMMARY BLOCK ────────────────────────── */}
+        {!loading && items.length > 0 && getAnswerText(items[0]) && (
+          <div className="mx-4 mb-3 rounded-2xl bg-accent/5 border border-accent/20 p-5 shadow-sm relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-accent/10 to-transparent pointer-events-none rounded-bl-full" />
+
+            <div className="flex items-center gap-2 mb-2">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="text-accent" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+              </svg>
+              <span className="text-xs font-bold uppercase tracking-wider text-accent">
+                Quick AI Summary
+              </span>
+            </div>
+
+            <p className="text-sm font-medium text-ink leading-relaxed line-clamp-3">
+              {condenseAnswer(getAnswerText(items[0]))}
+            </p>
+
+            <div className="mt-3 flex items-center justify-between text-[11px] text-ink-faint border-t border-border/40 pt-2.5">
+              <span>Based on top verified resource</span>
+              <button
+                type="button"
+                onClick={() => onSelectQuestion(items[0])}
+                className="text-accent font-semibold hover:underline flex items-center gap-1"
+              >
+                Read full solution
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="grid gap-4 px-4 pb-4 lg:grid-cols-[1.35fr_0.95fr]">
           <div>

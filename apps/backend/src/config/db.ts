@@ -3,6 +3,11 @@ import dns from 'node:dns';
 import mongoose, { Connection } from 'mongoose';
 import { dbLog } from '../utils/http/logger.js';
 
+// Hardcoded local fallback — used when MONGODB_URI is not set in any .env file.
+// This lets the dev server boot and connect to a local mongod without any
+// extra configuration. Production deploys should always set MONGODB_URI explicitly.
+const LOCAL_FALLBACK_URI = 'mongodb://127.0.0.1:27017/crowd_source_faq';
+
 // Cache connection in serverless environment
 let cachedConnection: Connection | null = null;
 
@@ -83,25 +88,46 @@ const connectDB = async (): Promise<Connection> => {
     return cachedConnection;
   }
 
+  // Resolve URI: prefer MONGODB_URI from env (loaded from .env.local or .env),
+  // fall back to the local default so dev servers boot without manual config.
+  const uri = process.env.MONGODB_URI || process.env.MONGO_URI || process.env.DATABASE_URL || LOCAL_FALLBACK_URI;
+
   if (!process.env.MONGODB_URI) {
-    dbLog.alert('MONGODB_URI missing at startup', { nodeEnv: process.env.NODE_ENV });
-    throw new Error('MONGODB_URI environment variable is missing');
+    dbLog.info('MONGODB_URI not set — using local fallback URI', {
+      uri: LOCAL_FALLBACK_URI,
+      nodeEnv: process.env.NODE_ENV,
+    });
   }
 
   // Fix a broken DNS resolver before the mongodb+srv SRV lookup runs.
   ensureUsableDnsServers();
 
   try {
-    // Connect using the URI from environment variables with a 5-second timeout
-    cachedConnection = (await mongoose.connect(process.env.MONGODB_URI, {
-      serverSelectionTimeoutMS: 5000,
+    // Connect using the resolved URI.
+    // serverSelectionTimeoutMS: 10 s — gives a locally-starting mongod time to
+    //   accept the first connection without immediately aborting.
+    // connectTimeoutMS / socketTimeoutMS: standard OS-level socket guards.
+    cachedConnection = (await mongoose.connect(uri, {
+      serverSelectionTimeoutMS: 10000,
+      connectTimeoutMS: 10000,
+      socketTimeoutMS: 45000,
     })).connection;
 
     dbLog.info('connected at startup', { host: cachedConnection.host });
     return cachedConnection;
   } catch (error) {
     const err = error as Error;
-    dbLog.alert('connection failed at startup', { message: err.message });
+    // SSL alert 80 (internal_error) is how Atlas rejects connections from
+    // non-whitelisted IPs at the TLS handshake layer. Surface this clearly
+    // instead of letting it appear as a generic SSL failure.
+    if (err.message.includes('SSL alert number 80') || err.message.includes('ssl3_read_bytes')) {
+      dbLog.alert('connection failed — IP not whitelisted on MongoDB Atlas', {
+        hint: 'Go to https://cloud.mongodb.com → Network Access → Add IP Address and add your current IP (or 0.0.0.0/0 for dev)',
+        message: err.message,
+      });
+    } else {
+      dbLog.alert('connection failed at startup', { message: err.message, uri });
+    }
     throw error;
   }
 };

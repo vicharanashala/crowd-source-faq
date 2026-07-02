@@ -448,8 +448,7 @@ export const deleteUser = async (req: Request, res: Response): Promise<void> => 
     target.zoomConnected = false;
     target.zoomAccessToken = undefined;
     target.zoomRefreshToken = undefined;
-    target.totpEnabled = false;
-    target.totpSecret = undefined;
+
 
     await target.save();
 
@@ -507,7 +506,7 @@ export const exportUserData = async (req: Request, res: Response): Promise<void>
         points: u.points,
         tier: u.tier,
         createdAt: u.createdAt,
-        twoFactorEnabled: u.totpEnabled ?? false,
+
       },
       content: {
         communityPosts: posts.map((p: any) => ({

@@ -58,6 +58,12 @@ export async function verifyAndLoadUser(
     return null;
   }
 
+  // Reject pre-auth tokens on normal routes (prevents 2FA bypass)
+  if ((decoded as any).isPreAuth) {
+    res.status(401).json({ message: 'Not authorized. Complete 2FA verification first.' });
+    return null;
+  }
+
   if (decoded.jti) {
     const revoked = await RevokedToken.exists({ jti: decoded.jti });
     if (revoked) {

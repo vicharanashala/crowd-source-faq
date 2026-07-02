@@ -168,9 +168,9 @@ setup_env() {
   prompt_optional "NGROK_AUTH_TOKEN"    "NGROK_AUTH_TOKEN (from ngrok.com dashboard — enables webhook tunnel)"
   prompt_optional "ZOOM_CLIENT_ID"      "ZOOM_CLIENT_ID (from Zoom App marketplace)"
   prompt_optional "ZOOM_CLIENT_SECRET"  "ZOOM_CLIENT_SECRET (from Zoom App marketplace)"
-  prompt_optional "REDIS_URL"           "REDIS_URL (Upstash Redis — enables cross-instance cache)"
+  prompt_optional "REDIS_TCP_URL"       "REDIS_TCP_URL (shared search cache — redis://127.0.0.1:6379 after 'docker compose up -d redis'; skip = in-process LRU)"
+  prompt_optional "REDIS_URL"           "REDIS_URL (Upstash REST — reserved for Redis-backed rate limiting)"
   prompt_optional "REDIS_TOKEN"         "REDIS_TOKEN (Upstash REST API token)"
-  prompt_optional "REDIS_TCP_URL"       "REDIS_TCP_URL (BullMQ TCP — enables OCR / document pipeline)"
   prompt_optional "SENTRY_DSN"          "SENTRY_DSN (Sentry error tracking DSN)"
   prompt_optional "DISCORD_WEBHOOK_URL" "DISCORD_WEBHOOK_URL (channel webhook — ALERTs ping Discord when set)"
 

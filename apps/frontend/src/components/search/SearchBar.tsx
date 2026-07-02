@@ -2,6 +2,7 @@ import React, { useState, useRef, type FormEvent, type ChangeEvent } from 'react
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import api from '../../utils/api';
+import { getQueryExpansions } from '../../utils/queryExpander';
 import type { SearchResult } from '../../types/ui';
 import { useBatch } from '../../context/BatchContext';
 
@@ -48,6 +49,7 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestionError, setSuggestionError] = useState<string | null>(null);
+  const [queryExpansions, setQueryExpansions] = useState<string[]>([]);
   const isControlled = value !== undefined;
   const query = isControlled ? (value ?? '') : internalQuery;
   const suggestDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -56,7 +58,8 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   const handleSearch = async (searchQuery: string) => {
-    if (!searchQuery.trim() || searchQuery.trim().length < 3) {
+    // 2-char minimum so short acronyms (SP, QA…) reach the alias-expansion layer
+    if (!searchQuery.trim() || searchQuery.trim().length < 2) {
       onResults(null);
       onError?.(null);
       return;
@@ -108,6 +111,10 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
       setInternalQuery(val);
     }
 
+    // Update query expansions for UI display
+    const expansions = getQueryExpansions(val);
+    setQueryExpansions(expansions);
+
     // Live suggestions under the input.
     if (!disableSuggestions) {
       if (suggestDebounceRef.current) clearTimeout(suggestDebounceRef.current);
@@ -117,7 +124,7 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
     // Live results — same source the post-Enter flow uses, so the
     // dropdown and the in-page panel can never disagree on counts.
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-    if (val.trim().length >= 3) {
+    if (val.trim().length >= 2) {
       searchDebounceRef.current = setTimeout(() => handleSearch(val), 300);
     } else {
       // Below threshold — wipe results so the dropdown's empty state shows.
@@ -225,6 +232,21 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
             ))}
           </div>
         )}
+
+        {/* Query Expansion Hints */}
+        {queryExpansions.length > 0 && (
+          <div className="absolute top-full left-0 right-0 mt-2 px-4 py-3 rounded-2xl border border-accent/20 bg-accent-light shadow-subtle z-40">
+            <p className="text-xs font-semibold text-accent/80 mb-2 uppercase tracking-wide">🔍 Searching also for:</p>
+            <div className="flex flex-wrap gap-2">
+              {queryExpansions.map((expansion, idx) => (
+                <span key={idx} className="inline-block px-2.5 py-1 bg-white/50 text-accent text-xs rounded-full border border-accent/20">
+                  {expansion}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Suggestion click error */}
         {suggestionError && (
           <div className="absolute top-full left-0 right-0 mt-2 px-4 py-2 bg-danger-light border border-danger/20 rounded-xl text-xs text-danger">

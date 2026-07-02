@@ -36,11 +36,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@google-cloud/storage": "^7.21.0",
-    "@sentry/node": "^10.55.0",
     "@csfaq/types": "workspace:*",
     "@csfaq/utils": "workspace:*",
     "@csfaq/validation": "workspace:*",
+    "@google-cloud/storage": "^7.21.0",
+    "@sentry/node": "^10.55.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "discord-api-types": "^0.38.48",
@@ -49,6 +49,7 @@
     "express": "^4.18.2",
     "express-rate-limit": "^8.5.2",
     "helmet": "^8.2.0",
+    "ioredis": "^5.11.1",
     "js-yaml": "^4.1.0",
     "jsonwebtoken": "^9.0.2",
     "lru-cache": "^11.5.0",

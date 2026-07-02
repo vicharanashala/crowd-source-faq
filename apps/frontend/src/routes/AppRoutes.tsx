@@ -49,6 +49,7 @@ const AdminSupportInbox = lazy(() => import('../admin/pages/AdminSupportInbox'))
 const AdminSupportTicket = lazy(() => import('../admin/pages/AdminSupportTicket'));
 const AdminSupportGuidance = lazy(() => import('../admin/pages/AdminSupportGuidance'));
 const AdminSupportAnalytics = lazy(() => import('../admin/pages/AdminSupportAnalytics'));
+const AdminAnalytics = lazy(() => import('../admin/pages/AdminAnalytics'));
 const AdminSupportCategories = lazy(() => import('../admin/pages/AdminSupportCategories'));
 const AdminGoldenTickets = lazy(() => import('../admin/pages/AdminGoldenTickets'));
 const AdminFeatures = lazy(() => import('../admin/pages/AdminFeatures'));
@@ -152,6 +153,7 @@ export default function AppRoutes() {
           <Route path="/admin/community" element={<AdminRoute><AdminLayout><AdminCommunity /></AdminLayout></AdminRoute>} />
           <Route path="/admin/moderation" element={<AdminRoute><AdminLayout><AdminModeration /></AdminLayout></AdminRoute>} />
           <Route path="/admin/unresolved-search" element={<AdminRoute><AdminLayout><AdminUnresolvedSearch /></AdminLayout></AdminRoute>} />
+          <Route path="/admin/analytics" element={<AdminRoute><AdminLayout><AdminAnalytics /></AdminLayout></AdminRoute>} />
            <Route path="/admin/zoom-meetings" element={<AdminRoute><AdminLayout><AdminZoomMeetings /></AdminLayout></AdminRoute>} />
           <Route path="/admin/zoom-insights" element={<AdminRoute><AdminLayout><AdminZoomInsights /></AdminLayout></AdminRoute>} />
           <Route path="/admin/document-insights" element={<AdminRoute><AdminLayout><FeatureGate featureKey="documentPipeline" featureLabel="Document Pipeline"><AdminDocumentInsights /></FeatureGate></AdminLayout></AdminRoute>} />

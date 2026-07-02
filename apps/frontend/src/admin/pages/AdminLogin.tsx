@@ -24,8 +24,14 @@ export default function AdminLogin() {
     e.preventDefault();
     setError('');
     setLoading(true);
+    // Read directly from DOM first — browser autofill sets input values in the
+    // DOM without firing React's onChange, so `email`/`password` state can be
+    // empty even when the user selected a saved credential.
+    const form = e.currentTarget;
+    const emailVal = (form.querySelector('input[name="email"]') as HTMLInputElement)?.value?.trim() || email.trim();
+    const passwordVal = (form.querySelector('input[name="password"]') as HTMLInputElement)?.value || password;
     try {
-      const user: User = await login(email, password);
+      const user: User = await login(emailVal, passwordVal);
       if (!['admin', 'moderator'].includes(user.role as string)) {
         setError('Access denied. Admin privileges required.');
         return;
@@ -61,7 +67,7 @@ export default function AdminLogin() {
           <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-4"
             style={{ background: 'linear-gradient(135deg, #8b5cf6, #3b82f6)', boxShadow: '0 0 32px rgba(139,92,246,0.4)' }}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
-              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
             </svg>
           </div>
           <h1 className="text-xl font-bold text-white">Yaksha Admin</h1>
@@ -78,6 +84,8 @@ export default function AdminLogin() {
               <label className="block text-xs font-medium text-white/40 mb-2">Email address</label>
               <input
                 type="email"
+                name="email"
+                autoComplete="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 placeholder="admin@example.com"
@@ -95,6 +103,8 @@ export default function AdminLogin() {
               <label className="block text-xs font-medium text-white/40 mb-2">Password</label>
               <input
                 type="password"
+                name="password"
+                autoComplete="current-password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 placeholder="••••••••"

@@ -4,7 +4,7 @@ import SearchLog from './search-log.model.js';
 import { generateQueryEmbedding } from '../../utils/ai/embeddings.js';
 import { LRUCache } from 'lru-cache';
 import { httpLog } from '../../utils/http/logger.js';
-import { getCachedResults, setCachedResults } from '../../utils/http/cache.js';
+import { getCachedResults, setCachedResults, cacheGet, cacheSet, cacheAvailable } from '../../utils/http/cache.js';
 import {
   computeRRF,
   applySearchThreshold,
@@ -13,6 +13,7 @@ import {
 } from '../../utils/http/search.js';
 import { searchRequests, searchResultsReturned, searchLogFlushActive, searchLogFlushes } from '../../utils/http/metrics.js';
 import { searchKnowledge } from '../knowledge/knowledge-base.service.js';
+import { expandQuery, learnFromText, getAliasEntries } from './aliasMapper.js';
 
 // Cache configuration: Store up to 500 recent queries for 1 hour to reduce DB/AI loads
 const searchCache = new LRUCache<string, SearchResultItem[]>({
@@ -248,6 +249,10 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
         userId: userObjectId,
         batchId: batchIdObjectId,
       });
+      for (const result of cachedResults) {
+        const text = `${(result as any).question ?? ''} ${(result as any).answer ?? ''}`.trim();
+        if (text) learnFromText(text);
+      }
       res.json({ results: cachedResults, total: cachedResults.length, cached: true });
       return;
     }
@@ -267,31 +272,41 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
         userId: userObjectId,
         batchId: batchIdObjectId,
       });
+      for (const result of cachedResults) {
+        const text = `${(result as any).question ?? ''} ${(result as any).answer ?? ''}`.trim();
+        if (text) learnFromText(text);
+      }
       res.json({ results: cachedResults, total: cachedResults.length, cached: true });
       return;
     }
 
-    // 2. Compute AI Embedding for the search term. If the embedding service
-    //    is unreachable (e.g. local model/endpoint down), DON'T fail the whole
-    //    request — degrade gracefully to keyword-only search. The hybrid
+    // 2. Expand query with aliases, acronyms, and typo corrections before
+    //    embedding/search. The cache key stays the original query so repeated
+    //    identical queries still hit the cache; only the embedding and text
+    //    layers receive the enriched string.
+    const expandedQuery = expandQuery(query);
+
+    // 3. Compute AI Embedding for the (alias-expanded) term. If the embedding
+    //    service is unreachable (e.g. local model/endpoint down), DON'T fail the
+    //    whole request — degrade gracefully to keyword-only search. The hybrid
     //    pipeline already runs a $text ranker, so results still come back.
     let embedding: number[] | null = null;
     try {
-      embedding = await generateQueryEmbedding(query);
+      embedding = await generateQueryEmbedding(expandedQuery);
     } catch (embErr) {
       httpLog.warn('search.embedding.failed — falling back to keyword-only search', {
         error: embErr instanceof Error ? embErr.message : String(embErr),
       });
     }
 
-    // 3. Execute Vector (when an embedding is available) + Text searches in
+    // 4. Execute Vector (when an embedding is available) + Text searches in
     //    parallel across both collections for maximum speed.
     const empty = Promise.resolve([] as SearchResultItem[]);
     const [faqVec, commVec, faqTxt, commTxt] = await Promise.all([
       embedding ? runVectorSearch('yaksha_faq_faqs', embedding, 5, batchIdObjectId) : empty,
       embedding ? runVectorSearch('yaksha_faq_communityposts', embedding, 5, batchIdObjectId) : empty,
-      runTextSearch('yaksha_faq_faqs', query, 5, batchIdObjectId),
-      runTextSearch('yaksha_faq_communityposts', query, 5, batchIdObjectId)
+      runTextSearch('yaksha_faq_faqs', expandedQuery, 5, batchIdObjectId),
+      runTextSearch('yaksha_faq_communityposts', expandedQuery, 5, batchIdObjectId)
     ]);
     
     // Tag results with their origin source (FAQ vs Community)
@@ -347,6 +362,14 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
     searchCache.set(normalizedQuery, filtered);
     await setCachedResults(normalizedQuery, filtered);
 
+    // Learn abbreviations from returned FAQ content opportunistically.
+    // Each result may contain patterns like "Spurti Points (SP)" that the
+    // extractor can pick up and persist — fire-and-forget, zero search latency.
+    for (const result of filtered) {
+      const text = `${(result as any).question ?? ''} ${(result as any).answer ?? ''}`.trim();
+      if (text) learnFromText(text);
+    }
+
     // 7. Buffer search log entry for batched async write (non-blocking)
     const topResult = filtered[0] || null;
     bufferSearchLog({
@@ -373,6 +396,15 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
 export const getTrending = async (req: Request, res: Response): Promise<void> => {
   try {
     const rawBatchId = req.query.batchId || req.programContext?.batchId;
+    const cacheKey = `trending:${rawBatchId || ''}`;
+    if (cacheAvailable()) {
+      const cached = await cacheGet<{ trending: unknown[] }>(cacheKey);
+      if (cached) {
+        res.json(cached);
+        return;
+      }
+    }
+
     const batchIdObjectId = typeof rawBatchId === 'string' && Types.ObjectId.isValid(rawBatchId)
       ? new Types.ObjectId(rawBatchId)
       : null;
@@ -403,7 +435,11 @@ export const getTrending = async (req: Request, res: Response): Promise<void> =>
     );
 
     const trending = await SearchLog.aggregate(pipeline);
-    res.json({ trending });
+    const responseData = { trending };
+    if (cacheAvailable()) {
+      await cacheSet(cacheKey, responseData, 300); // 5 min TTL
+    }
+    res.json(responseData);
   } catch (error) {
     res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
@@ -444,4 +480,13 @@ export const getSuggest = async (req: Request, res: Response): Promise<void> => 
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
   }
+};
+
+/**
+ * GET /search/aliases — live alias table for frontend expansion hints.
+ * Includes runtime-learned entries (learnFromText), so the UI's
+ * "Searching also for" hints match what the backend actually expands.
+ */
+export const getAliases = (_req: Request, res: Response): void => {
+  res.json({ aliases: getAliasEntries() });
 };

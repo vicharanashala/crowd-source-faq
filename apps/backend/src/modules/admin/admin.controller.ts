@@ -5,7 +5,7 @@ import User, { IUser } from '../auth/user.model.js';
 import SearchLog from '../search/search-log.model.js';
 import AdminLog from './admin-log.model.js';
 import CommunityPost from '../community/community-post.model.js';
-import { invalidateCache } from '../../utils/http/cache.js';
+import { invalidateCache, cacheGet, cacheSet, cacheAvailable } from '../../utils/http/cache.js';
 import { invalidatePublicCaches } from '../faq/public-faq.controller.js';
 import { sanitizeHtml } from '../../utils/http/sanitize.js';
 import { adminLog } from '../../utils/http/logger.js';
@@ -35,15 +35,24 @@ export const logAction = async (
 // GET /api/admin/stats
 export const getStats = async (req: Request, res: Response): Promise<void> => {
   try {
-    const now = new Date();
-    const todayStart = new Date(now.setHours(0, 0, 0, 0));
-    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
     const batchId = (req.query.batchId as string | undefined) ?? req.programContext?.batchId ?? null;
+    const cacheKey = `stats:admin:${batchId || ''}`;
+    if (cacheAvailable()) {
+      const cached = await cacheGet<any>(cacheKey);
+      if (cached) {
+        res.json(cached);
+        return;
+      }
+    }
 
     if (batchId) {
       setContextBatchId(batchId);
     }
+
+    const now = new Date();
+    const todayStart = new Date(now.setHours(0, 0, 0, 0));
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
 
     const [
       totalFaqs,
@@ -94,7 +103,7 @@ export const getStats = async (req: Request, res: Response): Promise<void> => {
     const { getDocumentQueueStatusSync } = await import('../../utils/jobs/documentQueue.js');
     const documentQueueStatus = getDocumentQueueStatusSync();
 
-    res.json({
+    const responseData = {
       totalFaqs,
       pendingFaqs,
       approvedFaqs,
@@ -107,7 +116,13 @@ export const getStats = async (req: Request, res: Response): Promise<void> => {
       newUsersThisWeek: usersThisWeek,
       trends: { faqs: parseFloat(faqTrend) },
       documentQueueStatus,
-    });
+    };
+
+    if (cacheAvailable()) {
+      await cacheSet(cacheKey, responseData, 30); // 30 sec TTL
+    }
+
+    res.json(responseData);
   } catch (error) {
     res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }

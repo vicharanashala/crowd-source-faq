@@ -5,6 +5,7 @@ import {
   semanticSearch,
   getTrending,
   getSuggest,
+  getAliases,
 } from './search.controller.js';
 import { programScope } from '../../middleware/programScope.js';
 import {
@@ -30,6 +31,7 @@ const suggestLimiter = rateLimit({
 // ── Public search ──────────────────────────────────────────────────────────
 router.get('/trending', programScope({ required: false }), getTrending);
 router.get('/suggest',  suggestLimiter, getSuggest);
+router.get('/aliases',  suggestLimiter, getAliases);
 
 // ── Semantic search (public — no auth required) ─────────────────────────────
 router.post('/', programScope({ required: false }), semanticSearch);
