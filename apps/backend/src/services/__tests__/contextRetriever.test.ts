@@ -113,7 +113,7 @@ describe('fetchContext — source registry', () => {
   it('auto-registers the default text sources on import', () => {
     const names = listSources().map((s) => s.name).sort();
     expect(names).toEqual(
-      ['comments', 'community', 'faq', 'kb', 'recent_activity', 'web'].sort(),
+      ['comments', 'community', 'document', 'faq', 'kb', 'recent_activity', 'web'].sort(),
     );
   });
 

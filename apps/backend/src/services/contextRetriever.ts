@@ -41,6 +41,7 @@ import { communityTextSource } from './retrievalSources/communityTextSource.js';
 import { commentsSource } from './retrievalSources/commentsSource.js';
 import { recentActivitySource } from './retrievalSources/recentActivitySource.js';
 import { webTextSource } from './retrievalSources/webTextSource.js';
+import { documentTextSource } from './retrievalSources/documentTextSource.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -50,7 +51,8 @@ export type RetrievalSourceName =
   | 'community'
   | 'comments'
   | 'recent_activity'
-  | 'web';
+  | 'web'
+  | 'document';
 
 /** A single ranked hit. Sources return Omit<RankedHit, 'rank' | 'ageDays'>;
  *  fetchContext fills those in after normalization. */
@@ -245,6 +247,7 @@ export function registerDefaultSources(): void {
   registerSource(commentsSource);
   registerSource(recentActivitySource);
   registerSource(webTextSource);
+  registerSource(documentTextSource);
 }
 
 // Auto-register on module load — the retriever is supposed to be
