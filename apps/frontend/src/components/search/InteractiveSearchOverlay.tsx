@@ -89,7 +89,7 @@ export default function InteractiveSearchOverlay({ onSearchComplete, variant = '
 
   const normalizedQuery = query.trim().toLowerCase();
   const isTyping = normalizedQuery.length > 0;
-  const isReadyForResults = query.trim().length >= 3;
+  const isReadyForResults = query.trim().length >= 2;
   const showDropdown = isTyping || loading || Array.isArray(results);
   const showResultsPanel = loading || Array.isArray(results);
 

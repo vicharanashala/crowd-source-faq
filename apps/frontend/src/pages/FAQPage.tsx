@@ -201,7 +201,7 @@ export default function FAQPage() {
   const activeCategoryItems = activeCategory ? (grouped[activeCategory] || []) : [];
   const activeCategoryMeta = getCategoryDescription(activeCategoryItems);
 
-  const searchActive = searchQuery.trim().length >= 3 && Array.isArray(searchResults) && searchResults.length > 0;
+  const searchActive = searchQuery.trim().length >= 2 && Array.isArray(searchResults) && searchResults.length > 0;
   // v2 — Show the glassmorphic dropdown as soon as the user types a single
   // character. The dropdown's left column shows live results from the same
   // `searchResults` array that the in-page section consumes below, so the

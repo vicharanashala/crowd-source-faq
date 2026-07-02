@@ -58,7 +58,8 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   const handleSearch = async (searchQuery: string) => {
-    if (!searchQuery.trim() || searchQuery.trim().length < 3) {
+    // 2-char minimum so short acronyms (SP, QA…) reach the alias-expansion layer
+    if (!searchQuery.trim() || searchQuery.trim().length < 2) {
       onResults(null);
       onError?.(null);
       return;
@@ -123,7 +124,7 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
     // Live results — same source the post-Enter flow uses, so the
     // dropdown and the in-page panel can never disagree on counts.
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-    if (val.trim().length >= 3) {
+    if (val.trim().length >= 2) {
       searchDebounceRef.current = setTimeout(() => handleSearch(val), 300);
     } else {
       // Below threshold — wipe results so the dropdown's empty state shows.
