@@ -38,6 +38,7 @@ import registrationControlRoutes from '../modules/program/registration-control.r
 import adminCategoryClusterRoutes from '../modules/program/admin-category-cluster.routes.js';
 import publicCategoryClusterRoutes from '../modules/program/public-category-cluster.routes.js';
 import healthRoutes from '../modules/health/health.routes.js';
+import vinsRoutes from '../modules/vins/vins.routes.js';
 
 export function registerRoutes(app: Express): void {
   const router = express.Router();
@@ -60,6 +61,7 @@ export function registerRoutes(app: Express): void {
   router.use('/upload', uploadRoutes);
   router.use('/public', publicFaqRoutes);
   router.use('/health', healthRoutes);
+  router.use('/vins', vinsRoutes);
   router.use('/batches', batchRoutes);
   router.use('/programs', programRoutes);
   router.use('/admin/programs', adminProgramSettingsRoutes);
