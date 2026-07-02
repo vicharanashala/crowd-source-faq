@@ -121,21 +121,24 @@ const seed = async () => {
             const existing = await FAQ.findOne({ question: faq.question });
             if (existing) { skipped++; return; }
 
-        const embedding = await generateEmbedding(`Section: ${faq.category ?? faq.section ?? 'General'}. Question: ${faq.question}. Answer: ${faq.answer}`);
-        await FAQ.create({
-          question: faq.question,
-          answer: faq.answer,
-          category: faq.category ?? faq.section ?? 'General',
-          embedding,
-          searchCount: 0,
-          status: 'approved',
-          reviewStatus: 'verified',
-          // Tie every newly-seeded FAQ to the default program so the
-          // public home page actually has data to render.
-          batchId: defaultBatch._id,
-        });
-        inserted++;
-        if ((i + 1) % 10 === 0) console.log(`  Processed ${i + 1}/${allFaqs.length} (${inserted} inserted, ${skipped} skipped)`);
+            const embedding = await generateEmbedding(`Section: ${faq.category ?? faq.section ?? 'General'}. Question: ${faq.question}. Answer: ${faq.answer}`);
+            await FAQ.create({
+              question: faq.question,
+              answer: faq.answer,
+              category: faq.category ?? faq.section ?? 'General',
+              embedding,
+              searchCount: 0,
+              status: 'approved',
+              reviewStatus: 'verified',
+              // Tie every newly-seeded FAQ to the default program so the
+              // public home page actually has data to render.
+              batchId: defaultBatch._id,
+            });
+            inserted++;
+          } catch (err) {
+            console.error(`Error seeding FAQ:`, err);
+          }
+        }));
       }
 
       console.log(`  ✓ ${inserted} inserted, ${skipped} skipped`);
