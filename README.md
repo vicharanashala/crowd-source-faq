@@ -2,8 +2,8 @@
 
 Full-stack FAQ portal with semantic vector search, AI-powered community moderation, and an expert promotion layer. Built to handle 1 million registered users.
 
-GitHub: https://github.com/vicharanashala/crowd-source-faq
-Full reference: [`docs/`](docs/README.md) · [Contributing](./CONTRIBUTING.md) · [Code of Conduct](./CODE_OF_CONDUCT.md) · [License](./LICENSE)
+GitHub: https://github.com/Sarthak-Kushwah/crowd-source-faq
+Full reference: [docs/](docs/README.md) · [Contributing](./CONTRIBUTING.md) · [Code of Conduct](./CODE_OF_CONDUCT.md) · [License](./LICENSE)
 
 ---
 

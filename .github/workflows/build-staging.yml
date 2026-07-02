@@ -7,8 +7,10 @@
 #    • Manual workflow_dispatch with build/deploy toggles
 #
 #  Required GitHub Secrets:
-#    DOCKERHUB_USERNAME   — Docker Hub account username
-#    DOCKERHUB_TOKEN      — Docker Hub access token
+#    DOCKER_USERNAME      — Docker Hub account username (preferred)
+#    DOCKER_PASSWORD      — Docker Hub access token (preferred)
+#    DOCKERHUB_USERNAME   — Backward-compatible Docker Hub username fallback
+#    DOCKERHUB_TOKEN      — Backward-compatible Docker Hub token fallback
 #    STAGING_SSH_HOST      — Staging VPS hostname / IP
 #    STAGING_SSH_USER      — SSH username on staging VPS
 #    STAGING_SSH_KEY       — SSH private key for staging VPS
@@ -42,13 +44,13 @@ on:
 
 permissions:
   contents: read
-  packages: write
-  id-token: write
 
 env:
   BACKEND_IMAGE: csfaq-backend
   INFISICAL_ENVIRONMENT: staging
   INFISICAL_SECRET_PATH: /
+  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME || secrets.DOCKERHUB_USERNAME }}
+  DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD || secrets.DOCKERHUB_TOKEN }}
 
 jobs:
   # ── Build & Push Docker Images ─────────────────────────────────────────────
@@ -66,20 +68,39 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Resolve Docker Hub credentials
+        id: docker-creds
+        shell: bash
+        env:
+          DOCKER_USERNAME: ${{ env.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ env.DOCKER_PASSWORD }}
+        run: |
+          if [ -z "${DOCKER_USERNAME}" ] || [ -z "${DOCKER_PASSWORD}" ]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "available=true" >> "$GITHUB_OUTPUT"
+
       - name: Login to Docker Hub
+        if: ${{ steps.docker-creds.outputs.available == 'true' }}
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          username: ${{ env.DOCKER_USERNAME }}
+          password: ${{ env.DOCKER_PASSWORD }}
 
       - name: Generate image tags
+        if: ${{ steps.docker-creds.outputs.available == 'true' }}
         id: tags
+        env:
+          DOCKER_USERNAME: ${{ env.DOCKER_USERNAME }}
         run: |
           SHA_SHORT=$(echo "${{ github.sha }}" | cut -c1-7)
           echo "sha_short=$SHA_SHORT" >> "$GITHUB_OUTPUT"
-          echo "backend_tags=${{ secrets.DOCKERHUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:staging,${{ secrets.DOCKERHUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:staging-$SHA_SHORT" >> "$GITHUB_OUTPUT"
+          echo "backend_tags=${DOCKER_USERNAME}/${{ env.BACKEND_IMAGE }}:staging,${DOCKER_USERNAME}/${{ env.BACKEND_IMAGE }}:staging-$SHA_SHORT" >> "$GITHUB_OUTPUT"
 
       - name: Build & Push Unified Image
+        if: ${{ steps.docker-creds.outputs.available == 'true' }}
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -91,6 +112,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Summary
+        if: ${{ steps.docker-creds.outputs.available == 'true' }}
         run: |
           echo "### 🐳 Unified Image Pushed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -98,11 +120,18 @@ jobs:
           echo "|---------|------|" >> $GITHUB_STEP_SUMMARY
           echo "| Backend & Frontend (Unified) | \`staging\`, \`staging-${{ steps.tags.outputs.sha_short }}\` |" >> $GITHUB_STEP_SUMMARY
 
+      - name: Summary when Docker Hub credentials are unavailable
+        if: ${{ steps.docker-creds.outputs.available != 'true' }}
+        run: |
+          echo "### 🐳 Docker image push skipped" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Docker Hub credentials were not configured for this run, so the publish step completed without pushing an image." >> $GITHUB_STEP_SUMMARY
+
   # ── Deploy to Staging VPS ──────────────────────────────────────────────────
   deploy:
     if: >-
-      github.event_name == 'push' ||
-      github.event.inputs.should_deploy == 'true'
+      github.event.repository.fork != true &&
+      (github.event_name == 'push' || github.event.inputs.should_deploy == 'true')
     name: Deploy to Staging
     runs-on: ubuntu-latest
     needs: build
@@ -111,8 +140,38 @@ jobs:
       STAGING_SSH_HOST: ${{ secrets.STAGING_SSH_HOST }}
 
     steps:
+      - name: Resolve deployment prerequisites
+        id: deploy-check
+        shell: bash
+        env:
+          STAGING_SSH_HOST: ${{ secrets.STAGING_SSH_HOST }}
+          STAGING_SSH_USER: ${{ secrets.STAGING_SSH_USER }}
+          STAGING_SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+          INFISICAL_TOKEN: ${{ secrets.INFISICAL_TOKEN }}
+          INFISICAL_PROJECT_ID: ${{ secrets.INFISICAL_PROJECT_ID }}
+          DOCKER_USERNAME: ${{ env.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ env.DOCKER_PASSWORD }}
+        run: |
+          missing=()
+
+          [ -z "${STAGING_SSH_HOST}" ] && missing+=("STAGING_SSH_HOST")
+          [ -z "${STAGING_SSH_USER}" ] && missing+=("STAGING_SSH_USER")
+          [ -z "${STAGING_SSH_KEY}" ] && missing+=("STAGING_SSH_KEY")
+          [ -z "${INFISICAL_TOKEN}" ] && missing+=("INFISICAL_TOKEN")
+          [ -z "${INFISICAL_PROJECT_ID}" ] && missing+=("INFISICAL_PROJECT_ID")
+          [ -z "${DOCKER_USERNAME}" ] && missing+=("DOCKER_USERNAME or DOCKERHUB_USERNAME")
+          [ -z "${DOCKER_PASSWORD}" ] && missing+=("DOCKER_PASSWORD or DOCKERHUB_TOKEN")
+
+          if [ "${#missing[@]}" -ne 0 ]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            printf 'missing=%s\n' "${missing[*]}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "available=true" >> "$GITHUB_OUTPUT"
+
       - name: Deploy via SSH
-        if: ${{ env.STAGING_SSH_HOST != '' }}
+        if: ${{ steps.deploy-check.outputs.available == 'true' }}
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.STAGING_SSH_HOST }}
@@ -121,20 +180,24 @@ jobs:
           script: |
             set -e
 
-            echo "📦 Pulling latest staging unified image..."
-            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.BACKEND_IMAGE }}:staging
-
-            echo "🚀 Deploying with docker-compose..."
             cd ~/yaksha-faq || cd /opt/yaksha-faq
 
+            echo "🔐 Logging in to Docker Hub on the staging host..."
+            echo "${{ env.DOCKER_PASSWORD }}" | docker login -u "${{ env.DOCKER_USERNAME }}" --password-stdin
+
             export TAG=staging
-            export DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
+            export DOCKERHUB_USERNAME=${{ env.DOCKER_USERNAME }}
             export INFISICAL_TOKEN="${{ secrets.INFISICAL_TOKEN }}"
             export INFISICAL_ENVIRONMENT=${{ env.INFISICAL_ENVIRONMENT }}
             export INFISICAL_PROJECT_ID="${{ secrets.INFISICAL_PROJECT_ID }}"
             export INFISICAL_SECRET_PATH=${{ env.INFISICAL_SECRET_PATH }}
 
-            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+            echo "📦 Pulling latest staging unified image..."
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml pull backend
+
+            echo "🚀 Deploying with docker-compose..."
+
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-build
 
             echo "🏥 Waiting for backend to become healthy (max 60s)..."
             HEALTHY=0
@@ -155,9 +218,16 @@ jobs:
             echo "✅ Staging deployment complete!"
 
       - name: Deployment Summary
-        if: ${{ env.STAGING_SSH_HOST != '' }}
+        if: ${{ steps.deploy-check.outputs.available == 'true' }}
         run: |
           echo "### 🚀 Staging Deployment" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Deployed to staging VPS at \`${{ secrets.STAGING_SSH_HOST }}\`" >> $GITHUB_STEP_SUMMARY
           echo "Image: \`staging\` tag" >> $GITHUB_STEP_SUMMARY
+
+      - name: Deployment skipped summary
+        if: ${{ steps.deploy-check.outputs.available != 'true' }}
+        run: |
+          echo "### 🚀 Staging Deployment Skipped" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Missing deployment prerequisites: ${{ steps.deploy-check.outputs.missing }}" >> $GITHUB_STEP_SUMMARY

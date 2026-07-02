@@ -28,8 +28,8 @@ Refs #ISSUE-NUMBER (if partial)
 
 ## Checklist
 
-- [ ] `cd backend && npx tsc --noEmit` — clean
-- [ ] `cd frontend && npx tsc --noEmit` — clean
+- [ ] `cd apps/backend && npx tsc --noEmit` — clean
+- [ ] `cd apps/frontend && npx tsc --noEmit` — clean
 - [ ] Tests pass (`npm test` in affected package)
 - [ ] Single logical change — unrelated fixes noted in description, not fixed here
 - [ ] Docs updated if route / API / env var / pipeline behaviour changed
