@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../ui/Button';
+import VoiceInputButton from '../ui/VoiceInputButton';
 import api, { friendlyError } from '../../utils/api';
 import type { Post } from '../../types/ui';
 import { useAuth } from '../../hooks/useAuth';
@@ -356,16 +357,22 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
             <label htmlFor="post-title" className="block text-xs font-medium text-ink-soft mb-1.5">
               Title <span className="text-danger">*</span>
             </label>
-            <input
-              id="post-title"
-              type="text"
-              value={title}
-              onChange={(e) => handleTitleChange(e.target.value)}
-              placeholder="E.g. How do I request leave during the internship?"
-              maxLength={150}
-              required
-              className="w-full rounded-xl border border-border bg-mist px-3 py-2.5 text-sm text-ink placeholder-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/25 focus:bg-card transition-all"
-            />
+            <div className="flex items-center gap-2">
+              <input
+                id="post-title"
+                type="text"
+                value={title}
+                onChange={(e) => handleTitleChange(e.target.value)}
+                placeholder="E.g. How do I request leave during the internship?"
+                maxLength={150}
+                required
+                className="flex-1 rounded-xl border border-border bg-mist px-3 py-2.5 text-sm text-ink placeholder-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/25 focus:bg-card transition-all"
+              />
+              <VoiceInputButton
+                onTranscript={(text) => handleTitleChange(title ? title + ' ' + text : text)}
+                disabled={loading}
+              />
+            </div>
             <div className="flex items-center justify-between mt-1">
               <div>
                 {checkingDuplicates && (
@@ -430,9 +437,15 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
           )}
 
           <div>
-            <label htmlFor="post-body" className="block text-xs font-medium text-ink-soft mb-1.5">
-              Description <span className="text-danger">*</span>
-            </label>
+            <div className="flex items-start gap-2">
+              <label htmlFor="post-body" className="block text-xs font-medium text-ink-soft mb-1.5 flex-1">
+                Description <span className="text-danger">*</span>
+              </label>
+              <VoiceInputButton
+                onTranscript={(text) => handleBodyChange(body ? body + ' ' + text : text)}
+                disabled={loading}
+              />
+            </div>
             <textarea
               id="post-body"
               value={body}

@@ -4,6 +4,7 @@ import api, { friendlyError } from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
 import { useAuthModal } from '../../context/AuthModalContext';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
+import VoiceInputButton from '../ui/VoiceInputButton';
 
 const ANON_AI_LIMIT = 5;
 const ANON_AI_COUNT_KEY = 'yaksha_anon_ai_count';
@@ -417,6 +418,10 @@ export default function AskAIButton() {
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
             </button>
+            <VoiceInputButton
+              onTranscript={(text) => setQuery((prev) => (prev ? prev + ' ' : '') + text)}
+              disabled={isLoading || quotaExhausted}
+            />
             <div className="flex-1">
               <textarea ref={inputRef} value={query} onChange={e => setQuery(e.target.value)} onKeyDown={handleKeyDown} placeholder={quotaExhausted ? 'Sign in to continue...' : 'Ask the FAQ Assistant...'} rows={1} disabled={quotaExhausted} className="w-full bg-bg rounded-2xl border border-border px-4 py-2.5 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:border-accent/50 focus:ring-2 focus:ring-accent/15 resize-none leading-6 max-h-[120px] disabled:opacity-50 disabled:cursor-not-allowed transition-all" />
             </div>
