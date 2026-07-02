@@ -1,8 +1,49 @@
 import { Router } from 'express';
 import { protect } from '../../middleware/auth.js';
 import { getGcsConfig, signGcsUpload, isOurGcsAsset } from '../../integrations/gcs/gcs.js';
+import { getCloudinaryConfig, signUploadParams } from '../../integrations/cloudinary/cloudinary.js';
 
 const router = Router();
+
+/**
+ * GET /csfaq/api/upload/sign/cloudinary/svg
+ *
+ * Returns a Cloudinary signed upload payload for SVG flowcharts.
+ * The browser uploads the SVG DIRECTLY to Cloudinary using these
+ * signed params — file bytes never traverse our backend.
+ *
+ * After upload, the browser POSTs the returned metadata to
+ * POST /admin/welcome/resources with kind=svg and the Cloudinary
+ * secure_url + public_id.
+ *
+ * Params:
+ *   - subfolder: defaults to 'onboarding-svgs'; Cloudinary folder under
+ *     which the asset will be stored (CLOUDINARY_FOLDER env var scopes
+ *     the top level).
+ */
+router.get('/sign/cloudinary/svg', protect, (req, res) => {
+  try {
+    const cfg = getCloudinaryConfig();
+    const subfolder = String(req.query.subfolder ?? 'onboarding-svgs');
+    const params = signUploadParams(cfg, { folder: `${cfg.folder}/${subfolder}` });
+    res.json({
+      cloudName: params.cloudName,
+      apiKey: params.apiKey,
+      timestamp: params.timestamp,
+      signature: params.signature,
+      folder: params.folder,
+      // The browser POSTs to this URL.
+      uploadUrl: `https://api.cloudinary.com/v1_1/${params.cloudName}/auto/upload`,
+    });
+  } catch (err) {
+    const msg = (err as Error).message;
+    if (msg.includes('Cloudinary is not configured')) {
+      res.status(503).json({ message: msg });
+      return;
+    }
+    res.status(500).json({ message: 'Failed to sign upload params.' });
+  }
+});
 
 /**
  * GET /csfaq/api/upload/sign

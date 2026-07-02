@@ -44,7 +44,9 @@ export function registerMiddleware(app: Express, config: any): void {
     res.setHeader('X-Request-ID', requestId);
 
     const ctx = { requestId, userId: (req as Request & { user?: { id: string } }).user?.id };
-    runWithContext(ctx, async () => { next(); });
+    runWithContext(ctx, async () => {
+      next();
+    });
   });
 
   // 4. Request logging
@@ -72,16 +74,78 @@ export function registerMiddleware(app: Express, config: any): void {
           callback(new Error(`Origin ${origin} not allowed by CORS`));
         },
         credentials: true,
-      }),
+      })
     );
   } else {
     app.use(cors({ origin: true, credentials: true }));
   }
 
   // 6. Security headers via Helmet
-  app.use(helmet({
-    crossOriginResourcePolicy: false,
-  }));
+  //
+  // CSP fix for the Cloudinary signed-upload flow: the browser POSTs
+  // files DIRECTLY to https://api.cloudinary.com/v1_1/<cloud>/auto/upload
+  // (see apps/frontend/src/hooks/useCloudinarySvgUpload.ts). Helmet 8's
+  // default CSP sets `default-src 'self'` which silently blocks that
+  // cross-origin POST and surfaces as "Failed to create resource." in
+  // the admin UI.
+  //
+  // We set the CSP ourselves in a final response middleware (below) —
+  // NOT via helmet's contentSecurityPolicy option. That gives us a
+  // single source of truth and makes the policy survive a reverse
+  // proxy (nginx, Cloudflare) silently stripping or replacing the
+  // upstream header. We still keep helmet for the OTHER security
+  // headers (X-Frame-Options, X-Content-Type-Options, Strict-Transport-
+  // Security, Referrer-Policy, etc.).
+  //
+  // See infra/nginx/csfaq.conf for the matching nginx snippet.
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: false,
+      // Disable helmet's CSP entirely — we set it ourselves below
+      // so that no proxy can accidentally re-introduce helmet's
+      // default `default-src 'self'` and block Cloudinary again.
+      contentSecurityPolicy: false,
+    })
+  );
+
+  // Single source of truth for the CSP. This runs LAST in the
+  // middleware chain (well, after helmet and the static mounts —
+  // none of them touch CSP) and unconditionally emits the header,
+  // guaranteeing the browser sees EXACTLY one Content-Security-Policy
+  // header with the directives we want. If a proxy upstream added a
+  // second CSP, the browser would enforce the intersection — i.e.
+  // the most restrictive combination — which is exactly the failure
+  // mode that produced the production bug report (`img-src 'self'
+  // data:` from helmet, while the Cloudinary hosts were also listed
+  // in our CSP, but the browser still blocked them because the
+  // intersect of `img-src 'self' data:` and `img-src https://res.
+  // cloudinary.com` is `img-src 'self' data:`).
+  app.use((_req: Request, res: Response, next: NextFunction) => {
+    res.setHeader(
+      'Content-Security-Policy',
+      [
+        "default-src 'self'",
+        "base-uri 'self'",
+        // img-src + media-src: needed for SVG previews, image
+        // attachments, and any other media served from Cloudinary.
+        "img-src 'self' data: blob: https://res.cloudinary.com",
+        "media-src 'self' data: blob: https://res.cloudinary.com",
+        "font-src 'self' https: data:",
+        "style-src 'self' https: 'unsafe-inline'",
+        "script-src 'self' https://fonts.googleapis.com",
+        // connect-src: needed for the browser→Cloudinary signed
+        // upload (api.cloudinary.com) and for HuggingFace Inference
+        // (RAG / embeddings). Zoom endpoints included for symmetry
+        // since the server may proxy to them too.
+        "connect-src 'self' https://api.cloudinary.com https://res.cloudinary.com https://api-inference.huggingface.co https://zoom.us https://api.zoom.us",
+        "frame-ancestors 'self'",
+        "form-action 'self'",
+        "object-src 'none'",
+        'upgrade-insecure-requests',
+      ].join('; ')
+    );
+    next();
+  });
 
   // 7. Body Parsing
   app.use(express.json());
@@ -92,7 +156,10 @@ export function registerMiddleware(app: Express, config: any): void {
   // 8. Minimal Cookie parser
   app.use((req: Request, _res: Response, next: (e?: unknown) => void) => {
     const header = req.headers.cookie;
-    if (!header) { next(); return; }
+    if (!header) {
+      next();
+      return;
+    }
     const jar: Record<string, string> = {};
     for (const part of header.split(';')) {
       const eq = part.indexOf('=');
@@ -100,7 +167,11 @@ export function registerMiddleware(app: Express, config: any): void {
       const k = part.slice(0, eq).trim();
       const v = part.slice(eq + 1).trim();
       if (!k) continue;
-      try { jar[k] = decodeURIComponent(v); } catch { /* malformed */ }
+      try {
+        jar[k] = decodeURIComponent(v);
+      } catch {
+        /* malformed */
+      }
     }
     (req as Request & { cookies: Record<string, string> }).cookies = jar;
     next();

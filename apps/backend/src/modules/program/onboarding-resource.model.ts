@@ -64,10 +64,18 @@ export interface IOnboardingResource extends Document {
    * For file kinds (video/pdf/pptx/svg/markdown/txt): relative path
    * served from the backend (e.g. `/uploads/onboarding-resources/<id>.<ext>`).
    * For kind=link: external absolute URL.
+   * For kind=svg (Cloudinary): Cloudinary secure_url (https://res.cloudinary.com/...).
    * For backwards compat with the legacy Orientation model this is
    * also used for video URLs that already point to a CDN.
    */
   url: string;
+
+  /**
+   * Cloudinary public_id for kind=svg assets hosted on Cloudinary.
+   * Stored so we can construct transformation URLs or delete by ID.
+   * Null for all other kinds.
+   */
+  publicId?: string | null;
 
   /** Original file metadata, only set for uploaded kinds. */
   filePath?: string | null;
@@ -107,6 +115,7 @@ const onboardingResourceSchema = new MongooseSchema<IOnboardingResource>(
     title: { type: String, required: true, trim: true, maxlength: 240 },
     description: { type: String, default: '', maxlength: 4000 },
     url: { type: String, required: true, maxlength: 2000 },
+    publicId: { type: String, default: null },
     filePath: { type: String, default: null },
     fileMime: { type: String, default: null },
     fileSizeBytes: { type: Number, default: null },

@@ -29,6 +29,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import api from '../../utils/api';
 import { useProgram } from '../../context/ProgramContext';
+import { resolveAssetUrl } from '../../utils/publicUrl';
 
 type ResourceKind = 'video' | 'pdf' | 'pptx' | 'svg' | 'markdown' | 'txt' | 'link';
 
@@ -88,7 +89,11 @@ export default function ResourceViewerTab({ refreshKey }: Props): React.ReactEle
         api.get<Resource[]>('/welcome/resources', { params }),
         api.get<CompletionMap>('/welcome/resources/completions'),
       ]);
-      setResources(resR.data || []);
+      const normalized = (resR.data || []).map((r) => ({
+        ...r,
+        url: resolveAssetUrl(r.url),
+      }));
+      setResources(normalized);
       setCompletions(resC.data || {});
     } catch (err) {
       setError('Could not load resources.');
@@ -406,33 +411,10 @@ function SvgRow({ resource, completed, onComplete }: RowProps): React.ReactEleme
   const threshold = Math.max(3, resource.completionThreshold);
   const { elapsed, start } = useElapsedTimer(true, threshold, onComplete);
 
-  const [svgMarkup, setSvgMarkup] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  // Load SVG from backend.
-  useEffect(() => {
-    let cancelled = false;
-    setSvgMarkup(null);
-    setError(null);
-    fetch(resource.url)
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.text();
-      })
-      .then((txt) => {
-        if (cancelled) return;
-        const trimmed = txt.trim();
-        if (!trimmed.toLowerCase().startsWith('<svg') && !trimmed.toLowerCase().includes('<svg')) {
-          throw new Error('Response is not an SVG document.');
-        }
-        setSvgMarkup(trimmed);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        setError((err as Error).message || 'Could not load SVG.');
-      });
-    return () => { cancelled = true; };
-  }, [resource.url]);
+  // v1.70: Cloudinary-hosted SVGs are served as direct image URLs.
+  // We render them as <img> rather than fetch+inline so the browser
+  // handles caching, CORS, and MIME-type security headers natively.
+  const [imgError, setImgError] = useState<string | null>(null);
 
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const [scale, setScale] = useState<number>(1);
@@ -441,8 +423,7 @@ function SvgRow({ resource, completed, onComplete }: RowProps): React.ReactEleme
     x: 0, y: 0, scrollLeft: 0, scrollTop: 0,
   });
 
-  // Non-passive wheel event listener registered directly on the container.
-  // We only intercept/preventDefault when zooming (Ctrl / Cmd held down).
+  // Non-passive wheel event listener for Ctrl+Scroll zoom.
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -454,52 +435,37 @@ function SvgRow({ resource, completed, onComplete }: RowProps): React.ReactEleme
       }
     };
     el.addEventListener('wheel', handleWheel, { passive: false });
-    return () => {
-      el.removeEventListener('wheel', handleWheel);
-    };
+    return () => { el.removeEventListener('wheel', handleWheel); };
   }, []);
 
   const onPointerDown = (e: React.PointerEvent): void => {
-    // Only drag with left mouse button click
     if (e.pointerType !== 'mouse' || e.button !== 0) return;
     const el = containerRef.current;
     if (!el) return;
     setIsDragging(true);
     dragStartRef.current = {
-      x: e.clientX,
-      y: e.clientY,
-      scrollLeft: el.scrollLeft,
-      scrollTop: el.scrollTop,
+      x: e.clientX, y: e.clientY,
+      scrollLeft: el.scrollLeft, scrollTop: el.scrollTop,
     };
     el.setPointerCapture(e.pointerId);
   };
-
   const onPointerMove = (e: React.PointerEvent): void => {
     if (!isDragging) return;
     const el = containerRef.current;
     if (!el) return;
-    const dx = e.clientX - dragStartRef.current.x;
-    const dy = e.clientY - dragStartRef.current.y;
-    el.scrollLeft = dragStartRef.current.scrollLeft - dx;
-    el.scrollTop = dragStartRef.current.scrollTop - dy;
+    el.scrollLeft = dragStartRef.current.scrollLeft - (e.clientX - dragStartRef.current.x);
+    el.scrollTop = dragStartRef.current.scrollTop - (e.clientY - dragStartRef.current.y);
   };
-
   const onPointerUp = (e: React.PointerEvent): void => {
     if (!isDragging) return;
     setIsDragging(false);
     const el = containerRef.current;
-    if (el) {
-      try { el.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
-    }
+    if (el) { try { el.releasePointerCapture(e.pointerId); } catch { /* ignore */ } }
   };
-
   const reset = (): void => {
     setScale(1);
     const el = containerRef.current;
-    if (el) {
-      el.scrollLeft = 0;
-      el.scrollTop = 0;
-    }
+    if (el) { el.scrollLeft = 0; el.scrollTop = 0; }
   };
 
   return (
@@ -515,31 +481,20 @@ function SvgRow({ resource, completed, onComplete }: RowProps): React.ReactEleme
       />
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 text-[10px] text-ink-faint">
-          <span>Ctrl+Scroll to zoom · Drag to pan</span>
+          <span>Ctrl+Scroll to zoom{scale !== 1 ? ` · ${Math.round(scale * 100)}%` : ''}</span>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setScale((s) => Math.max(0.25, s / 1.15))}
-            className="text-[10px] text-ink-soft hover:text-ink border border-border px-1.5 py-0.5 rounded bg-bg-card hover:bg-bg-pill transition-colors"
-          >
+          <button type="button" onClick={() => setScale((s) => Math.max(0.25, s / 1.15))}
+            className="text-[10px] text-ink-soft hover:text-ink border border-border px-1.5 py-0.5 rounded bg-bg-card hover:bg-bg-pill transition-colors">
             Zoom Out
           </button>
           <span className="text-[10px] text-ink-soft font-mono w-10 text-center">{Math.round(scale * 100)}%</span>
-          <button
-            type="button"
-            onClick={() => setScale((s) => Math.min(8, s * 1.15))}
-            className="text-[10px] text-ink-soft hover:text-ink border border-border px-1.5 py-0.5 rounded bg-bg-card hover:bg-bg-pill transition-colors"
-          >
+          <button type="button" onClick={() => setScale((s) => Math.min(8, s * 1.15))}
+            className="text-[10px] text-ink-soft hover:text-ink border border-border px-1.5 py-0.5 rounded bg-bg-card hover:bg-bg-pill transition-colors">
             Zoom In
           </button>
-          <button
-            type="button"
-            onClick={reset}
-            className="text-[10px] text-ink-soft hover:text-ink underline ml-1"
-          >
-            Reset
-          </button>
+          <button type="button" onClick={reset}
+            className="text-[10px] text-ink-soft hover:text-ink underline ml-1">Reset</button>
         </div>
       </div>
       <div
@@ -553,29 +508,26 @@ function SvgRow({ resource, completed, onComplete }: RowProps): React.ReactEleme
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
       >
-        <div
-          style={{
-            width: `${100 * scale}%`,
-            transition: 'width 0.1s ease-out',
-            display: 'block',
-          }}
-          dangerouslySetInnerHTML={{
-            __html: svgMarkup ? wrapSvgForContainer(svgMarkup) : '',
-          }}
-        />
+        {imgError ? null : (
+          <img
+            src={resource.url}
+            alt={resource.title}
+            className="yaksha-svg-pan"
+            style={{
+              width: `${100 * scale}%`,
+              height: 'auto',
+              display: 'block',
+              transition: 'width 0.1s ease-out',
+            }}
+            onError={() => setImgError('Could not load SVG from Cloudinary.')}
+          />
+        )}
       </div>
-      {!svgMarkup && !error && (
-        <p className="text-[11px] text-ink-soft text-center py-4">Loading SVG…</p>
-      )}
-      {error && (
+      {imgError && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          <p>Inline preview unavailable: {error}</p>
-          <a
-            href={resource.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm text-accent underline mt-1 inline-block"
-          >
+          <p>Inline preview unavailable: {imgError}</p>
+          <a href={resource.url} target="_blank" rel="noopener noreferrer"
+            className="text-sm text-accent underline mt-1 inline-block">
             Open SVG in new tab
           </a>
         </div>
@@ -584,27 +536,7 @@ function SvgRow({ resource, completed, onComplete }: RowProps): React.ReactEleme
   );
 }
 
-/**
- * wrapSvgForContainer — takes the raw SVG markup returned by the
- * backend and prepends a CSS transform that scales / pans it
- * according to the current zoom/pan state. We don't need to
- * post-process the <svg> element itself — its viewBox already
- * encodes aspect ratio. The wrapping transform is what we control.
- *
- * We embed the responsive sizing + transform in the SVG root's
- * style attribute so it works the moment React commits the DOM, no
- * follow-up effect needed. The .yaksha-svg-pan class is included
- * for any stylesheet-level hooks a future design pass might want;
- * it does nothing on its own today.
- */
-function wrapSvgForContainer(svg: string): string {
-  return svg.replace(
-    /<svg\b([^>]*)>/,
-    `<svg$1 class="yaksha-svg-pan" style="width: 100%; height: auto; display: block;">`,
-  );
-}
-
-function MarkdownRow({ resource, completed, onComplete }: RowProps): React.ReactElement {
+function TxtRow({ resource, completed, onComplete }: RowProps): React.ReactElement {
   const [body, setBody] = useState<string>('');
   const threshold = Math.max(5, resource.completionThreshold);
   const { elapsed, start } = useElapsedTimer(true, threshold, onComplete);
@@ -634,13 +566,13 @@ function MarkdownRow({ resource, completed, onComplete }: RowProps): React.React
         onMouseEnter={start}
         onTouchStart={start}
       >
-        <pre className="text-xs font-mono whitespace-pre-wrap">{body}</pre>
+        <pre className="text-xs whitespace-pre-wrap">{body}</pre>
       </div>
     </div>
   );
 }
 
-function TxtRow({ resource, completed, onComplete }: RowProps): React.ReactElement {
+function MarkdownRow({ resource, completed, onComplete }: RowProps): React.ReactElement {
   const [body, setBody] = useState<string>('');
   const threshold = Math.max(5, resource.completionThreshold);
   const { elapsed, start } = useElapsedTimer(true, threshold, onComplete);

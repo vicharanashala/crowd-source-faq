@@ -46,75 +46,85 @@ export function useCloudinaryUpload(subfolder: 'avatar' | 'posts' = 'posts') {
   // a stale file against a new signature.
   const inFlight = useRef(0);
 
-  const upload = useCallback(async (file: File): Promise<CloudinaryAsset> => {
-    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-      throw new Error('Only JPEG, PNG, WebP, and GIF images are allowed.');
-    }
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      throw new Error(`Image too large (max ${Math.round(MAX_FILE_SIZE_BYTES / 1024 / 1024)}MB).`);
-    }
-
-    const token = ++inFlight.current;
-    setUploading(true);
-    setError(null);
-    try {
-      // 1. Get a signed payload from the backend.
-      const { data: sign } = await api.get<CloudinarySignResponse>(
-        `/upload/sign?subfolder=${encodeURIComponent(subfolder)}`
-      );
-
-      // 2. Build FormData and POST to Cloudinary. The browser uploads
-      //    directly to Cloudinary — the file never traverses our backend.
-      //    Note: we do NOT send `public_id` here. Anything in the form
-      //    post that wasn't in the signed string breaks signature
-      //    validation. Cloudinary auto-assigns a public_id and returns
-      //    it — we save that to the model.
-      const form = new FormData();
-      form.append('file', file);
-      form.append('api_key', sign.apiKey);
-      form.append('timestamp', String(sign.timestamp));
-      form.append('signature', sign.signature);
-      form.append('folder', sign.folder);
-
-      const cloudRes = await fetch(sign.uploadUrl, { method: 'POST', body: form });
-      if (!cloudRes.ok) {
-        const text = await cloudRes.text().catch(() => '');
-        throw new Error(`Cloudinary upload failed (${cloudRes.status}): ${text.slice(0, 200)}`);
+  const upload = useCallback(
+    async (file: File): Promise<CloudinaryAsset> => {
+      if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+        throw new Error('Only JPEG, PNG, WebP, and GIF images are allowed.');
       }
-      const cloud = (await cloudRes.json()) as {
-        secure_url: string;
-        public_id: string;
-        width?: number;
-        height?: number;
-        format?: string;
-        bytes?: number;
-      };
-
-      // Guard against the in-flight counter advancing (user uploaded again).
-      if (token !== inFlight.current) {
-        throw new Error('A newer upload is in progress.');
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        throw new Error(
+          `Image too large (max ${Math.round(MAX_FILE_SIZE_BYTES / 1024 / 1024)}MB).`
+        );
       }
 
-      return {
-        url: cloud.secure_url,
-        publicId: cloud.public_id,
-        width: cloud.width,
-        height: cloud.height,
-        format: cloud.format,
-        bytes: cloud.bytes,
-        secureUrl: cloud.secure_url,
-      };
-    } catch (e) {
-      const msg = (e as Error).message;
-      setError(msg);
-      throw e;
-    } finally {
-      // Only clear the spinner if we're still the latest request.
-      if (token === inFlight.current) {
-        setUploading(false);
+      const token = ++inFlight.current;
+      setUploading(true);
+      setError(null);
+      try {
+        // 1. Get a signed payload from the backend.
+        const { data: sign } = await api.get<CloudinarySignResponse>(
+          `/upload/sign?subfolder=${encodeURIComponent(subfolder)}`
+        );
+
+        // 2. Build FormData and POST to Cloudinary. The browser uploads
+        //    directly to Cloudinary — the file never traverses our backend.
+        //    Note: we do NOT send `public_id` here. Anything in the form
+        //    post that wasn't in the signed string breaks signature
+        //    validation. Cloudinary auto-assigns a public_id and returns
+        //    it — we save that to the model.
+        const form = new FormData();
+        form.append('file', file);
+        form.append('api_key', sign.apiKey);
+        form.append('timestamp', String(sign.timestamp));
+        form.append('signature', sign.signature);
+        form.append('folder', sign.folder);
+
+        const cloudRes = await fetch(sign.uploadUrl, { method: 'POST', body: form });
+        if (!cloudRes.ok) {
+          const text = await cloudRes.text().catch(() => '');
+          throw new Error(`Cloudinary upload failed (${cloudRes.status}): ${text.slice(0, 200)}`);
+        }
+        // TypeError: Failed to fetch — almost always a CSP block, mixed-content
+        // (http page → https upload), network partition, or DNS failure. The
+        // most common case in this codebase is CSP `connect-src` not allowing
+        // api.cloudinary.com; the fix lives in
+        // apps/backend/src/bootstrap/middleware.ts (helmet CSP directives).
+        const cloud = (await cloudRes.json()) as {
+          secure_url: string;
+          public_id: string;
+          width?: number;
+          height?: number;
+          format?: string;
+          bytes?: number;
+        };
+
+        // Guard against the in-flight counter advancing (user uploaded again).
+        if (token !== inFlight.current) {
+          throw new Error('A newer upload is in progress.');
+        }
+
+        return {
+          url: cloud.secure_url,
+          publicId: cloud.public_id,
+          width: cloud.width,
+          height: cloud.height,
+          format: cloud.format,
+          bytes: cloud.bytes,
+          secureUrl: cloud.secure_url,
+        };
+      } catch (e) {
+        const msg = (e as Error).message;
+        setError(msg);
+        throw e;
+      } finally {
+        // Only clear the spinner if we're still the latest request.
+        if (token === inFlight.current) {
+          setUploading(false);
+        }
       }
-    }
-  }, [subfolder]);
+    },
+    [subfolder]
+  );
 
   return { upload, uploading, error };
 }

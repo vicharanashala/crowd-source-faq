@@ -157,7 +157,13 @@ export default function AdminAISettings() {
       const data = res.data;
       setConfig(data);
       setActiveProvider(data.activeProvider);
-      setFeatures(data.features);
+      const df = { enabled: false, model: '', temperature: 0.7, maxTokens: 1024 };
+      setFeatures({
+        duplicateDetection: data.features?.duplicateDetection || { ...df },
+        knowledgeExtraction: data.features?.knowledgeExtraction || { ...df },
+        searchSummarization: data.features?.searchSummarization || { ...df },
+        faqGeneration: data.features?.faqGeneration || { ...df },
+      });
       setHasOverride(data.hasOverride ?? true);
       setProviderDrafts(prev => {
         const next = { ...prev };
@@ -182,10 +188,10 @@ export default function AdminAISettings() {
 
   useEffect(() => { loadConfig(); }, [loadConfig]);
 
-  const handleFeatureToggle = (feature: keyof AiConfig['features']) => { if (!features) return; setFeatures(p => p ? { ...p, [feature]: { ...p[feature], enabled: !p[feature].enabled } } : p); setHasChanges(true); };
-  const handleModelChange = (feature: keyof AiConfig['features'], model: string) => { if (!features) return; setFeatures(p => p ? { ...p, [feature]: { ...p[feature], model } } : p); setHasChanges(true); };
-  const handleTempChange = (feature: keyof AiConfig['features'], temperature: number) => { if (!features) return; setFeatures(p => p ? { ...p, [feature]: { ...p[feature], temperature } } : p); setHasChanges(true); };
-  const handleMaxTokensChange = (feature: keyof AiConfig['features'], maxTokens: number) => { if (!features) return; setFeatures(p => p ? { ...p, [feature]: { ...p[feature], maxTokens } } : p); setHasChanges(true); };
+  const handleFeatureToggle = (feature: keyof AiConfig['features']) => { if (!features) return; setFeatures(p => p ? { ...p, [feature]: { ...(p[feature] || { enabled: false, model: '', temperature: 0.7, maxTokens: 1024 }), enabled: !(p[feature]?.enabled ?? false) } } : p); setHasChanges(true); };
+  const handleModelChange = (feature: keyof AiConfig['features'], model: string) => { if (!features) return; setFeatures(p => p ? { ...p, [feature]: { ...(p[feature] || { enabled: false, model: '', temperature: 0.7, maxTokens: 1024 }), model } } : p); setHasChanges(true); };
+  const handleTempChange = (feature: keyof AiConfig['features'], temperature: number) => { if (!features) return; setFeatures(p => p ? { ...p, [feature]: { ...(p[feature] || { enabled: false, model: '', temperature: 0.7, maxTokens: 1024 }), temperature } } : p); setHasChanges(true); };
+  const handleMaxTokensChange = (feature: keyof AiConfig['features'], maxTokens: number) => { if (!features) return; setFeatures(p => p ? { ...p, [feature]: { ...(p[feature] || { enabled: false, model: '', temperature: 0.7, maxTokens: 1024 }), maxTokens } } : p); setHasChanges(true); };
 
   const handleSaveFeatures = async () => {
     if (!features) return; setSaving(true); setError('');
@@ -693,10 +699,7 @@ export default function AdminAISettings() {
         {features && (
           <div className="divide-y divide-border">
             {(Object.keys(FEATURE_LABELS) as Array<keyof typeof FEATURE_LABELS>).map((feature) => {
-              const f = features[feature];
-              // Guard: an inherited/partial config may omit a feature.
-              // Skip rather than crash the whole admin page on `f.enabled`.
-              if (!f) return null;
+              const f = features[feature] || { enabled: false, model: '', temperature: 0.7, maxTokens: 1024 };
               return (
                 <div key={feature} className="p-5 space-y-3">
                   <div className="flex items-center justify-between">

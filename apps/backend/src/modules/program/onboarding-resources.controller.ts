@@ -19,13 +19,17 @@
  *   isolation guarantee end-to-end.
  *
  * Permissions:
- *   Admin routes live behind `protect` + `adminOnly` middleware at
- *   the route definition. User routes are `protect`-only.
+ * Admin routes live behind `protect` + `adminOnly` middleware at
+ * the route definition. User routes are `protect`-only.
  *
- * File uploads use multer's disk storage to
- *   `./uploads/onboarding-resources/`. Uploaded files are served
- *   by the existing static-file middleware that mounts the
- *   `uploads/` folder.
+ * File upload strategy:
+ *   - SVG flowcharts: browser uploads directly to Cloudinary using a
+ *     server-signed URL (GET /csfaq/api/upload/sign/cloudinary/svg).
+ *     The browser sends the resulting Cloudinary secure_url + public_id
+ *     as JSON body fields. The backend stores the URL directly in Mongo.
+ *   - All other file kinds (video/pdf/pptx/markdown/txt): multipart
+ *     upload via multer disk storage to ./uploads/onboarding-resources/.
+ *     Served by the static-file middleware.
  */
 
 import { Request, Response } from 'express';
@@ -199,6 +203,7 @@ export const createResource = async (req: Request, res: Response): Promise<void>
     const order = (last?.order ?? -1) + 1;
 
     let url = '';
+    let publicId: string | null = null;
     let filePath: string | null = null;
     let fileMime: string | null = null;
     let fileSizeBytes: number | null = null;
@@ -209,7 +214,23 @@ export const createResource = async (req: Request, res: Response): Promise<void>
         res.status(400).json({ message: 'kind=link requires a URL starting with http:// or https://' });
         return;
       }
+    } else if (kind === 'svg') {
+      // SVG flowcharts are uploaded directly to Cloudinary by the browser.
+      // The admin POSTs the JSON metadata (url + publicId) instead of a
+      // multipart file. We validate the URL is from our Cloudinary account.
+      url = String(req.body?.url ?? '').trim();
+      publicId = req.body?.publicId ? String(req.body.publicId) : null;
+      if (!url) {
+        res.status(400).json({ message: 'kind=svg requires a url (Cloudinary secure_url).' });
+        return;
+      }
+      if (!url.startsWith('https://res.cloudinary.com/')) {
+        res.status(400).json({ message: 'kind=svg url must be a Cloudinary secure_url.' });
+        return;
+      }
+      // filePath / fileMime / fileSizeBytes stay null for Cloudinary SVGs.
     } else {
+      // All other file kinds (video/pdf/pptx/markdown/txt): multipart upload.
       const file = (req as unknown as { file?: Express.Multer.File }).file;
       if (!file) {
         res.status(400).json({ message: `kind=${kind} requires a file upload.` });
@@ -234,6 +255,7 @@ export const createResource = async (req: Request, res: Response): Promise<void>
       title,
       description,
       url,
+      publicId,
       filePath,
       fileMime,
       fileSizeBytes,

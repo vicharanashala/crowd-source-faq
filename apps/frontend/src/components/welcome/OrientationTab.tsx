@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
 import { useProgram } from '../../context/ProgramContext';
+import { resolveAssetUrl } from '../../utils/publicUrl';
 
 interface Orientation {
   _id: string;
@@ -231,9 +232,7 @@ export default function OrientationTab() {
   // The backend now stores URLs prefixed with `publicBasePath()`
   // (e.g. `/csfaq/uploads/orientations/...`) so the relative path
   // is correct on every deployment.
-  const videoSource = orientation.videoUrl.startsWith('http')
-    ? orientation.videoUrl
-    : orientation.videoUrl;
+  const videoSource = resolveAssetUrl(orientation.videoUrl);
 
   const suggestions = [
     "How does the contribution process work?",

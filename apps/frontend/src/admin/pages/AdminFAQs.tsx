@@ -6,6 +6,7 @@ import Badge from '../components/common/Badge';
 import Modal from '../components/common/Modal';
 import { TableSkeleton } from '../components/common/SkeletonLoader';
 import { useDebounce } from '../../hooks/useDebounce';
+import { useCategories } from '../../components/explore/usePublicFaqApi';
 
 
 interface FAQ {
@@ -154,6 +155,12 @@ export default function AdminFAQs() {
   const [addCategoryOption, setAddCategoryOption] = useState<string>('');
   const [editCategoryOption, setEditCategoryOption] = useState<string>('');
   const debouncedSearch = useDebounce(search, 350);
+
+  const { data: addCategoriesData } = useCategories(newFaq.batchId || null, null);
+  const addCategories = addCategoriesData?.categories.map(c => c.name) ?? [];
+
+  const { data: editCategoriesData } = useCategories(editFaq?.batchId || null, null);
+  const editCategories = editCategoriesData?.categories.map(c => c.name) ?? [];
 
   // Batches for the selectors and list filter
   const [batches, setBatches] = useState<AdminBatch[]>([]);
@@ -387,7 +394,7 @@ export default function AdminFAQs() {
                 <label className="admin-label">Category</label>
                 <CategoryDropdown
                   value={editCategoryOption}
-                  categories={categories}
+                  categories={editCategories}
                   onChange={val => {
                     setEditCategoryOption(val);
                     if (val !== '__other__') {
@@ -465,7 +472,7 @@ export default function AdminFAQs() {
               <label className="admin-label">Category</label>
               <CategoryDropdown
                 value={addCategoryOption}
-                categories={categories}
+                categories={addCategories}
                 onChange={val => {
                   setAddCategoryOption(val);
                   if (val !== '__other__') {

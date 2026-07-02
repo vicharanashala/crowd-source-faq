@@ -7,6 +7,92 @@ import { useAuth } from '../../hooks/useAuth';
 import { useAuthModal } from '../../context/AuthModalContext';
 import { useGcsUpload, type GcsAsset } from '../../hooks/useGcsUpload';
 import { buildGcsTransformedUrl } from '../../utils/gcsTransform';
+import { useBatch } from '../../context/BatchContext';
+import { useCategories } from '../explore/usePublicFaqApi';
+
+function CategoryDropdown({
+  value,
+  categories,
+  onChange,
+  placeholder = 'Select a category'
+}: {
+  value: string;
+  categories: string[];
+  onChange: (val: string) => void;
+  placeholder?: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
+
+  const uniqueCategories = categories.filter(Boolean);
+
+  const displayLabel = value === '__other__'
+    ? 'Other (Enter custom name)...'
+    : (value || placeholder);
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center justify-between w-full px-3 py-2.5 rounded-xl border border-border bg-mist text-sm text-ink outline-none focus:ring-2 focus:ring-accent/25 focus:bg-card transition-colors text-left"
+      >
+        <span className={value ? 'text-ink' : 'text-ink-faint'}>{displayLabel}</span>
+        <svg className={`w-4 h-4 text-ink-faint transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {isOpen && (
+        <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-xl border border-border bg-bg-secondary shadow-lg z-50 py-1">
+          <button
+            type="button"
+            onClick={() => {
+              onChange('');
+              setIsOpen(false);
+            }}
+            className="w-full text-left px-3 py-2 text-sm hover:bg-mist text-ink transition-colors font-medium border-b border-border/50 text-ink-faint"
+          >
+            — Clear Category —
+          </button>
+          {uniqueCategories.map(cat => (
+            <button
+              key={cat}
+              type="button"
+              onClick={() => {
+                onChange(cat);
+                setIsOpen(false);
+              }}
+              className={`w-full text-left px-3 py-2 text-sm hover:bg-mist transition-colors ${value === cat ? 'bg-mist font-medium text-accent' : 'text-ink'}`}
+            >
+              {cat}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => {
+              onChange('__other__');
+              setIsOpen(false);
+            }}
+            className={`w-full text-left px-3 py-2 text-sm hover:bg-mist transition-colors border-t border-border/50 ${value === '__other__' ? 'bg-mist font-medium text-accent' : 'text-ink'}`}
+          >
+            Other (Enter custom name)...
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface CreatePostDialogProps {
   onClose: () => void;
@@ -33,6 +119,9 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
   const dialogRef = useRef<HTMLDialogElement>(null);
   const navigate = useNavigate();
   const DRAFT_KEY = 'yaksha_post_draft';
+  const { currentBatch } = useBatch();
+  const { data: categoriesData } = useCategories(currentBatch?._id ?? null, null);
+  const categories = categoriesData?.categories.map(c => c.name) ?? [];
 
   // ── GCS attachments ──
   const { upload: uploadAttachment, uploading: attaching, error: attachmentError } = useGcsUpload('posts');
@@ -82,7 +171,8 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [tags, setTags] = useState<string[]>([]);
-  const [tagInput, setTagInput] = useState('');
+  const [categoryOption, setCategoryOption] = useState<string>('');
+  const [customCategory, setCustomCategory] = useState<string>('');
   const [duplicateMatch, setDuplicateMatch] = useState<{ isDuplicate: boolean; matches: any[] } | null>(null);
   const [checkingDuplicates, setCheckingDuplicates] = useState(false);
   const [floatAway] = useState(false);
@@ -356,42 +446,37 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
             <p className={`text-xs mt-1 text-right ${body.length > 1800 ? 'text-danger font-semibold' : 'text-ink-faint'}`}>{body.length}/2000</p>
           </div>
 
-          {/* Tags */}
+          {/* Category */}
           <div>
-            <label htmlFor="post-tags" className="block text-xs font-medium text-ink-soft mb-1.5">
-              Tags <span className="text-ink-faint font-normal">(optional — max 3, press Enter or comma to add)</span>
+            <label className="block text-xs font-medium text-ink-soft mb-1.5">
+              Category <span className="text-ink-faint font-normal">(optional)</span>
             </label>
-            <div className="flex flex-wrap gap-2 p-3 rounded-xl border border-border bg-mist focus-within:ring-2 focus-within:ring-accent/25 focus-within:bg-card transition-all">
-              {tags.map((tag) => (
-                <span key={tag} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-accent/10 text-accent text-xs font-semibold">
-                  {tag}
-                  <button
-                    type="button"
-                    onClick={() => setTags(tags.filter((t) => t !== tag))}
-                    className="hover:text-danger"
-                    aria-label={`Remove tag ${tag}`}
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
+            <CategoryDropdown
+              value={categoryOption}
+              categories={categories}
+              onChange={val => {
+                setCategoryOption(val);
+                if (val !== '__other__') {
+                  setTags(val ? [val] : []);
+                  setCustomCategory('');
+                } else {
+                  setTags([]);
+                }
+              }}
+              placeholder="Select a category"
+            />
+            {categoryOption === '__other__' && (
               <input
-                id="post-tags"
                 type="text"
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if ((e.key === 'Enter' || e.key === ',') && tagInput.trim()) {
-                    e.preventDefault();
-                    const newTag = tagInput.trim().replace(/,/g, '');
-                    if (newTag && !tags.includes(newTag) && tags.length < 3) setTags([...tags, newTag]);
-                    setTagInput('');
-                  }
+                value={customCategory}
+                onChange={e => {
+                  setCustomCategory(e.target.value);
+                  setTags(e.target.value.trim() ? [e.target.value.trim()] : []);
                 }}
-                placeholder={tags.length === 0 ? "e.g. NOC, ViBe, Timetable" : ""}
-                className="flex-1 min-w-[120px] bg-transparent text-sm text-ink placeholder-ink-faint focus:outline-none"
+                placeholder="Enter custom category..."
+                className="w-full mt-2 rounded-xl border border-border bg-mist px-3 py-2.5 text-sm text-ink placeholder-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/25 focus:bg-card transition-all"
               />
-            </div>
+            )}
           </div>
 
           {/* Attachments */}
