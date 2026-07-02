@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import http from 'http';
 import fs from 'fs';
+import crypto from 'crypto';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
@@ -99,7 +100,8 @@ const run = async () => {
             ...loadedEnv,
             MONGODB_URI: uri,
             PORT: '6767',
-            JWT_SECRET: 'supersecretjwtkeyforlocalrun32charslong',
+            // Ephemeral per-run secret — a committed constant could be reused to forge tokens.
+            JWT_SECRET: process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex'),
             CLOUDINARY_CLOUD_NAME: 'test_cloud',
             CLOUDINARY_API_KEY: 'test_key',
             CLOUDINARY_API_SECRET: 'test_secret',
