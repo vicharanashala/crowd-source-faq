@@ -417,7 +417,7 @@ export default function CommunityPage() {
               </svg>
             </div>
             <p className="text-sm font-medium text-ink-soft">No discussions yet</p>
-            <p className="text-xs text-ink-faint mt-1">Be the first to ask a question!</p>
+            <p className="text-xs text-ink-faint mt-1">Be the first to ask a question and help others in your program.</p>
             <Button onClick={handleAskQuestion} className="mt-4">
               Ask a Question
             </Button>
@@ -425,9 +425,13 @@ export default function CommunityPage() {
         )}
 
         {!loading && !searchLoading && !error && total > 0 && displayedPosts.length === 0 && (
-          <p className="text-center text-sm text-ink-soft py-16">
-            No posts match your current filters.
-          </p>
+          <div className="flex flex-col items-center justify-center py-16 text-center rounded-2xl border border-dashed border-border bg-card/60">
+            <p className="text-sm font-medium text-ink-soft">No posts match your current filters.</p>
+            <p className="text-xs text-ink-faint mt-1">Try switching the filter, sorting order, or clearing your search to see more discussions.</p>
+            <Button onClick={() => { setFilter('all'); setSort('newest'); setSearch(''); }} className="mt-4">
+              Reset filters
+            </Button>
+          </div>
         )}
 
         {!loading && !searchLoading && !error && displayedPosts.length > 0 && (

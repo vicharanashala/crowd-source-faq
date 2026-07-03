@@ -7,6 +7,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useAuthModal } from '../../context/AuthModalContext';
 import { useGcsUpload, type GcsAsset } from '../../hooks/useGcsUpload';
 import { buildGcsTransformedUrl } from '../../utils/gcsTransform';
+import { validatePostAttachment, validatePostTag } from './postFormValidation';
 
 interface CreatePostDialogProps {
   onClose: () => void;
@@ -46,6 +47,11 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
     e.target.value = '';
     for (const file of files) {
       if (attachments.length >= MAX_ATTACHMENTS) break;
+      const validation = validatePostAttachment(file);
+      if (!validation.valid) {
+        setError(validation.error || 'Please choose a valid image.');
+        break;
+      }
       try {
         const asset = await uploadAttachment(file);
         setAttachments((prev) => [...prev, asset].slice(0, MAX_ATTACHMENTS));
@@ -84,6 +90,7 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
   const [error, setError] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
+  const [tagError, setTagError] = useState('');
   const [duplicateMatch, setDuplicateMatch] = useState<{ isDuplicate: boolean; matches: any[] } | null>(null);
   const [checkingDuplicates, setCheckingDuplicates] = useState(false);
   const [floatAway, setFloatAway] = useState(false);
@@ -380,19 +387,35 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
                 id="post-tags"
                 type="text"
                 value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
+                onChange={(e) => {
+                  setTagInput(e.target.value);
+                  if (tagError) setTagError('');
+                }}
                 onKeyDown={(e) => {
                   if ((e.key === 'Enter' || e.key === ',') && tagInput.trim()) {
                     e.preventDefault();
+                    const validation = validatePostTag(tagInput, tags);
+                    if (!validation.valid) {
+                      setTagError(validation.error || 'Please enter a valid tag.');
+                      setTagInput('');
+                      return;
+                    }
+                    if (tags.length >= 3) {
+                      setTagError('You can add up to 3 tags.');
+                      setTagInput('');
+                      return;
+                    }
                     const newTag = tagInput.trim().replace(/,/g, '');
-                    if (newTag && !tags.includes(newTag) && tags.length < 3) setTags([...tags, newTag]);
+                    setTags([...tags, newTag]);
                     setTagInput('');
+                    setTagError('');
                   }
                 }}
                 placeholder={tags.length === 0 ? "e.g. NOC, ViBe, Timetable" : ""}
                 className="flex-1 min-w-[120px] bg-transparent text-sm text-ink placeholder-ink-faint focus:outline-none"
               />
             </div>
+            {tagError && <p className="text-xs text-danger mt-1">{tagError}</p>}
           </div>
 
           {/* Attachments */}
@@ -450,6 +473,9 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
             </div>
             {attachmentError && (
               <p className="text-xs text-danger mt-1">{attachmentError}</p>
+            )}
+            {!attachmentError && error && (
+              <p className="text-xs text-danger mt-1">{error}</p>
             )}
           </div>
 

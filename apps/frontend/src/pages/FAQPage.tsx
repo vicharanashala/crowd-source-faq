@@ -68,6 +68,30 @@ export default function FAQPage() {
   // ── M8: Guard against missing batchId (no program selected) ────
   const noProgramSelected = !batchId;
 
+  const retryFaqLoad = useCallback(() => {
+    setError('');
+    setLoading(true);
+    if (!batchId) {
+      setLoading(false);
+      return;
+    }
+    api.get('/faq', { params: { batchId } })
+      .then((res) => {
+        setGrouped(applyQuestionNumbers(res.data.grouped || {}));
+        setTotal(res.data.total || 0);
+        setActiveCategory('');
+        setActiveQuestion(null);
+        setSearchQuery('');
+        setSearchResults(null);
+        setSearchLoading(false);
+      })
+      .catch((err: unknown) => {
+        const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Failed to load FAQs. Please try again.';
+        setError(message);
+      })
+      .finally(() => setLoading(false));
+  }, [batchId]);
+
   // ── Fetch all FAQs when batchId changes ─────────────────────────
   useEffect(() => {
     if (!batchId) return;
@@ -376,15 +400,17 @@ export default function FAQPage() {
         {noProgramSelected && !loading && (
           <div className="mt-8 rounded-2xl bg-mist border border-border/50 p-8 text-center space-y-3">
             <p className="text-sm font-medium text-ink">No program selected.</p>
-            <p className="text-xs text-ink-soft">Select a program above to browse FAQs relevant to your internship.</p>
+            <p className="text-xs text-ink-soft">Choose a program from the selector above to browse FAQs that match your internship.</p>
+            <p className="text-[11px] text-ink-faint">Once a program is selected, the FAQ library will update automatically.</p>
           </div>
         )}
 
         {error && !loading && (
           <div className="mt-8 rounded-2xl bg-danger-light border border-danger/15 p-6 text-center space-y-3">
             <p className="text-sm text-danger font-medium">{error}</p>
+            <p className="text-xs text-danger/80">This can happen when the connection is slow or the selected program has no FAQ content yet.</p>
             <button
-              onClick={() => { setError(''); setLoading(true); api.get('/faq').then(res => { setGrouped(applyQuestionNumbers(res.data.grouped || {})); setTotal(res.data.total || 0); }).catch((err: unknown) => { const m = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Failed to load FAQs.'; setError(m); }).finally(() => setLoading(false)); }}
+              onClick={retryFaqLoad}
               className="px-5 py-2 text-sm font-medium bg-danger text-accent-text rounded-full hover:bg-danger/90 transition-colors"
             >
               Retry
