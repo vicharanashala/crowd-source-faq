@@ -67,6 +67,7 @@ import {
 } from '../ai/ai-config.controller.js';
 
 import adminProjectsRoutes from './admin-projects.routes.js';
+import { getQueueStats, getQueueJob } from './queue.controller.js';
 
 const router = Router();
 
@@ -142,5 +143,9 @@ router.post('/community-promotions/:id/ai-review', triggerAIReview);
 router.post('/community-promotions/ai-review-batch', triggerAIReviewBatch);
 // Promotion queue — new endpoint showing posts with AI output
 router.get('/community-promotions/queue', getPromotionQueue);
+
+// MongoDB-backed queue stats and per-job status (replaces BullMQ admin endpoints)
+router.get('/queue/stats', getQueueStats);
+router.get('/queue/jobs/:id', getQueueJob);
 
 export default router;

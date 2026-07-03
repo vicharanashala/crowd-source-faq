@@ -69,7 +69,7 @@ function SupportIndexInner(): React.ReactElement {
   );
 
   return (
-    <div className="min-h-screen bg-bg">
+    <div data-tour="support-page-content" className="min-h-screen bg-bg">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
         <div className="mb-6">
           <button

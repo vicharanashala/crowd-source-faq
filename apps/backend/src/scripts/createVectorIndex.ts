@@ -43,12 +43,18 @@ if (!MONGO_URI) {
   process.exit(1);
 }
 
-const DB_NAME = 'yaksha_faq';
+// Connect to the SAME database the app uses. connectDB() (config/db.ts) calls
+// mongoose.connect(MONGODB_URI) with no dbName, so it uses the URI's default
+// database. Hardcoding a different dbName here created the index on the wrong
+// DB, leaving the app's collections without a usable vector index. Honour an
+// explicit MONGODB_DB override but otherwise inherit the URI's database.
+const DB_NAME = process.env.MONGODB_DB?.trim() || undefined;
 const SHOULD_DROP = process.argv.includes('--drop');
 
 async function createIndexes() {
-  await mongoose.connect(MONGO_URI, { dbName: DB_NAME });
+  await mongoose.connect(MONGO_URI, DB_NAME ? { dbName: DB_NAME } : {});
   const db = mongoose.connection.db!;
+  console.log(`Connected to database: ${db.databaseName}`);
 
   const faqCollection = db.collection('yaksha_faq_faqs');
   const postCollection = db.collection('yaksha_faq_communityposts');
@@ -73,16 +79,25 @@ async function createIndexes() {
   // $vectorSearch had no field to query. Switched to the
   // (A) array format — it's the canonical one Atlas UI
   // generates today.
+  // Atlas `vectorSearch` indexes require field type 'vector' (the legacy
+  // 'knnVector' value is rejected with "fields[0].type must be one of
+  // [autoEmbed, embeddedDocuments, filter, text, vector]" → index FAILED).
+  // The `batchId` filter field is required because the search controller
+  // scopes $vectorSearch with `filter: { batchId }` for per-program search.
   const VECTOR_INDEX = {
     name: 'vector_index',
     type: 'vectorSearch',
     definition: {
       fields: [
         {
-          type: 'knnVector',
+          type: 'vector',
           path: 'embedding',
           numDimensions: activeDimensions,
           similarity: 'dotProduct',
+        },
+        {
+          type: 'filter',
+          path: 'batchId',
         },
       ],
     },

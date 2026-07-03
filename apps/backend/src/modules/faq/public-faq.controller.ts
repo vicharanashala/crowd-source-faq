@@ -4,6 +4,7 @@ import FAQ from './faq.model.js';
 import GuestEvent, { type GuestEventType } from '../program/guest-event.model.js';
 import SearchLog from '../search/search-log.model.js';
 import { communityLog } from '../../utils/http/logger.js';
+import { assertSameProgram } from '../../utils/db/scopedQuery.js';
 import { LRUCache } from 'lru-cache';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -90,8 +91,8 @@ export async function getPopularFaqs(req: Request, res: Response): Promise<void>
   setGuestCookieIfMissing(req, res);
 
   const limit = clampInt(req.query.limit, 1, 20, 5);
-  const batchId = parseBatchId(req.query.batchId);
-  if (req.query.batchId !== undefined && !batchId) {
+  const batchId = parseBatchId(req.query.batchId) || (req.programContext?.batchId ? new Types.ObjectId(req.programContext.batchId) : null);
+  if (req.query.batchId !== undefined && !req.query.batchId) {
     res.status(400).json({ message: 'Invalid batchId.' });
     return;
   }
@@ -113,7 +114,7 @@ export async function getPopularFaqs(req: Request, res: Response): Promise<void>
 
   try {
     const filter: Record<string, unknown> = { status: 'approved' };
-    if (batchId) filter.batchId = batchId;
+    filter.batchId = batchId || new Types.ObjectId();
     if (courseId) filter.courseId = courseId;
     const faqs = await FAQ.find(filter)
       .select(PUBLIC_PROJECTION)
@@ -149,7 +150,7 @@ export async function getCategoryTopFaqs(req: Request, res: Response): Promise<v
   setGuestCookieIfMissing(req, res);
 
   const limit = clampInt(req.query.limit, 1, 10, 3);
-  const batchId = parseBatchId(req.query.batchId);
+  const batchId = parseBatchId(req.query.batchId) || (req.programContext?.batchId ? new Types.ObjectId(req.programContext.batchId) : null);
   if (req.query.batchId !== undefined && !batchId) {
     res.status(400).json({ message: 'Invalid batchId.' });
     return;
@@ -174,8 +175,8 @@ export async function getCategoryTopFaqs(req: Request, res: Response): Promise<v
       topResultSource: 'faq',
       topResultId: { $ne: null },
       createdAt: { $gte: cutoff },
+      batchId: batchId || new Types.ObjectId(),
     };
-    if (batchId) searchMatch.batchId = batchId;
     const searchAgg = await SearchLog.aggregate<{ _id: Types.ObjectId; searchCount: number }>([
       { $match: searchMatch },
       { $group: { _id: '$topResultId', searchCount: { $sum: 1 } } },
@@ -184,7 +185,7 @@ export async function getCategoryTopFaqs(req: Request, res: Response): Promise<v
 
     // 2. Open signal — guestViewCount lives on the FAQ doc already.
     const filter: Record<string, unknown> = { status: 'approved' };
-    if (batchId) filter.batchId = batchId;
+    filter.batchId = batchId || new Types.ObjectId();
     if (courseId) filter.courseId = courseId;
     const faqs = await FAQ.find(filter).select(PUBLIC_PROJECTION).lean();
 
@@ -224,7 +225,7 @@ export async function getRecentFaqs(req: Request, res: Response): Promise<void> 
   setGuestCookieIfMissing(req, res);
 
   const limit = clampInt(req.query.limit, 1, 30, 6);
-  const batchId = parseBatchId(req.query.batchId);
+  const batchId = parseBatchId(req.query.batchId) || (req.programContext?.batchId ? new Types.ObjectId(req.programContext.batchId) : null);
   if (req.query.batchId !== undefined && !batchId) {
     res.status(400).json({ message: 'Invalid batchId.' });
     return;
@@ -243,7 +244,7 @@ export async function getRecentFaqs(req: Request, res: Response): Promise<void> 
 
   try {
     const filter: Record<string, unknown> = { status: 'approved' };
-    if (batchId) filter.batchId = batchId;
+    filter.batchId = batchId || new Types.ObjectId();
     if (courseId) filter.courseId = courseId;
     const faqs = await FAQ.find(filter)
       .select(PUBLIC_PROJECTION)
@@ -273,7 +274,7 @@ export async function getCategories(req: Request, res: Response): Promise<void> 
 
   const includeTop = req.query.withTop !== undefined;
   const topN = clampInt(req.query.withTop, 1, 10, 3);
-  const batchId = parseBatchId(req.query.batchId);
+  const batchId = parseBatchId(req.query.batchId) || (req.programContext?.batchId ? new Types.ObjectId(req.programContext.batchId) : null);
   if (req.query.batchId !== undefined && !batchId) {
     res.status(400).json({ message: 'Invalid batchId.' });
     return;
@@ -293,7 +294,7 @@ export async function getCategories(req: Request, res: Response): Promise<void> 
   try {
     // Aggregate: group by category, count, sort by count desc
     const matchStage: Record<string, unknown> = { status: 'approved' };
-    if (batchId) matchStage.batchId = batchId;
+    matchStage.batchId = batchId || new Types.ObjectId();
     if (courseId) matchStage.courseId = courseId;
     const grouped = await FAQ.aggregate<{ _id: string; count: number }>([
       { $match: matchStage },
@@ -310,7 +311,7 @@ export async function getCategories(req: Request, res: Response): Promise<void> 
     for (const g of grouped) {
       if (!g._id) continue;
       const catFilter: Record<string, unknown> = { status: 'approved', category: g._id };
-      if (batchId) catFilter.batchId = batchId;
+      catFilter.batchId = batchId || new Types.ObjectId();
       if (courseId) catFilter.courseId = courseId;
       const cat: { name: string; count: number; topFaqs?: ReturnType<typeof shapeFaq>[] } = {
         name: g._id,
@@ -362,6 +363,7 @@ export async function getPublicFaqById(req: Request, res: Response): Promise<voi
       res.status(404).json({ message: 'FAQ not found.' });
       return;
     }
+    if (assertSameProgram(faq, req.programContext, res)) return;
     res.json(shapeFaq(faq));
   } catch (err) {
     communityLog.error(`[publicFaq] getPublicFaqById failed: ${(err as Error).message}`);
@@ -380,7 +382,7 @@ export async function searchPublicFaqs(req: Request, res: Response): Promise<voi
   const q = String(req.query.q ?? '').trim();
   const category = String(req.query.category ?? '').trim();
   const limit = clampInt(req.query.limit, 1, 30, 12);
-  const batchId = parseBatchId(req.query.batchId);
+  const batchId = parseBatchId(req.query.batchId) || (req.programContext?.batchId ? new Types.ObjectId(req.programContext.batchId) : null);
   if (req.query.batchId !== undefined && !batchId) {
     res.status(400).json({ message: 'Invalid batchId.' });
     return;
@@ -407,6 +409,7 @@ export async function searchPublicFaqs(req: Request, res: Response): Promise<voi
     const escaped = escapeRegex(q);
     const filter: Record<string, unknown> = {
       status: 'approved',
+      batchId: batchId || new Types.ObjectId(),
       $or: [
         { question: { $regex: escaped, $options: 'i' } },
         { answer: { $regex: escaped, $options: 'i' } },
@@ -415,7 +418,6 @@ export async function searchPublicFaqs(req: Request, res: Response): Promise<voi
       ],
     };
     if (category) filter.category = category;
-    if (batchId) filter.batchId = batchId;
     if (courseId) filter.courseId = courseId;
 
     const faqs = await FAQ.find(filter)

@@ -3,7 +3,59 @@ import AppSetting, { readSetting } from '../program/app-setting.model.js';
 import User from '../auth/user.model.js';
 import ZoomAssessmentAttempt from './zoom-assessment-attempt.model.js';
 import ZoomSession from './zoom-session.model.js';
+import { Types } from 'mongoose';
 import { getLastResetTime } from '../../integrations/zoom/zoomTime.js';
+
+/**
+ * resolveActiveSession — find the active onboarding Zoom session
+ * for THIS request.
+ *
+ * Why this exists:
+ *   The legacy implementation used `ZoomSession.findOne({ isActive: true })`
+ *   which is a GLOBAL query. With multi-program isolation, more than one
+ *   program can have `isActive: true` set on a session at the same
+ *   time (the activate handler only deactivates same-program sessions),
+ *   so the legacy query returned whichever document MongoDB happened
+ *   to surface first — students in program B could be served the
+ *   questions generated for program A.
+ *
+ * Resolution order (matches the admin-side convention):
+ *   1. If `req.headers['x-program-id']` is set (the frontend's
+ *      axios interceptor attaches this on every authenticated
+ *      request), prefer the active session in THAT program.
+ *   2. Otherwise fall back to the legacy global query — preserves
+ *      backward compatibility for any caller that doesn't send the
+ *      header (e.g. legacy curl flows, the welcome / status check
+ *      before login in some flows).
+ *
+ * Returns `null` when no active session exists at all. The caller
+ * is expected to translate that to a 400 / "no active session"
+ * response — same shape as before.
+ */
+async function resolveActiveSession(req: Request): Promise<any | null> {
+  // v1.69 — student assessment isolation: scope to the student's
+  // active program when the header is present.
+  const fromHeader =
+    (req.headers['x-program-id'] as string | undefined) ||
+    (req.headers['x-batch-id'] as string | undefined) ||
+    (req.headers['x-workspace-id'] as string | undefined);
+  if (fromHeader && Types.ObjectId.isValid(fromHeader)) {
+    const scoped = await ZoomSession.findOne({
+      isActive: true,
+      batchId: new Types.ObjectId(fromHeader),
+    });
+    if (scoped) return scoped;
+    // No active session in that program — DON'T fall through to a
+    // different program's session. That was the bug: returning a
+    // cross-program session here made students see the wrong
+    // questions. Return null and let the caller respond with the
+    // standard "no active session" error.
+    return null;
+  }
+  // Backwards-compatible path: caller didn't tell us which program.
+  // Pick the most recently updated active session.
+  return ZoomSession.findOne({ isActive: true }).sort({ updatedAt: -1 });
+}
 
 export const getAssessment = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -13,7 +65,7 @@ export const getAssessment = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const activeSession = await ZoomSession.findOne({ isActive: true });
+    const activeSession = await resolveActiveSession(req);
     const zoomActive = activeSession ? await readSetting('zoomActive', false) : false;
     if (!zoomActive || !activeSession) {
       res.status(400).json({ message: 'Zoom onboarding is not currently active' });
@@ -125,7 +177,7 @@ export const submitAssessment = async (req: Request, res: Response): Promise<voi
       return;
     }
 
-    const activeSession = await ZoomSession.findOne({ isActive: true });
+    const activeSession = await resolveActiveSession(req);
     if (!activeSession) {
       res.status(400).json({ message: 'No active Zoom onboarding session found.' });
       return;
@@ -225,7 +277,7 @@ export const getZoomStatus = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const activeSession = await ZoomSession.findOne({ isActive: true });
+    const activeSession = await resolveActiveSession(req);
     if (!activeSession) {
       res.status(200).json({ active: false, status: 'no_config', message: 'No active Zoom onboarding session found' });
       return;

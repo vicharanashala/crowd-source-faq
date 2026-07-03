@@ -20,8 +20,8 @@ import { Types } from 'mongoose';
 import { z } from 'zod';
 import ProgramConfig from './program-config.model.js';
 import Batch from './batch.model.js';
-import { exchangeCodeForTokens, getProgramZoomConfig } from '../../integrations/zoom/zoomOAuth.js';
-import { encrypt, decrypt } from '../../utils/auth/crypto.js';
+import { exchangeCodeForTokens } from '../../integrations/zoom/zoomOAuth.js';
+import { encrypt } from '../../utils/auth/crypto.js';
 import { httpLog } from '../../utils/http/logger.js';
 
 const connectBody = z.object({

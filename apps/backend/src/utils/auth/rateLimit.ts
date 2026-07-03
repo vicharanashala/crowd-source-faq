@@ -97,41 +97,41 @@ export function createIdentityLimiter(config: LimiterConfig) {
 
 /**
  * Login brute-force protection:
- * - 10 attempts per email/IP per 15 minutes
+ * - 10 attempts per email/IP per 2 minutes
  * - Keyed by email + IP so a single attacking IP can't lock out a victim
  */
 export const loginLimiter = createIdentityLimiter({
-  windowMs: 15 * 60 * 1000,
+  windowMs: 2 * 60 * 1000,
   max: 10,
   keyPrefix: 'rl_login',
   keyFn: (req: Request) => {
     const email = (req.body as { email?: string })?.email ?? '';
     return `login:${email.toLowerCase()}:${ipKeyGenerator(req.ip ?? 'unknown')}`;
   },
-  message: 'Too many login attempts for this account. Please try again in 15 minutes.',
+  message: 'Too many login attempts for this account. Please try again in 2 minutes.',
 });
 
 /**
  * Registration spam protection:
- * - 5 registrations per IP per hour
+ * - 5 registrations per IP per 15 minutes
  */
 export const registerLimiter = createIdentityLimiter({
-  windowMs: 60 * 60 * 1000,
+  windowMs: 15 * 60 * 1000,
   max: 5,
   keyPrefix: 'rl_reg',
   keyFn: ipOnly,
-  message: 'Too many registration attempts from this IP. Please try again in an hour.',
+  message: 'Too many registration attempts from this IP. Please try again in 15 minutes.',
 });
 
 /**
  * Password change brute-force protection:
- * - 5 attempts per user per 15 minutes
+ * - 5 attempts per user per 2 minutes
  */
 export const passwordChangeLimiter = createIdentityLimiter({
-  windowMs: 15 * 60 * 1000,
+  windowMs: 2 * 60 * 1000,
   max: 5,
   keyPrefix: 'rl_pw',
-  message: 'Too many password change attempts. Please try again in 15 minutes.',
+  message: 'Too many password change attempts. Please try again in 2 minutes.',
 });
 
 /**
@@ -160,7 +160,7 @@ export const twoFALimiter = createIdentityLimiter({
 /**
  * Per-user API burst limiter:
  * - 60 requests per user per minute (in addition to global IP limit)
- * - Catches authenticated abuse that slips past the 300 req/15m IP limit
+ * - Catches authenticated abuse that slips past the 300 req/2m IP limit
  */
 export const userBurstLimiter = createIdentityLimiter({
   windowMs: 60 * 1000,

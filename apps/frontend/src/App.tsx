@@ -12,8 +12,8 @@ export default function App() {
   return (
     <BrowserRouter basename="/csfaq">
       <AuthProvider>
-        <FeatureFlagProvider>
-          <BatchProvider>
+        <BatchProvider>
+          <FeatureFlagProvider>
             <AuthModalHost>
               <Suspense fallback={<div className="min-h-screen bg-bg flex items-center justify-center"><Spinner size="md" /></div>}>
                 <ErrorBoundary sectionName="App (top-level)">
@@ -21,8 +21,8 @@ export default function App() {
                 </ErrorBoundary>
               </Suspense>
             </AuthModalHost>
-          </BatchProvider>
-        </FeatureFlagProvider>
+          </FeatureFlagProvider>
+        </BatchProvider>
       </AuthProvider>
     </BrowserRouter>
   );

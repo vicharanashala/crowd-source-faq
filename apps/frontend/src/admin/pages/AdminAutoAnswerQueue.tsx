@@ -32,7 +32,7 @@ export default function AdminAutoAnswerQueue() {
   const [filter, setFilter] = useState<'all' | 'suggested' | 'escalated'>('all');
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedId] = useState<string | null>(null);
   const [runLoading, setRunLoading] = useState(false);
   const [runResult, setRunResult] = useState<string | null>(null);
 

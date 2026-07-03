@@ -5,6 +5,7 @@ export type AssessmentSourceType = 'faq' | 'transcript' | 'recent_faq';
 
 export interface IZoomAssessmentQuestion extends Document {
   zoomSessionId: Types.ObjectId;
+  batchId?: Types.ObjectId | null;
   question: string;
   options: string[];
   correctOptionIndex: number;
@@ -17,6 +18,7 @@ export interface IZoomAssessmentQuestion extends Document {
 const zoomAssessmentQuestionSchema = new MongooseSchema<IZoomAssessmentQuestion>(
   {
     zoomSessionId: { type: MongooseSchema.Types.ObjectId, ref: 'ZoomSession', required: true, index: true },
+    batchId: { type: MongooseSchema.Types.ObjectId, ref: 'Batch', default: null, index: true },
     question: { type: String, required: true },
     options: { type: [String], required: true },
     correctOptionIndex: { type: Number, required: true, min: 0 },

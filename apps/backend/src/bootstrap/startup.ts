@@ -166,7 +166,7 @@ export async function stopAllSchedulers(): Promise<void> {
   await stopBot();
   await botManager.stopAll();
 
-  // Stop BullMQ workers
+  // Stop the document queue worker
   await stopDocumentWorker();
 
   // Flush pending queues & buffered logs

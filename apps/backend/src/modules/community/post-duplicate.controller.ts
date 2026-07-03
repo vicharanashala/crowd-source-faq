@@ -15,7 +15,7 @@
 import { Request, Response } from 'express';
 import FAQ from '../faq/faq.model.js';
 import CommunityPost from './community-post.model.js';
-import { generateEmbedding, generateQueryEmbedding } from '../../utils/ai/embeddings.js';
+import { generateQueryEmbedding } from '../../utils/ai/embeddings.js';
 import { detectDuplicatesWithAI } from '../../utils/ai/duplicateDetector.js';
 import { resolveProviderAsync } from '../../utils/ai/aiProvider.js';
 import { communityLog } from '../../utils/http/logger.js';

@@ -25,6 +25,21 @@ import mongoose, { Document, Schema as MongooseSchema, Types } from 'mongoose';
 
 export type DocumentInsightType = 'FAQ' | 'Announcement' | 'Policy' | 'HowTo' | 'Fact';
 
+/** Closed taxonomy — kept in sync with documentAiPipeline.INSIGHT_CATEGORIES. */
+export type DocumentInsightCategory =
+  | 'Onboarding'
+  | 'Schedule & Deadlines'
+  | 'Assignments & Projects'
+  | 'Policies & Rules'
+  | 'Technical Setup'
+  | 'Certification & Evaluation'
+  | 'Payment & Stipend'
+  | 'Logistics & Access'
+  | 'Career & Placement'
+  | 'General';
+
+export type DocumentInsightAudience = 'Intern' | 'Mentor' | 'Admin' | 'All';
+
 export type DocumentInsightStatus =
   | 'pending_review'
   | 'approved'
@@ -43,6 +58,15 @@ export interface IDocumentInsight extends Document {
   status: DocumentInsightStatus;
   /** AI confidence (0-1). Echoed from the AI response. */
   confidence_score: number;
+  // ── Structural metadata (LLM-tagged at ingestion) ──────────────────────
+  /** Single closest category from the closed taxonomy. */
+  category: DocumentInsightCategory;
+  /** Primary audience this insight serves. */
+  audience: DocumentInsightAudience;
+  /** Normalized long-tail keyword tags ([a-z0-9-]). */
+  tags: string[];
+  /** 1-3 sentence summary — also indexed for keyword search recall. */
+  summary: string;
   /** Page number / cell reference for tabular sources, if known. */
   pageNumber: number | null;
   /** Short excerpt of the source text this insight was extracted from. */
@@ -94,6 +118,32 @@ const documentInsightSchema = new MongooseSchema<IDocumentInsight>(
       index: true,
     },
     confidence_score: { type: Number, default: 0, min: 0, max: 1 },
+    // ── Structural metadata (LLM-tagged at ingestion) ──────────────────────
+    category: {
+      type: String,
+      enum: [
+        'Onboarding',
+        'Schedule & Deadlines',
+        'Assignments & Projects',
+        'Policies & Rules',
+        'Technical Setup',
+        'Certification & Evaluation',
+        'Payment & Stipend',
+        'Logistics & Access',
+        'Career & Placement',
+        'General',
+      ],
+      default: 'General',
+      index: true,
+    },
+    audience: {
+      type: String,
+      enum: ['Intern', 'Mentor', 'Admin', 'All'],
+      default: 'All',
+      index: true,
+    },
+    tags: { type: [String], default: [], index: true },
+    summary: { type: String, default: '', maxlength: 600 },
     pageNumber: { type: Number, default: null },
     sourceExcerpt: { type: String, default: '', maxlength: 500 },
     searchMatchCount: { type: Number, default: 0, min: 0, index: true },
@@ -125,6 +175,17 @@ documentInsightSchema.index({ status: 1, searchMatchCount: -1, createdAt: -1 });
 
 // "Insights from this document" detail view
 documentInsightSchema.index({ documentId: 1, createdAt: -1 });
+
+// Keyword search recall — the LLM summary is term-dense, so indexing it
+// alongside question/answer is the cheapest way to recover the relevance
+// the embedding model used to provide. `tags` boosts exact keyword hits.
+documentInsightSchema.index(
+  { question: 'text', answer_or_content: 'text', summary: 'text', tags: 'text' },
+  { weights: { question: 10, summary: 6, tags: 4, answer_or_content: 2 }, name: 'insight_text' },
+);
+
+// Faceted filtering / tag boosting at search time (status-scoped).
+documentInsightSchema.index({ status: 1, category: 1, audience: 1 });
 
 // ─── Export ──────────────────────────────────────────────────────────────────
 

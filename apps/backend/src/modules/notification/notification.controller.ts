@@ -9,6 +9,7 @@ export interface CreateNotificationParams {
   message: string;
   /** Must point to a navigable URL, e.g. /community?post=<id> — no bare '#' */
   link: string;
+  batchId?: import('mongoose').Types.ObjectId | null;
 }
 
 // Internal helper — creates a notification. Does NOT send a response.

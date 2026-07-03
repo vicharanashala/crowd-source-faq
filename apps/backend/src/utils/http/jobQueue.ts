@@ -23,7 +23,7 @@
  *   await jobQueue.drain();
  */
 
-import { getContext, runWithContext, getRequestId } from './requestContext.js';
+import { getContext, runWithContext } from './requestContext.js';
 import { logger } from './logger.js';
 import { jobQueueSize, jobQueueProcessed } from './metrics.js';
 

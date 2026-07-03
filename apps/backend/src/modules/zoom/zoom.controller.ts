@@ -19,8 +19,10 @@ import mongoose from 'mongoose';
 import { ZoomMeeting, ZoomInsight } from './zoom-meeting.model.js';
 import User from '../auth/user.model.js';
 import { downloadTranscriptAsUser, getPastRecordings } from '../../integrations/zoom/zoomOAuth.js';
-import { parseVTT, parseVTTWithSpeakers, isEmptyTranscript, isEmptyFromSegments } from '../../integrations/zoom/vttParser.js';
+import { parseVTTWithSpeakers, isEmptyFromSegments } from '../../integrations/zoom/vttParser.js';
 import { processZoomMeetingForKnowledge } from '../knowledge/knowledge-base.service.js';
+import { invalidatePublicCaches } from '../faq/public-faq.controller.js';
+import { invalidateCache } from '../../utils/http/cache.js';
 import { extractInsightsFromTranscript } from '../../integrations/zoom/zoomExtractor.js';
 import { CircuitOpenError } from '../../utils/http/circuitBreaker.js';
 import { sanitizeText } from '../../utils/http/sanitize.js';
@@ -414,10 +416,16 @@ export async function processTranscriptPayloadInternal(
 
     const insightDocs = items.map((item) => ({
       meetingId: meeting._id,
+      batchId: meeting.batchId,
       type: item.type,
       question: item.question,
       answer_or_content: item.answer_or_content,
       confidence_score: item.confidence_score,
+      // Structural metadata tagged at ingestion by the AI pipeline.
+      category: item.category,
+      audience: item.audience,
+      tags: item.tags,
+      summary: item.summary,
       transcript_snippet: item.transcript_snippet,
       // ── Provenance ─────────────────────────────────────────────────────────
       sourcing,
@@ -618,17 +626,21 @@ export async function convertInsightToFAQ(req: Request, res: Response): Promise<
     const { default: FAQ } = await import('../faq/faq.model.js');
     const { generateEmbedding } = await import('../../utils/ai/embeddings.js');
 
-    const tags: string[] = [];
-    if (insight.question) {
+    // Prefer the LLM-generated structural tags; fall back to a naive
+    // word-split of the question for legacy insights with no tags. The
+    // tags feed the FAQ text index so they power search/RAG retrieval.
+    let tags: string[] = Array.isArray(insight.tags) ? insight.tags : [];
+    if (tags.length === 0 && insight.question) {
       const words = insight.question.toLowerCase().match(/\b\w{4,}\b/g) ?? [];
-      tags.push(...words.slice(0, 5));
+      tags = words.slice(0, 5);
     }
 
     const faq = await FAQ.create({
       question: insight.question ?? insight.answer_or_content.slice(0, 200),
       answer: insight.answer_or_content,
+      batchId: insight.batchId || (insight.meetingId as any)?.batchId,
       tags,
-      category: 'Zoom',
+      category: insight.category ?? 'General',
       status: 'approved',
       sourceType: 'zoom_transcript',
       sourceMeetingId: (insight.meetingId as any)?._id ?? null,
@@ -653,6 +665,9 @@ export async function convertInsightToFAQ(req: Request, res: Response): Promise<
       { _id: insight._id },
       { $set: { publishedFaqId: faq._id as mongoose.Types.ObjectId } },
     );
+
+    await invalidateCache();
+    invalidatePublicCaches();
 
     httpLog.info(`[Zoom] Insight ${insight._id} promoted to FAQ ${faq._id}`);
     res.json({ faq });

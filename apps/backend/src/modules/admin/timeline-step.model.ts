@@ -29,6 +29,10 @@ export interface ITimelineStep extends Document {
   mentorNotes?: string;
   resources: IStepResource[];
   checklistItems: IChecklistItem[];
+  // v1.69 — multi-program provisioning: every timeline step belongs
+  // to exactly one program. `null` is allowed for legacy / pre-feature
+  // data; new code paths always set a real ObjectId.
+  batchId: mongoose.Types.ObjectId | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -67,6 +71,7 @@ const timelineStepSchema = new MongooseSchema<ITimelineStep>(
     mentorNotes: { type: String },
     resources: [stepResourceSchema],
     checklistItems: [checklistItemSchema],
+    batchId: { type: MongooseSchema.Types.ObjectId, ref: 'Batch', default: null, index: true },
   },
   { timestamps: true }
 );

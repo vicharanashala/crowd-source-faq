@@ -9,14 +9,14 @@ test.describe('Zoom Ingestion Journeys', () => {
 
   test('should allow admin to manually upload a Zoom VTT transcript, process it, and verify in admin insights', async ({ page }) => {
     // 1. Log in as admin
-    await page.goto('/admin/login');
+    await page.goto('admin/login');
     await page.locator('input[type="email"]').fill('admin@yaksha.com');
     await page.locator('input[type="password"]').fill('admin123');
     await page.getByRole('button', { name: 'Sign in to Admin' }).click();
     await expect(page).toHaveURL(/\/admin$/);
 
     // 2. Go to Account Page
-    await page.goto('/account');
+    await page.goto('account');
     await expect(page.locator('h1')).toContainText('Account');
 
     // 3. Set Meeting Topic
@@ -52,7 +52,7 @@ John: You can request an NOC by submitting the NOC form on the student dashboard
     await expect(page.locator('text=Done —').first()).toBeVisible({ timeout: 15000 });
 
     // 7. Go to Admin Zoom Insights to verify the insight exists
-    await page.goto('/admin/zoom-insights');
+    await page.goto('admin/zoom-insights');
     await expect(page.locator('h1')).toContainText('Zoom Insights');
     await expect(page.locator('text=How do I request an NOC?')).toBeVisible();
   });

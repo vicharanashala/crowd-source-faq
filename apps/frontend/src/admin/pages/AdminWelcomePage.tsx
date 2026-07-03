@@ -5,9 +5,13 @@ import AdminProjectsPage from './AdminProjectsPage';
 import AdminTimelineBuilderTab from '../components/welcome/AdminTimelineBuilderTab';
 import AdminMentorsTab from '../components/welcome/AdminMentorsTab';
 import AdminAuditLogTab from '../components/welcome/AdminAuditLogTab';
+// v1.69 — Welcome Package Management: additive Resources tab.
+// Co-exists with the legacy Orientation Video tab — neither was
+// renamed or removed.
+import AdminResourcesTab from '../components/welcome/AdminResourcesTab';
 
 export default function AdminWelcomePage() {
-  const [activeTab, setActiveTab] = useState<'orientation' | 'onboarding' | 'projects' | 'timeline' | 'mentors' | 'audit'>('orientation');
+  const [activeTab, setActiveTab] = useState<'orientation' | 'onboarding' | 'projects' | 'timeline' | 'mentors' | 'audit' | 'resources'>('orientation');
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -81,6 +85,17 @@ export default function AdminWelcomePage() {
           >
             Audit Log
           </button>
+          {/* v1.69 — Welcome Package Management: new tab. */}
+          <button
+            onClick={() => setActiveTab('resources')}
+            className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'resources'
+                ? 'border-accent text-accent'
+                : 'border-transparent text-ink-soft hover:text-ink hover:border-border'
+            }`}
+          >
+            Resources
+          </button>
       </div>
 
       <div className="pt-4">
@@ -89,6 +104,7 @@ export default function AdminWelcomePage() {
         {activeTab === 'timeline' && <AdminTimelineBuilderTab />}
         {activeTab === 'mentors' && <AdminMentorsTab />}
         {activeTab === 'audit' && <AdminAuditLogTab />}
+        {activeTab === 'resources' && <AdminResourcesTab />}
         {activeTab === 'projects' && (
           <div className="-mt-8">
             <AdminProjectsPage />

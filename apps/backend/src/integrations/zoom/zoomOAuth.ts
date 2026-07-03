@@ -13,7 +13,7 @@
 import crypto from 'crypto';
 import User from '../../modules/auth/user.model.js';
 import { encrypt, decrypt } from '../../utils/auth/crypto.js';
-import { zoomOAuthCircuit, zoomApiCircuit, CircuitOpenError } from '../../utils/http/circuitBreaker.js';
+import { zoomOAuthCircuit, zoomApiCircuit } from '../../utils/http/circuitBreaker.js';
 import { logger } from '../../utils/http/logger.js';
 
 // ─── Config ─────────────────────────────────────────────────────────────────

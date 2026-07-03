@@ -20,6 +20,7 @@ export interface IPipelineResult extends mongoose.Document {
   pipeline:      PipelineName;
   targetModel:   TargetModel;
   targetId:      Types.ObjectId;
+  batchId?:      Types.ObjectId | null;
   targetTitle:   string;
   score:         number;      // 0–1  correctness / relevance
   verdict:       string;      // pipeline-specific: 'correct'|'drift_detected'|'contradiction'|'stale' | 'approved'|'suggested'|'escalated'
@@ -36,6 +37,7 @@ const pipelineResultSchema = new Schema<IPipelineResult>(
     pipeline:    { type: String, required: true, enum: ['faq_audit', 'auto_answer'] as PipelineName[], index: true },
     targetModel: { type: String, required: true, enum: ['FAQ', 'CommunityPost'] as TargetModel[], index: true },
     targetId:    { type: Schema.Types.ObjectId, required: true, index: true },
+    batchId:     { type: Schema.Types.ObjectId, ref: 'Batch', default: null, index: true },
     targetTitle: { type: String, required: true, maxlength: 300 },
     score:       { type: Number, required: true, min: 0, max: 1 },
     verdict:     { type: String, required: true },

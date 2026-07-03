@@ -6,13 +6,11 @@ import ThreadDetail from '../components/community/ThreadDetail';
 import { CommunityDoodles } from '../components/ui/PageDoodles';
 import api from '../utils/api';
 import { useAuth } from '../hooks/useAuth';
-import { useAuthGate } from '../context/AuthModalContext';
 import type { Post } from '../types/ui';
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function SavedKnowledgePage() {
   const { user, isAuthenticated } = useAuth();
-  const gate = useAuthGate();
   const navigate = useNavigate();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);

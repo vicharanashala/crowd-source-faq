@@ -7,10 +7,23 @@ import { z } from 'zod';
 import type { Response } from 'express';
 
 // ─── Auth ───────────────────────────────────────────────────────────────────────
+// Password policy (OWASP A07 / NIST 800-63B aligned): minimum length 8,
+// capped at 128 to bound bcrypt work, and must mix letters + digits so that
+// trivial passwords ("password", "111111") are rejected at the boundary.
+// NOTE: `loginSchema` deliberately keeps `min(1)` — tightening login would
+// lock out existing accounts created under the old 6-char rule. The stronger
+// policy applies only at registration and password-change time.
+export const passwordPolicy = z
+  .string()
+  .min(8, 'Password must be at least 8 characters')
+  .max(128, 'Password must be at most 128 characters')
+  .regex(/[A-Za-z]/, 'Password must contain at least one letter')
+  .regex(/[0-9]/, 'Password must contain at least one number');
+
 export const registerSchema = z.object({
   name:     z.string().min(2, 'Name must be at least 2 characters').max(100),
   email:    z.string().email('Invalid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  password: passwordPolicy,
 });
 
 export const loginSchema = z.object({
@@ -20,12 +33,22 @@ export const loginSchema = z.object({
 
 export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, 'Current password is required'),
-  newPassword:     z.string().min(6, 'New password must be at least 6 characters'),
+  newPassword:     passwordPolicy,
 });
 
 export const updateProfileSchema = z.object({
   name:  z.string().min(2).max(100).optional(),
   email: z.string().email().optional(),
+  guidedTourCompleted: z.boolean().optional(),
+  avatar: z
+    .object({
+      url: z.string().url().max(1000),
+      publicId: z.string().max(200).optional(),
+      gcsUri: z.string().max(1000).optional(),
+      objectPath: z.string().max(1000).optional(),
+    })
+    .nullable()
+    .optional(),
 });
 
 // ─── FAQ ────────────────────────────────────────────────────────────────────────

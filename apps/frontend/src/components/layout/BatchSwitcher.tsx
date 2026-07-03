@@ -86,13 +86,13 @@ export function BatchSwitcher({
   };
 
   return (
-    <div ref={containerRef} className={`relative ${className}`}>
+    <div data-tour="program-selector" ref={containerRef} className={`relative ${className}`}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         className={`inline-flex items-center gap-2 ${
-          compact ? 'px-2.5 py-1 text-[11px]' : 'px-3 py-1.5 text-xs'
-        } rounded-full bg-card border border-border/70 text-ink font-medium hover:border-accent/60 transition-colors`}
+          compact ? 'px-2.5 py-1 text-[11px]' : 'h-9 px-3 text-xs'
+        } rounded-full bg-card border border-border/70 text-ink font-medium hover:border-accent/60 transition-colors shadow-sm`}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={`Current program: ${currentBatch.name}. Click to switch.`}

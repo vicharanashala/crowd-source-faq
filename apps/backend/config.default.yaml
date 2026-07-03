@@ -51,9 +51,9 @@ rateLimiting:
     windowMs: 900000                   # 15 minutes
     maxRequests: 100
   auth:
-    loginWindowMs: 900000
+    loginWindowMs: 120000
     loginMaxAttempts: 5
-    registerWindowMs: 3600000
+    registerWindowMs: 900000
     registerMaxAttempts: 3
   search:
     windowMs: 60000

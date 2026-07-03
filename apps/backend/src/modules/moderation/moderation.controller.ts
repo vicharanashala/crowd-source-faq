@@ -51,6 +51,7 @@ export const banUser = async (req: Request, res: Response): Promise<void> => {
       moderatorId: adminIdAsObjId(adminId), action: 'ban',
       targetId: userId, targetType: 'user',
       reason, newState: 'banned', previousState: prevState,
+      batchId: req.programContext?.batchId ?? null,
     });
     await logAction(adminId, 'ban_user', userId, 'user', reason);
 
@@ -82,6 +83,7 @@ export const unbanUser = async (req: Request, res: Response): Promise<void> => {
       moderatorId: adminIdAsObjId(adminId), action: 'unban',
       targetId: userId, targetType: 'user',
       reason: reason || 'User unbanned', newState: 'active', previousState: prevState,
+      batchId: req.programContext?.batchId ?? null,
     });
     await logAction(adminId, 'unban_user', userId, 'user', reason || 'User unbanned');
 
@@ -112,6 +114,7 @@ export const suspendUser = async (req: Request, res: Response): Promise<void> =>
       moderatorId: adminIdAsObjId(adminId), action: 'suspend',
       targetId: userId, targetType: 'user',
       reason, duration, newState: `suspended_until_${until.toISOString()}`, previousState: prevState,
+      batchId: req.programContext?.batchId ?? null,
     });
     await logAction(adminId, 'suspend_user', userId, 'user', `${reason} until ${until.toISOString()}`);
 
@@ -140,6 +143,7 @@ export const unsuspendUser = async (req: Request, res: Response): Promise<void> 
       moderatorId: adminIdAsObjId(adminId), action: 'unsuspend',
       targetId: userId, targetType: 'user',
       reason: reason || 'Suspension lifted', newState: 'active', previousState: prevState,
+      batchId: req.programContext?.batchId ?? null,
     });
 
     res.json({ userId, suspendedUntil: null });
@@ -163,6 +167,7 @@ export const warnUser = async (req: Request, res: Response): Promise<void> => {
       moderatorId: adminIdAsObjId(adminId), action: 'warn',
       targetId: userId, targetType: 'user',
       reason, newState: 'warned', previousState: 'active',
+      batchId: req.programContext?.batchId ?? null,
     });
     await logAction(adminId, 'warn_user', userId, 'user', reason);
 
@@ -193,6 +198,7 @@ export const softDeleteUser = async (req: Request, res: Response): Promise<void>
       moderatorId: adminIdAsObjId(adminId), action: 'soft_delete',
       targetId: userId, targetType: 'user',
       reason: reason || 'Soft deleted', newState: 'deleted', previousState: 'active',
+      batchId: req.programContext?.batchId ?? null,
     });
     await logAction(adminId, 'soft_delete_user', userId, 'user', reason);
 

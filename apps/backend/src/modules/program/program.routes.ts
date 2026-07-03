@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { protect, authorize } from '../../middleware/auth.js';
 import { getProgramBySlug } from './program.controller.js';
 
 const router = Router();

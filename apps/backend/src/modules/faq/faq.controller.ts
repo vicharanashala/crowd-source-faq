@@ -17,7 +17,7 @@ import { readSetting } from '../program/app-setting.model.js';
 // v1.69 — Phase 3a: every public read in this file funnels its
 // Mongoose filter through withProgramScope. Single tenant callers
 // (no batchId) keep working until the rollout flips required=true.
-import { withProgramScope } from '../../utils/db/scopedQuery.js';
+import { withProgramScope, assertSameProgram } from '../../utils/db/scopedQuery.js';
 
 // v1.69 — batchIdFromQuery helper: read ?batchId=... from
 // any request. The type is intentionally narrow ({query: any})
@@ -84,7 +84,7 @@ interface GroupedFAQs {
 
 // GET /api/faq — All FAQs grouped by category (with optional pagination)
 // Query params: page (default 1), limit (default 0=all), category (filter by category), cursor (opaque)
-export const getAllFAQs = async (req: Request<{}, {}, {}, GetAllFAQsQuery>, res: Response): Promise<void> => {
+export const getAllFAQs = async (req: Request<Record<string, never>, Record<string, never>, Record<string, never>, GetAllFAQsQuery>, res: Response): Promise<void> => {
   try {
     const page = Math.max(1, parseInt(req.query.page ?? '1'));
     const limitVal = req.query.limit ?? '0';
@@ -202,6 +202,7 @@ export const getFAQById = async (req: Request<{ id: string }>, res: Response): P
       res.status(404).json({ message: 'FAQ not found.' });
       return;
     }
+    if (assertSameProgram(faq, req.programContext, res)) return;
 
     res.json(faq);
   } catch (error) {
@@ -244,7 +245,7 @@ export const getRecentFAQs = async (req: Request, res: Response): Promise<void> 
 
 // GET /api/faq/paginated — Flat paginated list of FAQs with optional category filter
 // Query params: page (default 1), limit (default 20), category (optional), cursor (opaque)
-export const getPaginatedFAQs = async (req: Request<{}, {}, {}, GetPaginatedFAQsQuery>, res: Response): Promise<void> => {
+export const getPaginatedFAQs = async (req: Request<Record<string, never>, Record<string, never>, Record<string, never>, GetPaginatedFAQsQuery>, res: Response): Promise<void> => {
   try {
     const page = Math.max(1, parseInt(req.query.page || '1'));
     const limit = Math.max(1, Math.min(100, parseInt(req.query.limit || '20')));
@@ -315,7 +316,7 @@ export const getPaginatedFAQs = async (req: Request<{}, {}, {}, GetPaginatedFAQs
 export const createFAQ = async (req: Request, res: Response): Promise<void> => {
   try {
     const {
-      question, answer, category, batchId,
+      question, answer, category, batchId: rawBatchId,
       freshnessTier,
       reviewIntervalDays,
     } = req.body as {
@@ -323,6 +324,8 @@ export const createFAQ = async (req: Request, res: Response): Promise<void> => {
       freshnessTier?: 'evergreen' | 'seasonal' | 'volatile';
       reviewIntervalDays?: number;
     };
+
+    const batchId = rawBatchId || req.programContext?.batchId;
 
     if (!question || !answer || !category) {
       res.status(400).json({ message: 'Question, answer, and category are required.' });
@@ -377,7 +380,7 @@ export const createFAQ = async (req: Request, res: Response): Promise<void> => {
     invalidatePublicCaches();
 
     // Fan out tea drops to all non-admin users
-    createTeaDropsForFAQ(faq._id.toString(), question).catch((err) => adminLog.warn(`[faq] createTeaDropsForFAQ failed: ${(err as Error).message}`));
+    createTeaDropsForFAQ(faq._id.toString(), question, category_).catch((err) => adminLog.warn(`[faq] createTeaDropsForFAQ failed: ${(err as Error).message}`));
 
     res.status(201).json({ message: 'FAQ created successfully.', faq });
   } catch (error) {
@@ -398,6 +401,7 @@ export const updateFAQ = async (req: Request<{ id: string }>, res: Response): Pr
       res.status(404).json({ message: 'FAQ not found.' });
       return;
     }
+    if (assertSameProgram(faq, req.programContext, res)) return;
 
     if (question) faq.question = sanitizeHtml(question);
     if (answer) faq.answer = sanitizeHtml(answer);
@@ -444,6 +448,7 @@ export const updateFAQ = async (req: Request<{ id: string }>, res: Response): Pr
 
     // Invalidate search cache so updated FAQ reflects immediately
     await invalidateCache();
+    invalidatePublicCaches();
 
     res.json({ message: 'FAQ updated successfully.', faq });
   } catch (error) {
@@ -454,14 +459,17 @@ export const updateFAQ = async (req: Request<{ id: string }>, res: Response): Pr
 // DELETE /api/faq/:id — Delete an FAQ (Admin/Moderator only)
 export const deleteFAQ = async (req: Request<{ id: string }>, res: Response): Promise<void> => {
   try {
-    const faq = await FAQ.findByIdAndDelete(req.params.id);
+    const faq = await FAQ.findById(req.params.id);
     if (!faq) {
       res.status(404).json({ message: 'FAQ not found.' });
       return;
     }
+    if (assertSameProgram(faq, req.programContext, res)) return;
+    await faq.deleteOne();
 
     // Invalidate search cache so deleted FAQ is removed from results
     await invalidateCache();
+    invalidatePublicCaches();
 
     res.json({ message: 'FAQ deleted successfully.' });
   } catch (error) {
@@ -471,7 +479,7 @@ export const deleteFAQ = async (req: Request<{ id: string }>, res: Response): Pr
 
 // POST /api/faq/check-match — Check if a user's question already exists in the FAQ
 // Used by the community board to prevent duplicate questions
-export const checkFAQMatch = async (req: Request<{}, {}, CheckFAQMatchBody>, res: Response): Promise<void> => {
+export const checkFAQMatch = async (req: Request<Record<string, never>, Record<string, never>, CheckFAQMatchBody>, res: Response): Promise<void> => {
   try {
     const { query } = req.body;
 
@@ -544,7 +552,7 @@ export const checkFAQMatch = async (req: Request<{}, {}, CheckFAQMatchBody>, res
 };
 
 // PATCH /api/faq/:id/feedback — Helpful/unhelpful vote on an FAQ
-export const submitFeedback = async (req: Request<{ id: string }, {}, { helpful: boolean }>, res: Response): Promise<void> => {
+export const submitFeedback = async (req: Request<{ id: string }, Record<string, never>, { helpful: boolean }>, res: Response): Promise<void> => {
   try {
     const { helpful } = req.body;
     if (typeof helpful !== 'boolean') {
@@ -556,6 +564,7 @@ export const submitFeedback = async (req: Request<{ id: string }, {}, { helpful:
       res.status(404).json({ message: 'FAQ not found' });
       return;
     }
+    if (assertSameProgram(faq, req.programContext, res)) return;
     if (helpful) {
       faq.helpfulVotes = (faq.helpfulVotes ?? 0) + 1;
     } else {
@@ -602,7 +611,7 @@ export const submitFeedback = async (req: Request<{ id: string }, {}, { helpful:
 };
 
 // POST /api/faq/:id/report — Report an FAQ as inaccurate/outdated
-export const reportFAQ = async (req: Request<{ id: string }, {}, { reason: string }>, res: Response): Promise<void> => {
+export const reportFAQ = async (req: Request<{ id: string }, Record<string, never>, { reason: string }>, res: Response): Promise<void> => {
   try {
     const { reason } = req.body;
     if (!reason || !reason.trim()) {
@@ -619,6 +628,7 @@ export const reportFAQ = async (req: Request<{ id: string }, {}, { reason: strin
       res.status(404).json({ message: 'FAQ not found.' });
       return;
     }
+    if (assertSameProgram(faq, req.programContext, res)) return;
 
     // Prevent duplicate reports by the same user
     const alreadyReported = faq.reports.some(
@@ -650,6 +660,13 @@ export const reportFAQ = async (req: Request<{ id: string }, {}, { reason: strin
 // GET /api/faq/:id/history — Fetch verification & edit history of an FAQ
 export const getFAQHistory = async (req: Request<{ id: string }>, res: Response): Promise<void> => {
   try {
+    const faq = await FAQ.findById(req.params.id);
+    if (!faq) {
+      res.status(404).json({ message: 'FAQ not found.' });
+      return;
+    }
+    if (assertSameProgram(faq, req.programContext, res)) return;
+
     const logs = await FreshReviewLog.find({ faqId: req.params.id })
       .sort({ createdAt: -1 })
       .lean();
@@ -660,7 +677,7 @@ export const getFAQHistory = async (req: Request<{ id: string }>, res: Response)
 };
 
 // POST /api/faq/:id/suggest — Suggest a better answer for an FAQ
-export const createFAQSuggestion = async (req: Request<{ id: string }, {}, { suggestion: string }>, res: Response): Promise<void> => {
+export const createFAQSuggestion = async (req: Request<{ id: string }, Record<string, never>, { suggestion: string }>, res: Response): Promise<void> => {
   try {
     const { suggestion } = req.body;
     if (!suggestion || !suggestion.trim()) {
@@ -676,6 +693,7 @@ export const createFAQSuggestion = async (req: Request<{ id: string }, {}, { sug
       res.status(404).json({ message: 'FAQ not found.' });
       return;
     }
+    if (assertSameProgram(faq, req.programContext, res)) return;
     faq.suggestions = faq.suggestions || [];
     faq.suggestions.push({
       suggestedBy: req.user!._id,

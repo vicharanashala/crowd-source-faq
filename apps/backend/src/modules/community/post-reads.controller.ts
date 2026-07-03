@@ -14,7 +14,12 @@ import { withProgramScope } from '../../utils/db/scopedQuery.js';
 
 function batchIdFromQuery(req: Request): string | null {
   const raw = req.query.batchId;
-  return typeof raw === 'string' && Types.ObjectId.isValid(raw) ? raw : null;
+  if (raw === 'all') {
+    return 'all';
+  }
+  return typeof raw === 'string' && Types.ObjectId.isValid(raw)
+    ? raw
+    : (req.programContext?.batchId?.toString() ?? null);
 }
 import { communityLog } from '../../utils/http/logger.js';
 import { buildCommentTree, timeTrialHoursRemaining } from './post-core.controller.js';
@@ -64,12 +69,14 @@ export const getAllPosts = async (req: Request, res: Response): Promise<void> =>
     else if (sortParam === 'popular') sortObj = { 'upvotes.length': -1, _id: -1 };
 
     // v1.69 — Phase 3b: scope every read by program.
-    const scoped = withProgramScope(query, batchIdFromQuery(req));
+    const selectedBatchId = batchIdFromQuery(req);
+    const scoped = withProgramScope(query, selectedBatchId === 'all' ? null : selectedBatchId);
 
     const total = await CommunityPost.countDocuments(scoped);
 
     const populateFields = [
       { path: 'author', select: 'name' },
+      { path: 'batchId', select: 'name' },
       { path: 'comments.author', select: 'name' },
       { path: 'comments.upvotes', select: 'name' },
       { path: 'comments.downvotes', select: 'name' },
@@ -146,6 +153,7 @@ export const getPostById = async (req: Request, res: Response): Promise<void> =>
     const post = await CommunityPost.findById(req.params.id)
       .select('-embedding')
       .populate('author', 'name')
+      .populate('batchId', 'name')
       .populate('comments.author', 'name')
       .populate('comments.upvotes', 'name')
       .populate('comments.downvotes', 'name')
@@ -180,10 +188,11 @@ export const getSolvedPosts = async (req: Request, res: Response): Promise<void>
 
     const since = new Date(Date.now() - hours * 60 * 60 * 1000);
 
+    const selectedBatchId = batchIdFromQuery(req);
     const scoped = withProgramScope({
       status: 'answered',
       updatedAt: { $gte: since },
-    }, batchIdFromQuery(req));
+    }, selectedBatchId === 'all' ? null : selectedBatchId);
     const posts = await CommunityPost.find(scoped)
       .sort({ updatedAt: -1 })
       .limit(limit)

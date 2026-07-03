@@ -20,5 +20,5 @@ export default function AdminRoute({ children }: AdminRouteProps) {
 
   return isAuthenticated && (user?.role === 'admin' || user?.role === 'moderator')
     ? <>{children}</>
-    : <Navigate to="/" replace />;
+    : <Navigate to="/admin/login" replace />;
 }

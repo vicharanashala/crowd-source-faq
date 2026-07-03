@@ -22,7 +22,7 @@ import type { Batch } from '../../../context/BatchContext';
 
 export default function AdminActiveProgramIndicator(): React.ReactElement | null {
   const { currentBatch, availableBatches, setCurrentBatch } = useBatch();
-  const navigate = useNavigate();
+  
   const [open, setOpen] = useState(false);
 
   if (!currentBatch) {

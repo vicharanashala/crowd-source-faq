@@ -1,8 +1,12 @@
-import mongoose, { Document, Schema as MongooseSchema } from 'mongoose';
+import mongoose, { Document, Schema as MongooseSchema, Types } from 'mongoose';
 
 export type MentorStatus = 'active' | 'archived';
 
 export interface IMentor extends Document {
+  // v1.69 — multi-program provisioning: every mentor belongs to
+  // exactly one program. `null` is allowed for legacy / pre-feature
+  // data; new code paths always set a real ObjectId.
+  batchId: Types.ObjectId | null;
   name: string;
   email: string;
   designation?: string;
@@ -17,6 +21,7 @@ export interface IMentor extends Document {
 
 const mentorSchema = new MongooseSchema<IMentor>(
   {
+    batchId: { type: MongooseSchema.Types.ObjectId, ref: 'Batch', default: null, index: true },
     name: { type: String, required: true },
     email: { type: String, required: true },
     designation: { type: String },

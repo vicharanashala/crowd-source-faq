@@ -130,11 +130,6 @@ export default function InteractiveSearchOverlay({ onSearchComplete, variant = '
     }
   };
 
-  const handleCategorySelect = (categoryName: string) => {
-    setActiveCategory(categoryName);
-    handleQuickSearch(categoryName);
-  };
-
   const handleQueryChange = (value: string) => {
     setQuery(value);
     if (activeCategory && value.trim().toLowerCase() !== activeCategory.toLowerCase()) {

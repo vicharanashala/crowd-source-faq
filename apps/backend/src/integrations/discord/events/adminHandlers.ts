@@ -25,7 +25,7 @@ import {
   ModalBuilder,
   StringSelectMenuBuilder,
 } from 'discord.js';
-import { getConfig, listConfig as listConfigResolver } from '../../../config/runtimeConfig.js';
+import { listConfig as listConfigResolver } from '../../../config/runtimeConfig.js';
 import { setConfig as setConfigService } from '../../../modules/admin/admin.config.service.js';
 import AdminAuditLog from '../../../models/AdminAuditLog.js';
 import { verifyPassphrase } from '../admin/passphrase.js';

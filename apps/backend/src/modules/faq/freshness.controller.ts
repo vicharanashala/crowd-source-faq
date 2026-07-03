@@ -4,6 +4,7 @@ import FAQ from './faq.model.js';
 import FreshReviewVote from './fresh-review-vote.model.js';
 import FreshReviewLog, { type FreshReviewEventType } from './fresh-review-log.model.js';
 import { cronLog } from '../../utils/http/logger.js';
+import { withProgramScope, assertSameProgram } from '../../utils/db/scopedQuery.js';
 
 // Configurable thresholds from env (with defaults)
 const VERIFY_THRESHOLD = parseInt(process.env['FAQ_VERIFY_THRESHOLD'] || '3');
@@ -38,6 +39,7 @@ export const flagFAQ = async (req: Request<{ id: string }>, res: Response): Prom
       res.status(404).json({ message: 'FAQ not found.' });
       return;
     }
+    if (assertSameProgram(faq, req.programContext, res)) return;
 
     if (faq.reviewStatus === 'pending_review') {
       res.status(409).json({ message: 'This FAQ is already under review.' });
@@ -83,6 +85,7 @@ export const voteReview = async (req: Request<{ id: string }>, res: Response): P
       res.status(404).json({ message: 'FAQ not found.' });
       return;
     }
+    if (assertSameProgram(faq, req.programContext, res)) return;
     if (faq.reviewStatus !== 'pending_review') {
       res.status(409).json({ message: 'This FAQ is not open for review.' });
       return;
@@ -204,9 +207,9 @@ export const voteReview = async (req: Request<{ id: string }>, res: Response): P
 };
 
 // ─── GET /api/community/review-queue — FAQs pending peer review ──────────────
-export const getReviewQueue = async (_req: Request, res: Response): Promise<void> => {
+export const getReviewQueue = async (req: Request, res: Response): Promise<void> => {
   try {
-    const faqs = await FAQ.find({ reviewStatus: 'pending_review' })
+    const faqs = await FAQ.find(withProgramScope({ reviewStatus: 'pending_review' }, req.programContext?.batchId))
       .select('question category freshnessTier flaggedAt flagType flagReason reviewCycle lastVerifiedDate')
       .sort({ flaggedAt: 1 })
       .lean();
@@ -254,9 +257,9 @@ export const getReviewQueue = async (_req: Request, res: Response): Promise<void
 };
 
 // ─── GET /api/admin/escalated — FAQs with update_requested status ────────────
-export const getEscalated = async (_req: Request, res: Response): Promise<void> => {
+export const getEscalated = async (req: Request, res: Response): Promise<void> => {
   try {
-    const faqs = await FAQ.find({ reviewStatus: 'update_requested' })
+    const faqs = await FAQ.find(withProgramScope({ reviewStatus: 'update_requested' }, req.programContext?.batchId))
       .select('question answer category freshnessTier flaggedAt flagType flagReason flaggedBy reviewCycle lastVerifiedDate')
       .sort({ flaggedAt: 1 })
       .lean();
@@ -338,6 +341,7 @@ export const verifyEscalatedFAQ = async (req: Request<{ id: string }>, res: Resp
       res.status(404).json({ message: 'FAQ not found.' });
       return;
     }
+    if (assertSameProgram(faq, req.programContext, res)) return;
     if (faq.reviewStatus !== 'update_requested') {
       res.status(409).json({ message: 'FAQ is not in escalated status.' });
       return;
@@ -397,6 +401,7 @@ export const dismissEscalatedFAQ = async (req: Request<{ id: string }>, res: Res
       res.status(404).json({ message: 'FAQ not found.' });
       return;
     }
+    if (assertSameProgram(faq, req.programContext, res)) return;
     if (faq.reviewStatus !== 'update_requested') {
       res.status(409).json({ message: 'FAQ is not in escalated status.' });
       return;
@@ -428,7 +433,7 @@ export const dismissEscalatedFAQ = async (req: Request<{ id: string }>, res: Res
 export const runFreshnessCheck = async (): Promise<void> => {
   try {
     const seasonalDays = SEASONAL_DEFAULT;
-    const volatileDays  = VOLATILE_DEFAULT;
+    const _volatileDays  = VOLATILE_DEFAULT;
 
     // Find all non-evergreen, verified FAQs whose interval has expired
     const staleFAQs = await FAQ.find({

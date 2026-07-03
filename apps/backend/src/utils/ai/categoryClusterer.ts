@@ -231,7 +231,7 @@ async function persistClusters(
   // locked survives; the rest gets cleared before we insert
   // fresh clusters. This keeps the "shape" of locked clusters
   // intact even if the cluster boundaries shift.
-  const deleteResult = await CategoryCluster.deleteMany({
+  await CategoryCluster.deleteMany({
     batchId,
     locked: { $ne: true },
   });

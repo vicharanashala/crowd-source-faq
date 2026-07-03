@@ -16,6 +16,7 @@ export interface ITeaNotification extends Document {
   // FAQ fields (used when eventType === 'faq_published')
   faqId?: Types.ObjectId;
   faqQuestion?: string;
+  faqCategory?: string;
   // Community post fields (used for post_answered / post_deleted / post_answered_user)
   postId?: Types.ObjectId;
   postTitle?: string;
@@ -50,6 +51,10 @@ const teaNotificationSchema = new MongooseSchema(
       ref: 'FAQ',
     },
     faqQuestion: {
+      type: String,
+      trim: true,
+    },
+    faqCategory: {
       type: String,
       trim: true,
     },

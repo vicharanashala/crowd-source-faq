@@ -17,7 +17,7 @@
 import DocumentRecord, { type IDocumentRecord } from '../../modules/knowledge/document-record.model.js';
 import DocumentInsight from '../../modules/knowledge/document-insight.model.js';
 import { extractTextFromFile, type ExtractionResult } from '../documentExtractor.js';
-import { extractInsightsFromText } from '../ai/documentAiPipeline.js';
+import { extractInsightsFromText, PROMPT_VERSION } from '../ai/documentAiPipeline.js';
 import { logger } from '../http/logger.js';
 import type { DocumentJobData, DocumentJobResult } from './documentQueue.js';
 
@@ -64,10 +64,16 @@ export async function processDocument(data: DocumentJobData): Promise<DocumentJo
   if (insights.length > 0) {
     const rows = insights.map((i) => ({
       documentId: record._id,
+      batchId: record.batchId,
       type: i.type,
       question: i.question ?? '',
       answer_or_content: i.answer_or_content,
       confidence_score: i.confidence_score,
+      // Structural metadata tagged at ingestion by the AI pipeline.
+      category: i.category,
+      audience: i.audience,
+      tags: i.tags,
+      summary: i.summary,
       status: 'pending_review' as const,
       pageNumber: null,
       sourceExcerpt: excerptAround(extraction.text, i.question, 240),
@@ -76,7 +82,7 @@ export async function processDocument(data: DocumentJobData): Promise<DocumentJo
       reviewedAt: null,
       publishedFaqId: null,
       promotionReason: null,
-      aiPromptVersion: 'v1',
+      aiPromptVersion: PROMPT_VERSION,
     }));
     await DocumentInsight.insertMany(rows);
   }

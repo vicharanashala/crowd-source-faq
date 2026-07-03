@@ -48,6 +48,10 @@ export default function AuthModal() {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  
+  const [showLoginPwd, setShowLoginPwd] = useState(false);
+  const [showRegPwd, setShowRegPwd] = useState(false);
+  const [showRegConfirmPwd, setShowRegConfirmPwd] = useState(false);
 
   // v1.7x — Public registration-mode snapshot. Fetched when the modal
   // opens on the register tab so we can render the right banner copy
@@ -219,8 +223,12 @@ export default function AuthModal() {
       submittedRef.current = false;
       return;
     }
-    if (registerForm.password.length < 6) {
-      setError('Password must be at least 6 characters.');
+    if (
+      registerForm.password.length < 8 ||
+      !/[A-Za-z]/.test(registerForm.password) ||
+      !/[0-9]/.test(registerForm.password)
+    ) {
+      setError('Password must be at least 8 characters and include a letter and a number.');
       submittedRef.current = false;
       return;
     }
@@ -331,13 +339,27 @@ export default function AuthModal() {
             <Input
               id="modal-login-password"
               name="password"
-              type="password"
+              type={showLoginPwd ? 'text' : 'password'}
               label="Password"
               autoComplete="current-password"
               value={loginForm.password}
               onChange={handleLoginChange}
               placeholder="••••••••"
               disabled={loading}
+              iconRight={
+                <button
+                  type="button"
+                  onClick={() => setShowLoginPwd(!showLoginPwd)}
+                  className="pointer-events-auto p-1 hover:text-ink transition-colors flex items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-accent/25"
+                  aria-label={showLoginPwd ? "Hide password" : "Show password"}
+                >
+                  {showLoginPwd ? (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                  ) : (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                  )}
+                </button>
+              }
             />
             {error && (
               <p className="text-xs text-danger bg-danger-light border border-danger/15 rounded-xl px-3 py-2">
@@ -418,25 +440,53 @@ export default function AuthModal() {
             <Input
               id="modal-register-password"
               name="password"
-              type="password"
+              type={showRegPwd ? 'text' : 'password'}
               label="Password"
               autoComplete="new-password"
               value={registerForm.password}
               onChange={handleRegisterChange}
               placeholder="••••••••"
               disabled={loading}
+              iconRight={
+                <button
+                  type="button"
+                  onClick={() => setShowRegPwd(!showRegPwd)}
+                  className="pointer-events-auto p-1 hover:text-ink transition-colors flex items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-accent/25"
+                  aria-label={showRegPwd ? "Hide password" : "Show password"}
+                >
+                  {showRegPwd ? (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                  ) : (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                  )}
+                </button>
+              }
             />
-            <p className="text-[10px] text-ink-faint -mt-2">Minimum 6 characters</p>
+            <p className="text-[10px] text-ink-faint -mt-2">At least 8 characters, including a letter and a number</p>
             <Input
               id="modal-register-confirm"
               name="confirmPassword"
-              type="password"
+              type={showRegConfirmPwd ? 'text' : 'password'}
               label="Confirm Password"
               autoComplete="new-password"
               value={registerForm.confirmPassword}
               onChange={handleRegisterChange}
               placeholder="••••••••"
               disabled={loading}
+              iconRight={
+                <button
+                  type="button"
+                  onClick={() => setShowRegConfirmPwd(!showRegConfirmPwd)}
+                  className="pointer-events-auto p-1 hover:text-ink transition-colors flex items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-accent/25"
+                  aria-label={showRegConfirmPwd ? "Hide password" : "Show password"}
+                >
+                  {showRegConfirmPwd ? (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                  ) : (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                  )}
+                </button>
+              }
             />
             {error && (
               <p className="text-xs text-danger bg-danger-light border border-danger/15 rounded-xl px-3 py-2">
@@ -459,6 +509,9 @@ export default function AuthModal() {
             >
               {regStatusLoading ? 'Loading…' : 'Create account'}
             </Button>
+            <div className="mt-3 rounded-xl border border-border bg-mist px-3 py-2.5 text-center text-[11px] text-ink-soft">
+              If you are Unable to Register, please ensure that you have joined the whatsapp group sent to you via mail
+            </div>
           </form>
         )}
       </div>

@@ -14,9 +14,10 @@ import { dispatchNotification } from '../../utils/http/notificationDispatcher.js
 import { communityLog } from '../../utils/http/logger.js';
 import { assertCanCreateContent } from '../../utils/banUtils.js';
 // v1.69 — Phase 3e: program-scope guard for all comment writes.
-import { assertSameProgram } from '../../utils/db/scopedQuery.js';
+import { assertSameProgram, withProgramScope } from '../../utils/db/scopedQuery.js';
 
 // Extend Express Request to include user (same pattern as auth middleware)
+/* eslint-disable @typescript-eslint/no-namespace */
 declare global {
   namespace Express {
     interface Request {
@@ -24,6 +25,7 @@ declare global {
     }
   }
 }
+/* eslint-enable @typescript-eslint/no-namespace */
 
 // GET /api/community/answers/list — Paginated list of posts with an official expert answer
 export const getAnswersList = async (req: Request, res: Response): Promise<void> => {
@@ -33,10 +35,14 @@ export const getAnswersList = async (req: Request, res: Response): Promise<void>
     const skip = (page - 1) * limit;
 
     const filter = { status: 'answered' };
+    const selectedBatchId = req.query.batchId === 'all'
+      ? null
+      : (req.query.batchId as string | undefined || req.programContext?.batchId?.toString());
+    const scoped = withProgramScope(filter, selectedBatchId);
 
-    const total = await CommunityPost.countDocuments(filter);
+    const total = await CommunityPost.countDocuments(scoped);
 
-    const posts = await CommunityPost.find(filter)
+    const posts = await CommunityPost.find(scoped)
       .select('-embedding')
       .populate('author', 'name')
       .sort({ updatedAt: -1 })
@@ -101,7 +107,11 @@ export const addComment = async (req: Request, res: Response): Promise<void> => 
     }
 
     // Build comment object with parentId and depth for replies
-    const commentObj: Record<string, unknown> = { author: req.user!._id, body: sanitizeHtml(body.trim()) };
+    const commentObj: Record<string, unknown> = {
+      author: req.user!._id,
+      body: sanitizeHtml(body.trim()),
+      batchId: post.batchId,
+    };
     if (resolvedParent) {
       commentObj.parentId = new Types.ObjectId(parentId);
       commentObj.depth = resolvedParent.depth + 1;
@@ -152,6 +162,7 @@ export const addComment = async (req: Request, res: Response): Promise<void> => 
             title: '🏅 First Responder!',
             message: `You were the first to answer "${post.title}" during the Time-Trial challenge!`,
             link: `/community?post=${post._id}`,
+            batchId: post.batchId ?? null,
           })
         ).catch((err) => {
           communityLog.warn(`[comment] Failed to send First Responder notification to ${req.user!._id}: ${(err as Error).message}`);
@@ -166,6 +177,7 @@ export const addComment = async (req: Request, res: Response): Promise<void> => 
           await winner.save();
           await ReputationLog.create({
             userId: winner._id,
+            batchId: post.batchId ?? null,
             delta: 20,
             reason: `First Responder on post "${post.title.slice(0, 40)}"`,
             action: 'answer_accepted',
@@ -185,6 +197,7 @@ export const addComment = async (req: Request, res: Response): Promise<void> => 
           title: 'New comment on your post',
           message: `${req.user!.name} commented on "${post.title}": "${body.trim().slice(0, 80)}${body.trim().length > 80 ? '…' : ''}"`,
           link: `/community?post=${post._id}`,
+          batchId: post.batchId ?? null,
         })
       ).catch((err) => {
         communityLog.warn(`[comment] Failed to notify post author ${post.author}: ${(err as Error).message}`);
@@ -213,6 +226,7 @@ export const addComment = async (req: Request, res: Response): Promise<void> => 
           title: 'Someone replied to your comment',
           message: `${req.user!.name} replied: "${body.trim().slice(0, 80)}${body.trim().length > 80 ? '…' : ''}"`,
           link: `/community?post=${post._id}`,
+          batchId: post.batchId ?? null,
         })
       ).catch((err) => {
         communityLog.warn(`[comment] Failed to notify parent comment author ${resolvedParent.author}: ${(err as Error).message}`);
@@ -320,7 +334,10 @@ export const verifyComment = async (req: Request, res: Response): Promise<void> 
 };
 
 // PATCH /api/community/:id/comments/:commentId/accept-answer — Accept a comment as the official answer
-// Only the post author can accept an answer; sets answer, answerAuthorId, status=answered, clears escalation
+// The post author can accept their own question's answer; admins and
+// moderators can override and accept on behalf of the community
+// (otherwise admins would be hard-blocked from answering unanswered
+// questions whose author is offline or has churned).
 export const acceptCommentAnswer = async (req: Request, res: Response): Promise<void> => {
   if (!req.user) { res.status(401).json({ message: "Not authorized" }); return; }
   try {
@@ -331,9 +348,11 @@ export const acceptCommentAnswer = async (req: Request, res: Response): Promise<
     }
     if (assertSameProgram(post, req.programContext, res)) return;
 
-    // Only the post author can accept an answer
-    if (post.author.toString() !== req.user!._id.toString()) {
-      res.status(403).json({ message: 'Only the post author can accept an answer.' });
+    // Only the post author — or an admin/moderator — can accept an answer.
+    const isAuthor = post.author.toString() === req.user!._id.toString();
+    const isPrivileged = ['admin', 'moderator'].includes(req.user!.role);
+    if (!isAuthor && !isPrivileged) {
+      res.status(403).json({ message: 'Only the post author or a moderator can accept an answer.' });
       return;
     }
 
@@ -362,7 +381,9 @@ export const acceptCommentAnswer = async (req: Request, res: Response): Promise<
         to: 'answered',
         changedBy: req.user!._id,
         changedAt: new Date(),
-        note: 'Answer accepted by question author',
+        note: isPrivileged && !isAuthor
+          ? `Answer accepted by ${req.user!.role}`
+          : 'Answer accepted by question author',
       });
       post.lifecycle.status = 'answered';
     }

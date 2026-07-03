@@ -13,9 +13,12 @@
  *   4. Categorisation — each item is typed as 'FAQ' or 'Announcement'.
  */
 
-import { ZoomInsightType } from '../../modules/zoom/zoom-meeting.model.js';
+import { ZoomInsightType, type InsightCategory, type InsightAudience } from '../../modules/zoom/zoom-meeting.model.js';
 import { resolveProviderAsync } from '../../utils/ai/aiProvider.js';
-import { parseVTTWithSpeakers, extractSnippet, isEmptyTranscript, isEmptyFromSegments, TranscriptSegment } from './vttParser.js';
+// Single source of truth for the structural-metadata taxonomy — shared with
+// the document-insight pipeline so categories/audiences never drift apart.
+import { INSIGHT_CATEGORIES, INSIGHT_AUDIENCES, normalizeTags } from '../../utils/ai/documentAiPipeline.js';
+import { parseVTTWithSpeakers, extractSnippet, isEmptyFromSegments, TranscriptSegment } from './vttParser.js';
 import { logger } from '../../utils/http/logger.js';
 
 export interface ExtractedItem {
@@ -23,6 +26,15 @@ export interface ExtractedItem {
   question?: string;       // only for FAQ
   answer_or_content: string;
   confidence_score: number;
+  // ── Structural metadata (tagged at ingestion) ──────────────────────────
+  /** Single closest category from the closed taxonomy. */
+  category: InsightCategory;
+  /** Primary audience from the closed taxonomy. */
+  audience: InsightAudience;
+  /** Normalized long-tail keyword tags ([a-z0-9-]). */
+  tags: string[];
+  /** 1-3 sentence summary — also fed into the keyword index for recall. */
+  summary: string;
   /** ISO 8601 wall-clock timestamp from the transcript when this Q&A appeared */
   transcriptTimestamp?: string;
   /** Speaker name from the transcript for this Q&A */
@@ -63,7 +75,10 @@ const SYSTEM_PROMPT = `You are a precise meeting-notes analyst. Your task is to 
 
 Output rules (strictly follow these):
 - Return ONLY a valid JSON array. No preamble, no explanation, no markdown.
-- Each array item MUST have these exact fields: "type" ("FAQ" or "Announcement"), "question" (string, only for FAQ; omit or null for Announcement), "answer_or_content" (string), "confidence_score" (number 0.0 to 1.0, how certain you are this was correctly extracted), "transcript_snippet" (string, MAX 150 chars, ONLY the exact transcript excerpt that answers THIS specific question or contains THIS announcement — do NOT include other questions/answers), "start_sec" (number, approximate seconds offset in the transcript where this item starts — used to locate the exact segment).
+- Each array item MUST have these exact fields: "type" ("FAQ" or "Announcement"), "question" (string, only for FAQ; omit or null for Announcement), "answer_or_content" (string), "confidence_score" (number 0.0 to 1.0, how certain you are this was correctly extracted), "category" (string, see list below), "audience" (string, see list below), "tags" (array of 2-6 short lowercase keyword strings), "summary" (string, 1-3 sentences packing the key searchable terms), "transcript_snippet" (string, MAX 150 chars, ONLY the exact transcript excerpt that answers THIS specific question or contains THIS announcement — do NOT include other questions/answers), "start_sec" (number, approximate seconds offset in the transcript where this item starts — used to locate the exact segment).
+- "category" — pick the SINGLE closest value from this exact list (copy verbatim): ${INSIGHT_CATEGORIES.map((c) => `"${c}"`).join(', ')}. If nothing fits, use "General".
+- "audience" — who this is primarily for. One of: ${INSIGHT_AUDIENCES.map((a) => `"${a}"`).join(', ')}. Use "All" if unsure.
+- "tags" — specific terms a user would actually type (e.g. "offer-letter", "stipend", "deadline"). No sentences.
 - For FAQs, "question" must be a natural question asked by a participant.
 - For Announcements, "question" should be null.
 - Set confidence_score to 0.0 if the text is garbled, ambiguous, or you're guessing.
@@ -87,6 +102,10 @@ export async function extractInsightsFromTranscript(
         question: 'How do I request an NOC?',
         answer_or_content: 'You can request an NOC by submitting the NOC form on the student dashboard.',
         confidence_score: 0.95,
+        category: 'Logistics & Access',
+        audience: 'Intern',
+        tags: ['noc', 'dashboard'],
+        summary: 'Interns request an NOC via the NOC form on the student dashboard.',
         transcript_snippet: 'John: You can request NOC by emailing NOC coordinator or submit NOC form.',
       }
     ];
@@ -255,11 +274,25 @@ function parseExtractedItems(raw: string, segments: TranscriptSegment[]): Extrac
         const rawSnippet = !isNaN(snippetStartSec) ? extractSnippet(segments, snippetStartSec, 120) : '';
         // Fall back to keyword-based extraction if time-based didn't apply
         const finalSnippet = rawSnippet || keywordSnippet(segments, item.question, String(item.answer_or_content ?? ''));
+        // Structural metadata — validate against the closed taxonomy, fall
+        // back to the safe defaults when the model returns an off-list value.
+        const rawCategory = String(raw['category'] ?? '').trim();
+        const category: InsightCategory = (INSIGHT_CATEGORIES as readonly string[]).includes(rawCategory)
+          ? (rawCategory as InsightCategory)
+          : 'General';
+        const rawAudience = String(raw['audience'] ?? '').trim();
+        const audience: InsightAudience = (INSIGHT_AUDIENCES as readonly string[]).includes(rawAudience)
+          ? (rawAudience as InsightAudience)
+          : 'All';
         return {
           type: item.type,
           question: item.question ?? undefined,
           answer_or_content: String(item.answer_or_content).slice(0, 500),
           confidence_score: confidence,
+          category,
+          audience,
+          tags: normalizeTags(raw['tags']),
+          summary: String(raw['summary'] ?? '').slice(0, 600),
           transcriptTimestamp: ts || undefined,
           speaker: spkr || undefined,
           transcript_snippet: (finalSnippet || String(item.transcript_snippet ?? '')).slice(0, 220),

@@ -231,7 +231,7 @@ interface DbOverrides {
   minimax: { apiKey: string; baseURL: string; model: string };
   gemini: { apiKey: string; baseURL: string; model: string };
   custom: { apiKey: string; baseURL: string; model: string };
-};
+}
 
 let _cache: { value: DbOverrides; expiresAt: number } | null = null;
 const CACHE_TTL_MS = 5_000;

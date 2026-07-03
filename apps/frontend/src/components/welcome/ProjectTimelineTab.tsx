@@ -137,7 +137,7 @@ export default function ProjectTimelineTab() {
     try {
       const saved = localStorage.getItem(`timeline_checks_${user?._id}`);
       if (saved) return JSON.parse(saved);
-    } catch (e) {}
+    } catch (e) { void 0 }
     return {};
   });
 

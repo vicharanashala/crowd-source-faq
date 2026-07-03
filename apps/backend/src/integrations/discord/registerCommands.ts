@@ -7,16 +7,17 @@
 import { REST, Routes, type RESTPostAPIChatInputApplicationCommandsJSONBody } from 'discord.js';
 import { logger } from '../../utils/http/logger.js';
 import type { BotConfig } from './discordBot.js';
-import { askCommandData, executeAsk } from './commands/ask.js';
-import { searchCommandData, executeSearch } from './commands/search.js';
-import { statusCommandData, executeStatus } from './commands/status.js';
-import { helpCommandData, executeHelp } from './commands/help.js';
-import { ticketsCommandData, executeTickets } from './commands/tickets.js';
-import { resolveCommandData, executeResolve } from './commands/resolve.js';
-import { banCommandData, executeBan } from './commands/ban.js';
-import { broadcastCommandData, executeBroadcast } from './commands/broadcast.js';
-import { adminCommandData, executeAdmin } from './commands/admin.js';
-import { healthCommandData, executeHealth } from './commands/health.js';
+import { askCommandData } from './commands/ask.js';
+import { searchCommandData } from './commands/search.js';
+import { statusCommandData } from './commands/status.js';
+import { helpCommandData } from './commands/help.js';
+import { ticketsCommandData } from './commands/tickets.js';
+import { resolveCommandData } from './commands/resolve.js';
+import { banCommandData } from './commands/ban.js';
+import { broadcastCommandData } from './commands/broadcast.js';
+import { adminCommandData } from './commands/admin.js';
+import { healthCommandData } from './commands/health.js';
+import { setupAdminCommandData } from './commands/setupadmin.js';
 
 function buildCommandList(): RESTPostAPIChatInputApplicationCommandsJSONBody[] {
   return [
@@ -30,6 +31,7 @@ function buildCommandList(): RESTPostAPIChatInputApplicationCommandsJSONBody[] {
     broadcastCommandData,
     adminCommandData,
     healthCommandData,
+    setupAdminCommandData,
   ];
 }
 

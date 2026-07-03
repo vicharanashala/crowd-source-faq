@@ -10,6 +10,10 @@ adminApi.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  const programId = localStorage.getItem('yaksha_active_program_id') || localStorage.getItem('yaksha_active_batch_id');
+  if (programId) {
+    config.headers['x-program-id'] = programId;
+  }
   return config;
 });
 

@@ -22,6 +22,8 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import adminApi from '../utils/adminApi';
+import { useBatch } from '../../context/BatchContext';
+import { slugifyProgramName } from '../../utils/programSlug';
 // v1.69 — Phase 8 admin UI: real interactive widget for the
 // per-program feature flag toggle. Replaces the previous
 // placeholder curl snippet on the Features tab.
@@ -74,28 +76,65 @@ function StatBox({ label, value }: { label: string; value: number | string }) {
 export default function AdminProgramDetail(): React.ReactElement {
   const params = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const programId = params.id ?? '';
+  const { availablePrograms } = useBatch();
+  // The route param is `id` but we accept both an ObjectId and a slug.
+  // The previous behaviour was to assume ObjectId — any non-id route
+  // (or an id that was deleted/renamed) surfaced a generic "Program
+  // not found" with no recovery path. Now we resolve slugs to ids via
+  // the slug-by-slug endpoint and fall back to the in-memory program
+  // list when the slug is just slightly out of sync.
+  const rawParam = params.id ?? '';
+  const isObjectId = /^[a-f0-9]{24}$/i.test(rawParam);
+
   const [tab, setTab] = useState<Tab>('overview');
   const [info, setInfo] = useState<ProgramInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [programId, setProgramId] = useState<string>(isObjectId ? rawParam : '');
 
+  // Resolve the param to a real program id. Tries three sources in
+  // order so the admin always lands on the right detail page:
+  //   1. Already an ObjectId — use as-is and verify via API.
+  //   2. Slug → id via /api/batches/by-slug/:slug.
+  //   3. Slug → id via the in-memory availablePrograms list.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await adminApi.get<{ batch: ProgramInfo }>(`/batches/${programId}`);
+        let id = isObjectId ? rawParam : '';
+        if (!id) {
+          // Try the by-slug endpoint (works for any program, even if
+          // not in the cached availablePrograms list).
+          try {
+            const slugRes = await adminApi.get<{ _id: string }>(`/batches/by-slug/${encodeURIComponent(rawParam)}`);
+            id = slugRes.data._id;
+          } catch {
+            // Fall back to the cached list — covers the case where
+            // the network is slow / API is down but we already have
+            // the program in memory.
+            const fromList = availablePrograms.find((p) => p.name && slugifyProgramName(p.name) === rawParam);
+            if (fromList) id = fromList._id;
+          }
+        }
+        if (cancelled) return;
+        if (!id) {
+          setError(`We couldn't find a program with id or slug "${rawParam}". It may have been deleted or renamed.`);
+          setLoading(false);
+          return;
+        }
+        setProgramId(id);
+        const res = await adminApi.get<{ batch: ProgramInfo }>(`/batches/${id}`);
         if (!cancelled) setInfo(res.data.batch);
       } catch (err) {
-        if (!cancelled) setError('Failed to load program.');
+        if (!cancelled) setError('Failed to load program. It may have been deleted or you may not have access.');
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [programId]);
+  }, [rawParam, isObjectId, availablePrograms]);
 
   if (loading && !info) {
     return <div className="text-sm text-ink-soft py-12 text-center">Loading program…</div>;
@@ -103,8 +142,11 @@ export default function AdminProgramDetail(): React.ReactElement {
   if (error || !info) {
     return (
       <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700">
-        {error ?? 'Program not found.'}{' '}
-        <Link to="/admin/programs" className="underline">Back to dashboard</Link>
+        <p className="font-medium mb-1">{error ?? 'Program not found.'}</p>
+        <p className="text-xs text-rose-600 mb-2">
+          Tried id lookup, slug lookup, and the in-memory program list — none matched.
+        </p>
+        <Link to="/admin/programs" className="underline">Back to Programs Hub</Link>
       </div>
     );
   }
@@ -149,6 +191,13 @@ export default function AdminProgramDetail(): React.ReactElement {
           </div>
         </div>
       </div>
+
+      {/* v1.69 — multi-program provisioning: empty-state onboarding
+          panel. Visible on freshly-created programs that haven't been
+          populated yet. Gives the admin a single click-through for
+          every populate action so they don't need to hunt through the
+          tabs. */}
+      <GettingStartedPanel programId={programId} />
 
       {/* Tab strip */}
       <div className="border-b border-border/60">
@@ -422,4 +471,102 @@ function AppSettingsTab({ programId }: { programId: string }) {
   // /api/admin/programs/:id/settings endpoints that were
   // added in Phase 9+.
   return <ProgramAppSettingsTab programId={programId} />;
+}
+
+/**
+ * GettingStartedPanel — onboarding card for newly-provisioned programs.
+ *
+ * Polls a handful of read-only count endpoints in parallel. If every
+ * count is 0, the panel renders with one-click links into each
+ * populate action (categories, FAQs, welcome kit, Zoom, AI, Discord).
+ * The moment any of those counts go above zero, the panel hides
+ * itself so it doesn't become clutter for established programs.
+ */
+function GettingStartedPanel({ programId }: { programId: string }): React.ReactElement | null {
+  const [counts, setCounts] = useState<{
+    faqs: number;
+    courses: number;
+    members: number;
+    zoomMeetings: number;
+    communityPosts: number;
+  } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    // Per-endpoint typed shapes so the catch fallback doesn't widen to {}.
+    type BatchRes = { batch?: { faqCount?: number; memberCount?: number } };
+    type ListRes<T> = { [k: string]: T[] | undefined };
+    const empty = <T,>(data: T = {} as T) => ({ data });
+
+    Promise.all([
+      adminApi.get<BatchRes>(`/admin/batches/${programId}`).catch(() => empty<BatchRes>()),
+      adminApi.get<ListRes<unknown>>(`/faq?batchId=${programId}`).catch(() => empty<ListRes<unknown>>()),
+      adminApi.get<ListRes<unknown>>(`/admin/programs/${programId}/courses`).catch(() => empty<ListRes<unknown>>()),
+      adminApi.get<ListRes<unknown>>(`/zoom/meetings`).catch(() => empty<ListRes<unknown>>()),
+      adminApi.get<ListRes<unknown>>(`/community/posts?batchId=${programId}&limit=1`).catch(() => empty<ListRes<unknown>>()),
+    ]).then(([batch, faqs, courses, zoom, community]) => {
+      if (cancelled) return;
+      const arrLen = (v: unknown): number => Array.isArray(v) ? v.length : 0;
+      setCounts({
+        faqs: batch.data.batch?.faqCount ?? arrLen(faqs.data.faqs),
+        courses: arrLen(courses.data.courses),
+        members: batch.data.batch?.memberCount ?? 0,
+        zoomMeetings: arrLen(zoom.data.meetings),
+        communityPosts: arrLen(community.data.posts),
+      });
+    });
+    return () => { cancelled = true; };
+  }, [programId]);
+
+  // Show only when the program is essentially empty.
+  const isEmpty = counts !== null
+    && counts.faqs === 0
+    && counts.courses === 0
+    && counts.members === 0
+    && counts.communityPosts === 0;
+  if (!isEmpty) return null;
+
+  const actions: Array<{ label: string; sub: string; to: string }> = [
+    { label: 'Add a category',          sub: 'Group FAQs by topic',                          to: `/admin/programs/${programId}/categories` },
+    { label: 'Create your first FAQ',    sub: 'Knowledge starts with one answer',             to: `/admin/faqs?programId=${programId}` },
+    { label: 'Build the welcome kit',    sub: 'Orientation, projects, mentors, timeline',     to: `/admin/programs/${programId}/welcome` },
+    { label: 'Connect Zoom',             sub: 'OAuth credentials + meetings',                 to: `/admin/programs/${programId}/zoom` },
+    { label: 'Configure AI',             sub: 'Providers, pipelines, thresholds',             to: `/admin/programs/${programId}/ai` },
+    { label: 'Enable Discord',           sub: 'Bot token + guild + notifications',           to: `/admin/programs/${programId}/discord` },
+  ];
+
+  return (
+    <div className="rounded-2xl border border-accent/30 bg-accent/5 p-5">
+      <div className="flex items-start gap-3">
+        <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-accent/15 text-accent shrink-0">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 2L2 7l10 5 10-5-10-5z" />
+            <path d="M2 17l10 5 10-5" />
+            <path d="M2 12l10 5 10-5" />
+          </svg>
+        </span>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-sm font-semibold text-ink">Get started</h2>
+          <p className="text-xs text-ink-soft mt-0.5">
+            This program was just provisioned and is empty. Pick the first thing to populate:
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mt-3">
+            {actions.map((a) => (
+              <Link
+                key={a.to}
+                to={a.to}
+                className="block rounded-xl border border-border/60 bg-card p-3 hover:border-accent/40 hover:bg-accent/5 transition-colors"
+              >
+                <p className="text-xs font-medium text-ink">{a.label}</p>
+                <p className="text-[10px] text-ink-soft mt-0.5">{a.sub}</p>
+              </Link>
+            ))}
+          </div>
+          <p className="text-[10px] text-ink-faint mt-3">
+            This card hides itself the moment the program has any content. You can always come back via the tabs above.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
 }

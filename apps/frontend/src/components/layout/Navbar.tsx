@@ -2,13 +2,14 @@ import { useState, useEffect, useRef } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useAuthModal, useAuthGate } from '../../context/AuthModalContext';
-import { useFeatureFlag } from '../../context/FeatureFlagContext';
+
 import { buildGcsTransformedUrl } from '../../utils/gcsTransform';
 import NotificationBell from '../../components/notifications/NotificationBell';
 import SpurtiChip from './SpurtiChip';
 import ZoomBubble from '../welcome/ZoomBubble';
 import { BatchSwitcher } from './BatchSwitcher';
 import { NavPills, useNavItems } from './NavPills';
+import logoWide from '../../assets/logo-wide.png';
 
 function getAvatarColor(name?: string): string {
   if (!name) return '#6b92e0';
@@ -30,7 +31,7 @@ function applyTheme(theme: Theme) {
   document.documentElement.setAttribute('data-theme', t);
   try {
     localStorage.setItem('theme', theme);
-  } catch {}
+  } catch { void 0 }
 }
 
 export default function Navbar({ showProgramSwitcher: _showProgramSwitcher = false, isAdminView = false }: { showProgramSwitcher?: boolean, isAdminView?: boolean } = {}) {
@@ -78,7 +79,7 @@ export default function Navbar({ showProgramSwitcher: _showProgramSwitcher = fal
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
-  const gate = useAuthGate();
+  
 
 
   useEffect(() => {
@@ -120,11 +121,11 @@ export default function Navbar({ showProgramSwitcher: _showProgramSwitcher = fal
   const avatarSrc = user?.avatar?.url
     ? buildGcsTransformedUrl(user.avatar.url, 'w_64,h_64,c_fill,g_auto,q_auto,f_auto')
     : undefined;
-  const isCommunityActive = location.pathname === '/community';
+  
 
   return (
     <header className={`fixed top-2 sm:top-4 left-0 right-0 z-50 px-4 transition-all duration-[400ms] ease-smooth flex flex-col items-center ${isAdminView ? 'top-20 sm:top-24' : ''}`}>
-      <div className={`w-full max-w-[1200px] px-4 sm:px-6 h-14 sm:h-16 grid grid-cols-[1fr_auto_1fr] items-center relative rounded-full transition-all duration-[400ms]
+      <div className={`w-full max-w-[1200px] px-4 sm:px-6 h-14 sm:h-16 grid grid-cols-[1fr_auto_1fr] gap-3 sm:gap-4 items-center relative rounded-full transition-all duration-[400ms]
         ${scrolled
           ? 'bg-[rgb(var(--bg-card-rgb)_/_0.75)] backdrop-blur-[24px] shadow-[0_8px_30px_rgba(0,0,0,0.08)] border border-[rgb(var(--border-rgb)_/_0.5)] saturate-[1.5]'
           : 'bg-[rgb(var(--bg-card-rgb)_/_0.4)] backdrop-blur-[12px] border border-[rgb(var(--border-rgb)_/_0.2)] shadow-[0_4px_20px_rgba(0,0,0,0.03)]'
@@ -132,20 +133,13 @@ export default function Navbar({ showProgramSwitcher: _showProgramSwitcher = fal
       >
 
         {/* Logo */}
-        <div className="flex items-center justify-self-start">
+        <div className="flex items-center justify-self-start min-w-[140px] flex-shrink-0">
           <NavLink to="/" className="flex items-center gap-2.5 group w-fit">
-            <div className="w-9 h-9 rounded-[10px] border-2 border-ink text-ink flex items-center justify-center transition-transform duration-300 group-hover:rotate-[-6deg] bg-[rgb(var(--bg-card-rgb)_/_0.5)]">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10"/>
-                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
-                <line x1="12" y1="17" x2="12.01" y2="17"/>
-              </svg>
-            </div>
-            {!isAdminView && (
-              <span className="font-sans font-bold tracking-tight text-ink text-xl">
-                Yaksha FAQ
-              </span>
-            )}
+            <img
+              src={logoWide}
+              alt="Yaksha FAQ"
+              className="h-10 sm:h-12 w-auto object-contain transition-transform duration-300 group-hover:scale-[1.02]"
+            />
           </NavLink>
         </div>
 
@@ -179,36 +173,18 @@ export default function Navbar({ showProgramSwitcher: _showProgramSwitcher = fal
 
               {/* Authenticated Utility Group */}
               {isAuthenticated && (
-                <div className="flex items-center gap-3 lg:gap-4">
-                  {/* Ask Question button — hidden until 2xl (1536px) so
-                      it stops fighting the center pill for space on
-                      narrower desktop screens. Users can still ask
-                      from /community. */}
-                  <button
-                    onClick={() => navigate('/community?ask=true')}
-                    className="hidden 2xl:inline-flex btn-base btn-primary text-xs"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                    </svg>
-                    Ask Question
-                  </button>
+                <div className="flex items-center gap-2 sm:gap-3 ml-3 sm:ml-5">
+                  <ZoomBubble />
+                  {/* Spurti Points chip */}
+                  <SpurtiChip />
+                  {isAuthenticated && (
+                    <BatchSwitcher showCreateLink={user?.role === 'admin'} className="hidden md:inline-flex" />
+                  )}
 
-                  <div className="hidden lg:block w-px h-6 bg-border ml-3 lg:ml-4 2xl:ml-0" />
+                  <NotificationBell />
 
-                  <div className="flex items-center gap-2">
-                    <ZoomBubble />
-                    {/* Spurti Points chip */}
-                    <SpurtiChip />
-                    {user?.role === 'admin' && (
-                      <BatchSwitcher showCreateLink={true} className="hidden md:inline-flex" />
-                    )}
-
-                    <NotificationBell />
-
-                    {/* User Avatar + Dropdown */}
-                    <div className="relative" ref={profileRef}>
+                  {/* User Avatar + Dropdown */}
+                  <div data-tour="user-profile" className="relative" ref={profileRef}>
                       <button
                         onClick={(e) => { e.stopPropagation(); setProfileOpen(!profileOpen); }}
                         className="flex items-center gap-1.5 cursor-pointer group"
@@ -310,7 +286,6 @@ export default function Navbar({ showProgramSwitcher: _showProgramSwitcher = fal
                       )}
                     </div>
                   </div>
-                </div>
               )}
             </>
           )}

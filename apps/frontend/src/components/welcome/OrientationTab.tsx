@@ -2,6 +2,8 @@ import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
+import { useProgram } from '../../context/ProgramContext';
+import { resolveAssetUrl } from '../../utils/publicUrl';
 
 interface Orientation {
   _id: string;
@@ -48,6 +50,7 @@ function parseTranscript(raw: string): TranscriptLine[] {
 
 export default function OrientationTab() {
   const { isAuthenticated } = useAuth();
+  const { currentProgram } = useProgram();
   const [orientation, setOrientation] = useState<Orientation | null>(null);
   const [loading, setLoading] = useState(true);
   
@@ -98,8 +101,16 @@ export default function OrientationTab() {
   useEffect(() => {
     const fetchOrientation = async () => {
       try {
-        const res = await api.get('/welcome/orientation');
-        setOrientation(res.data);
+        // v1.69 — Welcome Package fix: pass the active program's
+        // batchId as a query param so the backend scopes correctly
+        // even if the api interceptor hasn't yet populated
+        // localStorage with the program id (race condition on first
+        // mount). The backend also accepts the `x-program-id`
+        // header set by the interceptor, so this is a redundant,
+        // belt-and-suspenders fallback.
+        const params = currentProgram?._id ? { batchId: currentProgram._id } : {};
+        const res = await api.get('/welcome/orientation', { params });
+        setOrientation(res.data ?? null);
       } catch (error) {
         console.error('Error fetching orientation', error);
       } finally {
@@ -107,7 +118,7 @@ export default function OrientationTab() {
       }
     };
     fetchOrientation();
-  }, []);
+  }, [currentProgram?._id]);
 
   const handleTimeUpdate = () => {
     if (videoRef.current) {
@@ -212,9 +223,16 @@ export default function OrientationTab() {
     return <div className="text-center py-20 text-ink-soft">No active orientation found.</div>;
   }
 
-  const videoSource = orientation.videoUrl.startsWith('http') 
-    ? orientation.videoUrl 
-    : `http://localhost:6767${orientation.videoUrl}`;
+  // Resolve the asset URL:
+  //   - absolute (http/https) → use as-is (CDN, GCS, etc.)
+  //   - relative (`/uploads/...`, `/csfaq/uploads/...`) → use as-is;
+  //     the browser resolves it against the page origin which is
+  //     always the backend in this app. The old hardcoded
+  //     `http://localhost:6767` prefix broke in every deployment.
+  // The backend now stores URLs prefixed with `publicBasePath()`
+  // (e.g. `/csfaq/uploads/orientations/...`) so the relative path
+  // is correct on every deployment.
+  const videoSource = resolveAssetUrl(orientation.videoUrl);
 
   const suggestions = [
     "How does the contribution process work?",

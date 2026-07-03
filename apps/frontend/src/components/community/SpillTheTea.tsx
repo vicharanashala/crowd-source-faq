@@ -101,7 +101,6 @@ export default function SpillTheTea() {
     fetchTea(1, true).then(() => {
       // lastSeenIdRef is set inside fetchTea after this resolves
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   useEffect(() => {

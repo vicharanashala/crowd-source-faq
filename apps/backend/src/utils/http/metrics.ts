@@ -23,7 +23,6 @@
  *   const snapshot = getMetrics();
  */
 
-import { getRequestId } from './requestContext.js';
 
 // ─── Metric Type Definitions ───────────────────────────────────────────────────
 
@@ -194,7 +193,7 @@ export function getHistogram(name: string): Histogram {
 // ─── Prometheus Exposition Format ─────────────────────────────────────────────
 
 function formatCounter(name: string, map: Map<string, number>): string {
-  const help = ''; // metrics don't carry help strings in this simple impl
+  const _help = ''; // metrics don't carry help strings in this simple impl
   const lines: string[] = [];
   for (const [labels, value] of map.entries()) {
     const labelBlock = labels ? `{${labels}}` : '';

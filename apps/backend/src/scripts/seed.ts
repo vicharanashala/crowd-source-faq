@@ -125,6 +125,8 @@ const seed = async () => {
           category: faq.category ?? faq.section ?? 'General',
           embedding,
           searchCount: 0,
+          status: 'approved',
+          reviewStatus: 'verified',
           // Tie every newly-seeded FAQ to the default program so the
           // public home page actually has data to render.
           batchId: defaultBatch._id,

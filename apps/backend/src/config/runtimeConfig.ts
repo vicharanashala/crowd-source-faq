@@ -311,6 +311,7 @@ function getCrypto() {
   if (!_encrypt || !_decrypt) {
     // Synchronous require — the crypto module has no async setup.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
+// eslint-disable-next-line @typescript-eslint/no-var-requires
     const { encrypt, decrypt } = require('../utils/auth/crypto.js');
     _encrypt = encrypt;
     _decrypt = decrypt;

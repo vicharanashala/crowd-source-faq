@@ -14,7 +14,7 @@
  */
 
 import AiConfig from './ai-config.model.js';
-import { generateEmbedding, generateQueryEmbedding } from '../../utils/ai/embeddings.js';
+import { generateQueryEmbedding } from '../../utils/ai/embeddings.js';
 import { logger } from '../../utils/http/logger.js';
 
 // ─── Provider definitions ───────────────────────────────────────────────────

@@ -65,7 +65,20 @@ export default function AdminCommunity() {
                posts.length === 0 ? <tr><td colSpan={8} className="admin-empty">No posts found</td></tr> :
                posts.map(post => (
                 <tr key={post._id} className="admin-tr">
-                  <td className="admin-td max-w-[180px] truncate" title={post.title}>{post.title}</td>
+                  <td className="admin-td max-w-[180px] truncate" title={post.title}>
+                    {(() => {
+                      const programName = typeof (post as any).batchId === 'object' && (post as any).batchId !== null && 'name' in (post as any).batchId
+                        ? ((post as any).batchId as { name: string }).name
+                        : null;
+                      if (!programName) return null;
+                      return (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-accent-light text-accent text-[9px] font-bold uppercase tracking-wider mr-2">
+                          {programName}
+                        </span>
+                      );
+                    })()}
+                    {post.title}
+                  </td>
                   <td className="admin-td text-ink-faint">{post.author?.name ?? '—'}</td>
                   <td className="admin-td"><Badge status={post.status === 'answered' ? 'approved' : 'pending'} label={post.status} showDot={false} /></td>
                   <td className="admin-td text-right">
@@ -96,6 +109,22 @@ export default function AdminCommunity() {
         {viewPost && (
           <div className="space-y-3">
             <div><p className="admin-label">Title</p><p className="text-sm text-ink">{viewPost.title}</p></div>
+            {(() => {
+              const programName = typeof (viewPost as any).batchId === 'object' && (viewPost as any).batchId !== null && 'name' in (viewPost as any).batchId
+                ? ((viewPost as any).batchId as { name: string }).name
+                : null;
+              if (!programName) return null;
+              return (
+                <div>
+                  <p className="admin-label">Program</p>
+                  <p className="text-sm text-ink-soft">
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-accent-light text-accent text-[9px] font-bold uppercase tracking-wider">
+                      {programName}
+                    </span>
+                  </p>
+                </div>
+              );
+            })()}
             <div><p className="admin-label">Author</p><p className="text-sm text-ink-soft">{viewPost.author?.name} ({viewPost.author?.email})</p></div>
             <div><p className="admin-label">Body</p><p className="text-sm text-ink-soft whitespace-pre-wrap">{viewPost.body}</p></div>
             <div><p className="admin-label">Status</p><Badge status={viewPost.status === 'answered' ? 'approved' : 'pending'} label={viewPost.status} showDot={false} /></div>

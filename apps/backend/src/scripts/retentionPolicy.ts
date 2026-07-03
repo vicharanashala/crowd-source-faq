@@ -29,7 +29,7 @@ const NOTIFICATION_READ_DAYS = parseInt(process.env['RETENTION_NOTIFICATION_DAYS
 const FRESH_REVIEW_LOG_DAYS = parseInt(process.env['RETENTION_FRESH_REVIEW_DAYS'] ?? '180');
 const MODERATION_LOG_DAYS = parseInt(process.env['RETENTION_MODERATION_LOG_DAYS'] ?? '365');
 const ADMIN_LOG_DAYS = parseInt(process.env['RETENTION_ADMIN_LOG_DAYS'] ?? '365');
-const DEAD_JOB_DAYS = parseInt(process.env['RETENTION_DEAD_JOB_DAYS'] ?? '7');
+const _DEAD_JOB_DAYS = parseInt(process.env['RETENTION_DEAD_JOB_DAYS'] ?? '7');
 
 function daysAgo(n: number): Date {
   return new Date(Date.now() - n * 24 * 60 * 60 * 1000);

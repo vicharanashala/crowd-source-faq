@@ -2,19 +2,26 @@
 // feature so the navbar / sidebar / page guards can hide or show
 // affordances without each page making its own API call.
 //
-// Reuses the existing `api` axios client. The /api/feature-flags
-// endpoint is auth-required (returns flags for the authed user, no
-// admin gate on read) so the page chrome can decide what to render.
+// v1.69 — multi-program scoping: every fetch passes the active
+// program's batchId as a query param so the backend resolves the
+// correct per-program override. Switching the active program via
+// ProgramContext automatically re-fetches the flag list because
+// `activeProgramId` is in the useEffect dependency array.
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import api from '../utils/api';
 import { useAuth } from '../hooks/useAuth';
+import { useCurrentProgramId } from '../hooks/useProgramScopedApi';
 
 export interface FeatureFlag {
   key: string;
   enabled: boolean;
   label: string;
   description: string;
+  // v1.69 — surfaced from the backend so the admin UI can show
+  // whether a flag's value comes from a per-program override or
+  // the global default. Frontend renderers can ignore it.
+  overridden?: boolean;
   firstEnabledAt: string | null;
   lastDisabledAt: string | null;
 }
@@ -56,6 +63,7 @@ interface ProviderProps { children: React.ReactNode }
 
 export function FeatureFlagProvider({ children }: ProviderProps): React.ReactElement {
   const { isAuthenticated } = useAuth();
+  const activeProgramId = useCurrentProgramId();
   const [flags, setFlags] = useState<Record<string, FeatureFlag>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -72,7 +80,12 @@ export function FeatureFlagProvider({ children }: ProviderProps): React.ReactEle
       return;
     }
     try {
-      const res = await api.get<{ flags: FeatureFlag[] }>('/feature-flags');
+      // v1.69 — pass the active program so the backend resolves
+      // per-program overrides. Without batchId the endpoint falls
+      // back to global defaults only, which would mean switching
+      // programs doesn't update feature flags until full reload.
+      const params = activeProgramId ? { batchId: activeProgramId } : {};
+      const res = await api.get<{ flags: FeatureFlag[] }>('/feature-flags', { params });
       const map: Record<string, FeatureFlag> = {};
       for (const f of res.data.flags ?? []) {
         map[f.key] = f;
@@ -86,7 +99,7 @@ export function FeatureFlagProvider({ children }: ProviderProps): React.ReactEle
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, activeProgramId]);
 
   useEffect(() => { void load(); }, [load, isAuthenticated]);
 

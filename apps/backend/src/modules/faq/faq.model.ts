@@ -300,7 +300,13 @@ const faqSchema = new MongooseSchema(
   { timestamps: true }
 );
 
-faqSchema.index({ question: 'text', answer: 'text' });
+// Keyword search index — `tags` (carried forward from insight ingestion
+// metadata) are weighted alongside question/answer so tag terms boost both
+// the /api/search lexical ranker and the RAG retrieval that share this index.
+faqSchema.index(
+  { question: 'text', answer: 'text', tags: 'text' },
+  { weights: { question: 10, tags: 5, answer: 2 }, name: 'faq_text' },
+);
 faqSchema.index({ trustLevel: 1, objectionStatus: 1, promotedAt: 1 });
 faqSchema.index({ sourceType: 1, sourceCommunityPostId: 1 });
 // Hot-field indexes for admin/frontend queries

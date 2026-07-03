@@ -5,7 +5,6 @@
  */
 
 import { useMemo } from 'react';
-import api from '../../utils/api';
 import type { Course, CoursesResponse } from '../../types/course';
 import { usePublicGet } from './usePublicFaqApi';
 

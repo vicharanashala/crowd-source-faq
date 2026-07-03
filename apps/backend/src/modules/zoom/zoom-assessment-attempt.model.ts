@@ -3,6 +3,7 @@ import mongoose, { Schema, Document, Types } from 'mongoose';
 export interface IZoomAssessmentAttempt extends Document {
   zoomSessionId: Types.ObjectId;
   userId: Types.ObjectId;
+  batchId?: Types.ObjectId | null;
   questions: Array<{
     _id: Types.ObjectId;
     question: string;
@@ -26,6 +27,7 @@ const zoomAssessmentAttemptSchema = new Schema<IZoomAssessmentAttempt>(
   {
     zoomSessionId: { type: Schema.Types.ObjectId, ref: 'ZoomSession', required: true, index: true },
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    batchId: { type: Schema.Types.ObjectId, ref: 'Batch', default: null, index: true },
     questions: [
       {
         _id: { type: Schema.Types.ObjectId, required: true },

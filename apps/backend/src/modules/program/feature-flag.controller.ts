@@ -37,6 +37,31 @@ export const FEATURE_FLAGS = {
       'When disabled, document uploads are gated and the worker is stopped to free up resources.',
     defaultEnabled: true,
   },
+  welcomePackage: {
+    label: 'Welcome Package',
+    description:
+      'The student onboarding / orientation hub at /welcome (project discovery, ' +
+      'getting-started checklist, etc.). When disabled, the nav link is hidden and ' +
+      'the page shows the unavailable panel.',
+    defaultEnabled: true,
+  },
+  askAiChatbot: {
+    label: 'Ask AI Chatbot',
+    description:
+      'The floating AskAI assistant button shown on non-admin pages. When disabled, ' +
+      'the button is hidden from the UI. Toggle on to re-enable the chatbot for users.',
+    defaultEnabled: false,
+  },
+  aiAutoAnswer: {
+    label: 'AI Auto-Answer Queue',
+    description: 'Enables the AI Auto-Answer review queue.',
+    defaultEnabled: true,
+  },
+  faqFreshness: {
+    label: 'FAQ Freshness Review',
+    description: 'Enables the FAQ freshness report and review system.',
+    defaultEnabled: true,
+  },
 } as const;
 
 export type FeatureFlagKey = keyof typeof FEATURE_FLAGS;
@@ -66,14 +91,51 @@ export async function ensureAllFlags(): Promise<void> {
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
 
-/** GET /api/feature-flags — list all flags + state. Any authenticated
- *  user can read this so the frontend can decide whether to show the
- *  feature. */
-export async function listFeatureFlags(_req: Request, res: Response): Promise<void> {
+/** GET /api/feature-flags?batchId=<id> — list flags resolved for a
+ *  specific program (per-program override → global default). Without
+ *  batchId the endpoint returns global defaults only — the previous
+ *  behaviour of returning every flag across every program was a
+ *  data-isolation regression. Admins managing across programs use
+ *  the dedicated /api/admin/programs/:id/feature-flags endpoint. */
+export async function listFeatureFlags(req: Request, res: Response): Promise<void> {
   try {
     await ensureAllFlags();
-    const flags = await FeatureFlag.find({}).select('-__v').lean();
-    res.json({ flags });
+    const rawBatchId = typeof req.query.batchId === 'string' ? req.query.batchId : null;
+    const hasBatchId = rawBatchId !== null && Types.ObjectId.isValid(rawBatchId);
+    const programBatchId = hasBatchId ? new Types.ObjectId(rawBatchId!) : null;
+
+    if (programBatchId) {
+      // Resolve every known flag for THIS program (per-program
+      // override → global default fallback) — same algorithm the
+      // runtime uses, so the UI sees what users will see.
+      const overrides = await FeatureFlag.find({ batchId: programBatchId })
+        .select('key enabled updatedAt')
+        .lean();
+      const overrideByKey = new Map(overrides.map((o) => [o.key, o]));
+      const flags = await Promise.all(
+        (Object.keys(FEATURE_FLAGS) as FeatureFlagKey[]).map(async (key) => {
+          const override = overrideByKey.get(key);
+          const enabled = override
+            ? override.enabled
+            : await isFeatureEnabled(key, null);
+          return {
+            key,
+            label: FEATURE_FLAGS[key].label,
+            description: FEATURE_FLAGS[key].description,
+            enabled,
+            overridden: !!override,
+            updatedAt: override?.updatedAt ?? null,
+          };
+        })
+      );
+      res.json({ batchId: programBatchId.toString(), flags });
+    } else {
+      // No batchId — return global defaults only. The frontend
+      // always passes batchId when currentProgram is set, so this
+      // path is effectively admin-only / unscoped callers.
+      const flags = await FeatureFlag.find({ batchId: null }).select('-__v').lean();
+      res.json({ flags });
+    }
   } catch (err) {
     adminLog.error(`[featureFlags] listFeatureFlags failed: ${(err as Error).message}`);
     res.status(500).json({ message: 'Failed to load feature flags.' });
@@ -173,7 +235,7 @@ export async function toggleFeatureFlag(req: Request, res: Response): Promise<vo
     adminLog.error(`[featureFlags] toggleFeatureFlag failed: ${(err as Error).message}`);
     res.status(500).json({ message: 'Failed to update feature flag.' });
   }
-};
+}
 
 // ─── Per-Program Overrides (Phase 8) ────────────────────────────────────────
 //

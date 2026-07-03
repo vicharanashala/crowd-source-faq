@@ -114,7 +114,7 @@ export function popularityScore(input: PopularityInputs): number {
 export function countWords(text: string | null | undefined): number {
   if (!text) return 0;
   const cleaned = text
-    .replace(/[`*_>#\[\]\(\)]/g, ' ')   // strip markdown
+    .replace(/[`*_>#[\]()]/g, ' ')   // strip markdown
     .replace(/\s+/g, ' ')
     .trim();
   if (!cleaned) return 0;

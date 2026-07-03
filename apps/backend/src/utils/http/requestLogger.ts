@@ -17,7 +17,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { httpLog, type LogLevel } from './logger.js';
-import { getRequestId, getUserId } from './requestContext.js';
+import { getUserId } from './requestContext.js';
 import { logToFile } from './fileLogger.js';
 
 // Sanitize fields that should never appear in logs

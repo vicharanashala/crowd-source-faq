@@ -25,7 +25,6 @@ import { Request, Response } from 'express';
 import { Types } from 'mongoose';
 import CommunityPost from '../community/community-post.model.js';
 import FAQ from '../faq/faq.model.js';
-import { TranscriptKnowledge } from '../knowledge/transcript-knowledge.model.js';
 import Notification from '../notification/notification.model.js';
 import { readSetting } from '../program/app-setting.model.js';
 // L1 fix (v1.68): use the named `cronLog` for the auto-answer
@@ -356,6 +355,7 @@ async function processPost(post: InstanceType<typeof CommunityPost>): Promise<vo
       pipeline:    'auto_answer',
       targetModel: 'CommunityPost',
       targetId:    post._id as Types.ObjectId,
+      batchId:     post.batchId,
       targetTitle: post.title,
       score:       result.confidence,
       verdict:     result.verdict,

@@ -79,6 +79,19 @@ export default function CommunityPostCard({ post, onClick, currentUserId, onTogg
       </div>
 
       <div className="flex-1 min-w-0">
+        {(() => {
+          const programName = typeof post.batchId === 'object' && post.batchId !== null && 'name' in post.batchId
+            ? (post.batchId as { name: string }).name
+            : null;
+          if (!programName) return null;
+          return (
+            <div className="mb-1">
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-accent/10 border border-accent/25 text-[9px] font-bold text-accent uppercase tracking-wider">
+                {programName}
+              </span>
+            </div>
+          );
+        })()}
         <p className="text-sm font-medium text-ink group-hover:text-accent transition-colors leading-snug">
           {post.title}
         </p>

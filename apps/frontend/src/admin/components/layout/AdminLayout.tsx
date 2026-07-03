@@ -4,10 +4,20 @@ import AdminSidebar from './AdminSidebar';
 import AdminHeader from './AdminHeader';
 import { useAdminAuth } from '../../hooks/useAdminAuth';
 import ErrorBoundary from '../../../components/ui/ErrorBoundary';
+import { AdminProgramScopeWiring, installAdminScopedApiInterceptor } from '../../utils/adminScopedApi';
+import { useProgram } from '../../../context/ProgramContext';
+
+// v1.69 — multi-program scoping: install the adminApi request
+// interceptor once at app boot. The interceptor reads the active
+// program id from ProgramContext on every request and attaches it
+// as `?batchId=...` so every admin endpoint scopes itself
+// automatically. Pages don't need to remember to pass batchId.
+installAdminScopedApiInterceptor();
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const { isAdmin, loading } = useAdminAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { currentProgram } = useProgram();
 
   if (loading) {
     return (
@@ -28,12 +38,16 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-bg text-ink selection:bg-accent/20 flex flex-col font-sans">
+      {/* v1.69 — wiring component. Renders null but pushes the active
+          program id into the adminApi interceptor on every render,
+          so the next request always carries the right batchId. */}
+      <AdminProgramScopeWiring />
       <AdminHeader mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
-      
+
       <div className="flex-1 flex w-full max-w-[1600px] mx-auto relative pt-4 md:pt-6">
         <AdminSidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
-        
-        <main className="flex-1 min-w-0 px-4 sm:px-6 lg:px-8 pb-16 lg:pb-24">
+
+        <main key={currentProgram?._id ?? 'none'} className="flex-1 min-w-0 px-4 sm:px-6 lg:px-8 pb-16 lg:pb-24">
           <ErrorBoundary sectionName="AdminPage" level="section">
             {children}
           </ErrorBoundary>

@@ -1,11 +1,26 @@
 import { Request, Response } from 'express';
+import { Types } from 'mongoose';
 import TimelineStep from './timeline-step.model.js';
 import OnboardingAuditLog from '../program/onboarding-audit-log.model.js';
+
+/** Accepts batchId from body (writes) or query (reads). Mirrors the
+ *  helper used in faq.controller.ts and admin-mentor.controller.ts. */
+function batchIdFromInput(req: { query: any; body?: any }): string | null {
+  const raw = req.body?.batchId ?? req.query?.batchId;
+  if (typeof raw !== 'string') return null;
+  return Types.ObjectId.isValid(raw) ? raw : null;
+}
 
 // GET /admin/timeline-steps
 export const getTimelineSteps = async (req: Request, res: Response): Promise<void> => {
   try {
-    const steps = await TimelineStep.find().sort({ order: 1 });
+    // v1.69 — multi-program scoping: every timeline step belongs to
+    // exactly one program. Without this filter, the endpoint would
+    // return steps from every program.
+    const batchId = batchIdFromInput(req);
+    const filter: Record<string, unknown> = {};
+    if (batchId) filter.batchId = new Types.ObjectId(batchId);
+    const steps = await TimelineStep.find(filter).sort({ order: 1 });
     res.status(200).json(steps);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching timeline steps', error });
@@ -26,14 +41,27 @@ export const createTimelineStep = async (req: Request, res: Response): Promise<v
       return;
     }
 
-    // Auto-assign order as last position
-    const maxOrder = await TimelineStep.findOne().sort({ order: -1 }).select('order');
+    // v1.69 — multi-program scoping: every step needs a valid
+    // batchId. Without it the step would be global and bleed
+    // across programs on read.
+    const rawBatchId = batchIdFromInput(req);
+    if (!rawBatchId) {
+      res.status(400).json({ message: 'A valid batchId is required to create a timeline step.' });
+      return;
+    }
+
+    // Auto-assign order as last position WITHIN the same program
+    // (previously: global, would collide between programs).
+    const maxOrder = await TimelineStep.findOne({ batchId: new Types.ObjectId(rawBatchId) })
+      .sort({ order: -1 })
+      .select('order');
     const order = (maxOrder?.order ?? -1) + 1;
 
     const step = new TimelineStep({
       title, description, icon, order, isMandatory, isLocked, status,
       dependencies, completionType, estimatedTime, rewards, mentorNotes,
-      resources: resources || [], checklistItems: checklistItems || []
+      resources: resources || [], checklistItems: checklistItems || [],
+      batchId: new Types.ObjectId(rawBatchId),
     });
     await step.save();
 
@@ -45,7 +73,7 @@ export const createTimelineStep = async (req: Request, res: Response): Promise<v
         entityType: 'timeline_step',
         entityId: step._id,
         action: 'create',
-        newValue: { title, order },
+        newValue: { title, order, batchId: step.batchId },
       });
     }
 

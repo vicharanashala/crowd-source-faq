@@ -29,7 +29,7 @@ export default function ThreadShareButton({
   return (
     <button
       onClick={() => {
-        const url = `${window.location.origin}/community?post=${postId}`;
+        const url = `${window.location.origin}/csfaq/community?post=${postId}`;
         navigator.clipboard
           .writeText(url)
           .then(() => onCopied?.('Post link copied to clipboard'))

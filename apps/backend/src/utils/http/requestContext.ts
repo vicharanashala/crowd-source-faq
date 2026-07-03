@@ -19,10 +19,19 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 export interface RequestContext {
   requestId: string;
   userId?: string;
+  batchId?: string;
 }
 
 /** The AsyncLocalStorage instance — singleton per process. */
 export const requestContextStorage = new AsyncLocalStorage<RequestContext>();
+
+/** Set or update the batchId in the current context store. */
+export function setContextBatchId(batchId: string): void {
+  const store = requestContextStorage.getStore();
+  if (store) {
+    store.batchId = batchId;
+  }
+}
 
 /**
  * Get the current request context, if any.

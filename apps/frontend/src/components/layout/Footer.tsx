@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import logoWide from '../../assets/logo-wide.png';
 
 export default function Footer({ branding }: { branding?: { logoText?: string; footerText?: string } } = {}) {
   const currentYear = new Date().getFullYear();
@@ -9,15 +10,12 @@ export default function Footer({ branding }: { branding?: { logoText?: string; f
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-10 text-center">
 
         {/* Brand */}
-        <Link to="/" className="inline-flex items-center gap-2.5 mb-5 no-underline group">
-          <div className="w-8 h-8 rounded-[8px] border-2 border-ink flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-105">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="text-ink" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10"/>
-              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
-              <line x1="12" y1="17" x2="12.01" y2="17"/>
-            </svg>
-          </div>
-          <span className="font-serif text-base text-ink tracking-tight">Yaksha FAQ</span>
+        <Link to="/" className="inline-flex items-center mb-5 no-underline group">
+          <img
+            src={logoWide}
+            alt="Yaksha FAQ"
+            className="h-10 w-auto object-contain transition-transform duration-300 group-hover:scale-[1.02]"
+          />
         </Link>
 
         {/* Nav */}

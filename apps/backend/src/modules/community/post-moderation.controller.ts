@@ -64,6 +64,7 @@ export const confirmSpam = async (req: Request, res: Response): Promise<void> =>
 
         await ReputationLog.create({
           userId: new Types.ObjectId(offenderId),
+          batchId: post.batchId ?? null,
           delta: -20,
           reason: `Spam report confirmed on post "${post.title.slice(0, 40)}"`,
           action: 'spam_confirmed',

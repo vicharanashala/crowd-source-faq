@@ -14,6 +14,8 @@ import { ZoomMeeting } from '../zoom/zoom-meeting.model.js';
 import CommunityPost from '../community/community-post.model.js';
 import FAQ from '../faq/faq.model.js';
 import { generateEmbedding, generateQueryEmbedding } from '../../utils/ai/embeddings.js';
+import { invalidatePublicCaches } from '../faq/public-faq.controller.js';
+import { invalidateCache } from '../../utils/http/cache.js';
 import { resolveProviderAsync } from '../../utils/ai/aiProvider.js';
 import { dispatchNotification } from '../../utils/http/notificationDispatcher.js';
 import { logger } from '../../utils/http/logger.js';
@@ -105,7 +107,7 @@ Rules:
 - Skip: greetings, small talk, off-topic tangents, incomplete answers
 
 Return a JSON array (no markdown), each item:
-[{\"question\":\"...\",\"answer\":\"...\",\"confidence\":0.8,\"snippet\":\"exact 2-sentence excerpt\"}]`;
+[{"question":"...","answer":"...","confidence":0.8,"snippet":"exact 2-sentence excerpt"}]`;
 
   const userContent = `Meeting topic: "${topic}"\n\nTranscript:\n${transcriptText.slice(0, 15000)}`;
 
@@ -515,6 +517,7 @@ export async function promoteToFAQ(
   const faq = new FAQ({
     question: knowledge.question,
     answer: knowledge.answer,
+    batchId: knowledge.batchId,
     category: 'General',
     status: 'approved',
     createdBy: new Types.ObjectId(createdBy),
@@ -524,6 +527,9 @@ export async function promoteToFAQ(
     promotedAt: new Date(),
   });
   await faq.save();
+
+  await invalidateCache();
+  invalidatePublicCaches();
 
   knowledge.status = 'promoted';
   knowledge.promotedFaqId = faq._id as Types.ObjectId;

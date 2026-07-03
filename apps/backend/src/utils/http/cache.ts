@@ -1,165 +1,40 @@
 /**
- * Redis Semantic Cache — Upstash Redis (serverless-compatible)
+ * Semantic cache — MongoDB-queue era (post-BullMQ migration).
  *
- * Caches search query embeddings and results to avoid recomputing on repeat queries.
- * FAQ systems typically see 80-95% cache hit rates on queries.
+ * The cache used to be backed by Upstash Redis + ioredis. After the
+ * Redis removal, the cache now uses an in-process LRU so we keep the
+ * 80-95% hit-rate behavior on repeat queries without adding a new
+ * dependency.
  *
- * Setup: Create a free Upstash Redis database at https://upstash.com
- * Then set REDIS_URL and REDIS_TOKEN in your .env
+ * Public API is preserved (`getCachedResults`, `setCachedResults`,
+ * `invalidateCache`, `cacheAvailable`) so callers don't change.
+ *
+ * Trade-offs:
+ *   - Cached entries are now per-process. Multi-instance deployments
+ *     each have their own cache. Acceptable for a single-VPS deployment;
+ *     for horizontal scaling, swap in Keyv + SQLite (shared) — the
+ *     interface is identical.
+ *   - `invalidateCache` clears the in-memory LRU. No cross-process
+ *     invalidation (was never relied on).
  */
 
-import { Redis as UpstashRedis } from '@upstash/redis';
-import IORedis from 'ioredis';
+import { LRUCache } from 'lru-cache';
 import { logger } from './logger.js';
-import { loadConfig } from '../../config/loader.js';
 
-// Unified Cache Client Interface
-interface CacheClient {
-  get<T>(key: string): Promise<T | null>;
-  set(key: string, value: any, options?: { ex: number }): Promise<void>;
-  scan<T = any>(cursor: number, options: { match: string; count: number }): Promise<[number, string[]]>;
-  del(...keys: string[]): Promise<void>;
+// ─── In-process LRU ─────────────────────────────────────────────────────────
+
+const cache = new LRUCache<string, { results: unknown[] }>({
+  max: 500,                     // matches the previous Redis LRU
+  ttl: 60 * 60 * 1000,          // 1 hour — matches old RESULT_TTL
+});
+
+/** True when the cache is usable. Always true now (in-memory LRU). */
+export function cacheAvailable(): boolean {
+  return true;
 }
 
-let redisClient: CacheClient | null = null;
-let useLocalFallback = false;
+// ─── Helpers ────────────────────────────────────────────────────────────────
 
-function getRedis(): CacheClient | null {
-  if (process.env.REDIS_DISABLED === 'true') {
-    return null;
-  }
-  if (redisClient) return redisClient;
-
-  // 1. Try Upstash REST Client first if configured and fallback is not active
-  const config = loadConfig();
-  const upstashUrl = config.redis.url;
-  const upstashToken = config.redis.token;
-  
-  const hasUpstash = upstashUrl && upstashUrl.startsWith('http') && upstashToken && upstashToken !== '#';
-  const localUrlExplicit = !!process.env.REDIS_LOCAL_URL;
-
-  if (!hasUpstash && !localUrlExplicit) {
-    return null;
-  }
-  
-  if (!useLocalFallback && hasUpstash) {
-    try {
-      const client = new UpstashRedis({
-        url: upstashUrl,
-        token: upstashToken,
-      });
-      // Wrap Upstash client
-      redisClient = {
-        async get<T>(key: string): Promise<T | null> {
-          try {
-            return await client.get<T>(key);
-          } catch (err) {
-            handleClientError(err);
-            throw err;
-          }
-        },
-        async set(key: string, value: any, options?: { ex: number }): Promise<void> {
-          try {
-            await client.set(key, value, options);
-          } catch (err) {
-            handleClientError(err);
-            throw err;
-          }
-        },
-        async scan(cursor: number, options: { match: string; count: number }): Promise<[number, string[]]> {
-          try {
-            const [nextCursor, keys] = await client.scan(cursor, options);
-            return [Number(nextCursor), keys];
-          } catch (err) {
-            handleClientError(err);
-            throw err;
-          }
-        },
-        async del(...keys: string[]): Promise<void> {
-          try {
-            await client.del(...keys);
-          } catch (err) {
-            handleClientError(err);
-            throw err;
-          }
-        }
-      };
-      return redisClient;
-    } catch (err) {
-      logger.warn(`[cache] Failed to initialize Upstash Redis REST client: ${(err as Error).message}`);
-    }
-  }
-
-  // 2. Fall back to local TCP Redis using ioredis
-  return getLocalRedisClient();
-}
-
-function getLocalRedisClient(): CacheClient | null {
-  const localUrlExplicit = !!process.env.REDIS_LOCAL_URL;
-  if (!localUrlExplicit) {
-    return null;
-  }
-  try {
-    const localUrl = process.env.REDIS_LOCAL_URL || 'redis://127.0.0.1:6379';
-    const localIo = new IORedis(localUrl, {
-      maxRetriesPerRequest: 3,
-      lazyConnect: true,
-    });
-    localIo.on('error', (err) => {
-      // Suppress local connection errors to prevent crashes
-    });
-    
-    redisClient = {
-      async get<T>(key: string): Promise<T | null> {
-        const val = await localIo.get(key);
-        return val ? JSON.parse(val) as T : null;
-      },
-      async set(key: string, value: any, options?: { ex: number }): Promise<void> {
-        const stringVal = JSON.stringify(value);
-        if (options?.ex) {
-          await localIo.set(key, stringVal, 'EX', options.ex);
-        } else {
-          await localIo.set(key, stringVal);
-        }
-      },
-      async scan(cursor: number, options: { match: string; count: number }): Promise<[number, string[]]> {
-        const [nextCursor, keys] = await localIo.scan(cursor, 'MATCH', options.match, 'COUNT', options.count);
-        return [Number(nextCursor), keys];
-      },
-      async del(...keys: string[]): Promise<void> {
-        if (keys.length > 0) {
-          await localIo.del(...keys);
-        }
-      }
-    };
-    logger.info(`[cache] Initialized local fallback IORedis client pointing to ${localUrl}`);
-    return redisClient;
-  } catch (err) {
-    logger.warn(`[cache] Failed to initialize local fallback IORedis: ${(err as Error).message}`);
-    return null;
-  }
-}
-
-function handleClientError(err: any) {
-  const msg = (err as Error).message || '';
-  const lowerMsg = msg.toLowerCase();
-  if (
-    lowerMsg.includes('rate limit') ||
-    lowerMsg.includes('quota') ||
-    lowerMsg.includes('forbidden') ||
-    lowerMsg.includes('unauthorized') ||
-    lowerMsg.includes('limit exceeded') ||
-    lowerMsg.includes('max requests')
-  ) {
-    if (!useLocalFallback) {
-      logger.warn(`[cache] Upstash Redis error detected: ${msg}. Switching to local Redis fallback.`);
-      useLocalFallback = true;
-      redisClient = null; // Clear client to force rebuild with local
-    }
-  }
-}
-
-/** Simple hash for cache keys — deterministic, short */
 function hashQuery(text: string): string {
   let hash = 0;
   const normalized = text.trim().toLowerCase();
@@ -170,45 +45,27 @@ function hashQuery(text: string): string {
   return `sc:${hash.toString(36)}`;
 }
 
-// TTL in seconds — 1 hour for search results is fine (FAQ data doesn't change often)
-const RESULT_TTL = 60 * 60;
+// ─── Public API ─────────────────────────────────────────────────────────────
 
-/**
- * Try to get cached search results for a query.
- * Returns null on cache miss (including when Redis is not configured).
- */
-export async function getCachedResults(
-  query: string
-): Promise<{ results: unknown[] } | null> {
-  const client = getRedis();
-  if (!client) return null;
-
+export async function getCachedResults(query: string): Promise<{ results: unknown[] } | null> {
   try {
     const key = `result:${hashQuery(query)}`;
-    const cached = await client.get<{ results: unknown[] }>(key);
-    if (cached) {
+    const hit = cache.get(key);
+    if (hit) {
       logger.info(`[cache HIT] "${query.slice(0, 40)}"`);
+      return hit;
     }
-    return cached ?? null;
+    return null;
   } catch (err) {
     logger.warn(`[cache] get failed: ${(err as Error).message}`);
     return null;
   }
 }
 
-/**
- * Store search results in cache. Silently fails if Redis is unavailable.
- */
-export async function setCachedResults(
-  query: string,
-  results: unknown[]
-): Promise<void> {
-  const client = getRedis();
-  if (!client) return;
-
+export async function setCachedResults(query: string, results: unknown[]): Promise<void> {
   try {
     const key = `result:${hashQuery(query)}`;
-    await client.set(key, { results }, { ex: RESULT_TTL });
+    cache.set(key, { results });
     logger.info(`[cache SET] "${query.slice(0, 40)}"`);
   } catch (err) {
     logger.warn(`[cache] set failed: ${(err as Error).message}`);
@@ -216,35 +73,18 @@ export async function setCachedResults(
 }
 
 /**
- * Invalidate all cached search results. Call this when FAQ data changes significantly.
- * Uses SCAN iterator (O(1) per call) instead of KEYS (O(n) and blocking).
+ * Invalidate all cached search results. With an in-memory LRU we can
+ * iterate and delete entries that match the `result:` prefix.
  */
 export async function invalidateCache(): Promise<void> {
-  const client = getRedis();
-  if (!client) return;
-
-  try {
-    let cursor = 0;
-    let totalDeleted = 0;
-    do {
-      // SCAN returns [nextCursor, keys[]] in the Upstash Redis SDK
-      const [nextCursor, keys] = await client.scan<Record<string, unknown>>(cursor, {
-        match: 'result:*',
-        count: 100,
-      });
-      cursor = Number(nextCursor);
-      if (keys.length > 0) {
-        await client.del(...keys);
-        totalDeleted += keys.length;
-      }
-    } while (cursor !== 0);
-
-    if (totalDeleted > 0) {
-      logger.info(`[cache] invalidated ${totalDeleted} entries`);
+  let totalDeleted = 0;
+  for (const key of cache.keys()) {
+    if (key.startsWith('result:')) {
+      cache.delete(key);
+      totalDeleted++;
     }
-  } catch (err) {
-    logger.warn(`[cache] invalidate failed: ${(err as Error).message}`);
+  }
+  if (totalDeleted > 0) {
+    logger.info(`[cache] invalidated ${totalDeleted} entries`);
   }
 }
-
-export const cacheAvailable = (): boolean => getRedis() !== null;

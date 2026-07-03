@@ -45,7 +45,8 @@ export default function SpurtiChip(): React.ReactElement | null {
 
   return (
     <div
-      className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent/10 border border-accent/20 text-accent text-xs font-semibold"
+      data-tour="spurti-chip"
+      className="hidden md:inline-flex items-center gap-1.5 h-9 px-3 rounded-full bg-accent/10 border border-accent/20 text-accent text-xs font-semibold shadow-sm"
       title="Spurti Points — Golden Ticket currency"
       aria-label={`Spurti Points balance: ${sp}`}
     >

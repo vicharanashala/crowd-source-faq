@@ -1,11 +1,8 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import Footer from '../components/layout/Footer';
 import UserActiveProgramIndicator from '../components/layout/UserActiveProgramIndicator';
 import CommunityPostCard from '../components/community/CommunityPostCard';
 import ThreadDetail from '../components/community/ThreadDetail';
-import Avatar from '../components/ui/Avatar';
-import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
 import { CommunityDoodles } from '../components/ui/PageDoodles';
 import CommunityHealth from '../components/community/CommunityHealth';
@@ -15,7 +12,6 @@ import { useAuthGate } from '../context/AuthModalContext';
 import type { Post } from '../types/ui';
 
 // Modular dialog components
-import PostDetailDialog from '../components/community/PostDetailDialog';
 import CreatePostDialog from '../components/community/CreatePostDialog';
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
@@ -26,10 +22,8 @@ export default function CommunityPage() {
     () => setShowCreate(true),
     'Sign in to ask a question in the community.'
   );
-  const navigate = useNavigate();
   const [posts, setPosts] = useState<Post[]>([]);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -40,6 +34,7 @@ export default function CommunityPage() {
 
   const [filter, setFilter] = useState('all');
   const [sort, setSort] = useState('newest');
+  const [showAllPrograms, setShowAllPrograms] = useState(false);
   const [search, setSearch] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     return params.get('search') || '';
@@ -63,6 +58,7 @@ export default function CommunityPage() {
         limit: 20,
         filter,
         sort,
+        batchId: showAllPrograms ? 'all' : undefined,
         ...(reset ? {} : nextCursor ? { cursor: nextCursor } : {}),
       },
     })
@@ -72,26 +68,18 @@ export default function CommunityPage() {
         setTotal(res.data.total || 0);
         setHasMore(res.data.hasMore ?? false);
         setNextCursor(res.data.nextCursor ?? null);
-        setPage((p) => reset ? 1 : p + 1);
       })
       .catch(() => setError('Failed to load posts. Please try again.'))
       .finally(() => {
         setLoading(false);
         setLoadingMore(false);
       });
-  }, [filter, sort, nextCursor]);
+  }, [filter, sort, nextCursor, showAllPrograms]);
 
   // Thread detail: when a post ID is set, show ThreadDetail instead of the list/dialog
   const handleOpenThread = useCallback((postId: string) => {
     setSelectedPostId(postId);
   }, []);
-
-  const handleCloseThread = useCallback(() => {
-    setSelectedPostId(null);
-    // Refresh current view to pick up any new comments/upvotes
-    fetchPosts(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetchPosts]);
 
   // If navigated here via ?ask=true (from navbar "Ask Question") or ?post=<id> (from search)
   useEffect(() => {
@@ -137,19 +125,18 @@ export default function CommunityPage() {
       }
       window.history.replaceState({}, '', window.location.pathname);
     }
-  }, [posts, user, window.location.search]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [posts, user, window.location.search]);
 
   useEffect(() => {
     fetchPosts(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter, sort]);
+  }, [filter, sort, showAllPrograms]);
 
   // Reset cursor + posts when filter/sort changes so we paginate the
   // newly-filtered set from the beginning.
   useEffect(() => {
     setNextCursor(null);
     setPosts([]);
-  }, [filter, sort]);
+  }, [filter, sort, showAllPrograms]);
 
   // ── Infinite scroll — fetch the next page when the sentinel enters view ────
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -167,13 +154,14 @@ export default function CommunityPage() {
     );
     observer.observe(sentinelRef.current);
     return () => observer.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasMore, loading, loadingMore, nextCursor, filter, sort]);
+  }, [hasMore, loading, loadingMore, nextCursor, filter, sort, showAllPrograms]);
 
   const runSemanticSearch = useCallback(async (q: string) => {
     setSearchLoading(true);
     try {
-      const res = await api.get<{ results: Post[] }>('/community/search', { params: { q } });
+      const res = await api.get<{ results: Post[] }>('/community/search', {
+        params: { q, batchId: showAllPrograms ? 'all' : undefined }
+      });
       setSearchResults(res.data.results || []);
     } catch (err) {
       console.error(friendlyError(err, 'Failed to load posts.'));
@@ -181,19 +169,18 @@ export default function CommunityPage() {
     } finally {
       setSearchLoading(false);
     }
-  }, []);
+  }, [showAllPrograms]);
 
+  // v2 — search is now Enter-only. We still keep the trimmed query handy
+  // for downstream effects (filter/sort re-apply on existing results).
+  // The auto-fire debounce was removed so results don't pop while the user
+  // is still typing.
   useEffect(() => {
     const q = search.trim();
     if (!q || q.length < 3) {
       setSearchResults([]);
-      return;
     }
-    const timer = setTimeout(() => {
-      runSemanticSearch(q);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [search, runSemanticSearch]);
+  }, [search]);
 
   // Show success toast when a manual sync completes
   useEffect(() => {
@@ -222,7 +209,7 @@ export default function CommunityPage() {
       return;
     }
     fetchPosts(true);
-  }, [filter, sort]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [filter, sort]);
 
   const handlePostCreated = (newPost: Post) => {
     setPosts((prev) => [newPost, ...prev]);
@@ -236,7 +223,7 @@ export default function CommunityPage() {
   };
 
   const handleShareCommunity = async () => {
-    const url = window.location.origin + '/community';
+    const url = window.location.origin + '/csfaq/community';
     try { await navigator.clipboard.writeText(url); } catch { /* ignore */ }
     setToast('Community link copied');
     setTimeout(() => setToast(''), 2500);
@@ -295,6 +282,35 @@ export default function CommunityPage() {
             )}
           </div>
           <div className="flex items-center gap-2">
+            {/* Ask a Question button */}
+            <button
+              id="ask-question-btn"
+              onClick={handleAskQuestion}
+              className="btn-community-ask"
+              aria-label="Ask a question"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              <span>Ask a Question</span>
+            </button>
+
+            {/* Sync Content button */}
+            <button
+              onClick={handleSync}
+              className="h-9 px-3.5 rounded-xl border border-border bg-card flex items-center justify-center gap-1.5 text-xs text-ink-faint hover:text-ink hover:border-accent/30 transition-all disabled:opacity-50"
+              disabled={syncing}
+              aria-label="Sync community posts"
+            >
+              <svg className={`flex-shrink-0 transition-transform ${syncing ? 'animate-spin' : ''}`} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="23 4 23 10 17 10"/>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+              </svg>
+              <span className="hidden sm:inline">Sync Content</span>
+              <span className="sm:hidden">Sync</span>
+            </button>
+
             {/* Share button */}
             <button
               onClick={handleShareCommunity}
@@ -308,20 +324,6 @@ export default function CommunityPage() {
                 <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
                 <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
               </svg>
-            </button>
-            {/* Sync Content button */}
-            <button
-              onClick={handleSync}
-              className="btn-community-ask"
-              disabled={syncing}
-              aria-label="Sync community posts"
-            >
-              <svg className={`flex-shrink-0 transition-transform ${syncing ? 'animate-spin' : ''}`} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="23 4 23 10 17 10"/>
-                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-              </svg>
-              <span className="hidden sm:inline">Sync Content</span>
-              <span className="sm:hidden">Sync</span>
             </button>
           </div>
         </div>
@@ -354,23 +356,34 @@ export default function CommunityPage() {
           </div>
         )}
 
-        {!loading && !error && total > 0 && (
+        {!loading && !error && (
           <div className="flex items-center justify-between gap-3 mb-5 flex-wrap">
-            <div className="flex gap-1 p-1 bg-mist rounded-xl w-fit">
-              {[
-                { key: 'all', label: 'All' },
-                { key: 'unanswered', label: 'Unanswered' },
-                { key: 'open', label: 'Open' },
-              ].map(({ key, label }) => (
-                <button
-                  key={key}
-                  onClick={() => setFilter(key)}
-                  className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all duration-200
-                    ${filter === key ? 'bg-card text-ink shadow-subtle' : 'text-ink-soft hover:text-ink'}`}
-                >
-                  {label}
-                </button>
-              ))}
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex gap-1 p-1 bg-mist rounded-xl w-fit">
+                {[
+                  { key: 'all', label: 'All' },
+                  { key: 'unanswered', label: 'Unanswered' },
+                  { key: 'open', label: 'Open' },
+                ].map(({ key, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => setFilter(key)}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all duration-200
+                      ${filter === key ? 'bg-card text-ink shadow-subtle' : 'text-ink-soft hover:text-ink'}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              <select
+                value={showAllPrograms ? 'all' : 'active'}
+                onChange={(e) => setShowAllPrograms(e.target.value === 'all')}
+                className="px-3 py-1.5 rounded-xl border border-border bg-card text-xs text-ink-soft focus:outline-none focus:ring-2 focus:ring-accent/25 cursor-pointer"
+              >
+                <option value="active">Active Program Feed</option>
+                <option value="all">All Programs Feed</option>
+              </select>
             </div>
 
             <select

@@ -6,6 +6,7 @@ import Badge from '../components/common/Badge';
 import Modal from '../components/common/Modal';
 import { TableSkeleton } from '../components/common/SkeletonLoader';
 import { useDebounce } from '../../hooks/useDebounce';
+import { useCategories } from '../../components/explore/usePublicFaqApi';
 
 
 interface FAQ {
@@ -41,6 +42,90 @@ function useBatchMap(batches: AdminBatch[]): Map<string, string> {
   }, [batches]);
 }
 
+function CategoryDropdown({
+  value,
+  categories,
+  onChange,
+  placeholder = 'Select a category'
+}: {
+  value: string;
+  categories: string[];
+  onChange: (val: string) => void;
+  placeholder?: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
+
+  const uniqueCategories = categories.filter(Boolean);
+
+  const displayLabel = value === '__other__'
+    ? 'Other (Enter custom name)...'
+    : (value || placeholder);
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center justify-between w-full px-3 py-2 rounded-md text-sm text-ink bg-bg-secondary border border-border outline-none focus:border-accent transition-colors text-left"
+      >
+        <span className={value ? 'text-ink' : 'text-ink-faint'}>{displayLabel}</span>
+        <svg className={`w-4 h-4 text-ink-faint transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {isOpen && (
+        <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-md border border-border bg-bg-secondary shadow-lg z-50 py-1">
+          <button
+            type="button"
+            onClick={() => {
+              onChange('');
+              setIsOpen(false);
+            }}
+            className="w-full text-left px-3 py-2 text-sm hover:bg-mist text-ink transition-colors font-medium border-b border-border/50 text-ink-faint"
+          >
+            — Clear Category —
+          </button>
+          {uniqueCategories.map(cat => (
+            <button
+              key={cat}
+              type="button"
+              onClick={() => {
+                onChange(cat);
+                setIsOpen(false);
+              }}
+              className={`w-full text-left px-3 py-2 text-sm hover:bg-mist transition-colors ${value === cat ? 'bg-mist font-medium text-accent' : 'text-ink'}`}
+            >
+              {cat}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => {
+              onChange('__other__');
+              setIsOpen(false);
+            }}
+            className={`w-full text-left px-3 py-2 text-sm hover:bg-mist transition-colors border-t border-border/50 ${value === '__other__' ? 'bg-mist font-medium text-accent' : 'text-ink'}`}
+          >
+            Other (Enter custom name)...
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminFAQs() {
   const [faqs, setFaqs] = useState<FAQ[]>([]);
   const [total, setTotal] = useState(0);
@@ -52,7 +137,7 @@ export default function AdminFAQs() {
   const [statusFilter, setStatusFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [batchFilter, setBatchFilter] = useState('');
-  const [sort, setSort] = useState('-createdAt');
+  const [sort] = useState('-createdAt');
   const [editModal, setEditModal] = useState(false);
   const [editFaq, setEditFaq] = useState<FAQ | null>(null);
   const [addModal, setAddModal] = useState(false);
@@ -67,7 +152,15 @@ export default function AdminFAQs() {
   }>({ question: '', answer: '', category: '', batchId: '', status: 'approved', freshnessTier: 'evergreen', reviewIntervalDays: 0 });
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<Toast | null>(null);
+  const [addCategoryOption, setAddCategoryOption] = useState<string>('');
+  const [editCategoryOption, setEditCategoryOption] = useState<string>('');
   const debouncedSearch = useDebounce(search, 350);
+
+  const { data: addCategoriesData } = useCategories(newFaq.batchId || null, null);
+  const addCategories = addCategoriesData?.categories.map(c => c.name) ?? [];
+
+  const { data: editCategoriesData } = useCategories(editFaq?.batchId || null, null);
+  const editCategories = editCategoriesData?.categories.map(c => c.name) ?? [];
 
   // Batches for the selectors and list filter
   const [batches, setBatches] = useState<AdminBatch[]>([]);
@@ -159,6 +252,7 @@ export default function AdminFAQs() {
       showToast('Created');
       setAddModal(false);
       setNewFaq({ question: '', answer: '', category: '', batchId: newFaq.batchId, status: 'approved', freshnessTier: 'evergreen', reviewIntervalDays: 0 });
+      setAddCategoryOption('');
       fetchFaqs();
       void loadBatches();
     } catch { showToast('Create failed', 'error'); }
@@ -180,6 +274,7 @@ export default function AdminFAQs() {
           onClick={() => {
             // Pre-fill with the current filter or the first available batch
             setNewFaq((f) => ({ ...f, batchId: batchFilter || f.batchId || (batches[0]?._id ?? '') }));
+            setAddCategoryOption('');
             setAddModal(true);
           }}
           className="admin-btn-primary"
@@ -247,7 +342,11 @@ export default function AdminFAQs() {
                     <div className="flex items-center justify-end gap-1">
                       {faq.status !== 'approved' && <button onClick={() => handleApprove(faq._id)} className="w-6 h-6 flex items-center justify-center rounded text-ink-faint hover:text-success hover:bg-success/10 transition-colors" title="Approve"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg></button>}
                       {faq.status !== 'rejected' && <button onClick={() => handleReject(faq._id)} className="w-6 h-6 flex items-center justify-center rounded text-ink-faint hover:text-warning hover:bg-warning/10 transition-colors" title="Reject"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>}
-                      <button onClick={() => { setEditFaq({ ...faq, batchId: faq.batchId ?? '', freshnessTier: (faq as any).freshnessTier ?? 'evergreen', reviewIntervalDays: (faq as any).reviewIntervalDays ?? 0 }); setEditModal(true); }} className="w-6 h-6 flex items-center justify-center rounded text-ink-faint hover:text-ink hover:bg-mist transition-colors" title="Edit"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+                      <button onClick={() => {
+                        setEditFaq({ ...faq, batchId: faq.batchId ?? '', freshnessTier: (faq as any).freshnessTier ?? 'evergreen', reviewIntervalDays: (faq as any).reviewIntervalDays ?? 0 });
+                        setEditCategoryOption(categories.includes(faq.category) ? faq.category : (faq.category ? '__other__' : ''));
+                        setEditModal(true);
+                      }} className="w-6 h-6 flex items-center justify-center rounded text-ink-faint hover:text-ink hover:bg-mist transition-colors" title="Edit"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
                       <button onClick={() => handleDelete(faq._id)} className="w-6 h-6 flex items-center justify-center rounded text-ink-faint hover:text-danger hover:bg-danger/10 transition-colors" title="Delete"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg></button>
                     </div>
                   </td>
@@ -293,7 +392,26 @@ export default function AdminFAQs() {
               </div>
               <div>
                 <label className="admin-label">Category</label>
-                <input value={editFaq.category} onChange={e => setEditFaq(f => f ? { ...f, category: e.target.value } : null)} className="admin-input" />
+                <CategoryDropdown
+                  value={editCategoryOption}
+                  categories={editCategories}
+                  onChange={val => {
+                    setEditCategoryOption(val);
+                    if (val !== '__other__') {
+                      setEditFaq(f => f ? { ...f, category: val } : null);
+                    } else {
+                      setEditFaq(f => f ? { ...f, category: '' } : null);
+                    }
+                  }}
+                />
+                {editCategoryOption === '__other__' && (
+                  <input
+                    value={editFaq.category}
+                    onChange={e => setEditFaq(f => f ? { ...f, category: e.target.value } : null)}
+                    placeholder="Enter custom category..."
+                    className="admin-input mt-2"
+                  />
+                )}
               </div>
             </div>
             <div>
@@ -352,7 +470,26 @@ export default function AdminFAQs() {
             </div>
             <div>
               <label className="admin-label">Category</label>
-              <input value={newFaq.category} onChange={e => setNewFaq(f => ({ ...f, category: e.target.value }))} placeholder="e.g. Technical" className="admin-input" />
+              <CategoryDropdown
+                value={addCategoryOption}
+                categories={addCategories}
+                onChange={val => {
+                  setAddCategoryOption(val);
+                  if (val !== '__other__') {
+                    setNewFaq(f => ({ ...f, category: val }));
+                  } else {
+                    setNewFaq(f => ({ ...f, category: '' }));
+                  }
+                }}
+              />
+              {addCategoryOption === '__other__' && (
+                <input
+                  value={newFaq.category}
+                  onChange={e => setNewFaq(f => ({ ...f, category: e.target.value }))}
+                  placeholder="Enter custom category..."
+                  className="admin-input mt-2"
+                />
+              )}
             </div>
           </div>
           <div>

@@ -12,6 +12,12 @@ import { protect } from '../../middleware/auth.js';
 import TimelineStep from '../admin/timeline-step.model.js';
 import Mentor from '../admin/mentor.model.js';
 import { getAssessment, submitAssessment, getZoomStatus } from '../zoom/zoom-assessment.controller.js';
+import {
+  listPublicResources,
+  completeResource,
+  getMyCompletions,
+  askKnowledgeQuestion,
+} from './onboarding-resources.controller.js';
 
 const router = express.Router();
 
@@ -57,5 +63,14 @@ router.get('/mentors/:id', protect, async (req, res) => {
     res.status(500).json({ message: 'Error fetching mentor', error });
   }
 });
+
+// v1.69 — Welcome Package Management: student-facing endpoints.
+// These are additive — the legacy /orientation* routes above remain
+// untouched. The new endpoints serve the generalized
+// OnboardingResource / OnboardingKnowledgeSource collections.
+router.get('/resources', protect, listPublicResources);
+router.post('/resources/:id/complete', protect, completeResource);
+router.get('/resources/completions', protect, getMyCompletions);
+router.post('/resources/ask', protect, askKnowledgeQuestion);
 
 export default router;

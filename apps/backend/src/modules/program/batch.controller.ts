@@ -3,20 +3,14 @@ import { Types } from 'mongoose';
 import Batch, { slugifyProgramName } from './batch.model.js';
 import FAQ from '../faq/faq.model.js';
 import { httpLog } from '../../utils/http/logger.js';
-import { z } from 'zod';
 import { invalidatePublicCaches } from '../faq/public-faq.controller.js';
+import { bootstrapProgram } from './provisioning.service.js';
+import { cascadeDeleteProgram } from './cascade-delete.service.js';
+import { createBatchSchema, updateBatchSchema } from './batch.schema.js';
 
 // ─── Validation ──────────────────────────────────────────────────────────────
-
-const createBatchSchema = z.object({
-  name: z.string().min(2).max(120),
-  description: z.string().max(1000).optional().default(''),
-  startDate: z.string().datetime().or(z.date()),
-  endDate:   z.string().datetime().or(z.date()),
-  isActive:  z.boolean().optional().default(true),
-});
-
-const updateBatchSchema = createBatchSchema.partial();
+// Schemas live in ./batch.schema.ts so the date-handling logic and the
+// shape definitions stay in one place (and tests can import them).
 
 // ─── Public list (active only) ──────────────────────────────────────────────
 
@@ -108,11 +102,16 @@ export async function listAdminBatches(_req: Request, res: Response): Promise<vo
 
 // ─── Public: get by slug ─────────────────────────────────────────────────────
 //
-// v1.69 — slugs are auto-derived from `name`. This endpoint iterates
-// active batches and matches the input slug against each name's
-// derived slug. O(n) over the (tiny) active-batch set. For >100
-// active programs, switch to storing an explicit `slug` column with
-// a unique index — see context/multi-program-cms-design.md Q4.
+// v1.69 — slugs are auto-derived from `name`. The lookup accepts BOTH
+// active and inactive programs so the admin detail page never 404s an
+// existing program just because it was archived (`isActive: false`).
+// Public visitors hit the same endpoint — they get the program back
+// but the frontend is responsible for hiding archived ones from
+// navigation. We deliberately do NOT 404 inactive programs here
+// because that would block the admin from previewing / restoring them.
+//
+// For >100 active programs, switch to storing an explicit `slug`
+// column with a unique index — see context/multi-program-cms-design.md Q4.
 export async function getBatchBySlug(req: Request, res: Response): Promise<void> {
   const rawSlug = req.params.slug;
   const slug = Array.isArray(rawSlug) ? rawSlug[0] : rawSlug;
@@ -122,8 +121,13 @@ export async function getBatchBySlug(req: Request, res: Response): Promise<void>
   }
   const normalised = slug.trim().toLowerCase();
   try {
-    const active = await Batch.find({ isActive: true }).select('_id name description startDate endDate isActive isDefault').lean();
-    const match = active.find((b) => slugifyProgramName(b.name) === normalised);
+    // Look across ALL programs (active + inactive + archived). The
+    // previous behaviour was `isActive: true` only, which meant any
+    // archived program was unreachable through the slug route — even
+    // for admins. That was the cause of the "Program not found" page
+    // showing up for valid existing programs.
+    const all = await Batch.find().select('_id name description startDate endDate isActive isDefault status').lean();
+    const match = all.find((b) => slugifyProgramName(b.name) === normalised);
     if (!match) {
       res.status(404).json({ message: 'Program not found.' });
       return;
@@ -195,18 +199,26 @@ export async function createBatch(req: Request, res: Response): Promise<void> {
     return;
   }
   const { name, description, startDate, endDate, isActive } = parsed.data;
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-    res.status(400).json({ message: 'Invalid date.' });
-    return;
-  }
-  if (end <= start) {
-    res.status(400).json({ message: 'End date must be after start date.' });
-    return;
-  }
+  // The Zod schema now coerces both date fields to Date objects and
+  // enforces endDate > startDate. No additional checks needed here.
   try {
-    const created = await Batch.create({ name: name.trim(), description, startDate: start, endDate: end, isActive });
+    const created = await Batch.create({ name: name.trim(), description, startDate, endDate, isActive });
+    // v1.69 — multi-program provisioning: every new Batch must be
+    // provisioned into a usable workspace before we hand it back to
+    // the admin. If bootstrap fails for any reason, we roll back the
+    // Batch so we never leave a half-provisioned program behind.
+    try {
+      const bootstrapResult = await bootstrapProgram(created._id);
+      httpLog.info(`[batch] provisioned new program ${created._id}: ${JSON.stringify(bootstrapResult.created)}`);
+      if (bootstrapResult.errors.length > 0) {
+        httpLog.warn(`[batch] bootstrap for ${created._id} had ${bootstrapResult.errors.length} non-fatal error(s)`);
+      }
+    } catch (bootstrapErr) {
+      httpLog.error(`[batch] bootstrap failed for ${created._id}, rolling back: ${(bootstrapErr as Error).message}`);
+      await Batch.findByIdAndDelete(created._id);
+      res.status(500).json({ message: 'Failed to provision new program. Please try again.' });
+      return;
+    }
     invalidatePublicCaches();
     res.status(201).json(created);
   } catch (err) {
@@ -235,17 +247,17 @@ export async function updateBatch(req: Request, res: Response): Promise<void> {
     return;
   }
   try {
+    // updateBatchSchema coerces date fields to Date objects via the
+    // shared `dateField` preprocessor in batch.schema.ts. No need to
+    // re-wrap with `new Date(...)` here. The cross-field date-order
+    // check is also enforced inside the schema's superRefine when
+    // both dates are present in the patch.
     const update: Record<string, unknown> = {};
     if (parsed.data.name !== undefined) update.name = parsed.data.name.trim();
     if (parsed.data.description !== undefined) update.description = parsed.data.description;
-    if (parsed.data.startDate !== undefined) update.startDate = new Date(parsed.data.startDate);
-    if (parsed.data.endDate !== undefined) update.endDate = new Date(parsed.data.endDate);
+    if (parsed.data.startDate !== undefined) update.startDate = parsed.data.startDate;
+    if (parsed.data.endDate !== undefined) update.endDate = parsed.data.endDate;
     if (parsed.data.isActive !== undefined) update.isActive = parsed.data.isActive;
-
-    if (update.startDate && update.endDate && new Date(update.endDate as string) <= new Date(update.startDate as string)) {
-      res.status(400).json({ message: 'End date must be after start date.' });
-      return;
-    }
 
     const updated = await Batch.findByIdAndUpdate(id, { $set: update }, { new: true });
     if (!updated) {
@@ -288,7 +300,7 @@ export async function archiveBatch(req: Request, res: Response): Promise<void> {
   }
 }
 
-// ─── Hard delete (admin only — cascades FAQs) ───────────────────────────────
+// ─── Hard delete (admin only — full cascade via cascade-delete.service) ─
 
 export async function deleteBatch(req: Request, res: Response): Promise<void> {
   const rawId = req.params.id;
@@ -298,11 +310,17 @@ export async function deleteBatch(req: Request, res: Response): Promise<void> {
     return;
   }
   try {
-    const faqCount = await FAQ.countDocuments({ batchId: id });
-    await FAQ.deleteMany({ batchId: id });
-    await Batch.findByIdAndDelete(id);
+    // v1.69 — full cascade: every program-scoped collection gets
+    // wiped, not just FAQs. Returns per-collection counts for the
+    // admin audit log. See `cascade-delete.service.ts`.
+    const cascade = await cascadeDeleteProgram(id);
     invalidatePublicCaches();
-    res.json({ deleted: true, cascadedFaqs: faqCount });
+    res.json({
+      deleted: true,
+      batchId: id,
+      perCollectionCounts: cascade.deleted,
+      nonFatalErrors: cascade.errors,
+    });
   } catch (err) {
     httpLog.error(`[batch] deleteBatch failed: ${(err as Error).message}`);
     res.status(500).json({ message: 'Failed to delete batch.' });

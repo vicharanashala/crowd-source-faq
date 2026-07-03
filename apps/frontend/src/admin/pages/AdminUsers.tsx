@@ -38,7 +38,7 @@ function UserDetailModal({ user, onClose, onRefresh }: { user: AdminUser; onClos
   const [suspendReason, setSuspendReason] = useState('');
   const [banReason, setBanReason] = useState('');
 
-  const doAction = async (fn: () => Promise<void>, postAction?: () => void) => { setActionLoading('*'); try { await fn(); if (postAction) postAction(); onRefresh(); } catch {} finally { setActionLoading(''); } };
+  const doAction = async (fn: () => Promise<void>, postAction?: () => void) => { setActionLoading('*'); try { await fn(); if (postAction) postAction(); onRefresh(); } catch { void 0 } finally { setActionLoading(''); } };
 
   const handleUnban    = () => doAction(async () => { await adminApi.post('/moderation/unban', { userId: user._id }); });
   const handleUnsuspend = () => doAction(async () => { await adminApi.post('/moderation/unsuspend', { userId: user._id }); });

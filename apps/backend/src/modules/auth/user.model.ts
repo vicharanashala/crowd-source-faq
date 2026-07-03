@@ -119,6 +119,7 @@ export interface IUser extends Document {
   zoomAssessmentPassed: boolean;
   seenAssessmentQuestions: string[];
   orientationCompleted: boolean;
+  guidedTourCompleted: boolean;
   projectAssigned?: string;
   mentorAssigned?: string;
   projectAssignedAt?: Date;
@@ -263,6 +264,7 @@ const userSchema = new MongooseSchema<IUser>(
     zoomAssessmentPassed: { type: Boolean, default: false },
     seenAssessmentQuestions: [{ type: String }],
     orientationCompleted: { type: Boolean, default: false },
+    guidedTourCompleted: { type: Boolean, default: false },
     projectAssigned: { type: String, default: null },
     mentorAssigned: { type: String, default: null },
     projectAssignedAt: { type: Date, default: null },

@@ -101,7 +101,7 @@ export default function AdminModeration() {
     if (tab === 'users') setPage(1);
   };
 
-  const doAction = async (fn: () => Promise<void>) => { try { await fn(); fetchQueue(); } catch {} };
+  const doAction = async (fn: () => Promise<void>) => { try { await fn(); fetchQueue(); } catch { void 0 } };
 
   const handleUnban    = (id: string) => doAction(async () => { await adminApi.post('/moderation/unban', { userId: id }); });
   const handleUnsuspend = (id: string) => doAction(async () => { await adminApi.post('/moderation/unsuspend', { userId: id }); });

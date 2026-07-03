@@ -1,6 +1,10 @@
-import mongoose, { Document, Schema as MongooseSchema } from 'mongoose';
+import mongoose, { Document, Schema as MongooseSchema, Types } from 'mongoose';
 
 export interface IOrientation extends Document {
+  // v1.69 — multi-program provisioning: every orientation video
+  // belongs to exactly one program. `null` is allowed for legacy /
+  // pre-feature data; new code paths always set a real ObjectId.
+  batchId: Types.ObjectId | null;
   title: string;
   description: string;
   videoUrl: string;
@@ -12,6 +16,7 @@ export interface IOrientation extends Document {
 
 const orientationSchema = new MongooseSchema<IOrientation>(
   {
+    batchId: { type: MongooseSchema.Types.ObjectId, ref: 'Batch', default: null, index: true },
     title: { type: String, required: true },
     description: { type: String, required: true },
     videoUrl: { type: String, required: true },

@@ -96,7 +96,7 @@ export default function ThreadDetail({ postId, onClose }: ThreadDetailProps) {
   const [error, setError] = useState('');
   const [commentText, setCommentText] = useState('');
   const [commentLoading, setCommentLoading] = useState(false);
-  const [upvoteLoading, setUpvoteLoading] = useState(false);
+  const [upvoteLoading] = useState(false);
   const [showResolveForm, setShowResolveForm] = useState(false);
   const [resolveText, setResolveText] = useState('');
   const [resolveLoading, setResolveLoading] = useState(false);

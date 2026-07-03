@@ -12,6 +12,7 @@ const replySchema = new MongooseSchema(
     isExpertAnswer: { type: Boolean, default: false },
     isFirstResponder: { type: Boolean, default: false },
     firstResponderAwardedAt: { type: Date, default: null },
+    batchId: { type: MongooseSchema.Types.ObjectId, ref: 'Batch', default: null, index: true },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
   },
@@ -40,6 +41,7 @@ const commentSchema = new MongooseSchema(
     parentId: { type: MongooseSchema.Types.ObjectId, default: null },
     depth: { type: Number, default: 0 },
     replies: { type: [replySchema], default: [] },
+    batchId: { type: MongooseSchema.Types.ObjectId, ref: 'Batch', default: null, index: true },
     // Solution DNA — structured answer metadata
     solutionDNA: {
       type: {

@@ -76,7 +76,7 @@ export async function runCommunityPromotionReview(postId: string): Promise<AIRev
     const client = new AiClient();
 
     // Gather related context: similar community posts + existing related FAQs for grounding
-    const [relatedFaqs, relatedPosts] = await Promise.all([
+    const [_relatedFaqs, relatedPosts] = await Promise.all([
       FAQ.find({ status: 'approved' })
         .select('_id question answer category')
         .sort({ helpfulVotes: -1 })
@@ -93,7 +93,7 @@ export async function runCommunityPromotionReview(postId: string): Promise<AIRev
     ]);
 
     const relatedContext = [
-      ...relatedFaqs.map(f => `[FAQ] ${f.question}\n  A: ${(f.answer ?? '').slice(0, 300)}`),
+      ..._relatedFaqs.map(f => `[FAQ] ${f.question}\n  A: ${(f.answer ?? '').slice(0, 300)}`),
       ...relatedPosts.map(p => `[Post] ${p.title}\n  A: ${(p.answer ?? '').slice(0, 200)}`),
     ].join('\n\n');
 
@@ -143,7 +143,7 @@ RULES:
     });
 
     // ── Parse AI response ──────────────────────────────────────────────────
-    const result = parseCommunityReviewResponse(aiResult.content, relatedFaqs as any);
+    const result = parseCommunityReviewResponse(aiResult.content, _relatedFaqs as any);
 
     // ── 2. Vector duplicate check (cross-reference) ───────────────────────
     let duplicateOf: string | null = null;
@@ -256,7 +256,7 @@ export const triggerAIReviewBatch = async (req: Request, res: Response): Promise
 
 function parseCommunityReviewResponse(
   raw: string,
-  relatedFaqs: Array<{ _id: { toString(): string }; question: string }>
+  _relatedFaqs: Array<{ _id: { toString(): string }; question: string }>
 ): ParsedReview {
   const clean = raw.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
   const match = clean.match(/\{[\s\S]*\}/);

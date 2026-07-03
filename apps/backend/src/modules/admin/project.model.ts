@@ -3,6 +3,10 @@ import mongoose, { Document, Schema as MongooseSchema, Types } from 'mongoose';
 export type ProjectStatus = 'active' | 'inactive' | 'archived';
 
 export interface IProject extends Document {
+  // v1.69 — multi-program provisioning: every project belongs to
+  // exactly one program. `null` is allowed for legacy / pre-feature
+  // data; new code paths always set a real ObjectId.
+  batchId: Types.ObjectId | null;
   projectName: string;
   description: string;
   mentorName?: string;
@@ -30,6 +34,7 @@ export interface IProject extends Document {
 
 const projectSchema = new MongooseSchema<IProject>(
   {
+    batchId: { type: MongooseSchema.Types.ObjectId, ref: 'Batch', default: null, index: true },
     projectName: { type: String, required: true },
     description: { type: String, required: true },
     mentorName: { type: String },

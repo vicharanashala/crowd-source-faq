@@ -18,6 +18,8 @@ apps/backend/.env.development
 apps/backend/.env.production
 apps/backend/.env.test
 apps/backend/.env.*.local
+apps/backend/.new.env
+
 
 # Frontend
 apps/frontend/.env
@@ -173,6 +175,8 @@ main_log.txt
 server-debug.log
 guide_me.md
 *sa-key*.json
+.agents/
+.hermes/
 
 # ==============================================================================
 # Ignore Vite timestamp backups
@@ -191,5 +195,6 @@ apps/backend/tessdata/
 *.traineddata
 # v1.68 — .env.bak.* is created by some env-saving script.
 .env.bak.*
-apps/backend/uploads/
+apps/backend/uploads/*
+!apps/backend/uploads/onboarding-resources/
 apps/backend/faqs.json

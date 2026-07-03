@@ -18,12 +18,13 @@ import FAQ from '../faq/faq.model.js';
 import User from '../auth/user.model.js';
 import { generateEmbedding } from '../../utils/ai/embeddings.js';
 import { invalidateCache } from '../../utils/http/cache.js';
+import { invalidatePublicCaches } from '../faq/public-faq.controller.js';
 import { logger } from '../../utils/http/logger.js';
 import type { Request, Response } from 'express';
 import type { LifecycleStatus } from '../community/community-post.model.js';
 
 // ─── Config ──────────────────────────────────────────────────────────────────
-const UPVOTE_THRESHOLD = parseInt(process.env['FAQ_PROMOTION_UPVOTE_THRESHOLD'] ?? '10');
+const _UPVOTE_THRESHOLD = parseInt(process.env['FAQ_PROMOTION_UPVOTE_THRESHOLD'] ?? '10');
 const REVIEW_WINDOW_HOURS = parseInt(process.env['FAQ_PROMOTION_REVIEW_WINDOW_HOURS'] ?? '24');
 
 // Stage 4 Community-Validation thresholds (per spec)
@@ -210,6 +211,7 @@ export async function promoteToCommunityApproved(
   const faq = await FAQ.create({
     question: post.title,
     answer: post.answer,
+    batchId: post.batchId,
     category: 'Community',
     status: 'approved',
     embedding,
@@ -250,6 +252,7 @@ export async function promoteToCommunityApproved(
   });
 
   await invalidateCache();
+  invalidatePublicCaches();
   return faq;
 }
 
@@ -268,7 +271,7 @@ export async function promoteToAdminApproved(
   if (!faq) throw new Error('FAQ not found');
   if (faq.trustLevel === 'expert') throw new Error('FAQ is already at expert trust level');
 
-  const oldLevel = faq.trustLevel;
+  const _oldLevel = faq.trustLevel;
   faq.trustLevel = 'expert'; // expert = admin_approved
   if (!faq.promotionMetadata) faq.promotionMetadata = {} as any;
   const meta = faq.promotionMetadata!;
@@ -303,6 +306,7 @@ export async function promoteToAdminApproved(
 
   logger.info(`FAQ ${faqId} promoted to admin_approved by ${adminUserId}`);
   await invalidateCache();
+  invalidatePublicCaches();
 }
 
 /**
@@ -330,6 +334,7 @@ export async function promoteToOfficial(
 
   logger.info(`FAQ ${faqId} promoted to official by ${adminUserId}`);
   await invalidateCache();
+  invalidatePublicCaches();
 }
 
 // ─── Moderator Objection ──────────────────────────────────────────────────────
@@ -373,6 +378,8 @@ export async function objectToFAQPromotion(
   meta.objectionRaisedAt = new Date();
   meta.objectionReason = reason;
   await faq.save();
+  await invalidateCache();
+  invalidatePublicCaches();
 
   logger.warn(`FAQ promotion objected for FAQ ${faqId} by ${moderatorId}: ${reason}`);
 }
@@ -552,6 +559,8 @@ export async function promoteFAQ(req: Request, res: Response): Promise<void> {
       if (faq) {
         faq.objectionStatus = 'objected';
         await faq.save();
+        await invalidateCache();
+        invalidatePublicCaches();
       }
       res.json({ message: 'FAQ rejected.' });
       return;
@@ -565,6 +574,8 @@ export async function promoteFAQ(req: Request, res: Response): Promise<void> {
       if (edits.category) faq.category = edits.category;
       if (edits.tags) faq.tags = edits.tags;
       await faq.save();
+      await invalidateCache();
+      invalidatePublicCaches();
       res.json({ message: 'FAQ updated.', faq });
       return;
     }

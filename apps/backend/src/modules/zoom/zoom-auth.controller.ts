@@ -15,8 +15,7 @@ import User from '../auth/user.model.js';
 import { ZoomMeeting } from './zoom-meeting.model.js';
 import { buildZoomAuthUrl, exchangeCodeForTokens, getZoomUserId, verifyOAuthState } from '../../integrations/zoom/zoomOAuth.js';
 import { encrypt } from '../../utils/auth/crypto.js';
-import { zoomOAuthCircuit, CircuitOpenError } from '../../utils/http/circuitBreaker.js';
-import { sanitizeBase64, sanitizeText } from '../../utils/http/sanitize.js';
+import { CircuitOpenError } from '../../utils/http/circuitBreaker.js';
 import { adminLog } from '../../utils/http/logger.js';
 
 // ─── Connect ────────────────────────────────────────────────────────────────────

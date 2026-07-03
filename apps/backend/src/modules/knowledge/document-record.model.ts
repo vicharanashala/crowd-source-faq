@@ -35,6 +35,7 @@ export type DocumentStatus =
 
 export interface IDocumentRecord extends Document {
   userId: Types.ObjectId;
+  batchId?: Types.ObjectId | null;
   fileName: string;
   fileType: DocumentFileType;
   mimeType: string;
@@ -66,6 +67,7 @@ export interface IDocumentRecord extends Document {
 const documentRecordSchema = new MongooseSchema<IDocumentRecord>(
   {
     userId: { type: MongooseSchema.Types.ObjectId, ref: 'User', required: true, index: true },
+    batchId: { type: MongooseSchema.Types.ObjectId, ref: 'Batch', default: null, index: true },
     fileName: { type: String, required: true, maxlength: 500 },
     fileType: { type: String, enum: ['image', 'pdf', 'docx', 'xlsx'], required: true, index: true },
     mimeType: { type: String, required: true, maxlength: 100 },

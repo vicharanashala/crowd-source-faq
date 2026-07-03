@@ -1,6 +1,11 @@
-import mongoose, { Document, Schema as MongooseSchema } from 'mongoose';
+import mongoose, { Document, Schema as MongooseSchema, Types } from 'mongoose';
 
 export interface IZoomSession extends Document {
+  // v1.69 — multi-program provisioning: every onboarding Zoom
+  // session belongs to exactly one program. `null` is allowed for
+  // legacy / pre-feature data; new code paths always set a real
+  // ObjectId.
+  batchId: Types.ObjectId | null;
   title: string;
   description: string;
   duration: string;
@@ -16,6 +21,7 @@ export interface IZoomSession extends Document {
 
 const zoomSessionSchema = new MongooseSchema<IZoomSession>(
   {
+    batchId: { type: MongooseSchema.Types.ObjectId, ref: 'Batch', default: null, index: true },
     title: { type: String, required: true },
     description: { type: String, required: true },
     duration: { type: String, default: '60 minutes' },

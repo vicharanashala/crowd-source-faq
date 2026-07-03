@@ -15,7 +15,7 @@
  * name, the action (set/delete), the admin username, and the source
  * (rest / discord / cli). Critical keys are explicitly tagged.
  */
-import { TextChannel, type Client } from 'discord.js';
+import { TextChannel } from 'discord.js';
 import { getDiscordClient } from '../discordBot.js';
 import { adminLog } from '../../../utils/http/logger.js';
 

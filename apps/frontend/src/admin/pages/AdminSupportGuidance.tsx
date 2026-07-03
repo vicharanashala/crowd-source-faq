@@ -10,7 +10,7 @@ import Spinner from '../../components/ui/Spinner';
 import { friendlyError } from '../../utils/api';
 import { SUPPORT_ISSUE_OPTIONS } from '../../components/support/api';
 
-const ISSUE_TYPES = SUPPORT_ISSUE_OPTIONS.map((o) => o.key);
+
 
 function GuidanceInner(): React.ReactElement {
   const [list, setList] = useState<SupportGuidance[] | null>(null);

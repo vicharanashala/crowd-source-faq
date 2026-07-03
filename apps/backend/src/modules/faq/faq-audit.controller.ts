@@ -41,7 +41,7 @@ const AUDIT_BATCH_SIZE = parseInt(process.env['FAQ_AUDIT_BATCH_SIZE'] || '20', 1
 function readAuditIntervalH(): number {
   return parseInt(process.env['FAQ_AUDIT_readAuditIntervalH()OURS'] || '6', 10);
 }
-const FLAG_THRESHOLD   = parseFloat(process.env['FAQ_AUDIT_FLAG_THRESHOLD'] || '0.65');
+const _FLAG_THRESHOLD   = parseFloat(process.env['FAQ_AUDIT_FLAG_THRESHOLD'] || '0.65');
 const MIN_CONFIDENCE   = 0.35; // Below this confidence in AI's judgment → skip flagging
 const MAX_SOURCE_CHARS = 3000; // Max knowledge context sent to AI for comparison
 
@@ -270,6 +270,7 @@ async function applyFinding(faq: { _id: Types.ObjectId }, finding: AuditFinding)
     pipeline:    'faq_audit',
     targetModel: 'FAQ',
     targetId:    finding.faqId,
+    batchId:     (faq as unknown as { batchId?: mongoose.Types.ObjectId }).batchId,
     targetTitle: (faq as unknown as { question?: string }).question ?? 'Unknown FAQ',
     score:       finding.score,
     verdict:     finding.verdict,

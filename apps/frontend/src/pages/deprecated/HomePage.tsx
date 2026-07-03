@@ -1,8 +1,9 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 // @ts-nocheck
 import React, { useEffect, useRef, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import Navbar from '../../components/layout/Navbar';
+
 import Footer from '../../components/layout/Footer';
 import SearchBar from '../../components/search/SearchBar';
 import CategoryGrid, { categoryPills } from '../../components/faq/CategoryGrid';
@@ -10,9 +11,9 @@ import TopSolved from '../../components/community/TopSolved';
 import TrendingIssues from '../../components/search/TrendingIssues';
 import FromMeetings from '../../components/faq/FromMeetings';
 import CTA from '../../components/ui/CTA';
-import ResultItem, { getConfidenceLevel } from '../../components/search/ResultItem';
+import ResultItem from '../../components/search/ResultItem';
 import HistoryModal from '../../components/faq/HistoryModal';
-import api, { friendlyError } from '../../utils/api';
+import api from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
 import { useAuthGate } from '../../context/AuthModalContext';
 import type { SearchResult, TrendingQuery } from '../../types/ui';
@@ -141,7 +142,6 @@ export default function HomePage() {
   const [historyFaq, setHistoryFaq] = useState<{ id: string; question: string } | null>(null);
   const searchBarRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
   const gate = useAuthGate();
 
   const handleAskCommunity = gate(

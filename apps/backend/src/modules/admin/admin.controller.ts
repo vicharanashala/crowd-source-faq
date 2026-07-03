@@ -6,6 +6,7 @@ import SearchLog from '../search/search-log.model.js';
 import AdminLog from './admin-log.model.js';
 import CommunityPost from '../community/community-post.model.js';
 import { invalidateCache } from '../../utils/http/cache.js';
+import { invalidatePublicCaches } from '../faq/public-faq.controller.js';
 import { sanitizeHtml } from '../../utils/http/sanitize.js';
 import { adminLog } from '../../utils/http/logger.js';
 import FreshReviewVote from '../faq/fresh-review-vote.model.js';
@@ -13,7 +14,9 @@ import { generateEmbedding } from '../../utils/ai/embeddings.js';
 // v1.69 — Phase 3i: admin dashboard reads accept an optional
 // ?batchId=... filter so an admin can scope a stats query to a
 // single program. Global view is still the default.
-import { withProgramScope } from '../../utils/db/scopedQuery.js';
+import { withProgramScope, assertSameProgram } from '../../utils/db/scopedQuery.js';
+import ProgramEnrollment from '../program/program-enrollment.model.js';
+import { setContextBatchId } from '../../utils/http/requestContext.js';
 
 export const logAction = async (
   adminId: string,
@@ -36,7 +39,11 @@ export const getStats = async (req: Request, res: Response): Promise<void> => {
     const todayStart = new Date(now.setHours(0, 0, 0, 0));
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
-    const batchId = (req.query.batchId as string | undefined) ?? null;
+    const batchId = (req.query.batchId as string | undefined) ?? req.programContext?.batchId ?? null;
+
+    if (batchId) {
+      setContextBatchId(batchId);
+    }
 
     const [
       totalFaqs,
@@ -55,14 +62,18 @@ export const getStats = async (req: Request, res: Response): Promise<void> => {
       FAQ.countDocuments(withProgramScope({ status: 'pending' }, batchId)),
       FAQ.countDocuments(withProgramScope({ status: 'approved' }, batchId)),
       FAQ.countDocuments(withProgramScope({ status: 'rejected' }, batchId)),
-      // User collection is identity-scoped, not program-scoped.
-      User.countDocuments(),
+      batchId
+        ? ProgramEnrollment.countDocuments({ batchId, isActive: true })
+        : User.countDocuments(),
       SearchLog.countDocuments(withProgramScope({ createdAt: { $gte: todayStart } }, batchId)),
       SearchLog.countDocuments(withProgramScope({}, batchId)),
       FAQ.countDocuments(withProgramScope({ createdAt: { $gte: weekAgo } }, batchId)),
       FAQ.countDocuments(withProgramScope({ createdAt: { $gte: twoWeeksAgo, $lt: weekAgo } }, batchId)),
-      User.countDocuments({ createdAt: { $gte: weekAgo } }),
+      batchId
+        ? ProgramEnrollment.countDocuments({ batchId, isActive: true, enrolledAt: { $gte: weekAgo } })
+        : User.countDocuments({ createdAt: { $gte: weekAgo } }),
       FAQ.aggregate([
+        ...(batchId ? [{ $match: { batchId: new Types.ObjectId(batchId) } }] : []),
         { $group: { _id: '$category', count: { $sum: 1 } } },
         { $sort: { count: -1 } },
         { $limit: 1 },
@@ -80,8 +91,8 @@ export const getStats = async (req: Request, res: Response): Promise<void> => {
           ? '100'
           : '0';
 
-    const { getDocumentQueueStatus } = await import('../../utils/jobs/documentQueue.js');
-    const documentQueueStatus = getDocumentQueueStatus();
+    const { getDocumentQueueStatusSync } = await import('../../utils/jobs/documentQueue.js');
+    const documentQueueStatus = getDocumentQueueStatusSync();
 
     res.json({
       totalFaqs,
@@ -241,7 +252,7 @@ export const getAdminFAQs = async (req: Request, res: Response): Promise<void> =
     const category = (req.query.category as string) || '';
     const search = (req.query.search as string) || '';
     const sort = (req.query.sort as string) || '-createdAt';
-    const batchId = (req.query.batchId as string) || '';
+    const batchId = (req.query.batchId as string) || req.programContext?.batchId || '';
 
     const query: Record<string, unknown> = {};
     if (status) query.status = status;
@@ -276,8 +287,13 @@ export const approveFAQ = async (req: Request, res: Response): Promise<void> => 
   try {
     const { id } = req.body as { id?: string };
     if (!id) { res.status(400).json({ message: 'id is required' }); return; }
-    const faq = await FAQ.findByIdAndUpdate(id, { status: 'approved' }, { new: true }).select('-embedding');
+    const faq = await FAQ.findById(id);
     if (!faq) { res.status(404).json({ message: 'FAQ not found.' }); return; }
+    if (assertSameProgram(faq, req.programContext, res)) return;
+    faq.status = 'approved';
+    await faq.save();
+    await invalidateCache();
+    invalidatePublicCaches();
     await logAction(req.user!._id.toString(), 'approve_faq', faq._id.toString(), 'faq', faq.question);
     res.json({ message: 'FAQ approved.', faq });
   } catch (error) {
@@ -290,8 +306,13 @@ export const rejectFAQ = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.body as { id?: string };
     if (!id) { res.status(400).json({ message: 'id is required' }); return; }
-    const faq = await FAQ.findByIdAndUpdate(id, { status: 'rejected' }, { new: true }).select('-embedding');
+    const faq = await FAQ.findById(id);
     if (!faq) { res.status(404).json({ message: 'FAQ not found.' }); return; }
+    if (assertSameProgram(faq, req.programContext, res)) return;
+    faq.status = 'rejected';
+    await faq.save();
+    await invalidateCache();
+    invalidatePublicCaches();
     await logAction(req.user!._id.toString(), 'reject_faq', faq._id.toString(), 'faq', faq.question);
     res.json({ message: 'FAQ rejected.', faq });
   } catch (error) {
@@ -315,6 +336,7 @@ export const updateFAQ = async (req: Request, res: Response): Promise<void> => {
       res.status(404).json({ message: 'FAQ not found.' });
       return;
     }
+    if (assertSameProgram(faq, req.programContext, res)) return;
 
     if (question) faq.question = sanitizeHtml(question);
     if (answer) faq.answer = sanitizeHtml(answer);
@@ -352,6 +374,7 @@ export const updateFAQ = async (req: Request, res: Response): Promise<void> => {
 
     // Invalidate search cache so updated FAQ reflects immediately
     await invalidateCache();
+    invalidatePublicCaches();
 
     res.json({ message: 'FAQ updated.', faq });
   } catch (error) {
@@ -362,15 +385,18 @@ export const updateFAQ = async (req: Request, res: Response): Promise<void> => {
 // DELETE /api/admin/faq/:id
 export const deleteFAQ = async (req: Request, res: Response): Promise<void> => {
   try {
-    const faq = await FAQ.findByIdAndDelete(req.params.id);
+    const faq = await FAQ.findById(req.params.id);
     if (!faq) {
       res.status(404).json({ message: 'FAQ not found.' });
       return;
     }
+    if (assertSameProgram(faq, req.programContext, res)) return;
+    await faq.deleteOne();
     await logAction(req.user!._id.toString(), 'delete_faq', faq._id.toString(), 'faq', faq.question);
 
     // Invalidate search cache so deleted FAQ is removed from results
     await invalidateCache();
+    invalidatePublicCaches();
 
     res.json({ message: 'FAQ deleted.' });
   } catch (error) {
@@ -387,8 +413,13 @@ export const createFAQ = async (req: Request, res: Response): Promise<void> => {
       category?: string;
       status?: string;
     };
+    const batchId = req.body.batchId || req.programContext?.batchId;
     if (!question || !answer || !category) {
       res.status(400).json({ message: 'Question, answer, and category are required.' });
+      return;
+    }
+    if (!batchId || !Types.ObjectId.isValid(batchId)) {
+      res.status(400).json({ message: 'A valid batchId is required.' });
       return;
     }
     const faq = await FAQ.create({
@@ -396,12 +427,14 @@ export const createFAQ = async (req: Request, res: Response): Promise<void> => {
       answer: sanitizeHtml(answer),
       category: sanitizeHtml(category),
       status,
+      batchId: new Types.ObjectId(batchId),
       createdBy: req.user!._id,
     });
     await logAction(req.user!._id.toString(), 'create_faq', faq._id.toString(), 'faq', faq.question);
 
     // Invalidate search cache so new FAQ appears in results immediately
     await invalidateCache();
+    invalidatePublicCaches();
 
     res.status(201).json({ message: 'FAQ created.', faq });
   } catch (error) {
@@ -550,6 +583,7 @@ export const getCommunityPosts = async (req: Request, res: Response): Promise<vo
       CommunityPost.find(query)
         .select('-embedding')
         .populate('author', 'name email')
+        .populate('batchId', 'name')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit),

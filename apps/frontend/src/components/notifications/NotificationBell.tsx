@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../hooks/useNotifications';
-import api, { friendlyError } from '../../utils/api';
+import api from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
 import { timeAgo } from '../../utils/time';
 
@@ -9,6 +9,7 @@ interface TeaDrop {
   _id: string;
   faqId: string;
   faqQuestion: string;
+  faqCategory?: string;
   read: boolean;
   createdAt: string;
 }
@@ -47,7 +48,10 @@ export default function NotificationBell() {
         hasMore: boolean;
         unreadCount: number;
       }>(`/notifications/tea?page=${pageNum}&limit=20`);
-      setTeaDrops((prev) => (reset ? res.data.drops : [...prev, ...res.data.drops]));
+      setTeaDrops((prev) => {
+        const newDrops = res.data.drops || [];
+        return reset ? newDrops : [...prev, ...newDrops];
+      });
       setTeaUnread(res.data.unreadCount);
       setTeaHasMore(res.data.hasMore);
       setTeaPage(pageNum);
@@ -112,8 +116,13 @@ export default function NotificationBell() {
   const handleTeaClick = (drop: TeaDrop) => {
     if (!drop.read) handleMarkOneTeaRead(drop._id);
     setOpen(false);
-    // Navigate to the FAQ page with the question as search
-    navigate(`/faq?q=${encodeURIComponent(drop.faqQuestion)}`);
+    
+    if (drop.faqCategory) {
+      navigate(`/faq?category=${encodeURIComponent(drop.faqCategory)}`);
+    } else {
+      // Fallback if no category is available
+      navigate(`/faq?search=${encodeURIComponent(drop.faqQuestion)}`);
+    }
   };
 
   const totalUnread = unreadCount + teaUnread;
@@ -249,11 +258,11 @@ export default function NotificationBell() {
                 </div>
               )}
               <div className="max-h-80 overflow-y-auto">
-                {teaLoading && teaDrops.length === 0 ? (
+                {teaLoading && (!teaDrops || teaDrops.length === 0) ? (
                   <div className="p-4 space-y-2">
                     {[1, 2, 3].map((i) => <div key={i} className="h-12 rounded-xl bg-mist animate-pulse" />)}
                   </div>
-                ) : teaDrops.length === 0 ? (
+                ) : (!teaDrops || teaDrops.length === 0) ? (
                   <div className="flex flex-col items-center py-10 px-4 text-center">
                     <span className="text-2xl mb-2">👀</span>
                     <p className="text-sm font-medium text-ink-soft">No tea yet</p>

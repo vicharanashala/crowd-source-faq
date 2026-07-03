@@ -41,9 +41,9 @@ export const ConfigSchema = z.object({
       maxRequests: z.number().default(100),
     }),
     auth: z.object({
-      loginWindowMs: z.number().default(900000),
+      loginWindowMs: z.number().default(120000),
       loginMaxAttempts: z.number().default(5),
-      registerWindowMs: z.number().default(3600000),
+      registerWindowMs: z.number().default(900000),
       registerMaxAttempts: z.number().default(3),
     }),
     search: z.object({

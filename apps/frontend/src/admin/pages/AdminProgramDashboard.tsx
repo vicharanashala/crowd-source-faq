@@ -20,6 +20,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import adminApi from '../utils/adminApi';
 import { useBatch } from '../../context/BatchContext';
 import { CardSkeleton } from '../../components/explore/ExploreSkeleton';
+import CreateProgramModal from '../components/program/CreateProgramModal';
 
 interface ProgramListItem {
   _id: string;
@@ -119,11 +120,9 @@ export default function AdminProgramDashboard(): React.ReactElement {
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastState | null>(null);
   const [filter, setFilter] = useState<'all' | 'active' | 'draft' | 'archived' | 'completed'>('all');
+  const [createOpen, setCreateOpen] = useState(false);
 
-  const showToast = (msg: string, type: ToastState['type'] = 'success'): void => {
-    setToast({ msg, type });
-    window.setTimeout(() => setToast(null), 2400);
-  };
+  
 
   const load = async (): Promise<void> => {
     setLoading(true);
@@ -167,6 +166,18 @@ export default function AdminProgramDashboard(): React.ReactElement {
     void navigate(`/admin/programs/${id}`);
   };
 
+  // v1.69 — multi-program provisioning: after a successful create, the
+  // backend has already provisioned ProgramConfig, ProgramSettings, and
+  // per-program FeatureFlag overrides. We land the admin on the new
+  // program's detail view so they can immediately start populating it
+  // (FAQs, categories, welcome kit, Zoom, etc.).
+  const handleCreated = (batch: { _id: string; name: string }): void => {
+    setToast({ msg: `Created "${batch.name}". Provisioned workspace ready.`, type: 'success' });
+    void load();
+    void refreshBatches();
+    void navigate(`/admin/programs/${batch._id}`);
+  };
+
   return (
     <div className="space-y-5">
       {toast && (
@@ -205,6 +216,14 @@ export default function AdminProgramDashboard(): React.ReactElement {
           >
             Manage courses
           </Link>
+          <button
+            type="button"
+            onClick={() => setCreateOpen(true)}
+            className="admin-btn-primary text-xs"
+            data-testid="create-program-button"
+          >
+            + Create program
+          </button>
         </div>
       </div>
 
@@ -244,7 +263,7 @@ export default function AdminProgramDashboard(): React.ReactElement {
         <div className="rounded-2xl border border-dashed border-border bg-card/40 p-12 text-center">
           <p className="text-sm text-ink-soft">
             {filter === 'all'
-              ? 'No programs yet. Run the seed script to bootstrap the default program.'
+              ? 'No programs yet. Click "+ Create program" above to provision a new workspace.'
               : `No programs with status "${filter}".`}
           </p>
         </div>
@@ -260,6 +279,12 @@ export default function AdminProgramDashboard(): React.ReactElement {
         Tip: {availableBatches.length} program{availableBatches.length === 1 ? '' : 's'} in the
         public-facing BatchSwitcher. Click any card to open the per-program detail view.
       </p>
+
+      <CreateProgramModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={handleCreated}
+      />
     </div>
   );
 }

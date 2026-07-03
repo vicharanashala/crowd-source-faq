@@ -1,5 +1,5 @@
 import React from 'react';
-import { getCategoryIcon, formatCategoryName, getQuestionTitle, getCategoryIndex } from './faqUtils';
+import { getCategoryIcon, formatCategoryName, getQuestionTitle } from './faqUtils';
 import type { FAQItem } from './faqUtils';
 
 interface CategoryCardProps {

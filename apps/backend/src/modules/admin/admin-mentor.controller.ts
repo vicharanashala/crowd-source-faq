@@ -1,13 +1,33 @@
 import { Request, Response } from 'express';
+import { Types } from 'mongoose';
 import Mentor from './mentor.model.js';
 import Project from './project.model.js';
 import OnboardingAuditLog from '../program/onboarding-audit-log.model.js';
 
+/**
+ * Extract a valid program ObjectId from the request — accepts both
+ * body (for write endpoints) and query (for read endpoints). Mirrors
+ * the helper used by faq.controller.ts so every program-scoped admin
+ * route uses one consistent resolver.
+ */
+function batchIdFromInput(req: { query: any; body?: any }): string | null {
+  const raw = req.body?.batchId ?? req.query?.batchId;
+  if (typeof raw !== 'string') return null;
+  return Types.ObjectId.isValid(raw) ? raw : null;
+}
+
 // GET /admin/mentors
 export const getMentors = async (req: Request, res: Response): Promise<void> => {
   try {
-    const mentors = await Mentor.find({ status: { $ne: 'archived' } }).lean().sort({ name: 1 });
-    
+    // v1.69 — multi-program scoping: filter mentors by active program
+    // unless the caller explicitly passes batchId=all (admins managing
+    // across programs). Without this filter, mentors from every
+    // program leak into the listing.
+    const batchId = batchIdFromInput(req);
+    const filter: Record<string, unknown> = { status: { $ne: 'archived' } };
+    if (batchId) filter.batchId = new Types.ObjectId(batchId);
+    const mentors = await Mentor.find(filter).lean().sort({ name: 1 });
+
     const mentorsWithCounts = await Promise.all(mentors.map(async (m) => {
       const projectsAssigned = await Project.countDocuments({ mentor: m._id });
       return { ...m, projectsAssigned };
@@ -22,8 +42,11 @@ export const getMentors = async (req: Request, res: Response): Promise<void> => 
 // GET /admin/mentors/all (includes archived)
 export const getAllMentors = async (req: Request, res: Response): Promise<void> => {
   try {
-    const mentors = await Mentor.find().lean().sort({ status: 1, name: 1 });
-    
+    const batchId = batchIdFromInput(req);
+    const filter: Record<string, unknown> = {};
+    if (batchId) filter.batchId = new Types.ObjectId(batchId);
+    const mentors = await Mentor.find(filter).lean().sort({ status: 1, name: 1 });
+
     const mentorsWithCounts = await Promise.all(mentors.map(async (m) => {
       const projectsAssigned = await Project.countDocuments({ mentor: m._id });
       return { ...m, projectsAssigned };
@@ -45,8 +68,17 @@ export const createMentor = async (req: Request, res: Response): Promise<void> =
       return;
     }
 
+    // v1.69 — multi-program scoping: every mentor write requires a
+    // valid batchId so mentors live inside a single program.
+    const rawBatchId = batchIdFromInput(req);
+    if (!rawBatchId) {
+      res.status(400).json({ message: 'A valid batchId is required to create a mentor.' });
+      return;
+    }
+
     const mentor = new Mentor({
-      name, email, designation, bio, profilePicture, officeHours, meetingLink
+      name, email, designation, bio, profilePicture, officeHours, meetingLink,
+      batchId: new Types.ObjectId(rawBatchId),
     });
     await mentor.save();
 

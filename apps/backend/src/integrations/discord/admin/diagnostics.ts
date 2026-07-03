@@ -8,8 +8,6 @@
  */
 import mongoose from 'mongoose';
 import { setTimeout as delay } from 'node:timers/promises';
-import { adminLog } from '../../../utils/http/logger.js';
-import { loadConfig } from '../../../config/loader.js';
 
 export interface DiagnosticResult {
   name: string;
@@ -44,25 +42,13 @@ export async function checkMongo(): Promise<DiagnosticResult> {
 }
 
 export async function checkRedis(): Promise<DiagnosticResult> {
-  const config = loadConfig();
-  const url = config.redis.tcpUrl || config.redis.url || process.env.REDIS_LOCAL_TCP_URL || process.env.REDIS_LOCAL_URL;
-  if (!url || url === '#' || url.trim() === '') {
-    return { name: 'Redis', status: 'warn', detail: 'no REDIS_TCP_URL/REDIS_URL configured' };
-  }
-  // We don't import ioredis here to avoid a heavy dep at module load —
-  // just probe the URL with a short timeout using node's fetch.
-  const { result, latencyMs, error } = await time(async () => {
-    // Best-effort: just check the URL resolves, don't actually do a Redis handshake.
-    const u = new URL(url);
-    return `${u.hostname}:${u.port || 6379}`;
-  });
-  if (result && error === null) {
-    return { name: 'Redis', status: 'ok', detail: `URL resolves: ${result}`, latencyMs };
-  }
-  if (error) {
-    return { name: 'Redis', status: 'fail', detail: error.message, latencyMs };
-  }
-  return { name: 'Redis', status: 'fail', detail: 'unknown', latencyMs: latencyMs ?? 0 };
+  // Post-Redis-removal: this check is informational only. We surface a
+  // "warn" so the admin panel knows the dependency is gone.
+  return {
+    name: 'Redis',
+    status: 'warn',
+    detail: 'Redis removed (queue migrated to MongoDB). Rate limiting + cache now in-process.',
+  };
 }
 
 export async function checkAIProviders(): Promise<DiagnosticResult[]> {

@@ -101,6 +101,11 @@ export function signUploadParams(
  */
 export function isOurCloudinaryAsset(secureUrl: string, cloudName: string): boolean {
   // Cloudinary secure URLs look like: https://res.cloudinary.com/<cloud>/<resource>/upload/...
-  const expectedPrefix = `https://res.cloudinary.com/${cloudName}/`;
-  return secureUrl.startsWith(expectedPrefix);
+  try {
+    const url = new URL(secureUrl);
+    const [urlCloudName] = url.pathname.replace(/^\/+/, '').split('/');
+    return url.protocol === 'https:' && url.hostname === 'res.cloudinary.com' && urlCloudName === cloudName;
+  } catch {
+    return false;
+  }
 }

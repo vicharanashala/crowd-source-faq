@@ -13,7 +13,6 @@
 import { SlashCommandBuilder, type ChatInputCommandInteraction, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import type { BotConfig } from '../discordBot.js';
 import { isAdmin } from '../events/interactionCreate.js';
-import { runAllDiagnostics } from '../admin/diagnostics.js';
 import { adminLog } from '../../../utils/http/logger.js';
 
 export const adminCommandData = new SlashCommandBuilder()

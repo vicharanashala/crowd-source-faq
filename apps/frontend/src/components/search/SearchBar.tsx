@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, type FormEvent, type ChangeEvent } from 'react';
+import React, { useState, useRef, type FormEvent, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import api from '../../utils/api';
@@ -50,8 +50,8 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
   const [suggestionError, setSuggestionError] = useState<string | null>(null);
   const isControlled = value !== undefined;
   const query = isControlled ? (value ?? '') : internalQuery;
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suggestDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -96,6 +96,10 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
     }
   };
 
+  // v2 — Suggestions stay live as the user types (250ms debounce). Search
+  // results also stream live as the user types (300ms debounce) — but they
+  // appear INSIDE the glassmorphic dropdown bubble on the host page, not as
+  // a page swap. Enter skips the wait and fires immediately.
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     if (isControlled) {
@@ -104,36 +108,33 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
       setInternalQuery(val);
     }
 
-    // Suggestion debounce (300ms)
+    // Live suggestions under the input.
     if (!disableSuggestions) {
       if (suggestDebounceRef.current) clearTimeout(suggestDebounceRef.current);
-      suggestDebounceRef.current = setTimeout(() => fetchSuggestions(val), 300);
+      suggestDebounceRef.current = setTimeout(() => fetchSuggestions(val), 250);
     }
 
-    // Search debounce (600ms)
-    if (debounceRef.current) clearTimeout(debounceRef.current);
+    // Live results — same source the post-Enter flow uses, so the
+    // dropdown and the in-page panel can never disagree on counts.
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     if (val.trim().length >= 3) {
-      debounceRef.current = setTimeout(() => {
-        setShowSuggestions(false);
-        handleSearch(val);
-      }, 600);
+      searchDebounceRef.current = setTimeout(() => handleSearch(val), 300);
     } else {
-      // Keep showing suggestions/result dropdown while user is typing
-      // Only clear results when query goes below 3 chars
+      // Below threshold — wipe results so the dropdown's empty state shows.
       onResults(null);
       onError?.(null);
-      if (!disableSuggestions) {
-        setSuggestions([]);
-        setShowSuggestions(false);
-      }
     }
+  };
+
+  const runSearchNow = () => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    setShowSuggestions(false);
+    handleSearch(query);
   };
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    setShowSuggestions(false);
-    handleSearch(query);
+    runSearchNow();
   };
 
   const handleSuggestionClick = async (faqId: string) => {
@@ -161,7 +162,7 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
   };
 
   return (
-    <form onSubmit={handleSubmit} className={`w-full ${variant === 'default' ? 'max-w-3xl mx-auto' : ''} ${className}`}>
+    <form data-tour="search-bar" onSubmit={handleSubmit} className={`w-full ${variant === 'default' ? 'max-w-3xl mx-auto' : ''} ${className}`}>
       <div ref={wrapperRef} className={`relative transition-all duration-300 ${variant === 'default' ? 'search-glow rounded-[26px]' : ''}`}>
         <div className={`absolute top-1/2 -translate-y-1/2 text-ink-faint pointer-events-none ${variant === 'compact' ? 'left-3.5 w-4 h-4 group-focus-within:text-accent transition-colors' : 'left-4'}`}>
           <svg width={variant === 'compact' ? '16' : '18'} height={variant === 'compact' ? '16' : '18'} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -177,9 +178,7 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
-              if (debounceRef.current) clearTimeout(debounceRef.current);
-              setShowSuggestions(false);
-              handleSearch(query);
+              runSearchNow();
             }
           }}
           onFocus={onFocus}

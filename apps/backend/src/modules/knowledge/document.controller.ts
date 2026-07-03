@@ -99,7 +99,7 @@ function stripInsensitive(record: IDocumentRecord): Record<string, unknown> {
  */
 export async function uploadDocument(req: Request, res: Response): Promise<void> {
   if (!isDocumentQueueEnabled()) {
-    res.status(503).json({ message: 'Document processing is not configured on this server. Set REDIS_TCP_URL.' });
+    res.status(503).json({ message: 'Document processing is not configured on this server.' });
     return;
   }
   const userId = getAuthedUserId(req);
@@ -145,6 +145,7 @@ export async function uploadDocument(req: Request, res: Response): Promise<void>
       mimeType: record.mimeType,
       title: record.title,
       uploaderUserId: userId.toString(),
+      batchId: record.batchId?.toString() || req.programContext?.batchId?.toString(),
     });
     record.jobId = jobId;
     await record.save();

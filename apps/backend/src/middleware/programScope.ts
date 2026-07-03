@@ -22,6 +22,7 @@ import type { Request, Response, NextFunction } from 'express';
 import { Types } from 'mongoose';
 import Batch from '../modules/program/batch.model.js';
 import { httpLog } from '../utils/http/logger.js';
+import { setContextBatchId } from '../utils/http/requestContext.js';
 
 export interface ProgramContext {
   batchId: string;
@@ -43,14 +44,15 @@ declare module 'express' {
   }
 }
 
-/** Pull a string batchId out of any of req.params / query / body. */
+/** Pull a string batchId out of any of req.params / query / body / headers. */
 function extractBatchId(req: Request): string | null {
   const fromParams = (req.params as Record<string, string | undefined>).batchId;
   const fromQuery = typeof req.query.batchId === 'string' ? req.query.batchId : null;
   const fromBody = req.body && typeof req.body === 'object' && typeof (req.body as { batchId?: unknown }).batchId === 'string'
     ? (req.body as { batchId: string }).batchId
     : null;
-  const raw = fromParams ?? fromQuery ?? fromBody;
+  const fromHeader = req.headers['x-program-id'] || req.headers['x-batch-id'] || req.headers['x-workspace-id'];
+  const raw = fromParams ?? fromQuery ?? fromBody ?? (typeof fromHeader === 'string' ? fromHeader : null);
   if (!raw) return null;
   if (!Types.ObjectId.isValid(raw)) return null;
   return raw;
@@ -94,6 +96,8 @@ export function programScope(opts: { required?: boolean } = {}) {
         batchName: batch.name,
         isActive: batch.isActive,
       };
+
+      setContextBatchId(String(batch._id));
 
       // Look up enrollment if the user is signed in. The model
       // is loaded lazily so this middleware works even before the

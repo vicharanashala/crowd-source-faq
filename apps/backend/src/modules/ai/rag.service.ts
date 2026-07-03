@@ -16,7 +16,7 @@
  */
 
 import mongoose from 'mongoose';
-import { generateEmbedding, generateQueryEmbedding } from '../../utils/ai/embeddings.js';
+import { generateQueryEmbedding } from '../../utils/ai/embeddings.js';
 import { resolveProviderAsync } from '../../utils/ai/aiProvider.js';
 import { searchKnowledge } from '../knowledge/knowledge-base.service.js';
 import { logger } from '../../utils/http/logger.js';

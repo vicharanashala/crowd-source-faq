@@ -57,7 +57,9 @@ const adminSessionSchema = new MongooseSchema<IAdminSession>(
     adminUsername: { type: String, required: true },
     source: { type: String, enum: ['discord', 'rest'], required: true },
     createdAt: { type: Date, default: Date.now },
-    expiresAt: { type: Date, required: true, index: true },
+    // Index defined explicitly below (schema.index({ expiresAt: 1 })) — do not
+    // also set `index: true` here or Mongoose logs a duplicate-index warning.
+    expiresAt: { type: Date, required: true },
     lastUsedAt: { type: Date, default: Date.now },
     ipAddress: { type: String, default: null },
     userAgent: { type: String, default: null },

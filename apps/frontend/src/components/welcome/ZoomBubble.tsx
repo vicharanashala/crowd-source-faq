@@ -13,7 +13,7 @@ export default function ZoomBubble() {
     <>
       <button
         onClick={() => setIsModalOpen(true)}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border-[1.5px] border-[rgb(var(--border-rgb)_/_0.6)] bg-[rgb(var(--bg-card-rgb)_/_0.85)] backdrop-blur-[24px] shadow-sm transition-all duration-300 hover:bg-[rgb(var(--bg-card-rgb)_/_0.95)] hover:-translate-y-0.5 hover:shadow-md z-50 text-ink text-sm font-semibold"
+        className="inline-flex items-center gap-1.5 h-9 px-3 rounded-full border border-border/70 bg-card hover:border-[#2D8CFF]/60 text-ink text-xs font-semibold shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md z-50"
       >
         <span className="w-2 h-2 rounded-full bg-[#2D8CFF] animate-pulse" />
         Zoom

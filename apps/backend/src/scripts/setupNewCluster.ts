@@ -273,16 +273,23 @@ async function main(): Promise<void> {
     // which isn't a real Atlas format — the index got
     // created but $vectorSearch had no field to query.
     // Switched to the canonical `fields` array form.
+    // Atlas `vectorSearch` indexes require field type 'vector' ('knnVector'
+    // is rejected → index FAILED). `batchId` filter supports per-program
+    // scoped $vectorSearch in the search controller.
     const VECTOR_INDEX = {
       name: 'vector_index',
       type: 'vectorSearch',
       definition: {
         fields: [
           {
-            type: 'knnVector',
+            type: 'vector',
             path: 'embedding',
             numDimensions: embeddingDim,
             similarity: 'dotProduct',
+          },
+          {
+            type: 'filter',
+            path: 'batchId',
           },
         ],
       },

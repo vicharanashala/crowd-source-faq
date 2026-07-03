@@ -24,8 +24,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import Footer from '../components/layout/Footer';
 import SearchBar from '../components/search/SearchBar';
 import { HomeDoodles } from '../components/ui/PageDoodles';
-import api, { friendlyError } from '../utils/api';
-import type { TrendingQuery } from '../types/ui';
+import api from '../utils/api';
 import { useBatch } from '../context/BatchContext';
 
 // Modular FAQ components — shared utilities
@@ -352,7 +351,6 @@ export default function HomePage() {
   const [popularLoading, setPopularLoading] = useState(true);
   const [recentPublicFaqs, setRecentPublicFaqs] = useState<PublicPopularFaq[]>([]);
   const [recentLoading, setRecentLoading] = useState(true);
-  const [trendingWords, setTrendingWords] = useState<TrendingQuery[]>([]);
   // Per-category top FAQs ranked by live opens + search hits (dynamic).
   const [topByCategory, setTopByCategory] = useState<Record<string, FAQItem[]>>({});
 
@@ -430,10 +428,7 @@ export default function HomePage() {
       .then((res) => { if (mounted) setTopByCategory(res.data?.grouped || {}); })
       .catch(() => { /* non-fatal — falls back to popularityScore ordering */ });
 
-    // /api/search/trending — for trending queries
-    api.get('/search/trending', { params: { batchId } })
-      .then((res) => { if (mounted) setTrendingWords((res.data.trending || []).map((t: { query: string; count: number }) => ({ query: t.query, count: t.count }))); })
-      .catch((err: unknown) => { console.error(friendlyError(err, 'Failed to load trending queries.')); });
+    // /api/search/trending — removed (no longer used)
 
     return () => { mounted = false; };
   }, [batchId]);
@@ -522,23 +517,21 @@ export default function HomePage() {
   const activeCategoryItems = activeCategory ? (grouped[activeCategory] || []) : [];
   const activeCategoryMeta = getCategoryDescription(activeCategoryItems);
 
-  const searchActive = searchQuery.trim().length >= 3 && Array.isArray(searchResults);
-  // Keep the inline dropdown open the whole time the user is searching — results
-  // (with answers) surface right under the search bar instead of swapping the page.
+  const searchActive = searchQuery.trim().length >= 3 && Array.isArray(searchResults) && searchResults.length > 0;
+  // v2 — Show the glassmorphic dropdown as soon as the user types. The
+  // dropdown's left column shows live results from the same `searchResults`
+  // array that the in-page section consumes below — same query, same count.
   const showDropdown = searchQuery.trim().length > 0;
 
+  // v2 — Dropdown ONLY shows API search results, which stream live as the
+  // user types. The right column stays as the always-live category
+  // autocomplete inside SearchDropdown itself.
   const dropdownItems = useMemo(() => {
-    if (Array.isArray(searchResults) && searchQuery.trim().length >= 3) {
+    if (Array.isArray(searchResults)) {
       return searchResults;
     }
-    if (!searchQuery.trim()) {
-      return flatQuestions.slice(0, 5);
-    }
-    const normalized = searchQuery.trim().toLowerCase();
-    return flatQuestions.filter((item) => (
-      getQuestionTitle(item).toLowerCase().includes(normalized)
-    )).slice(0, 5);
-  }, [flatQuestions, searchResults, searchQuery]);
+    return [];
+  }, [searchResults]);
 
   const relatedItems = useMemo(() => {
     if (!activeQuestion?.category) return [];
@@ -584,7 +577,8 @@ export default function HomePage() {
     if (value.trim()) {
       setActiveCategory('');
       setActiveQuestion(null);
-      setSearchResults(null);
+      // v2 — Don't wipe searchResults on every keystroke; let the SearchBar's
+      // 300ms debounce overwrite naturally. Avoids the 0→5→0 flicker.
     }
   };
 
@@ -592,22 +586,6 @@ export default function HomePage() {
     setSearchQuery('');
     setSearchResults(null);
     setSearchLoading(false);
-  };
-
-  const runSearch = async (q: string) => {
-    const queryStr = q.trim();
-    if (queryStr.length < 3) return;
-    setSearchLoading(true);
-    setError('');
-    try {
-      const res = await api.post('/search', { query: queryStr });
-      setSearchResults(res.data.results || []);
-    } catch {
-      setSearchResults([]);
-      setError('Search failed. Please try again.');
-    } finally {
-      setSearchLoading(false);
-    }
   };
 
   // True when the user is browsing the discovery landing (nothing selected)

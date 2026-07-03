@@ -113,6 +113,49 @@
   --body-bg-image:
     radial-gradient(ellipse 80% 50% at 50% 0%, rgba(107, 143, 113, 0.05) 0%, transparent 60%);
 
+  /* ── ShadCN tokens ────────────────────────────────────────────
+     Aliased to the existing warm-sage palette so ShadCN components
+     render in-house by default. Override per-component via className
+     when you want a literal ShadCN neutral look. */
+  --background: var(--bg-primary-rgb);
+  --foreground: var(--text-primary-rgb);
+  --card: var(--bg-card-rgb);
+  --card-foreground: var(--text-primary-rgb);
+  --popover: var(--bg-card-rgb);
+  --popover-foreground: var(--text-primary-rgb);
+  --primary: var(--accent-rgb);
+  --primary-foreground: var(--accent-text-rgb);
+  --secondary: var(--bg-secondary-rgb);
+  --secondary-foreground: var(--text-primary-rgb);
+  --muted: var(--bg-secondary-rgb);
+  --muted-foreground: var(--text-secondary-rgb);
+  --accent: var(--bg-secondary-rgb);
+  --accent-foreground: var(--text-primary-rgb);
+  --destructive: var(--danger-rgb);
+  --destructive-foreground: 255 255 255;
+  --border: var(--border-rgb);
+  --input: var(--border-rgb);
+  --ring: var(--accent-rgb);
+
+  /* Chart palette (ShadCN charts) — sage forward */
+  --chart-1: var(--accent-rgb);
+  --chart-2: 156 188 150;
+  --chart-3: 196 148 58;
+  --chart-4: 220 74 74;
+  --chart-5: 107 125 116;
+
+  /* Sidebar (ShadCN sidebar blocks) */
+  --sidebar: var(--bg-card-rgb);
+  --sidebar-foreground: var(--text-primary-rgb);
+  --sidebar-primary: var(--accent-rgb);
+  --sidebar-primary-foreground: var(--accent-text-rgb);
+  --sidebar-accent: var(--bg-secondary-rgb);
+  --sidebar-accent-foreground: var(--text-primary-rgb);
+  --sidebar-border: var(--border-rgb);
+  --sidebar-ring: var(--accent-rgb);
+
+  --radius: 0.5rem;
+
   color-scheme: light;
 }
 
@@ -213,6 +256,43 @@
   --body-bg-image:
     radial-gradient(ellipse 80% 60% at 50% 0%, rgba(34, 197, 94, 0.06) 0%, transparent 60%),
     radial-gradient(ellipse 60% 50% at 100% 100%, rgba(34, 197, 94, 0.04) 0%, transparent 60%);
+
+  /* ShadCN tokens (dark) — same aliases, dark values inherited from
+     the overridden palette above. Component renders adapt automatically. */
+  --background: var(--bg-primary-rgb);
+  --foreground: var(--text-primary-rgb);
+  --card: var(--bg-card-rgb);
+  --card-foreground: var(--text-primary-rgb);
+  --popover: var(--bg-card-rgb);
+  --popover-foreground: var(--text-primary-rgb);
+  --primary: var(--accent-rgb);
+  --primary-foreground: var(--accent-text-rgb);
+  --secondary: var(--bg-secondary-rgb);
+  --secondary-foreground: var(--text-primary-rgb);
+  --muted: var(--bg-secondary-rgb);
+  --muted-foreground: var(--text-secondary-rgb);
+  --accent: var(--bg-secondary-rgb);
+  --accent-foreground: var(--text-primary-rgb);
+  --destructive: var(--danger-rgb);
+  --destructive-foreground: 11 15 13;
+  --border: var(--border-rgb);
+  --input: var(--border-rgb);
+  --ring: var(--accent-rgb);
+
+  --chart-1: var(--accent-rgb);
+  --chart-2: 46 209 112;
+  --chart-3: 196 148 58;
+  --chart-4: 220 74 74;
+  --chart-5: 159 179 168;
+
+  --sidebar: var(--bg-card-rgb);
+  --sidebar-foreground: var(--text-primary-rgb);
+  --sidebar-primary: var(--accent-rgb);
+  --sidebar-primary-foreground: var(--accent-text-rgb);
+  --sidebar-accent: var(--bg-secondary-rgb);
+  --sidebar-accent-foreground: var(--text-primary-rgb);
+  --sidebar-border: var(--border-rgb);
+  --sidebar-ring: var(--accent-rgb);
 
   color-scheme: dark;
 }
@@ -596,8 +676,10 @@ select option {
   .btn-community-ask {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 7px;
-    padding: 8px 16px;
+    height: 36px;
+    padding: 0 16px;
     border-radius: 12px;
     font-size: 13px;
     font-weight: 500;
@@ -608,6 +690,20 @@ select option {
                 box-shadow 0.2s ease,
                 transform 0.15s ease;
     cursor: pointer;
+    background-color: rgba(107, 143, 113, 0.12);
+    border: 1px solid rgba(107, 143, 113, 0.25);
+    color: #4C6B52;
+  }
+  .btn-community-ask:hover {
+    background-color: rgba(107, 143, 113, 0.18);
+    border-color: rgba(107, 143, 113, 0.40);
+    color: #4C6B52;
+    box-shadow: 0 4px 12px rgba(107, 143, 113, 0.15);
+    transform: translateY(-2px);
+  }
+  .btn-community-ask:active {
+    background-color: rgba(107, 143, 113, 0.14);
+    transform: translateY(0);
   }
   [data-theme="dark"] .btn-community-ask {
     background-color: rgba(34, 197, 94, 0.10);

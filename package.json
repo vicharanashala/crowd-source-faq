@@ -25,6 +25,7 @@
     "@typescript-eslint/parser": "^7.1.0",
     "eslint": "^8.57.0",
     "mongodb-memory-server": "^9.2.0",
+    "mongoose": "^8.0.3",
     "prettier": "^3.2.5",
     "tsx": "^4.22.3",
     "turbo": "^2.5.0",

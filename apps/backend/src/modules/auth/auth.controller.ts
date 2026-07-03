@@ -8,9 +8,9 @@ import CommunityPost from '../community/community-post.model.js';
 import Notification from '../notification/notification.model.js';
 import RevokedToken from './revoked-token.model.js';
 import RefreshToken from './refresh-token.model.js';
-import { registerSchema, loginSchema, changePasswordSchema } from '../../utils/auth/validation.js';
+import { registerSchema, loginSchema, updateProfileSchema } from '../../utils/auth/validation.js';
 import { sanitizeHtml } from '../../utils/http/sanitize.js';
-import { logger, authLog, securityLog } from '../../utils/http/logger.js';
+import { authLog, securityLog } from '../../utils/http/logger.js';
 
 const hashToken = (token: string): string => {
   return crypto.createHash('sha256').update(token).digest('hex');
@@ -29,7 +29,7 @@ const generateToken = (id: string): { token: string; jti: string; expiresAt: Dat
 };
 
 const generateRefreshToken = (id: string): { token: string; jti: string; expiresAt: Date } => {
-  const secret = (process.env.JWT_REFRESH_SECRET ?? process.env.JWT_SECRET) as string;
+  const secret = (process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET) as string;
   const expiresIn = '7d';
   const jti = uuidv4();
   const token = jwt.sign({ id, jti }, secret, { expiresIn } as jwt.SignOptions);
@@ -64,6 +64,7 @@ interface UserResponse {
   mentorAssigned?: string;
   projectAssignedAt?: Date;
   projectSelectionLocked?: boolean;
+  guidedTourCompleted?: boolean;
 }
 
 // POST /api/auth/register
@@ -116,6 +117,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       mentorAssigned: user.mentorAssigned,
       projectAssignedAt: user.projectAssignedAt,
       projectSelectionLocked: user.projectSelectionLocked,
+      guidedTourCompleted: user.guidedTourCompleted,
     };
 
     res.status(201).json({ token, refreshToken, user: userResponse });
@@ -198,6 +200,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       mentorAssigned: user.mentorAssigned,
       projectAssignedAt: user.projectAssignedAt,
       projectSelectionLocked: user.projectSelectionLocked,
+      guidedTourCompleted: user.guidedTourCompleted,
     };
 
     res.json({ token, refreshToken, user: userResponse });
@@ -228,6 +231,7 @@ export const getMe = async (req: Request, res: Response): Promise<void> => {
     mentorAssigned: (req.user as any).mentorAssigned,
     projectAssignedAt: (req.user as any).projectAssignedAt,
     projectSelectionLocked: (req.user as any).projectSelectionLocked,
+    guidedTourCompleted: (req.user as any).guidedTourCompleted,
   };
 
   res.json({ user: userResponse });
@@ -255,18 +259,25 @@ export const updateProfile = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const { name, email, avatar } = req.body as {
-      name?: string;
-      email?: string;
-      avatar?: { url?: string; publicId?: string; gcsUri?: string; objectPath?: string } | null;
-    };
+    const parsed = updateProfileSchema.safeParse(req.body);
+    if (!parsed.success) {
+      authLog.warn('profile update validation failed', { errors: parsed.error.issues.length });
+      res.status(400).json({ message: 'Validation failed', errors: parsed.error.issues });
+      return;
+    }
+    const { name, email, avatar, guidedTourCompleted } = parsed.data;
 
-    if (!name && !email && avatar === undefined) {
-      res.status(400).json({ message: 'Provide at least one of: name, email, avatar.' });
+    if (!name && !email && avatar === undefined && guidedTourCompleted === undefined) {
+      res.status(400).json({ message: 'Provide at least one of: name, email, avatar, guidedTourCompleted.' });
       return;
     }
 
-    const updates: Partial<{ name: string; email: string; avatar: { url: string; publicId?: string; gcsUri?: string; objectPath?: string } | null }> = {};
+    const updates: Partial<{
+      name: string;
+      email: string;
+      avatar: { url: string; publicId?: string; gcsUri?: string; objectPath?: string } | null;
+      guidedTourCompleted: boolean;
+    }> = {};
     if (name) updates.name = name;
     if (email) {
       // Check if email is already taken by another user
@@ -284,48 +295,65 @@ export const updateProfile = async (req: Request, res: Response): Promise<void> 
       //   - GCS URLs (media.mydomain.com/...) — new shape, requires gcsUri + objectPath
       if (avatar === null) {
         updates.avatar = null;
-      } else if (!avatar.url) {
-        res.status(400).json({ message: 'avatar.url is required.' });
-        return;
-      } else if (avatar.url.includes('res.cloudinary.com/')) {
-        if (!avatar.publicId) {
-          res.status(400).json({ message: 'avatar requires publicId for Cloudinary URLs.' });
-          return;
-        }
-        try {
-          const { isOurCloudinaryAsset, getCloudinaryConfig } = await import('../../integrations/cloudinary/cloudinary.js');
-          const cfg = getCloudinaryConfig();
-          if (!isOurCloudinaryAsset(avatar.url, cfg.cloudName)) {
-            res.status(400).json({ message: 'avatar.url must be a valid Cloudinary URL for this account.' });
-            return;
-          }
-        } catch (e) {
-          res.status(503).json({ message: (e as Error).message });
-          return;
-        }
-        updates.avatar = { url: avatar.url, publicId: avatar.publicId };
       } else {
-        // GCS branch — new default for all fresh uploads.
-        if (!avatar.gcsUri || !avatar.objectPath) {
-          res.status(400).json({ message: 'avatar requires gcsUri and objectPath for GCS URLs.' });
+        let avatarUrl: URL;
+        try {
+          avatarUrl = new URL(avatar.url);
+        } catch {
+          res.status(400).json({ message: 'avatar.url must be a valid URL.' });
           return;
         }
-        try {
-          const { isOurGcsAsset } = await import('../../integrations/gcs/gcs.js');
-          if (!isOurGcsAsset(avatar.url)) {
-            res.status(400).json({ message: 'avatar.url must be a valid GCS asset URL.' });
+
+        const isCloudinaryHost = avatarUrl.hostname === 'res.cloudinary.com';
+        if (isCloudinaryHost && avatarUrl.protocol !== 'https:') {
+          res.status(400).json({ message: 'avatar.url must use HTTPS.' });
+          return;
+        }
+
+        if (isCloudinaryHost) {
+          if (!avatar.publicId) {
+            res.status(400).json({ message: 'avatar requires publicId for Cloudinary URLs.' });
             return;
           }
-        } catch (e) {
-          res.status(503).json({ message: (e as Error).message });
-          return;
+          try {
+            const { isOurCloudinaryAsset, getCloudinaryConfig } = await import('../../integrations/cloudinary/cloudinary.js');
+            const cfg = getCloudinaryConfig();
+            if (!isOurCloudinaryAsset(avatar.url, cfg.cloudName)) {
+              res.status(400).json({ message: 'avatar.url must be a valid Cloudinary URL for this account.' });
+              return;
+            }
+          } catch (e) {
+            res.status(503).json({ message: (e as Error).message });
+            return;
+          }
+          updates.avatar = { url: avatar.url, publicId: avatar.publicId };
+        } else {
+          // GCS branch — new default for all fresh uploads.
+          if (!avatar.gcsUri || !avatar.objectPath) {
+            res.status(400).json({ message: 'avatar requires gcsUri and objectPath for GCS URLs.' });
+            return;
+          }
+          try {
+            const { isOurGcsAsset } = await import('../../integrations/gcs/gcs.js');
+            if (!isOurGcsAsset(avatar.url)) {
+              res.status(400).json({ message: 'avatar.url must be a valid GCS asset URL.' });
+              return;
+            }
+          } catch (e) {
+            res.status(503).json({ message: (e as Error).message });
+            return;
+          }
+          updates.avatar = {
+            url: avatar.url,
+            gcsUri: avatar.gcsUri,
+            objectPath: avatar.objectPath,
+          };
         }
-        updates.avatar = {
-          url: avatar.url,
-          gcsUri: avatar.gcsUri,
-          objectPath: avatar.objectPath,
-        };
       }
+    }
+
+    if (guidedTourCompleted !== undefined) {
+      updates.guidedTourCompleted = guidedTourCompleted;
     }
 
     const updated = await User.findByIdAndUpdate(req.user._id, updates, { new: true, runValidators: true });
@@ -346,6 +374,7 @@ export const updateProfile = async (req: Request, res: Response): Promise<void> 
       mentorAssigned: (updated as any).mentorAssigned,
       projectAssignedAt: (updated as any).projectAssignedAt,
       projectSelectionLocked: (updated as any).projectSelectionLocked,
+      guidedTourCompleted: (updated as any).guidedTourCompleted,
     };
 
     res.json({ message: 'Profile updated.', user: userResponse });
@@ -596,7 +625,7 @@ export const refresh = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const secret = (process.env.JWT_REFRESH_SECRET ?? process.env.JWT_SECRET) as string;
+    const secret = (process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET) as string;
     let decoded: { id: string; jti: string };
     try {
       decoded = jwt.verify(refreshToken, secret) as { id: string; jti: string };

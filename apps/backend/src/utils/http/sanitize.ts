@@ -1,3 +1,4 @@
+/* eslint-disable no-control-regex, no-useless-escape */
 /**
  * Input sanitization utilities.
  * Protects against XSS and NoSQL injection in user-provided strings.

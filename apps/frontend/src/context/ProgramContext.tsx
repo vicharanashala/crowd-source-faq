@@ -20,7 +20,8 @@
  */
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import api from '../utils/api';
+import { useLocation } from 'react-router-dom';
+import api, { clearApiCache } from '../utils/api';
 
 export interface Program {
   _id: string;
@@ -99,6 +100,19 @@ export function ProgramProvider({ children }: ProgramProviderProps): React.React
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const location = useLocation();
+
+  // Sync batch parameter to the URL query string
+  useEffect(() => {
+    if (currentProgram) {
+      const url = new URL(window.location.href);
+      if (url.searchParams.get('batch') !== currentProgram._id) {
+        url.searchParams.set('batch', currentProgram._id);
+        window.history.replaceState({}, '', url.toString());
+      }
+    }
+  }, [currentProgram, location.pathname]);
+
   // ── Load the list of active programs ─────────────────────────────────────
   const loadPrograms = useCallback(async (): Promise<Program[]> => {
     try {
@@ -114,57 +128,52 @@ export function ProgramProvider({ children }: ProgramProviderProps): React.React
 
   // ── Pick the initial program per the resolution order in the file header ──
   //
-  // Among the candidates returned by the API, prefer a program that already
-  // has FAQs — otherwise the home page lands on an empty program (e.g. a
-  // newly-created "test" program) and the public visitor sees three "no data"
-  // cards with no obvious next step. We only do this auto-pick on the
-  // initial resolution / refresh; explicit user choice via setCurrentProgram
-  // is never overridden.
+  // Strict resolution chain. We NEVER silently switch the user to a
+  // different program because the one they picked happens to be empty:
+  //   1. URL ?batch=<id>           (explicit deep-link — wins)
+  //   2. localStorage yaksha_active_program_id (explicit prior choice)
+  //   3. localStorage yaksha_active_batch_id   (legacy key)
+  //   4. Server-reported isDefault: true (admin-promoted default)
+  //   5. Server-reported non-empty program (fallback)
+  //   6. First program in the list     (last resort)
+  //
+  // The old behaviour ("auto-promote away from empty stored programs")
+  // caused data-isolation regressions: a user who explicitly chose an
+  // empty program (e.g. the one they just created) would silently land
+  // on a different program on next refresh and never know why. We now
+  // respect the explicit choice. If you want to switch back to a
+  // populated default, click the program switcher in the header.
+
   const resolveInitial = useCallback((programs: Program[], fromUrl: string | null): Program | null => {
     if (programs.length === 0) return null;
 
-    let picked: Program | undefined;
-
+    // 1. URL deep-link wins
     if (fromUrl) {
-      picked = programs.find((p) => p._id === fromUrl);
+      const fromUrlMatch = programs.find((p) => p._id === fromUrl);
+      if (fromUrlMatch) return fromUrlMatch;
     }
 
-    if (!picked) {
-      let stored: string | null = null;
-      try {
-        // Read the new key first, fall back to the old key so
-        // bookmarks / persistence from before the rename still
-        // work.
-        stored = window.localStorage.getItem(STORAGE_KEY_NEW)
-          ?? window.localStorage.getItem(STORAGE_KEY_OLD);
-      } catch { /* localStorage disabled */ }
-      if (stored) {
-        picked = programs.find((p) => p._id === stored);
-      }
+    // 2 + 3. localStorage explicit choice
+    let stored: string | null = null;
+    try {
+      stored = window.localStorage.getItem(STORAGE_KEY_NEW)
+        ?? window.localStorage.getItem(STORAGE_KEY_OLD);
+    } catch { /* localStorage disabled */ }
+    if (stored) {
+      const storedMatch = programs.find((p) => p._id === stored);
+      if (storedMatch) return storedMatch;
     }
 
-    if (!picked) {
-      // Cold-start default: prefer a program explicitly flagged
-      // `isDefault: true` (admin can promote one from /admin/programs);
-      // then a non-empty program so the home page actually has data;
-      // then the first program as a last resort.
-      picked =
-        programs.find((p) => p.isDefault)
-        ?? programs.find((p) => p.faqCount > 0)
-        ?? programs[0];
-    } else if (picked.faqCount === 0) {
-      // The stored / deep-linked program is empty AND a non-empty alternative
-      // exists — auto-promote to the non-empty one so the page isn't a
-      // dead end. Persist the new pick so the user doesn't bounce back on
-      // the next reload.
-      const nonEmpty = programs.find((p) => p.faqCount > 0);
-      if (nonEmpty) {
-        picked = nonEmpty;
-        try { window.localStorage.setItem(STORAGE_KEY_NEW, nonEmpty._id); } catch { /* ignore */ }
-      }
-    }
+    // 4. Server-reported isDefault (admin-promoted default program)
+    const defaultProgram = programs.find((p) => p.isDefault);
+    if (defaultProgram) return defaultProgram;
 
-    return picked;
+    // 5. Non-empty program (fallback)
+    const nonEmpty = programs.find((p) => p.faqCount > 0);
+    if (nonEmpty) return nonEmpty;
+
+    // 6. First program (last resort — could be empty)
+    return programs[0];
   }, []);
 
   // ── Initial mount: fetch + resolve ──────────────────────────────────────
@@ -219,33 +228,75 @@ export function ProgramProvider({ children }: ProgramProviderProps): React.React
     return () => { cancelled = true; clearTimeout(timeoutId); };
   }, [loadPrograms, resolveInitial]);
 
-  // ── Public setters ──────────────────────────────────────────────────────
+  // ── Public setters ──────────────────────────────────────────────────────────
   const setCurrentProgram = useCallback((id: string): boolean => {
     const found = availablePrograms.find((p) => p._id === id);
     if (!found) return false;
+    clearApiCache();
     setCurrentProgramState(found);
-    try { window.localStorage.setItem(STORAGE_KEY_NEW, id); } catch { /* ignore */ }
+    try {
+      window.localStorage.setItem(STORAGE_KEY_NEW, id);
+      // Persist to URL too so a refresh / deep-link keeps the choice.
+      // Uses history.replaceState so it doesn't trigger router re-renders.
+      const url = new URL(window.location.href);
+      url.searchParams.set('batch', id);
+      window.history.replaceState({}, '', url.toString());
+    } catch { /* localStorage / history disabled */ }
     return true;
   }, [availablePrograms]);
 
   const clearCurrentProgram = useCallback((): void => {
+    clearApiCache();
     setCurrentProgramState(null);
-    try { window.localStorage.removeItem(STORAGE_KEY_NEW); } catch { /* ignore */ }
+    try {
+      window.localStorage.removeItem(STORAGE_KEY_NEW);
+      const url = new URL(window.location.href);
+      url.searchParams.delete('batch');
+      window.history.replaceState({}, '', url.toString());
+    } catch { /* ignore */ }
   }, []);
 
   const refresh = useCallback(async (): Promise<void> => {
     setLoading(true);
     const programs = await loadPrograms();
     setAvailablePrograms(programs);
-    // If the current program disappeared, pick a non-empty alternative first,
-    // then fall back to the first program (preserves the old behaviour when
-    // no program has data).
+    // Preserve the user's explicit choice on refresh. Only pick a
+    // replacement if the current program has truly disappeared from
+    // the server (e.g. admin deleted it). This matches the same
+    // "respect the explicit choice" rule as resolveInitial().
     setCurrentProgramState((prev) => {
       if (prev && programs.some((p) => p._id === prev._id)) return prev;
-      return programs.find((p) => p.faqCount > 0) ?? programs[0] ?? null;
+      // Current program vanished — fall back to the same strict chain.
+      return programs.find((p) => p.isDefault)
+        ?? programs.find((p) => p.faqCount > 0)
+        ?? programs[0]
+        ?? null;
     });
     setLoading(false);
   }, [loadPrograms]);
+
+  // ── URL → state sync (back/forward navigation, manual URL edits) ─────
+  // The initial mount reads the URL once. This listener keeps URL
+  // changes in sync with the active program after mount, so navigating
+  // with browser back/forward actually moves between programs instead
+  // of leaving the URL out of sync with currentProgram.
+  useEffect(() => {
+    const onPopState = (): void => {
+      const fromUrl = new URLSearchParams(window.location.search).get('batch');
+      if (!fromUrl) {
+        // URL cleared — fall back to localStorage / defaults via refresh.
+        void refresh();
+        return;
+      }
+      const match = availablePrograms.find((p) => p._id === fromUrl);
+      if (match) {
+        setCurrentProgramState(match);
+        try { window.localStorage.setItem(STORAGE_KEY_NEW, fromUrl); } catch { /* ignore */ }
+      }
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [availablePrograms, refresh]);
 
   // ── Legacy aliases for additive backwards compatibility ─────────────
   // These mirror the new names so every existing `useBatch()` /

@@ -13,6 +13,7 @@ export async function createTeaDrop(params: {
   postTitle?: string;
   faqId?: Types.ObjectId;
   faqQuestion?: string;
+  faqCategory?: string;
   triggeredBy?: Types.ObjectId;
   triggeredByName?: string;
   content?: string;
@@ -35,7 +36,7 @@ export async function createTeaDrop(params: {
 
 // ─── Backwards-compatible fan-out for FAQ publications ───────────────────────
 // Called by faqController.approveFAQ. Fans out one drop per non-admin user.
-export async function createTeaDropsForFAQ(faqId: string, faqQuestion: string): Promise<void> {
+export async function createTeaDropsForFAQ(faqId: string, faqQuestion: string, faqCategory?: string): Promise<void> {
   try {
     const User = (await import('../auth/user.model.js')).default;
     const users = await User.find({ role: { $nin: ['admin', 'moderator'] } }).select('_id');
@@ -46,6 +47,7 @@ export async function createTeaDropsForFAQ(faqId: string, faqQuestion: string): 
           eventType: 'faq_published',
           faqId: new Types.ObjectId(faqId),
           faqQuestion,
+          faqCategory,
         })
       )
     );
