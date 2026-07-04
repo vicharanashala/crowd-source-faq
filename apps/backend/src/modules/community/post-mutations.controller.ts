@@ -54,6 +54,11 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
       ? tags.map((t: unknown) => String(t).trim().toLowerCase()).filter(Boolean).slice(0, 3)
       : [];
 
+    if (safeTags.length === 0) {
+      res.status(400).json({ message: 'At least one category tag is required.' });
+      return;
+    }
+
     // ── Server-side duplicate check ──────────────────────────────────────────
     // Uses the SAME AI-aware evaluator as the frontend's /check-duplicate
     // pre-check, so server enforcement is consistent with what the user

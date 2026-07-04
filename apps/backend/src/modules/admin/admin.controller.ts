@@ -567,9 +567,10 @@ export const getCommunityPosts = async (req: Request, res: Response): Promise<vo
     const skip = (page - 1) * limit;
     const search = (req.query.search as string) || '';
     const status = (req.query.status as string) || '';
+    const category = (req.query.category as string) || '';
     const batchId = (req.query.batchId as string | undefined) ?? null;
 
-    const base: Record<string, unknown> = {};
+    const base: Record<string, any> = {};
     if (search) {
       base.$or = [
         { title: { $regex: search, $options: 'i' } },
@@ -577,9 +578,16 @@ export const getCommunityPosts = async (req: Request, res: Response): Promise<vo
       ];
     }
     if (status) base.status = status;
+    if (category) {
+      if (category.toLowerCase() === 'uncategorized') {
+        base.$or = [{ tags: { $exists: false } }, { tags: { $size: 0 } }];
+      } else {
+        base.tags = category;
+      }
+    }
     const query = withProgramScope(base, batchId);
 
-    const [posts, total] = await Promise.all([
+    const [posts, total, categoryCounts, uncategorizedCount] = await Promise.all([
       CommunityPost.find(query)
         .select('-embedding')
         .populate('author', 'name email')
@@ -588,11 +596,25 @@ export const getCommunityPosts = async (req: Request, res: Response): Promise<vo
         .skip(skip)
         .limit(limit),
       CommunityPost.countDocuments(query),
+      CommunityPost.aggregate([
+        { $match: withProgramScope({}, batchId) },
+        { $unwind: '$tags' },
+        { $group: { _id: '$tags', count: { $sum: 1 } } },
+        { $sort: { count: -1 } }
+      ]),
+      CommunityPost.countDocuments(
+        withProgramScope({ $or: [{ tags: { $exists: false } }, { tags: { $size: 0 } }] }, batchId)
+      ),
     ]);
 
-    res.json({ posts, total, page, pages: Math.ceil(total / limit) });
+    const categoriesList = categoryCounts.map((c: any) => ({ name: c._id, count: c.count }));
+    if (uncategorizedCount > 0) {
+      categoriesList.push({ name: 'Uncategorized', count: uncategorizedCount });
+    }
+
+    res.json({ posts, total, page, pages: Math.ceil(total / limit), categories: categoriesList });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
+    res.status(500).json({ message: 'Server error' });
   }
 };
 

@@ -55,16 +55,6 @@ function CategoryDropdown({
 
       {isOpen && (
         <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-xl border border-border bg-bg-secondary shadow-lg z-50 py-1">
-          <button
-            type="button"
-            onClick={() => {
-              onChange('');
-              setIsOpen(false);
-            }}
-            className="w-full text-left px-3 py-2 text-sm hover:bg-mist text-ink transition-colors font-medium border-b border-border/50 text-ink-faint"
-          >
-            — Clear Category —
-          </button>
           {uniqueCategories.map(cat => (
             <button
               key={cat}
@@ -258,6 +248,10 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
       setError('Both title and description are required.');
       return;
     }
+    if (tags.length === 0) {
+      setError('Please select or specify a category.');
+      return;
+    }
     // Block only if match is a high-confidence FAQ match (score >= 0.85).
     // Low-confidence / tangential matches are shown as suggestions — posting is allowed.
     const highConfidenceFaqMatch = duplicateMatch?.matches?.find(
@@ -329,6 +323,7 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
   const isSubmitDisabled =
     !title.trim() ||
     !body.trim() ||
+    tags.length === 0 ||
     hasHighConfidenceFaqMatch ||
     checkingDuplicates ||
     loading ||
@@ -456,7 +451,7 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
           {/* Category */}
           <div>
             <label className="block text-xs font-medium text-ink-soft mb-1.5">
-              Category <span className="text-ink-faint font-normal">(optional)</span>
+              Category <span className="text-danger">*</span>
             </label>
             <CategoryDropdown
               value={categoryOption}

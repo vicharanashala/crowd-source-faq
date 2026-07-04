@@ -86,6 +86,19 @@ export const voteReviewSchema = z.object({
 export const createPostSchema = z.object({
   title: z.string().min(10, 'Title must be at least 10 characters').max(300),
   body:  z.string().min(20, 'Body must be at least 20 characters').max(5000),
+  tags:  z.array(z.string()).min(1, 'At least one category tag is required').max(3),
+  attachments: z.array(
+    z.object({
+      url: z.string(),
+      publicId: z.string().optional(),
+      gcsUri: z.string().optional(),
+      objectPath: z.string().optional(),
+      width: z.number().optional(),
+      height: z.number().optional(),
+      format: z.string().optional(),
+      bytes: z.number().optional(),
+    })
+  ).optional(),
 });
 
 export const checkDuplicateSchema = z.object({
