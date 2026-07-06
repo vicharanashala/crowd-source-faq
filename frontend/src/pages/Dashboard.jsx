@@ -17,16 +17,19 @@ import {
   FiCalendar,
   FiStar,
   FiClock,
+  FiLogOut,
+  FiUser,
 } from "react-icons/fi";
 import "./Dashboard.css";
-import { Link } from "react-router-dom";
 
+import { Link, useNavigate } from "react-router-dom";
 export default function Dashboard({ darkMode, setDarkMode }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
 
   const [expandedFaq, setExpandedFaq] = useState(null);
   const [showMenu, setShowMenu] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   const [formName, setFormName] = useState("");
   const [formEmail, setFormEmail] = useState("");
@@ -105,6 +108,32 @@ export default function Dashboard({ darkMode, setDarkMode }) {
 
   const categories = ["All", "NOC", "Attendance", "Stipend"];
 
+  const notifications = [
+    {
+      id: 1,
+      title: "Welcome to Vicharanashala 🎉",
+      time: "Just now",
+    },
+    {
+      id: 2,
+      title: "New FAQ has been added",
+      time: "10 min ago",
+    },
+    {
+      id: 3,
+      title: "Meeting scheduled for tomorrow",
+      time: "1 hour ago",
+    },
+  ];
+
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.removeItem("loggedInUser");
+    localStorage.removeItem("isLoggedIn");
+    navigate("/");
+  };
+
   return (
     <div className="hq-portal-container">
       {/* SECTION 1: Dynamic Top Navigation Bar */}
@@ -170,10 +199,41 @@ export default function Dashboard({ darkMode, setDarkMode }) {
             {darkMode ? <FiSun /> : <FiMoon />}
           </button>
 
-          <button className="hq-notification-bell">
-            <FiBell />
-            <span className="bell-ping"></span>
-          </button>
+          <div className="notification-wrapper">
+            <button
+              className="hq-notification-bell"
+              onClick={() => setShowNotifications(!showNotifications)}
+            >
+              <FiBell />
+              <span className="bell-ping"></span>
+            </button>
+
+            {showNotifications && (
+              <div className="notification-dropdown">
+                <h4>Notifications</h4>
+
+                {notifications.map((item) => (
+                  <div key={item.id} className="notification-item">
+                    <p>{item.title}</p>
+                    <span>{item.time}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="hq-user-section">
+            <button
+              className="hq-profile-btn"
+              onClick={() => navigate("/profile")}
+            >
+              <FiUser />
+            </button>
+
+            <button className="hq-logout-btn" onClick={handleLogout}>
+              <FiLogOut />
+              <span>Logout</span>
+            </button>
+          </div>
         </div>
       </header>
 
