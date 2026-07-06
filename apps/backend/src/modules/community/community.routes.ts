@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   getAllPosts,
   getPostById,
+  getGroupedPosts,
 } from './post-reads.controller.js';
 import {
   createPost,
@@ -53,6 +54,7 @@ const router = Router();
 //  review-queue remain protected below.)
 router.get('/search', searchCommunityPosts);
 router.get('/solved', getSolvedPosts);
+router.get('/grouped', getGroupedPosts);
 router.get('/answers/list', getAnswersList);
 router.get('/stats', getCommunityStats);
 
