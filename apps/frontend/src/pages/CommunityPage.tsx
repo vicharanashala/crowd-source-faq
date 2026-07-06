@@ -481,9 +481,13 @@ export default function CommunityPage() {
 
       <Footer />
 
-      {/* Thread detail — full-page overlay replaces the list view */}
+      {/* Thread detail — full-page overlay replaces the list view.
+          z-30 (below the navbar's z-50) so the navbar floats on top of
+          the page-cover background. The inner modal at z-[60] escapes
+          this stacking context via its higher z-index and sits above
+          the navbar. */}
       {selectedPostId && (
-        <div className="fixed inset-0 z-40 bg-bg overflow-y-auto">
+        <div className="fixed inset-0 z-30 bg-bg overflow-y-auto">
           <ThreadDetail
             postId={selectedPostId}
             onClose={handleCloseDetail}

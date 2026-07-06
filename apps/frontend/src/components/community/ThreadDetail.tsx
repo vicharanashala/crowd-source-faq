@@ -327,16 +327,21 @@ export default function ThreadDetail({ postId, onClose }: ThreadDetailProps) {
 
   return (
     <>
-      {/* Background overlay that matches the search-overlay / chat-overlay premium blur */}
-      <div className="search-overlay !z-40" aria-hidden="true" onClick={onClose} />
-      
-      {/* Scrollable container for the modal itself */}
+      {/* Background overlay that matches the search-overlay / chat-overlay premium blur.
+          z-30 sits below the navbar (z-50) so the navbar floats above the dim layer. */}
+      <div className="search-overlay !z-30" aria-hidden="true" onClick={onClose} />
+
+      {/* Scrollable container for the modal itself.
+          z-[60] sits above the navbar (z-50) so the dialog never gets
+          covered by it. pt-20 sm:pt-24 clears the floating navbar
+          (top-4 + h-16 ≈ 80px desktop; top-2 + h-14 ≈ 64px mobile,
+          with a touch of breathing room). */}
       <div
-        className="fixed inset-0 z-50 flex items-start justify-center pt-14 sm:pt-16 px-4 sm:px-6 pb-6 overflow-y-auto pointer-events-none"
+        className="fixed inset-0 z-[60] flex items-start justify-center pt-20 sm:pt-24 px-4 sm:px-6 pb-6 overflow-y-auto pointer-events-none"
       >
         <div
           className="relative w-full max-w-3xl bg-card rounded-2xl border border-border shadow-float animate-fade-in overflow-hidden flex flex-col pointer-events-auto"
-          style={{ maxHeight: 'calc(100vh - 5rem)' }}
+          style={{ maxHeight: 'calc(100vh - 7rem)' }}
         >
         {/* Action error banner */}
         {actionError && (
