@@ -651,7 +651,7 @@ export default function PostDetailDialog({ post: initialPost, onClose, currentUs
   return (
     <>
       <dialog ref={dialogRef} closedby="any" aria-labelledby="post-dialog-title"
-        className="dialog-shell dialog-panel rounded-2xl border border-border shadow-2xl bg-card p-0 backdrop:bg-ink/30 backdrop:backdrop-blur-sm max-w-2xl w-[95vw] max-h-[90vh]">
+        className="dialog-shell dialog-panel rounded-2xl border border-border shadow-2xl bg-card p-0 backdrop:bg-ink/30 backdrop:backdrop-blur-sm max-w-2xl w-[95vw] max-h-[85vh]">
         {/* Fixed Header */}
         <div className="flex items-start justify-between gap-3 p-6 pb-4 border-b border-border flex-shrink-0">
           <div className="flex items-start gap-3 flex-1 min-w-0">
