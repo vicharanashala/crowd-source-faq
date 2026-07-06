@@ -31,8 +31,8 @@ export function TrustBadge({ level }: { level?: string }) {
   if (!level) return null;
   const map: Record<string, { label: string; class: string }> = {
     high:   { label: 'Official', class: 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-white/10 dark:text-gray-300 dark:border-white/10' },
-    expert: { label: 'Admin Approved', class: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-white/10 dark:text-blue-300 dark:border-white/10' },
-    medium: { label: 'Community Approved', class: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-white/10 dark:text-emerald-300 dark:border-white/10' },
+    expert: { label: 'Admin Approved', class: 'bg-accent/10 text-accent border-accent/30 dark:bg-white/10 dark:text-accent dark:border-white/10' },
+    medium: { label: 'Community Approved', class: 'bg-accent/10 text-accent border-accent/30 dark:bg-white/10 dark:text-emerald-300 dark:border-white/10' },
     low:    { label: 'Community', class: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-white/10 dark:text-amber-300 dark:border-white/10' },
   };
   const cfg = map[level];
@@ -48,8 +48,8 @@ export function SourceBadge({ sourceType }: { sourceType?: string }) {
   if (!sourceType || sourceType === 'manual') return null;
   const map: Record<string, { label: string; class: string }> = {
     community_promotion: { label: 'From Community', class: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-white/10 dark:text-purple-300 dark:border-white/10' },
-    zoom_transcript:     { label: 'From Meetings',  class: 'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-white/10 dark:text-cyan-300 dark:border-white/10' },
-    expert_verified:     { label: 'Expert Verified', class: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-white/10 dark:text-blue-300 dark:border-white/10' },
+    zoom_transcript:     { label: 'From Meetings',  class: 'bg-accent/10 text-accent border-accent/30 dark:bg-white/10 dark:text-accent dark:border-white/10' },
+    expert_verified:     { label: 'Expert Verified', class: 'bg-accent/10 text-accent border-accent/30 dark:bg-white/10 dark:text-accent dark:border-white/10' },
   };
   const cfg = map[sourceType];
   if (!cfg) return null;

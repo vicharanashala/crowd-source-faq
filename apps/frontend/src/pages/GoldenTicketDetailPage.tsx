@@ -13,10 +13,10 @@ import Spinner from '../components/ui/Spinner';
 import { friendlyError } from '../utils/api';
 
 function statusStyles(status: string): { bg: string; text: string; label: string } {
-  if (status === 'Resolved') return { bg: 'bg-emerald-100', text: 'text-emerald-800', label: 'Resolved' };
+  if (status === 'Resolved') return { bg: 'bg-accent/15', text: 'text-accent', label: 'Resolved' };
   if (status === 'Rejected') return { bg: 'bg-rose-100', text: 'text-rose-800', label: 'Rejected' };
   if (status === 'Pending' || status === 'open') return { bg: 'bg-amber-100', text: 'text-amber-800', label: 'Pending' };
-  if (status === 'In Review') return { bg: 'bg-blue-100', text: 'text-blue-800', label: 'In Review' };
+  if (status === 'In Review') return { bg: 'bg-accent/15', text: 'text-accent', label: 'In Review' };
   if (status === 'closed') return { bg: 'bg-stone-100', text: 'text-stone-700', label: 'Closed' };
   return { bg: 'bg-mist', text: 'text-ink-faint', label: status };
 }

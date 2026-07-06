@@ -127,7 +127,7 @@ function DnaStrip({ dna }: { dna: NonNullable<Post['dna']> }) {
       )}
       {dna.difficulty && (
         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
-          dna.difficulty === 'Easy' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' :
+          dna.difficulty === 'Easy' ? 'bg-accent/15 text-accent border border-accent/30' :
           dna.difficulty === 'Moderate' ? 'bg-yellow-100 text-yellow-700 border border-yellow-200' :
           'bg-red-100 text-red-600 border border-red-200'
         }`}>{dna.difficulty}</span>
@@ -586,7 +586,7 @@ export default function PostDetailDialog({ post: initialPost, onClose, currentUs
       setShowReportModal(false);
       setReportReason('');
       const banner = document.createElement('div');
-      banner.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] px-5 py-3 bg-emerald-50 border border-emerald-200 rounded-xl text-sm text-emerald-700 font-medium shadow-lg';
+      banner.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] px-5 py-3 bg-accent/10 border border-accent/30 rounded-xl text-sm text-accent font-medium shadow-lg';
       banner.textContent = 'Report submitted. Thank you.';
       document.body.appendChild(banner);
       setTimeout(() => banner.remove(), 3000);
@@ -641,8 +641,8 @@ export default function PostDetailDialog({ post: initialPost, onClose, currentUs
 
   const LIFECYCLE_CONFIG: Record<string, { label: string; cls: string }> = {
     open:               { label: 'Open',              cls: 'bg-gray-100 text-gray-600 border-gray-200' },
-    answered:           { label: 'Solved',            cls: 'bg-blue-50 text-blue-700 border-blue-200' },
-    community_accepted: { label: 'Community ✓',       cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    answered:           { label: 'Solved',            cls: 'bg-accent/10 text-accent border-accent/30' },
+    community_accepted: { label: 'Community ✓',       cls: 'bg-accent/10 text-accent border-accent/30' },
     ai_validated:       { label: 'AI Validated',      cls: 'bg-purple-50 text-purple-700 border-purple-200' },
     admin_accepted:     { label: 'Admin Approved',    cls: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
     converted_to_faq:   { label: 'Official FAQ',      cls: 'bg-stone-100 text-stone-700 border-stone-300' },

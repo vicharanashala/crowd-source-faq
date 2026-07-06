@@ -63,7 +63,7 @@ export default function MyProjectTab() {
             <div className="flex items-center gap-4 mb-4">
               <h2 className="text-4xl sm:text-5xl font-serif text-ink tracking-tight">{user.projectAssigned}</h2>
               {user.projectSelectionLocked && (
-                <span className="px-3 py-1 bg-green-500/10 text-green-500 border border-green-500/20 rounded-full text-xs font-semibold tracking-wide flex items-center gap-1.5 whitespace-nowrap">
+                <span className="px-3 py-1 bg-accent/100/10 text-accent border border-accent/20 rounded-full text-xs font-semibold tracking-wide flex items-center gap-1.5 whitespace-nowrap">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
                   Selection Locked
                 </span>

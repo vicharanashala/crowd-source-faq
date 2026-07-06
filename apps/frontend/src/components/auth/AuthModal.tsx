@@ -384,9 +384,9 @@ export default function AuthModal() {
                   !regStatus.enabled
                     ? 'bg-red-50 border-red-200 text-red-900'
                     : regStatus.openForAll
-                      ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                      ? 'bg-accent/10 border-accent/30 text-accent'
                       : inviteToken
-                        ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                        ? 'bg-accent/10 border-accent/30 text-accent'
                         : 'bg-amber-50 border-amber-200 text-amber-900',
                 ].join(' ')}
                 aria-live="polite"

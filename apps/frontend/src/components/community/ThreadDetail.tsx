@@ -664,7 +664,7 @@ export default function ThreadDetail({ postId, onClose }: ThreadDetailProps) {
                   )}
                   {post.dna.difficulty && (
                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
-                      post.dna.difficulty === 'Easy' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' :
+                      post.dna.difficulty === 'Easy' ? 'bg-accent/15 text-accent border border-accent/30' :
                       post.dna.difficulty === 'Moderate' ? 'bg-yellow-100 text-yellow-700 border border-yellow-200' :
                       'bg-red-100 text-red-600 border border-red-200'
                     }`}>

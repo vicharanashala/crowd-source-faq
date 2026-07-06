@@ -328,7 +328,7 @@ export default function AccountPage() {
                   </p>
                   {zoomStatus?.connected && lastSyncedLabel && (
                     <p className="text-[11px] text-ink-faint mt-0.5 flex items-center gap-1">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-500 shrink-0">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-accent shrink-0">
                         <polyline points="20 6 9 17 4 12"/>
                       </svg>
                       Last synced: {lastSyncedLabel}
@@ -340,7 +340,7 @@ export default function AccountPage() {
               {/* Connection badge */}
               <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${
                 zoomStatus?.connected
-                  ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                  ? 'bg-accent/10 text-accent border border-accent/30'
                   : 'bg-gray-100 text-gray-500 border border-gray-200'
               }`}>
                 {zoomStatus?.connected ? 'Connected' : 'Not connected'}
@@ -482,9 +482,9 @@ export default function AccountPage() {
 
                 {/* State-dependent area: file selected → Process/Cancel, processing → progress, done → success */}
                 {transcriptProgress?.stage === 'done' ? (
-                  <div className="flex items-center justify-between px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-xl">
-                    <span className="text-xs text-emerald-700">Done — {transcriptProgress.message}</span>
-                    <button onClick={handleTranscriptCancel} className="text-[10px] text-emerald-600 hover:text-emerald-800 font-medium underline">Upload another</button>
+                  <div className="flex items-center justify-between px-3 py-2 bg-accent/10 border border-accent/30 rounded-xl">
+                    <span className="text-xs text-accent">Done — {transcriptProgress.message}</span>
+                    <button onClick={handleTranscriptCancel} className="text-[10px] text-accent hover:text-accent-hover font-medium underline">Upload another</button>
                   </div>
                 ) : transcriptMeetingId ? (
                   <div className="px-3 py-2.5 bg-accent/5 border border-accent/20 rounded-xl">
@@ -528,7 +528,7 @@ export default function AccountPage() {
                 {transcriptMsg && (
                   <div className={`text-xs px-3 py-2 rounded-lg ${
                     transcriptMsg.type === 'ok'
-                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      ? 'bg-accent/10 text-accent border border-accent/30'
                       : 'bg-red-50 text-red-600 border border-red-200'
                   }`}>
                     {transcriptMsg.text}
@@ -600,7 +600,7 @@ export default function AccountPage() {
           {docMsg && (
             <div className={`px-3 py-2 rounded-xl text-xs ${
               docMsg.type === 'ok'
-                ? 'bg-emerald-50 border border-emerald-200 text-emerald-700'
+                ? 'bg-accent/10 border border-accent/30 text-accent'
                 : 'bg-red-50 border border-red-200 text-red-700'
             }`}>
               {docMsg.text}

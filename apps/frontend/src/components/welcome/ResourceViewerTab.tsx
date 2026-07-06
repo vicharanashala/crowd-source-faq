@@ -164,7 +164,7 @@ export default function ResourceViewerTab({ refreshKey }: Props): React.ReactEle
             <li
               key={r._id}
               className={`rounded-xl border p-4 transition-colors ${
-                completions[r._id] ? 'border-green-200 bg-green-50/40' : 'border-border bg-bg/40'
+                completions[r._id] ? 'border-accent/30 bg-accent/10' : 'border-border bg-bg/40'
               }`}
             >
               <ResourceRow
@@ -252,7 +252,7 @@ function HeaderRow({ resource, completed, children }: { resource: Resource; comp
             {KIND_LABELS[resource.kind]}
           </span>
           {completed && (
-            <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-green-100 text-green-700 border border-green-200">
+            <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-accent/15 text-accent border border-accent/30">
               ✓ Completed
             </span>
           )}

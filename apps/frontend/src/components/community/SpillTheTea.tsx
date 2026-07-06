@@ -24,7 +24,7 @@ interface TeaDrop {
 
 const EVENT_META: Record<TeaEventType, { label: string; icon: string; color: string; bgColor: string }> = {
   faq_published:     { label: 'new faq',        icon: '📋', color: 'text-purple-600',   bgColor: 'bg-purple-50' },
-  post_answered:     { label: 'resolved',        icon: '✅', color: 'text-emerald-600',   bgColor: 'bg-emerald-50' },
+  post_answered:     { label: 'resolved',        icon: '✅', color: 'text-accent',   bgColor: 'bg-accent/10' },
   post_deleted:      { label: 'removed',         icon: '🗑',  color: 'text-red-500',       bgColor: 'bg-red-50' },
   post_answered_user:{ label: 'new answer',      icon: '💡', color: 'text-amber-600',     bgColor: 'bg-amber-50' },
 };

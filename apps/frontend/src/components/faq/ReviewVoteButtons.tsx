@@ -86,8 +86,8 @@ export default function ReviewVoteButtons({
           disabled={loading}
           className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border text-xs font-medium transition-all
             ${myVote === 'still_accurate'
-              ? 'border-green-400 bg-green-50 text-green-700'
-              : 'border-border text-ink-soft hover:border-green-300 hover:text-green-600'
+              ? 'border-accent/40 bg-accent/10 text-accent'
+              : 'border-border text-ink-soft hover:border-accent/30 hover:text-accent'
             }`}
         >
           <span>👍</span>

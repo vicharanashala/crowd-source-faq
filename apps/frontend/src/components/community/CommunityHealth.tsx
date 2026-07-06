@@ -28,7 +28,7 @@ export default function CommunityHealth() {
       value: `${stats.responseRate}%`,
       sub: `+${Math.round(stats.responseRate * 0.08)}% this week`,
       subColor: 'text-accent',
-      color: 'text-emerald-600',
+      color: 'text-accent',
       icon: (
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="5" cy="4" r="2"/>
@@ -69,7 +69,7 @@ export default function CommunityHealth() {
       value: String(stats.unansweredPosts),
       sub: stats.unansweredPosts > 0 ? `-${Math.max(1, Math.round(stats.unansweredPosts * 0.1))} this week` : 'none pending',
       subColor: stats.unansweredPosts > 0 ? 'text-danger' : 'text-accent',
-      color: stats.unansweredPosts > 0 ? 'text-amber-600' : 'text-emerald-600',
+      color: stats.unansweredPosts > 0 ? 'text-warning' : 'text-accent',
       icon: (
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="7" cy="7" r="5.5"/>

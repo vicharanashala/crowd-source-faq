@@ -264,11 +264,11 @@ export default function CommentNode({
             <path d="M5 1L9 7H1L5 1Z" strokeLinejoin="round"/>
           </svg>
         </button>
-        <span className={`text-[10px] font-bold leading-none py-0.5 ${netScore > 0 ? 'text-orange-500' : netScore < 0 ? 'text-blue-400' : 'text-ink-faint'}`}>
+        <span className={`text-[10px] font-bold leading-none py-0.5 ${netScore > 0 ? 'text-orange-500' : netScore < 0 ? 'text-accent' : 'text-ink-faint'}`}>
           {netScore > 0 ? '+' : ''}{netScore || '0'}
         </span>
         <button onClick={doDownvote}
-          className={`w-6 h-6 rounded flex items-center justify-center transition-all ${hasDownvoted ? 'text-blue-500' : 'text-ink-faint hover:text-blue-400'}`}
+          className={`w-6 h-6 rounded flex items-center justify-center transition-all ${hasDownvoted ? 'text-accent' : 'text-ink-faint hover:text-accent'}`}
           title="Downvote">
           <svg width="10" height="10" viewBox="0 0 10 10" fill={hasDownvoted ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5">
             <path d="M5 9L1 3H9L5 9Z" strokeLinejoin="round"/>
@@ -298,7 +298,7 @@ export default function CommentNode({
                   <Avatar name={comment.author?.name} size="xs" />
                   <span className="text-xs font-semibold text-ink">{comment.author?.name || 'User'}</span>
                   {isExpert && <Badge variant="accent">👑</Badge>}
-                  {isVerified && <span className="text-[10px] text-emerald-500">✓</span>}
+                  {isVerified && <span className="text-[10px] text-accent">✓</span>}
                   {isFirstResponder && (
                     <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-yellow-100 border border-yellow-300 text-yellow-700 text-[10px] font-bold">
                       🏅 First Responder
@@ -311,7 +311,7 @@ export default function CommentNode({
                       ↳ depth {depth}
                     </span>
                   )}
-                  <span className={`ml-auto text-[10px] font-bold ${netScore > 0 ? 'text-orange-500' : netScore < 0 ? 'text-blue-400' : 'text-ink-faint'}`}>
+                  <span className={`ml-auto text-[10px] font-bold ${netScore > 0 ? 'text-orange-500' : netScore < 0 ? 'text-accent' : 'text-ink-faint'}`}>
                     {netScore > 0 ? '+' : ''}{netScore} pts
                   </span>
                 </div>
@@ -324,7 +324,7 @@ export default function CommentNode({
                     {hasUpvoted ? '↑ Upvoted' : '↑ Upvote'}
                   </button>
                   <button onClick={() => !hasDownvoted && doDownvote()}
-                    className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium transition-all ${hasDownvoted ? 'text-blue-500 bg-blue-500/10' : 'text-ink-faint hover:text-blue-500 hover:bg-blue-500/10'}`}>
+                    className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium transition-all ${hasDownvoted ? 'text-accent bg-accent/100/10' : 'text-ink-faint hover:text-accent hover:bg-accent/100/10'}`}>
                     {hasDownvoted ? '↓ Downvoted' : '↓ Downvote'}
                   </button>
                   {!maxDepth && (
@@ -360,8 +360,8 @@ export default function CommentNode({
                       }}
                       className={`text-[10px] px-1.5 py-0.5 rounded border transition-all ${
                         isVerified
-                          ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20 cursor-default ml-auto'
-                          : 'text-ink-soft hover:text-emerald-500 hover:bg-emerald-500/10 border-border ml-auto'
+                          ? 'bg-accent/10 text-accent border-accent/20 cursor-default ml-auto'
+                          : 'text-ink-soft hover:text-accent hover:bg-accent/10 border-border ml-auto'
                       }`}
                     >
                       {isVerified ? '✓ Accepted Answer' : '✓ Accept Answer'}
@@ -378,7 +378,7 @@ export default function CommentNode({
                         // Hold a local override so the badge flips immediately.
                         setLocalVerified(res.data.verified);
                       }}
-                      className={`text-[10px] text-ink-faint hover:text-emerald-500 transition-colors ${!idMatches(postAuthorId, currentUserId) ? 'ml-auto' : 'ml-2'}`}>
+                      className={`text-[10px] text-ink-faint hover:text-accent transition-colors ${!idMatches(postAuthorId, currentUserId) ? 'ml-auto' : 'ml-2'}`}>
                       {isVerified ? 'Unverify' : '✅ Verify'}
                     </button>
                   )}

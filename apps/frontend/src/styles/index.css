@@ -5,118 +5,115 @@
 /* ═══════════════════════════════════════════════════════════════
    THEME TOKENS — CSS custom properties
 
-   Light values use a warm sage-green design system (Notion / Medium
-   knowledge-platform feel): ivory base #F5F1EA, sage primary #6B8F71,
-   hover #4C6B52, tint #E6F0E8, warm borders #DDD6C8, warm shadows.
-   [data-theme="dark"] overrides the same variables with a premium
-   dark palette (Linear / Vercel / Notion dark mode feel):
-     - Deep charcoal base #0B0F0D
-     - Layered surfaces #0F1513 (card) / #121A18 (elevated)
-     - Accent green #22C55E (no neon, only on highlights)
-     - Soft white text #E6F1EC (never #FFFFFF)
-     - Subtle borders via rgba(255,255,255,0.05)
-     - Soft diffused shadows + green glow on hover/focus only
+   Portfolio-inspired "Yaksha" palette — premium, minimal, editorial.
+   No green / teal / blue / colourful accents anywhere. The single
+   accent is a warm sand / cream tone that appears only on active
+   tabs, primary buttons, links, focus states, badges, and icons.
 
-   Light mode is 100% unchanged.
+   Light  : bg #F7F4EF → surface #FFFFFF → card #FCFAF8 → accent #D6B78F
+   Dark   : bg #131313 → surface #191919 → card #202020 → accent #E4CFB3
+
+   RGB triples (--bg-primary-rgb etc.) are kept so Tailwind
+   bg-bg/82, text-ink/70 opacity modifiers still work.
    ═══════════════════════════════════════════════════════════════ */
 :root {
   /* Core neutrals (RGB triples — supports bg-bg/82, text-ink/70 etc.) */
-  --bg-primary-rgb: 245 241 234;      /* #F5F1EA — warm ivory base */
-  --bg-secondary-rgb: 234 228 218;    /* #EAE4DA — secondary surface */
-  --bg-card-rgb: 255 255 255;         /* #FFFFFF — elevated cards only */
-  --bg-card-hover-rgb: 248 246 242;   /* #F8F6F2 — soft surface */
+  --bg-primary-rgb: 247 244 239;      /* #F7F4EF — warm ivory base */
+  --bg-secondary-rgb: 255 255 255;    /* #FFFFFF — surface */
+  --bg-card-rgb: 252 250 248;         /* #FCFAF8 — card */
+  --bg-card-hover-rgb: 249 246 240;   /* slight lift on hover */
 
-  --text-primary-rgb: 31 41 51;       /* #1F2933 */
-  --text-secondary-rgb: 75 85 99;     /* #4B5563 */
-  --text-muted-rgb: 156 163 175;      /* #9CA3AF */
+  --text-primary-rgb: 34 34 34;       /* #222222 */
+  --text-secondary-rgb: 85 85 85;     /* #555555 */
+  --text-muted-rgb: 139 139 139;      /* #8B8B8B */
 
-  --accent-rgb: 107 143 113;          /* #6B8F71 — warm sage primary */
-  --accent-hover-rgb: 76 107 82;      /* #4C6B52 — hover / active */
-  --accent-text-rgb: 255 255 255;
+  --accent-rgb: 214 183 143;          /* #D6B78F — warm sand accent */
+  --accent-hover-rgb: 201 167 119;    /* #C9A777 — hover / active */
+  --accent-text-rgb: 255 255 255;     /* white text on accent fill */
 
-  --border-rgb: 221 214 200;          /* #DDD6C8 — primary warm border */
-  --border-subtle-rgb: 234 228 218;   /* #EAE4DA — light border */
-  --border-medium-rgb: 201 192 174;
+  --border-rgb: 228 221 211;          /* #E4DDD3 — soft warm border */
+  --border-subtle-rgb: 237 232 224;   /* a touch lighter */
+  --border-medium-rgb: 207 197 183;   /* a touch deeper */
 
-  --icon-default-rgb: 156 163 175;
-  --icon-active-rgb: 107 143 113;
+  --icon-default-rgb: 139 139 139;
+  --icon-active-rgb: 214 183 143;
 
-  --success-rgb: 76 107 82;           /* #4C6B52 — deep sage */
-  --warning-rgb: 196 148 58;
-  --danger-rgb: 220 74 74;
+  --success-rgb: 214 183 143;         /* accent doubles as success */
+  --warning-rgb: 176 132 40;          /* muted amber, not neon */
+  --danger-rgb: 196 70 70;            /* muted brick red */
 
-  --nav-bg-rgb: 245 241 234;
-  --nav-text-rgb: 75 85 99;
-  --nav-active-rgb: 31 41 51;
-  --nav-border-rgb: 221 214 200;
+  --nav-bg-rgb: 247 244 239;
+  --nav-text-rgb: 85 85 85;
+  --nav-active-rgb: 34 34 34;
+  --nav-border-rgb: 228 221 211;
 
-  --section-title-rgb: 31 41 51;
+  --section-title-rgb: 34 34 34;
 
   /* Pre-tinted semantic colors (full rgba — no /<alpha-value>) */
-  --tag-high-bg: rgba(107, 143, 113, 0.14);
-  --tag-high-text: #4C6B52;
-  --tag-medium-bg: rgba(212, 160, 23, 0.12);
+  --tag-high-bg: rgba(214, 183, 143, 0.14);    /* accent-soft */
+  --tag-high-text: #9C7E55;                    /* deep tan for text on tint */
+  --tag-medium-bg: rgba(176, 132, 40, 0.12);
   --tag-medium-text: #8A6914;
-  --badge-solved-bg: rgba(107, 143, 113, 0.14);
-  --badge-solved-text: #4C6B52;
-  --badge-open-bg: #EAE4DA;
-  --badge-open-text: #4B5563;
-  --danger-bg: rgba(220, 74, 74, 0.08);
+  --badge-solved-bg: rgba(214, 183, 143, 0.14);
+  --badge-solved-text: #9C7E55;
+  --badge-open-bg: rgba(228, 221, 211, 0.6);
+  --badge-open-text: #555555;
+  --danger-bg: rgba(196, 70, 70, 0.08);
 
-  --pill-bg: #F8F6F2;
-  --pill-border: #DDD6C8;
-  --pill-text: #4B5563;
-  --pill-active-bg: #E6F0E8;          /* soft sage background tint */
-  --pill-active-border: rgba(107, 143, 113, 0.25);
-  --pill-active-text: #4C6B52;
-  --pill-active-indicator: #6B8F71;
+  --pill-bg: #FCFAF8;
+  --pill-border: #E4DDD3;
+  --pill-text: #555555;
+  --pill-active-bg: #D6B78F;               /* solid sand fill — accent on active */
+  --pill-active-border: #C9A777;
+  --pill-active-text: #FFFFFF;
+  --pill-active-text-on-bg: #FFFFFF;        /* kept for legacy compat */
+  --pill-active-indicator: #D6B78F;
 
   --input-bg: #ffffff;
-  --input-border: #DDD6C8;
-  --input-placeholder: #9CA3AF;
-  --input-focus-border: #6B8F71;
+  --input-border: #E4DDD3;
+  --input-placeholder: #8B8B8B;
+  --input-focus-border: rgba(214, 183, 143, 0.55);
 
-  --nav-active-indicator: #6B8F71;
-  --section-icon: #6B8F71;
-  --deco-stroke: rgba(107, 143, 113, 0.60);  /* sage — visible, still calm */
+  --nav-active-indicator: #D6B78F;
+  --section-icon: #D6B78F;
+  --deco-stroke: rgba(214, 183, 143, 0.60);
   --deco-stroke-soft: #C9BFAC;
 
   --modal-bg: #ffffff;
-  --modal-border: #DDD6C8;
+  --modal-border: #E4DDD3;
   --dropdown-bg: #ffffff;
-  --dropdown-border: #DDD6C8;
-  --dropdown-hover: #F8F6F2;
-  --overlay-bg: rgba(31, 41, 51, 0.4);
+  --dropdown-border: #E4DDD3;
+  --dropdown-hover: #FCFAF8;
+  --overlay-bg: rgba(34, 34, 34, 0.4);
 
   --scrollbar-thumb: #CFC7B8;
   --scrollbar-track: transparent;
 
   /* Theme-toggle specific (light defaults) */
-  --toggle-pill-bg: #E6F0E8;
-  --toggle-pill-border: rgba(107, 143, 113, 0.30);
+  --toggle-pill-bg: rgba(214, 183, 143, 0.14);
+  --toggle-pill-border: rgba(214, 183, 143, 0.30);
   --toggle-knob-bg: #ffffff;
-  --toggle-icon-color: #4C6B52;
+  --toggle-icon-color: #9C7E55;
   --toggle-knob-x: 3px;
   --toggle-sun-opacity: 1;
   --toggle-sun-transform: rotate(0deg) scale(1);
   --toggle-moon-opacity: 0;
   --toggle-moon-transform: rotate(90deg) scale(0.5);
 
-  /* Shadows (light) — warm, soft, layered (rgba of #1F2933) */
-  --shadow-card: 0 4px 12px rgba(31, 41, 51, 0.04), 0 12px 32px rgba(31, 41, 51, 0.06);
-  --shadow-card-hover: 0 8px 20px rgba(31, 41, 51, 0.06), 0 20px 44px rgba(31, 41, 51, 0.09);
-  --shadow-float: 0 12px 32px rgba(31, 41, 51, 0.10);
-  --shadow-glow: 0 0 0 4px rgba(107, 143, 113, 0.12), 0 8px 32px rgba(31, 41, 51, 0.06);
-  --shadow-subtle: 0 2px 12px rgba(31, 41, 51, 0.04);
+  /* Shadows (light) — warm, soft, layered (rgba of #222222) */
+  --shadow-card: 0 4px 12px rgba(34, 34, 34, 0.04), 0 12px 32px rgba(34, 34, 34, 0.05);
+  --shadow-card-hover: 0 8px 20px rgba(34, 34, 34, 0.06), 0 20px 44px rgba(34, 34, 34, 0.08);
+  --shadow-float: 0 12px 32px rgba(34, 34, 34, 0.10);
+  --shadow-glow: 0 0 0 4px rgba(214, 183, 143, 0.14), 0 8px 32px rgba(34, 34, 34, 0.06);
+  --shadow-subtle: 0 2px 12px rgba(34, 34, 34, 0.04);
 
-  /* Body background — barely-there sage wash at the top (editorial calm) */
+  /* Body background — barely-there warm wash at the top (editorial calm) */
   --body-bg-image:
-    radial-gradient(ellipse 80% 50% at 50% 0%, rgba(107, 143, 113, 0.05) 0%, transparent 60%);
+    radial-gradient(ellipse 80% 50% at 50% 0%, rgba(214, 183, 143, 0.06) 0%, transparent 60%);
 
   /* ── ShadCN tokens ────────────────────────────────────────────
-     Aliased to the existing warm-sage palette so ShadCN components
-     render in-house by default. Override per-component via className
-     when you want a literal ShadCN neutral look. */
+     Aliased to the Yaksha portfolio palette so ShadCN components
+     render in-house by default. */
   --background: var(--bg-primary-rgb);
   --foreground: var(--text-primary-rgb);
   --card: var(--bg-card-rgb);
@@ -137,12 +134,12 @@
   --input: var(--border-rgb);
   --ring: var(--accent-rgb);
 
-  /* Chart palette (ShadCN charts) — sage forward */
+  /* Chart palette (ShadCN charts) — monochromatic sand ramp */
   --chart-1: var(--accent-rgb);
-  --chart-2: 156 188 150;
-  --chart-3: 196 148 58;
-  --chart-4: 220 74 74;
-  --chart-5: 107 125 116;
+  --chart-2: 188 162 128;
+  --chart-3: 176 132 40;
+  --chart-4: 196 70 70;
+  --chart-5: 139 139 139;
 
   /* Sidebar (ShadCN sidebar blocks) */
   --sidebar: var(--bg-card-rgb);
@@ -160,73 +157,73 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   DARK MODE — premium Linear / Vercel / Notion feel
+   DARK MODE — Yaksha portfolio palette (monochrome + warm sand accent)
    ═══════════════════════════════════════════════════════════════ */
 [data-theme="dark"] {
-  --bg-primary-rgb: 11 15 13;        /* #0B0F0D — base */
-  --bg-secondary-rgb: 18 26 24;      /* #121A18 — elevated */
-  --bg-card-rgb: 15 21 19;           /* #0F1513 — card */
-  --bg-card-hover-rgb: 24 32 28;     /* #18201C — card hover */
+  --bg-primary-rgb: 19 19 19;         /* #131313 — base */
+  --bg-secondary-rgb: 25 25 25;       /* #191919 — surface */
+  --bg-card-rgb: 32 32 32;            /* #202020 — card */
+  --bg-card-hover-rgb: 38 38 38;      /* slight lift on hover */
 
-  --text-primary-rgb: 230 241 236;   /* #E6F1EC — soft white, not #FFF */
-  --text-secondary-rgb: 159 179 168; /* #9FB3A8 */
-  --text-muted-rgb: 107 125 116;     /* #6B7D74 */
+  --text-primary-rgb: 242 242 242;    /* #F2F2F2 */
+  --text-secondary-rgb: 184 184 184;  /* #B8B8B8 */
+  --text-muted-rgb: 122 122 122;      /* #7A7A7A */
 
-  --accent-rgb: 34 197 94;           /* #22C55E — primary green, no neon */
-  --accent-hover-rgb: 46 209 112;    /* slightly brighter on hover */
-  --accent-text-rgb: 11 15 13;       /* dark text on green button */
+  --accent-rgb: 228 207 179;          /* #E4CFB3 — warm sand accent */
+  --accent-hover-rgb: 239 220 195;    /* #EFDCC3 — hover / active */
+  --accent-text-rgb: 19 19 19;        /* dark text on sand button */
 
-  --border-rgb: 31 42 38;            /* #1F2A26 — very subtle */
-  --border-subtle-rgb: 23 32 28;
-  --border-medium-rgb: 45 58 52;
+  --border-rgb: 42 42 42;             /* #2A2A2A — soft low-contrast border */
+  --border-subtle-rgb: 36 36 36;
+  --border-medium-rgb: 58 58 58;
 
-  --icon-default-rgb: 107 125 116;
-  --icon-active-rgb: 34 197 94;
+  --icon-default-rgb: 122 122 122;
+  --icon-active-rgb: 228 207 179;
 
-  --success-rgb: 34 197 94;
-  --warning-rgb: 196 148 58;
-  --danger-rgb: 220 74 74;
+  --success-rgb: 228 207 179;         /* accent doubles as success */
+  --warning-rgb: 200 158 90;          /* muted amber */
+  --danger-rgb: 196 90 90;            /* muted brick red */
 
-  --nav-bg-rgb: 11 15 13;
-  --nav-text-rgb: 159 179 168;
-  --nav-active-rgb: 230 241 236;
-  --nav-border-rgb: 31 42 38;
+  --nav-bg-rgb: 19 19 19;
+  --nav-text-rgb: 184 184 184;
+  --nav-active-rgb: 242 242 242;
+  --nav-border-rgb: 42 42 42;
 
-  --section-title-rgb: 230 241 236;
+  --section-title-rgb: 242 242 242;
 
-  /* Pre-tinted semantic colors */
-  --tag-high-bg: rgba(34, 197, 94, 0.14);
-  --tag-high-text: #5fc585;
-  --tag-medium-bg: rgba(196, 148, 58, 0.16);
+  /* Pre-tinted semantic colors (full rgba — no /<alpha-value>) */
+  --tag-high-bg: rgba(228, 207, 179, 0.14);    /* accent-soft */
+  --tag-high-text: #E4CFB3;
+  --tag-medium-bg: rgba(200, 158, 90, 0.16);
   --tag-medium-text: #d4a558;
-  --badge-solved-bg: rgba(34, 197, 94, 0.14);
-  --badge-solved-text: #5fc585;
+  --badge-solved-bg: rgba(228, 207, 179, 0.14);
+  --badge-solved-text: #E4CFB3;
   --badge-open-bg: rgba(255, 255, 255, 0.05);
-  --badge-open-text: #9FB3A8;
-  --danger-bg: rgba(220, 74, 74, 0.14);
+  --badge-open-text: #B8B8B8;
+  --danger-bg: rgba(196, 90, 90, 0.14);
 
   --pill-bg: rgba(255, 255, 255, 0.04);
   --pill-border: rgba(255, 255, 255, 0.08);
-  --pill-text: #9FB3A8;
-  --pill-active-bg: #22C55E;
-  --pill-active-border: #22C55E;
-  --pill-active-text: #5fc585;
-  --pill-active-text-on-bg: #052E1A;
-  --pill-active-indicator: #22C55E;
+  --pill-text: #B8B8B8;
+  --pill-active-bg: #E4CFB3;                /* solid sand fill — accent on active */
+  --pill-active-border: #EFDCC3;
+  --pill-active-text: #131313;
+  --pill-active-text-on-bg: #131313;
+  --pill-active-indicator: #E4CFB3;
 
-  --input-bg: #121A18;
+  --input-bg: #191919;
   --input-border: rgba(255, 255, 255, 0.08);
-  --input-placeholder: #6B7D74;
-  --input-focus-border: rgba(34, 197, 94, 0.45);
+  --input-placeholder: #7A7A7A;
+  --input-focus-border: rgba(228, 207, 179, 0.45);
 
-  --nav-active-indicator: #22C55E;
-  --section-icon: #22C55E;
-  --deco-stroke: rgba(34, 197, 94, 0.35);
-  --deco-stroke-soft: rgba(34, 197, 94, 0.18);
+  --nav-active-indicator: #E4CFB3;
+  --section-icon: #E4CFB3;
+  --deco-stroke: rgba(228, 207, 179, 0.35);
+  --deco-stroke-soft: rgba(228, 207, 179, 0.18);
 
-  --modal-bg: #121A18;
+  --modal-bg: #191919;
   --modal-border: rgba(255, 255, 255, 0.08);
-  --dropdown-bg: #121A18;
+  --dropdown-bg: #191919;
   --dropdown-border: rgba(255, 255, 255, 0.08);
   --dropdown-hover: rgba(255, 255, 255, 0.04);
   --overlay-bg: rgba(0, 0, 0, 0.70);
@@ -235,27 +232,27 @@
   --scrollbar-track: transparent;
 
   /* Toggle (dark) */
-  --toggle-pill-bg: #1a2a22;
-  --toggle-pill-border: rgba(34, 197, 94, 0.30);
-  --toggle-knob-bg: #5fc585;
-  --toggle-icon-color: #0B0F0D;
+  --toggle-pill-bg: rgba(228, 207, 179, 0.14);
+  --toggle-pill-border: rgba(228, 207, 179, 0.30);
+  --toggle-knob-bg: #E4CFB3;
+  --toggle-icon-color: #131313;
   --toggle-knob-x: 27px;
   --toggle-sun-opacity: 0;
   --toggle-sun-transform: rotate(-90deg) scale(0.5);
   --toggle-moon-opacity: 1;
   --toggle-moon-transform: rotate(0deg) scale(1);
 
-  /* Shadows (dark) — soft, diffused, with optional green glow on hover */
+  /* Shadows (dark) — soft, diffused, with optional sand glow on hover */
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-card-hover: 0 8px 32px rgba(0, 0, 0, 0.5),
-                        0 0 0 1px rgba(34, 197, 94, 0.12);
+                        0 0 0 1px rgba(228, 207, 179, 0.14);
   --shadow-float: 0 12px 40px rgba(0, 0, 0, 0.6);
-  --shadow-glow: 0 0 0 3px rgba(34, 197, 94, 0.20);
+  --shadow-glow: 0 0 0 3px rgba(228, 207, 179, 0.20);
 
-  /* Body — subtle radial gradient with faint green tint */
+  /* Body — subtle radial gradient with faint sand tint */
   --body-bg-image:
-    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(34, 197, 94, 0.06) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 50% at 100% 100%, rgba(34, 197, 94, 0.04) 0%, transparent 60%);
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(228, 207, 179, 0.05) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 100% 100%, rgba(228, 207, 179, 0.03) 0%, transparent 60%);
 
   /* ShadCN tokens (dark) — same aliases, dark values inherited from
      the overridden palette above. Component renders adapt automatically. */
@@ -274,16 +271,16 @@
   --accent: var(--bg-secondary-rgb);
   --accent-foreground: var(--text-primary-rgb);
   --destructive: var(--danger-rgb);
-  --destructive-foreground: 11 15 13;
+  --destructive-foreground: 19 19 19;
   --border: var(--border-rgb);
   --input: var(--border-rgb);
   --ring: var(--accent-rgb);
 
   --chart-1: var(--accent-rgb);
-  --chart-2: 46 209 112;
-  --chart-3: 196 148 58;
-  --chart-4: 220 74 74;
-  --chart-5: 159 179 168;
+  --chart-2: 200 180 150;
+  --chart-3: 200 158 90;
+  --chart-4: 196 90 90;
+  --chart-5: 184 184 184;
 
   --sidebar: var(--bg-card-rgb);
   --sidebar-foreground: var(--text-primary-rgb);
@@ -378,12 +375,15 @@ select option {
    ═══════════════════════════════════════════════════════════════ */
 @layer components {
 
-  /* Subtle grid background (from UI project) */
+  /* Subtle grid background — monochrome per theme */
   .grid-bg {
     background-image:
-      linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+      linear-gradient(var(--grid-line, rgba(0, 0, 0, 0.045)) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line, rgba(0, 0, 0, 0.045)) 1px, transparent 1px);
     background-size: 40px 40px;
+  }
+  [data-theme="dark"] .grid-bg {
+    --grid-line: rgba(255, 255, 255, 0.035);
   }
 
   /* ═════════ Card hover lift effect (per-theme shadow) ═════════ */
@@ -418,11 +418,11 @@ select option {
     background-color: rgb(var(--bg-card-hover-rgb));
   }
 
-  /* ═════════ Search bar glow on focus (subtle sage ring) ═════════
-     Light: soft sage halo per design system. Dark: unchanged ring. */
+  /* ═════════ Search bar glow on focus (subtle sand ring) ═════════
+     Light: soft sand halo. Dark: matches accent ring. */
   .search-glow:focus-within {
     border-color: var(--input-focus-border);
-    box-shadow: 0 0 0 4px rgba(107, 143, 113, 0.12);
+    box-shadow: 0 0 0 4px rgba(214, 183, 143, 0.14);
   }
   [data-theme="dark"] .search-glow:focus-within {
     box-shadow: 0 0 0 3px rgb(var(--accent-rgb) / 0.20);
@@ -452,53 +452,53 @@ select option {
   }
 
   /* Primary Button (Get Started / Ask Question)
-     Light: warm sage with a soft premium gradient. */
+     Light: warm sand accent with a soft premium gradient. */
   .btn-primary {
-    background-color: #6B8F71;
-    background-image: linear-gradient(180deg, #76997C 0%, #6B8F71 100%);
+    background-color: #D6B78F;
+    background-image: linear-gradient(180deg, #DFC4A0 0%, #D6B78F 100%);
     color: #ffffff;
-    box-shadow: 0 1px 2px rgba(76, 107, 82, 0.20), 0 4px 12px rgba(31, 41, 51, 0.06);
+    box-shadow: 0 1px 2px rgba(156, 126, 85, 0.20), 0 4px 12px rgba(34, 34, 34, 0.06);
     border: none;
   }
   .btn-primary:hover {
-    background-color: #4C6B52;
-    background-image: linear-gradient(180deg, #587A5E 0%, #4C6B52 100%);
+    background-color: #C9A777;
+    background-image: linear-gradient(180deg, #D2B388 0%, #C9A777 100%);
     transform: none;
-    box-shadow: 0 2px 4px rgba(76, 107, 82, 0.22), 0 6px 16px rgba(31, 41, 51, 0.08);
+    box-shadow: 0 2px 4px rgba(156, 126, 85, 0.22), 0 6px 16px rgba(34, 34, 34, 0.08);
   }
   .btn-primary:active {
-    background-color: #435F49;
-    background-image: linear-gradient(180deg, #4C6B52 0%, #435F49 100%);
+    background-color: #B89564;
+    background-image: linear-gradient(180deg, #C9A777 0%, #B89564 100%);
     transform: none;
   }
-  
+
   [data-theme="dark"] .btn-primary {
-    background-color: #16a34a; /* keeping existing dark mode base */
-    color: #0B0F0D;
-    background-image: none; /* remove gradient */
-    box-shadow: none; /* remove glow */
+    background-color: #E4CFB3;            /* warm sand on dark */
+    color: #131313;
+    background-image: none;
+    box-shadow: none;
   }
   [data-theme="dark"] .btn-primary:hover {
-    background-color: #15803d; /* darker hover */
+    background-color: #EFDCC3;            /* accent-hover */
     box-shadow: none;
   }
   [data-theme="dark"] .btn-primary:active {
-    background-color: #166534;
+    background-color: #D8C2A0;
   }
 
   /* Secondary Button (Search input)
-     Light: warm sage — calm, premium, not loud. */
+     Light: warm sand — calm, premium, not loud. */
   .btn-secondary {
-    background-color: #6B8F71;
-    background-image: linear-gradient(180deg, #76997C 0%, #6B8F71 100%);
+    background-color: #D6B78F;
+    background-image: linear-gradient(180deg, #DFC4A0 0%, #D6B78F 100%);
     color: #ffffff;
-    box-shadow: 0 1px 2px rgba(76, 107, 82, 0.20), 0 4px 12px rgba(31, 41, 51, 0.06);
+    box-shadow: 0 1px 2px rgba(156, 126, 85, 0.20), 0 4px 12px rgba(34, 34, 34, 0.06);
     border: none;
   }
   .btn-secondary:hover {
-    background-color: #4C6B52;
-    background-image: linear-gradient(180deg, #587A5E 0%, #4C6B52 100%);
-    box-shadow: 0 2px 4px rgba(76, 107, 82, 0.22), 0 6px 16px rgba(31, 41, 51, 0.08);
+    background-color: #C9A777;
+    background-image: linear-gradient(180deg, #D2B388 0%, #C9A777 100%);
+    box-shadow: 0 2px 4px rgba(156, 126, 85, 0.22), 0 6px 16px rgba(34, 34, 34, 0.08);
   }
   [data-theme="dark"] .btn-secondary {
     background-image: none;
@@ -507,51 +507,50 @@ select option {
     box-shadow: none;
   }
   [data-theme="dark"] .btn-secondary:hover {
-    background-color: rgba(34, 197, 94, 0.85); /* slightly reduced contrast */
+    background-color: rgb(var(--accent-hover-rgb));
     box-shadow: none;
   }
 
   /* Ghost Button (Ask in Community) */
   .btn-ghost {
     background-color: transparent;
-    border: 1px solid #DDD6C8;
-    color: #4C6B52;
+    border: 1px solid #E4DDD3;
+    color: #9C7E55;
     box-shadow: none;
   }
   .btn-ghost:hover {
-    background-color: #E6F0E8;
-    border-color: rgba(107, 143, 113, 0.30);
-    color: #4C6B52;
+    background-color: rgba(214, 183, 143, 0.14);
+    border-color: rgba(214, 183, 143, 0.30);
+    color: #9C7E55;
   }
   [data-theme="dark"] .btn-ghost {
     background-color: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    color: #B8B8B8;
   }
   [data-theme="dark"] .btn-ghost:hover {
     background-color: rgba(255, 255, 255, 0.05);
-    color: rgba(255, 255, 255, 0.9);
+    color: #E4CFB3;
   }
 
-  /* Focus glow ring — soft green halo on focused interactive surfaces */
+  /* Focus glow ring — soft sand halo on focused interactive surfaces */
   .focus-glow:focus-visible {
     outline: none;
     box-shadow: 0 0 0 3px rgb(var(--accent-rgb) / 0.35);
   }
 
-  /* Active category chip — light: soft sage tint (calm, editorial);
-     dark: keeps the previous solid green treatment. */
+  /* Active category chip — soft sand tint (calm, editorial) in both themes. */
   .faq-chip-active {
-    background-color: #E6F0E8;
-    color: #4C6B52;
-    border-color: rgba(107, 143, 113, 0.25);
-    box-shadow: 0 4px 12px rgba(31, 41, 51, 0.05);
+    background-color: rgba(214, 183, 143, 0.14);
+    color: #9C7E55;
+    border-color: rgba(214, 183, 143, 0.30);
+    box-shadow: 0 4px 12px rgba(34, 34, 34, 0.05);
   }
   [data-theme="dark"] .faq-chip-active {
-    background-color: rgb(34 197 94);
-    color: #0B0F0D;
-    border-color: rgba(34, 197, 94, 0.60);
-    box-shadow: 0 10px 26px rgba(34, 197, 94, 0.28);
+    background-color: rgba(228, 207, 179, 0.14);
+    color: #E4CFB3;
+    border-color: rgba(228, 207, 179, 0.35);
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
   }
 
   /* In dark mode, override the flat .bg-accent if needed.
@@ -563,8 +562,8 @@ select option {
 
   /* ═════════════════════════════════════════════════════════════
      .btn-cta — "Ask the Community" style button
-     Light: solid primary (dark fill, light text) — unchanged.
-     Dark: dark elevated surface with green accent on hover/active.
+     Light: solid primary (dark fill, light text).
+     Dark: dark elevated surface with warm sand accent on hover/active.
      ═════════════════════════════════════════════════════════════ */
   .btn-cta {
     display: inline-flex;
@@ -590,25 +589,25 @@ select option {
   }
 
   [data-theme="dark"] .btn-cta {
-    background-color: #121A18;
+    background-color: #191919;
     border-width: 1px;
     border-style: solid;
-    border-color: #1F2A26;
-    color: #E6F1EC;
+    border-color: #2A2A2A;
+    color: #F2F2F2;
   }
   [data-theme="dark"] .btn-cta:hover {
-    background-color: #16201D;
-    border-color: #274233;
-    color: #22C55E;
-    box-shadow: 0 0 20px rgba(34, 197, 94, 0.15);
+    background-color: #202020;
+    border-color: rgba(228, 207, 179, 0.40);
+    color: #E4CFB3;
+    box-shadow: 0 0 20px rgba(228, 207, 179, 0.15);
     opacity: 1;
   }
   [data-theme="dark"] .btn-cta:hover .btn-cta-icon {
-    color: #22C55E;
+    color: #E4CFB3;
     transform: translateX(2px);
   }
   [data-theme="dark"] .btn-cta:active {
-    background-color: #1A241F;
+    background-color: #262626;
     box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
   }
 
@@ -622,8 +621,8 @@ select option {
 
   /* ═════════════════════════════════════════════════════════════
      .toggle-segment — Weekly / Monthly / All segmented control
-     Light: subtle gray pill (uses border + ink-faint text).
-     Dark: dark surface, green text/bg only when active.
+     Light: subtle pill (uses border + ink-faint text).
+     Dark: dark surface, sand text/bg only when active.
      ═════════════════════════════════════════════════════════════ */
   .toggle-segment {
     padding: 6px 16px;
@@ -652,26 +651,26 @@ select option {
   }
 
   [data-theme="dark"] .toggle-segment {
-    background-color: #121A18;
+    background-color: #191919;
     border-width: 1px;
     border-style: solid;
-    border-color: #1F2A26;
-    color: #9FB3A8;
+    border-color: #2A2A2A;
+    color: #B8B8B8;
   }
   [data-theme="dark"] .toggle-segment:hover {
-    background-color: #16201D;
-    color: #E6F1EC;
+    background-color: #202020;
+    color: #F2F2F2;
   }
   [data-theme="dark"] .toggle-segment.active {
-    background-color: rgba(34, 197, 94, 0.12);
-    border-color: #274233;
-    color: #22C55E;
-    box-shadow: 0 0 20px rgba(34, 197, 94, 0.15);
+    background-color: rgba(228, 207, 179, 0.12);
+    border-color: rgba(228, 207, 179, 0.35);
+    color: #E4CFB3;
+    box-shadow: 0 0 20px rgba(228, 207, 179, 0.15);
   }
 
   /* ═════════════════════════════════════════════════════════════
      .btn-community-ask — "Ask a Question" in Community Board header
-     Subtle green-tinted dark surface. Premium, not loud.
+     Subtle sand-tinted dark surface. Premium, not loud.
      ═════════════════════════════════════════════════════════════ */
   .btn-community-ask {
     display: inline-flex;
@@ -690,44 +689,44 @@ select option {
                 box-shadow 0.2s ease,
                 transform 0.15s ease;
     cursor: pointer;
-    background-color: rgba(107, 143, 113, 0.12);
-    border: 1px solid rgba(107, 143, 113, 0.25);
-    color: #4C6B52;
+    background-color: rgba(214, 183, 143, 0.14);
+    border: 1px solid rgba(214, 183, 143, 0.30);
+    color: #9C7E55;
   }
   .btn-community-ask:hover {
-    background-color: rgba(107, 143, 113, 0.18);
-    border-color: rgba(107, 143, 113, 0.40);
-    color: #4C6B52;
-    box-shadow: 0 4px 12px rgba(107, 143, 113, 0.15);
+    background-color: rgba(214, 183, 143, 0.18);
+    border-color: rgba(214, 183, 143, 0.40);
+    color: #9C7E55;
+    box-shadow: 0 4px 12px rgba(214, 183, 143, 0.15);
     transform: translateY(-2px);
   }
   .btn-community-ask:active {
-    background-color: rgba(107, 143, 113, 0.14);
+    background-color: rgba(214, 183, 143, 0.14);
     transform: translateY(0);
   }
   [data-theme="dark"] .btn-community-ask {
-    background-color: rgba(34, 197, 94, 0.10);
+    background-color: rgba(228, 207, 179, 0.10);
     border-width: 1px;
     border-style: solid;
-    border-color: rgba(34, 197, 94, 0.25);
-    color: #D1FAE5;
+    border-color: rgba(228, 207, 179, 0.25);
+    color: #E4CFB3;
   }
   [data-theme="dark"] .btn-community-ask:hover {
-    background-color: rgba(34, 197, 94, 0.15);
-    border-color: rgba(34, 197, 94, 0.40);
-    color: #ECFDF5;
-    box-shadow: 0 0 20px rgba(34, 197, 94, 0.15);
+    background-color: rgba(228, 207, 179, 0.15);
+    border-color: rgba(228, 207, 179, 0.40);
+    color: #EFDCC3;
+    box-shadow: 0 0 20px rgba(228, 207, 179, 0.15);
     transform: translateY(-2px);
   }
   [data-theme="dark"] .btn-community-ask:active {
-    background-color: rgba(34, 197, 94, 0.12);
+    background-color: rgba(228, 207, 179, 0.12);
     transform: translateY(0);
-    box-shadow: 0 0 8px rgba(34, 197, 94, 0.08);
+    box-shadow: 0 0 8px rgba(228, 207, 179, 0.10);
   }
 
   /* ═════════════════════════════════════════════════════════════
      .search-overlay — premium glassmorphism backdrop
-     Dark: strong blur + dark tint + faint green glow.
+     Dark: strong blur + dark tint + faint sand glow.
      Light: soft dark overlay, blur(16px) — airy, not muddy.
      ═════════════════════════════════════════════════════════════ */
   .search-overlay {
@@ -743,62 +742,62 @@ select option {
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     background-color: rgba(0, 0, 0, 0.5);
-    box-shadow: inset 0 0 80px rgba(34, 197, 94, 0.04);
+    box-shadow: inset 0 0 80px rgba(228, 207, 179, 0.04);
   }
 
   /* ═════════════════════════════════════════════════════════════
      .search-panel — premium glassmorphism modal container
      Light: clean white glass, no muddy tint.
-     Dark: dark charcoal glass with subtle green gradient.
+     Dark: dark charcoal glass with subtle sand gradient.
      ═════════════════════════════════════════════════════════════ */
   .search-panel {
     background-color: rgba(255, 255, 255, 0.75);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border: 1px solid #DDD6C8;
+    border: 1px solid #E4DDD3;
     border-radius: 16px;
-    box-shadow: 0 20px 50px rgba(31, 41, 51, 0.14);
-    background-image: linear-gradient(135deg, rgba(107, 143, 113, 0.06), rgba(255, 255, 255, 0.6));
+    box-shadow: 0 20px 50px rgba(34, 34, 34, 0.14);
+    background-image: linear-gradient(135deg, rgba(214, 183, 143, 0.06), rgba(255, 255, 255, 0.6));
   }
   [data-theme="dark"] .search-panel {
-    background-color: rgba(18, 26, 24, 0.6);
+    background-color: rgba(25, 25, 25, 0.6);
     backdrop-filter: blur(25px);
     -webkit-backdrop-filter: blur(25px);
     border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: 16px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
-    background-image: linear-gradient(135deg, rgba(34, 197, 94, 0.06), rgba(0, 0, 0, 0.2));
+    background-image: linear-gradient(135deg, rgba(228, 207, 179, 0.06), rgba(0, 0, 0, 0.2));
   }
 
   /* ═════════════════════════════════════════════════════════════
      .search-bar-input — search bar inside the panel
-     Light: clean white with green focus.
-     Dark: semi-transparent dark glass with green focus.
+     Light: clean white with sand focus.
+     Dark: semi-transparent dark glass with sand focus.
      ═════════════════════════════════════════════════════════════ */
   .search-bar-input {
     background-color: #ffffff;
-    border: 1px solid #DDD6C8;
-    color: #1F2933;
+    border: 1px solid #E4DDD3;
+    color: #222222;
   }
   .search-bar-input::placeholder {
-    color: #9CA3AF;
+    color: #8B8B8B;
   }
   .search-bar-input:focus {
-    border-color: #6B8F71;
-    box-shadow: 0 0 0 4px rgba(107, 143, 113, 0.12);
+    border-color: rgba(214, 183, 143, 0.55);
+    box-shadow: 0 0 0 4px rgba(214, 183, 143, 0.14);
     outline: none;
   }
   [data-theme="dark"] .search-bar-input {
     background-color: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    color: #E6F1EC;
+    color: #F2F2F2;
   }
   [data-theme="dark"] .search-bar-input::placeholder {
-    color: #6B7D74;
+    color: #7A7A7A;
   }
   [data-theme="dark"] .search-bar-input:focus {
-    border-color: rgba(34, 197, 94, 0.4);
-    box-shadow: 0 0 20px rgba(34, 197, 94, 0.15);
+    border-color: rgba(228, 207, 179, 0.45);
+    box-shadow: 0 0 20px rgba(228, 207, 179, 0.15);
   }
 
   /* ═════════════════════════════════════════════════════════════
@@ -808,53 +807,53 @@ select option {
      ═════════════════════════════════════════════════════════════ */
   .search-list-item {
     background: #ffffff;
-    color: #1F2933;
+    color: #222222;
     border: 1px solid transparent;
     transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
   }
   .search-list-item:hover {
-    background-color: #F8F6F2;
-    color: #1F2933;
+    background-color: #FCFAF8;
+    color: #222222;
   }
   .search-list-item.active {
-    background-color: #E6F0E8;
-    border: 1px solid rgba(107, 143, 113, 0.25);
-    color: #1F2933;
+    background-color: rgba(214, 183, 143, 0.14);
+    border: 1px solid rgba(214, 183, 143, 0.30);
+    color: #222222;
   }
   [data-theme="dark"] .search-list-item {
     background: transparent;
-    color: #9FB3A8;
+    color: #B8B8B8;
     border: 1px solid transparent;
   }
   [data-theme="dark"] .search-list-item:hover {
     background-color: rgba(255, 255, 255, 0.04);
-    color: #E6F1EC;
+    color: #F2F2F2;
   }
   [data-theme="dark"] .search-list-item.active {
-    background-color: rgba(34, 197, 94, 0.08);
-    border: 1px solid rgba(34, 197, 94, 0.2);
-    color: #E6F1EC;
+    background-color: rgba(228, 207, 179, 0.10);
+    border: 1px solid rgba(228, 207, 179, 0.25);
+    color: #F2F2F2;
   }
 
   /* ═════════════════════════════════════════════════════════════
      .search-pill — category/tag pills inside search dropdown
-     Light: clean soft gray tint, readable text.
-     Dark: semi-transparent dark, green on hover.
+     Light: clean soft tint, readable text.
+     Dark: semi-transparent dark, sand on hover.
      ═════════════════════════════════════════════════════════════ */
   .search-pill {
-    background-color: #F8F6F2;
-    border: 1px solid #EAE4DA;
-    color: #4B5563;
+    background-color: #FCFAF8;
+    border: 1px solid #E4DDD3;
+    color: #555555;
     transition: background-color 0.15s ease, color 0.15s ease;
   }
   .search-pill:hover {
-    background-color: #E6F0E8;
-    color: #4C6B52;
+    background-color: rgba(214, 183, 143, 0.14);
+    color: #9C7E55;
   }
   [data-theme="dark"] .search-pill {
     background-color: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    color: #E6F1EC;
+    color: #F2F2F2;
   }
   [data-theme="dark"] .search-pill:hover {
     background-color: rgb(var(--accent-rgb));
@@ -864,12 +863,12 @@ select option {
 
   /* ═════════════════════════════════════════════════════════════
      .search-skeleton — loading placeholder for search results
-     Light: soft warm gray, no border — clean and unobtrusive.
+     Light: soft warm tint, no border — clean and unobtrusive.
      Dark: dark glass with subtle border.
      ═════════════════════════════════════════════════════════════ */
   .search-skeleton {
     background-color: rgba(255, 255, 255, 0.5);
-    border: 1px solid #EAE4DA;
+    border: 1px solid #E4DDD3;
     border-radius: 16px;
   }
   [data-theme="dark"] .search-skeleton {
@@ -881,21 +880,21 @@ select option {
      Ask in Community (No Results block)
      ═════════════════════════════════════════════════════════════ */
   .ask-community-container {
-    background-color: #F8F6F2;
-    border-color: #EAE4DA;
+    background-color: #FCFAF8;
+    border-color: #E4DDD3;
   }
   .ask-community-container:hover {
-    background-color: #E6F0E8;
-    border-color: rgba(107, 143, 113, 0.20);
+    background-color: rgba(214, 183, 143, 0.10);
+    border-color: rgba(214, 183, 143, 0.25);
   }
   .ask-community-title {
-    color: #1F2933;
+    color: #222222;
   }
   .ask-community-icon {
-    color: #1F2933;
+    color: #222222;
   }
   .ask-community-action {
-    color: #4C6B52;
+    color: #9C7E55;
   }
 
   [data-theme="dark"] .ask-community-container {
@@ -912,14 +911,14 @@ select option {
     color: #ffffff;
   }
   [data-theme="dark"] .ask-community-action {
-    color: #9fb8ad;
+    color: #E4CFB3;
   }
   /* ═════════════════════════════════════════════════════════════
      .search-popular-pill — enhanced popular search capsules
      Top 3 are prominent; all use rounded-full pills.
      Count badge inside: ml-auto styled separately.
-     DARK: dark glass bg, muted text, green on hover.
-     LIGHT: gray bg, dark text, green on hover.
+     DARK: dark glass bg, muted text, sand on hover.
+     LIGHT: warm bg, dark text, sand on hover.
      ═════════════════════════════════════════════════════════════ */
   .search-popular-pill {
     display: inline-flex;
@@ -927,9 +926,9 @@ select option {
     gap: 6px;
     padding: 6px 12px;
     border-radius: 9999px;
-    border: 1px solid #EAE4DA;
-    background-color: #F8F6F2;
-    color: #4B5563;
+    border: 1px solid #E4DDD3;
+    background-color: #FCFAF8;
+    color: #555555;
     font-size: 13px;
     font-weight: 500;
     line-height: 1;
@@ -939,12 +938,12 @@ select option {
                 color 0.2s ease;
   }
   .search-popular-pill:hover {
-    background-color: #E6F0E8;
-    border-color: rgba(107, 143, 113, 0.30);
-    color: #4C6B52;
+    background-color: rgba(214, 183, 143, 0.14);
+    border-color: rgba(214, 183, 143, 0.30);
+    color: #9C7E55;
   }
   .search-popular-pill:active {
-    background-color: rgba(107, 143, 113, 0.18);
+    background-color: rgba(214, 183, 143, 0.18);
   }
   .search-popular-pill .search-popular-icon {
     opacity: 0.5;
@@ -959,8 +958,8 @@ select option {
     margin-left: auto;
     padding: 1px 6px;
     border-radius: 9999px;
-    background-color: #EAE4DA;
-    color: #4B5563;
+    background-color: rgba(228, 221, 211, 0.6);
+    color: #555555;
     font-size: 11px;
     font-weight: 500;
     line-height: 1.4;
@@ -971,12 +970,12 @@ select option {
     color: #D1D5DB;
   }
   [data-theme="dark"] .search-popular-pill:hover {
-    background-color: rgba(34, 197, 94, 0.08);
-    border-color: rgba(34, 197, 94, 0.3);
-    color: #22C55E;
+    background-color: rgba(228, 207, 179, 0.10);
+    border-color: rgba(228, 207, 179, 0.30);
+    color: #E4CFB3;
   }
   [data-theme="dark"] .search-popular-pill:active {
-    background-color: rgba(34, 197, 94, 0.15);
+    background-color: rgba(228, 207, 179, 0.18);
   }
   [data-theme="dark"] .search-popular-pill .search-popular-icon {
     opacity: 0.4;
@@ -986,13 +985,13 @@ select option {
   }
   [data-theme="dark"] .search-popular-badge {
     background-color: rgba(255, 255, 255, 0.08);
-    color: #9CA3AF;
+    color: #7A7A7A;
   }
 
   /* ═════════════════════════════════════════════════════════════
      .faq-card-clay — Premium FAQ category cards
      Calm, neutral cards with very subtle tinted backgrounds.
-     Category color on badge + CTA only. SVG as aligned
+     Sand tone on badge + CTA only. SVG as aligned
      background accent with consistent placement rhythm.
      ═════════════════════════════════════════════════════════════ */
   .faq-card-clay {
@@ -1000,9 +999,9 @@ select option {
     min-height: 300px;
     border-radius: 16px;
     padding: 26px;
-    border: 1px solid #DDD6C8;
+    border: 1px solid #E4DDD3;
     background-color: #ffffff;
-    box-shadow: 0 4px 12px rgba(31, 41, 51, 0.04), 0 12px 32px rgba(31, 41, 51, 0.06);
+    box-shadow: 0 4px 12px rgba(34, 34, 34, 0.04), 0 12px 32px rgba(34, 34, 34, 0.05);
     overflow: hidden;
     cursor: pointer;
     text-align: left;
@@ -1024,10 +1023,10 @@ select option {
 
   .faq-card-clay:hover {
     transform: translateY(-4px);
-    box-shadow: 0 8px 20px rgba(31, 41, 51, 0.06),
-                0 24px 48px rgba(31, 41, 51, 0.09),
-                0 0 0 1px rgba(107, 143, 113, 0.10);
-    border-color: rgba(107, 143, 113, 0.30);
+    box-shadow: 0 8px 20px rgba(34, 34, 34, 0.06),
+                0 24px 48px rgba(34, 34, 34, 0.08),
+                0 0 0 1px rgba(214, 183, 143, 0.14);
+    border-color: rgba(214, 183, 143, 0.35);
   }
   .faq-card-clay:focus-visible {
     outline: none;
@@ -1059,22 +1058,22 @@ select option {
     opacity: 0.80;
     transform: rotate(-6deg) translateY(-2px);
     pointer-events: none;
-    /* Light: per-category recolor (--illu-hue shifts the purple source
-       artwork), softened saturation, warm depth shadow, minimal glow */
-    filter: drop-shadow(0 5px 10px rgba(31, 41, 51, 0.10))
+    /* Light: per-category recolor (--illu-hue shifts the source
+       artwork), softened saturation, warm depth shadow, sand glow */
+    filter: drop-shadow(0 5px 10px rgba(34, 34, 34, 0.10))
             saturate(0.80)
             hue-rotate(var(--illu-hue, 0deg))
-            drop-shadow(0 0 8px var(--illu-glow, rgba(107, 143, 113, 0.14)));
+            drop-shadow(0 0 8px var(--illu-glow, rgba(214, 183, 143, 0.18)));
     transition: opacity 0.25s ease,
                 filter 0.25s ease;
     z-index: 0;
   }
   .faq-card-clay:hover .faq-card-clay__illustration {
     opacity: 0.92;
-    filter: drop-shadow(0 6px 12px rgba(31, 41, 51, 0.12))
+    filter: drop-shadow(0 6px 12px rgba(34, 34, 34, 0.12))
             saturate(0.88)
             hue-rotate(var(--illu-hue, 0deg))
-            drop-shadow(0 0 10px var(--illu-glow, rgba(107, 143, 113, 0.18)));
+            drop-shadow(0 0 10px var(--illu-glow, rgba(214, 183, 143, 0.22)));
   }
 
   /* Question count pill */
@@ -1083,8 +1082,8 @@ select option {
     font-weight: 500;
     padding: 3px 10px;
     border-radius: 9999px;
-    background-color: #F8F6F2;
-    color: #4B5563;
+    background-color: #FCFAF8;
+    color: #555555;
     letter-spacing: 0.01em;
     position: relative;
     z-index: 1;
@@ -1095,7 +1094,7 @@ select option {
     margin-top: 20px;
     font-size: 16px;
     font-weight: 650;
-    color: #1F2933;
+    color: #222222;
     line-height: 1.35;
     letter-spacing: -0.01em;
     position: relative;
@@ -1108,7 +1107,7 @@ select option {
     margin-top: 8px;
     font-size: 13px;
     line-height: 1.55;
-    color: #4B5563;
+    color: #555555;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -1121,7 +1120,7 @@ select option {
   .faq-card-clay__questions-divider {
     margin-top: 16px;
     border: none;
-    border-top: 1px solid #EAE4DA;
+    border-top: 1px solid #E4DDD3;
     position: relative;
     z-index: 1;
   }
@@ -1131,7 +1130,7 @@ select option {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: #9CA3AF;
+    color: #8B8B8B;
     position: relative;
     z-index: 1;
   }
@@ -1147,7 +1146,7 @@ select option {
   }
   .faq-card-clay__questions-list li {
     font-size: 12.5px;
-    color: #4B5563;
+    color: #555555;
     line-height: 1.45;
     white-space: nowrap;
     overflow: hidden;
@@ -1178,10 +1177,10 @@ select option {
 
   /* ── Hover contrast boost (light mode) ── */
   .faq-card-clay:hover .faq-card-clay__title {
-    color: #111827;
+    color: #111111;
   }
   .faq-card-clay:hover .faq-card-clay__questions-list li {
-    color: #374151;
+    color: #333333;
     opacity: 0.9;
   }
 
@@ -1190,7 +1189,7 @@ select option {
     background: rgba(255, 255, 255, 0.055);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(34, 197, 94, 0.25);
+    border: 1px solid rgba(228, 207, 179, 0.25);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
   }
   [data-theme="dark"] .faq-card-clay::before {
@@ -1198,22 +1197,21 @@ select option {
   }
   [data-theme="dark"] .faq-card-clay:hover {
     background: rgba(255, 255, 255, 0.075);
-    border-color: rgba(34, 197, 94, 0.35);
+    border-color: rgba(228, 207, 179, 0.40);
     box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45),
-                0 0 1px rgba(34, 197, 94, 0.15);
+                0 0 1px rgba(228, 207, 179, 0.18);
   }
 
   /* SVG — environment-blended, consistent size.
-     Per-category recolor: --illu-hue shifts the purple source artwork
-     into the theme palette (emerald/gold/cyan); --illu-glow adds a
-     soft neon halo. Opacity lowered ~12% to reduce icon dominance. */
+     Per-category recolor: --illu-hue shifts the source artwork
+     into the theme palette; --illu-glow adds a soft sand halo. */
   [data-theme="dark"] .faq-card-clay__illustration {
     opacity: 0.70;
     filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.40))
             brightness(0.9)
             saturate(0.85)
             hue-rotate(var(--illu-hue, -8deg))
-            drop-shadow(0 0 9px var(--illu-glow, rgba(34, 197, 94, 0.14)));
+            drop-shadow(0 0 9px var(--illu-glow, rgba(228, 207, 179, 0.16)));
   }
   [data-theme="dark"] .faq-card-clay:hover .faq-card-clay__illustration {
     opacity: 0.82;
@@ -1221,19 +1219,19 @@ select option {
             brightness(0.95)
             saturate(0.88)
             hue-rotate(var(--illu-hue, -8deg))
-            drop-shadow(0 0 12px var(--illu-glow, rgba(34, 197, 94, 0.18)));
+            drop-shadow(0 0 12px var(--illu-glow, rgba(228, 207, 179, 0.20)));
   }
 
-  /* Text contrast — green-adapted tones */
+  /* Text contrast — sand-adapted tones */
   [data-theme="dark"] .faq-card-clay__count {
     background-color: rgba(255, 255, 255, 0.04);
     color: rgba(255, 255, 255, 0.38);
   }
   [data-theme="dark"] .faq-card-clay__title {
-    color: #E6F1EC;
+    color: #F2F2F2;
   }
   [data-theme="dark"] .faq-card-clay__desc {
-    color: #9FB3A8;
+    color: #B8B8B8;
   }
   [data-theme="dark"] .faq-card-clay__questions-divider {
     border-top-color: rgba(255, 255, 255, 0.035);
@@ -1242,16 +1240,16 @@ select option {
     color: rgba(255, 255, 255, 0.20);
   }
   [data-theme="dark"] .faq-card-clay__questions-list li {
-    color: #6B7D74;
+    color: #7A7A7A;
     opacity: 0.65;
   }
 
   /* Hover text — increase contrast */
   [data-theme="dark"] .faq-card-clay:hover .faq-card-clay__title {
-    color: #F1F5F0;
+    color: #F2F2F2;
   }
   [data-theme="dark"] .faq-card-clay:hover .faq-card-clay__questions-list li {
-    color: #9FB3A8;
+    color: #B8B8B8;
     opacity: 0.9;
   }
 
@@ -1290,13 +1288,13 @@ select option {
   }
   .faq-sort-bar__select:focus {
     outline: none;
-    border-color: rgb(var(--accent-rgb) / 0.35);
+    border-color: rgb(var(--accent-rgb) / 0.45);
   }
   [data-theme="dark"] .faq-sort-bar__count {
     color: rgba(255, 255, 255, 0.35);
   }
   [data-theme="dark"] .faq-sort-bar__select {
-    background: #0c1a16;
+    background: #131313;
     border-color: rgba(255, 255, 255, 0.06);
     color: rgba(255, 255, 255, 0.45);
   }
@@ -1326,7 +1324,7 @@ select option {
   /* Expanded — left accent + bg shift (#5) */
   .faq-item--expanded {
     background: #f9fafb;
-    border-left-color: rgba(16, 185, 129, 0.55);
+    border-left-color: rgba(214, 183, 143, 0.55);
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06),
                 0 2px 6px rgba(0, 0, 0, 0.03);
     border-color: rgba(0, 0, 0, 0.07);
@@ -1436,10 +1434,10 @@ select option {
   }
 
   /* ══════════════════════════════════════════════════
-     Dark mode — deep green environment
+     Dark mode — monochrome with warm sand accent
      ══════════════════════════════════════════════════ */
   [data-theme="dark"] .faq-item {
-    background: #081512;
+    background: #202020;
     border: 1px solid rgba(255, 255, 255, 0.05);
     border-left: 2px solid transparent;
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
@@ -1447,27 +1445,27 @@ select option {
 
   /* Dark hover (#4) */
   [data-theme="dark"] .faq-item:hover {
-    background: rgba(16, 185, 129, 0.04);
+    background: rgba(228, 207, 179, 0.04);
     border-color: rgba(255, 255, 255, 0.07);
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
   }
 
   /* Dark expanded (#5) */
   [data-theme="dark"] .faq-item--expanded {
-    background: #0b1f1a;
-    border-left-color: rgba(16, 185, 129, 0.45);
+    background: #262626;
+    border-left-color: rgba(228, 207, 179, 0.50);
     border-color: rgba(255, 255, 255, 0.06);
     box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55),
-                inset 0 0 20px rgba(16, 185, 129, 0.03);
+                inset 0 0 20px rgba(228, 207, 179, 0.04);
   }
   [data-theme="dark"] .faq-item--expanded:hover {
     transform: none;
-    background: #0b1f1a;
+    background: #262626;
   }
 
   /* Dark question text */
   [data-theme="dark"] .faq-item__question-text {
-    color: #E6F1EC;
+    color: #F2F2F2;
   }
 
   /* Dark chevron */
@@ -1478,7 +1476,7 @@ select option {
     color: rgba(255, 255, 255, 0.40);
   }
   [data-theme="dark"] .faq-item--expanded .faq-item__chevron {
-    color: #22C55E;
+    color: #E4CFB3;
   }
 
   /* Dark answer (#9) */
@@ -1619,7 +1617,7 @@ select option {
     left: 0;
     width: 100%;
     height: 8px;
-    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='8'%3E%3Cpath d='M0 6 Q30 0 60 6 Q90 12 120 6' stroke='%235fc585' stroke-width='2' fill='none' opacity='0.55'/%3E%3C/svg%3E") repeat-x;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='8'%3E%3Cpath d='M0 6 Q30 0 60 6 Q90 12 120 6' stroke='%23D6B78F' stroke-width='2' fill='none' opacity='0.55'/%3E%3C/svg%3E") repeat-x;
     background-size: 120px 8px;
   }
 
@@ -1640,7 +1638,7 @@ select option {
   }
 
   /* ═════════ Pill navigation link ═════════ */
-  /* Modernized for v1.66: solid sage pill on active (was just an
+  /* Modernized for v1.66: solid warm sand pill on active (was just an
      outline), smooth hover lift + tint, spring-y scale transition.
      Active uses the same accent color as the rest of the design
      system so the highlighted tab reads as a primary CTA.
@@ -2155,19 +2153,19 @@ select option {
     border-color: var(--danger-bg);
   }
   .admin-badge-admin {
-    background: rgba(139, 92, 246, 0.14);
-    color: #c4b5fd;
-    border-color: rgba(139, 92, 246, 0.25);
+    background: rgba(214, 183, 143, 0.20);   /* sand, deepest tone — admin */
+    color: #9C7E55;
+    border-color: rgba(214, 183, 143, 0.45);
   }
   .admin-badge-moderator {
-    background: rgba(34, 211, 238, 0.12);
-    color: #67e8f9;
-    border-color: rgba(34, 211, 238, 0.20);
+    background: rgba(214, 183, 143, 0.12);   /* sand, mid tone — moderator */
+    color: #B89564;
+    border-color: rgba(214, 183, 143, 0.30);
   }
   .admin-badge-user {
-    background: rgba(59, 130, 246, 0.12);
-    color: #93c5fd;
-    border-color: rgba(59, 130, 246, 0.20);
+    background: rgba(214, 183, 143, 0.08);   /* sand, lightest tone — user */
+    color: #C9A777;
+    border-color: rgba(214, 183, 143, 0.20);
   }
   .admin-badge-default {
     background: rgba(var(--border-rgb) / 0.4);
@@ -2179,9 +2177,9 @@ select option {
   :root .admin-badge-approved { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
   :root .admin-badge-pending  { background: #fffbeb; color: #92400e; border-color: #fde68a; }
   :root .admin-badge-rejected { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
-  :root .admin-badge-admin    { background: #f5f3ff; color: #5b21b6; border-color: #ddd6fe; }
-  :root .admin-badge-moderator{ background: #ecfeff; color: #155e75; border-color: #a5f3fc; }
-  :root .admin-badge-user     { background: #eff6ff; color: #1e40af; border-color: #bfdbfe; }
+  :root .admin-badge-admin    { background: rgba(214, 183, 143, 0.20); color: #6B5436; border-color: rgba(214, 183, 143, 0.45); }
+  :root .admin-badge-moderator{ background: rgba(214, 183, 143, 0.12); color: #8A6B43; border-color: rgba(214, 183, 143, 0.30); }
+  :root .admin-badge-user     { background: rgba(214, 183, 143, 0.08); color: #9C7E55; border-color: rgba(214, 183, 143, 0.20); }
   :root .admin-badge-default  { background: #f9fafb; color: #374151; border-color: #e5e7eb; }
 
   /* ═══════════════════════════════════════════════════════════════

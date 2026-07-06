@@ -68,7 +68,7 @@ interface CMSTimelineStep {
    Reusable Components
    ──────────────────────────────────────────────────────── */
 function ProgressBar({ percent, color = 'accent', delay = 0 }: { percent: number; color?: string; delay?: number }) {
-  const bg = color === 'green' ? 'bg-green-500' : color === 'amber' ? 'bg-amber-500' : 'bg-accent';
+  const bg = color === 'green' ? 'bg-accent/100' : color === 'amber' ? 'bg-amber-500' : 'bg-accent';
   return (
     <div className="w-full bg-border/40 rounded-full h-2 overflow-hidden">
       <motion.div
@@ -84,7 +84,7 @@ function StatusChip({ status }: { status: 'locked' | 'in-progress' | 'completed'
   const styles = {
     'locked': 'bg-ink/5 text-ink-faint border-ink/10',
     'in-progress': 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
-    'completed': 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20',
+    'completed': 'bg-accent/100/10 text-accent dark:text-accent border-accent/20',
   };
   const labels = { 'locked': 'Locked', 'in-progress': 'In Progress', 'completed': 'Completed' };
   return (
@@ -101,13 +101,13 @@ function CheckItem({ label, checked, onChange }: { label: string; checked: boole
     <button onClick={(e) => { e.stopPropagation(); onChange(); }} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 w-full text-left group/check bg-bg/40 hover:bg-bg/80 border border-border/50 rounded-xl p-4 transition-all hover:border-accent/40">
       <div className="flex items-start gap-4">
         <div className={`mt-0.5 w-6 h-6 rounded flex items-center justify-center border transition-all flex-shrink-0 ${
-          checked ? 'bg-green-500 border-green-500 text-white scale-100' : 'bg-transparent border-border group-hover/check:border-green-500 scale-95 group-hover/check:scale-100'
+          checked ? 'bg-accent/100 border-accent text-white scale-100' : 'bg-transparent border-border group-hover/check:border-accent scale-95 group-hover/check:scale-100'
         }`}>
           {checked && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>}
         </div>
         <div>
           <div className={`text-base font-medium transition-colors ${checked ? 'text-ink-soft line-through' : 'text-ink group-hover/check:text-accent'}`}>{label}</div>
-          <div className="text-sm text-ink-faint mt-1">Status: {checked ? <span className="text-green-500 font-medium">Completed</span> : <span className="text-amber-500 font-medium">Pending</span>}</div>
+          <div className="text-sm text-ink-faint mt-1">Status: {checked ? <span className="text-accent font-medium">Completed</span> : <span className="text-amber-500 font-medium">Pending</span>}</div>
         </div>
       </div>
     </button>
@@ -305,8 +305,8 @@ export default function ProjectTimelineTab() {
     extraBadge: user?.projectAssigned ? (
       <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold bg-accent/10 text-accent border border-accent/20">
         <span className="relative flex h-2 w-2">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" style={{ animationDuration: '2s' }}></span>
-          <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.6)]"></span>
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75" style={{ animationDuration: '2s' }}></span>
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-accent/100 shadow-[0_0_5px_rgba(34,197,94,0.6)]"></span>
         </span>
         HERO PROJECT
       </span>
@@ -433,7 +433,7 @@ export default function ProjectTimelineTab() {
             </div>
             <div>
               <div className="text-[10px] text-ink-faint uppercase font-bold tracking-wider mb-1">Timeline Status</div>
-              <div className="text-sm font-semibold text-green-500 mt-2">On Track</div>
+              <div className="text-sm font-semibold text-accent mt-2">On Track</div>
             </div>
             <div>
               <div className="text-[10px] text-ink-faint uppercase font-bold tracking-wider mb-1">Next Milestone</div>

@@ -42,7 +42,7 @@ export default function FreshnessBadge({
 
   if (isEvergreen) {
     return (
-      <span className={`inline-flex items-center gap-1 text-xs text-green-600 ${compact ? '' : 'font-medium'}`}>
+      <span className={`inline-flex items-center gap-1 text-xs text-accent ${compact ? '' : 'font-medium'}`}>
         ✓ Verified
       </span>
     );
@@ -59,7 +59,7 @@ export default function FreshnessBadge({
   }
 
   return (
-    <span className="inline-flex items-center gap-1 text-xs text-green-600">
+    <span className="inline-flex items-center gap-1 text-xs text-accent">
       ✓ Verified {days}d ago
     </span>
   );

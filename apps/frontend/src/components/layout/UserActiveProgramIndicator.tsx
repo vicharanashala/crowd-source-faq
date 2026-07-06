@@ -27,7 +27,7 @@ export default function UserActiveProgramIndicator(): React.ReactElement | null 
       className="inline-flex items-center gap-2 text-[11px] font-medium text-ink-faint bg-card/70 border border-border/60 rounded-full px-3 py-1 mb-4"
       data-testid="user-active-program-pill"
     >
-      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+      <span className="w-1.5 h-1.5 rounded-full bg-accent" />
       <span>Browsing program:</span>
       <span className="font-semibold text-ink">{currentBatch.name}</span>
       {currentBatch.isDefault && (

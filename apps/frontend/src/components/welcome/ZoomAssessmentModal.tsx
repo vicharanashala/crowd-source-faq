@@ -215,7 +215,7 @@ export default function ZoomAssessmentModal({ onClose }: ZoomAssessmentModalProp
             </div>
           ) : status === 'passed' ? (
             <div className="text-center p-[32px] overflow-y-auto flex-1 flex flex-col justify-center items-center gap-[20px]">
-              <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto flex-shrink-0">
+              <div className="w-16 h-16 bg-accent/15 text-accent rounded-full flex items-center justify-center mx-auto flex-shrink-0">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
               </div>
               <div className="space-y-2">

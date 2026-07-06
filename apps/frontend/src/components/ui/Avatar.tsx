@@ -21,7 +21,7 @@ const palette = [
   'bg-warning-light text-warning',
   'bg-purple-100 text-purple-700',
   'bg-pink-100 text-pink-700',
-  'bg-teal-100 text-teal-700',
+  'bg-accent/15 text-accent',
 ];
 
 export default function Avatar({ name, src, size = 'sm', className = '' }: AvatarProps) {
