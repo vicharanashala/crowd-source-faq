@@ -77,7 +77,7 @@ interface ListResponse {
 function StatusBadge({ status }: { status: string }): React.ReactElement {
   const styles: Record<string, string> = {
     Pending: 'bg-warning/10 text-warning',
-    'In Review': 'bg-blue-500/10 text-blue-400',
+    'In Review': 'bg-accent/10 text-accent',
     open: 'bg-warning/10 text-warning',
     Resolved: 'bg-success/10 text-success',
     Rejected: 'bg-danger/10 text-danger',

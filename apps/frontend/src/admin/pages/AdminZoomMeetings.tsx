@@ -45,7 +45,7 @@ function formatDuration(minutes: number): string {
 function StatusBadge({ status }: { status: ZoomMeeting['status'] }) {
   const styles: Record<ZoomMeeting['status'], string> = {
     pending:    'bg-warning/10 text-warning',
-    processing: 'bg-blue-500/10 text-blue-400',
+    processing: 'bg-accent/10 text-accent',
     completed:  'bg-success/10 text-success',
     failed:     'bg-danger/10 text-danger',
   };
@@ -242,14 +242,14 @@ export default function AdminZoomMeetings() {
 
         {/* Connect banner */}
         {zoomStatus && zoomStatus.hasCredentials && !zoomStatus.connected && (
-          <div className="flex items-start gap-3 px-4 py-3 bg-blue-500/10 border border-blue-500/20 rounded-xl">
+          <div className="flex items-start gap-3 px-4 py-3 bg-accent/10 border border-accent/20 rounded-xl">
             <svg className="flex-shrink-0 mt-0.5" width="16" height="16" viewBox="0 0 24 24" fill="#2D8CFF" stroke="#2D8CFF">
               <path d="M15.5 8.5l5-3v9l-5-3v-3z" fill="#2D8CFF"/>
               <rect x="2" y="6" width="11" height="12" rx="2" stroke="#2D8CFF" strokeWidth="1.5" fill="none"/>
             </svg>
             <div className="flex-1">
-              <p className="text-sm font-semibold text-blue-400">Connect an admin Zoom account</p>
-              <p className="text-xs text-blue-400/80 mt-0.5">
+              <p className="text-sm font-semibold text-accent">Connect an admin Zoom account</p>
+              <p className="text-xs text-accent/80 mt-0.5">
                 Click below to authorize this portal to read your meeting recordings. Recordings will be ingested automatically once the webhook is registered with Zoom.
               </p>
               {zoomError && <p className="text-xs text-danger mt-1.5 font-medium">{zoomError}</p>}
@@ -294,7 +294,7 @@ export default function AdminZoomMeetings() {
           </div>
           <div className="admin-stat-mini p-4">
             <p className="text-xs text-ink-faint font-medium">Processing</p>
-            <p className="text-2xl font-bold text-blue-400 mt-1">{stats.processing}</p>
+            <p className="text-2xl font-bold text-accent mt-1">{stats.processing}</p>
           </div>
           <div className="admin-stat-mini p-4">
             <p className="text-xs text-ink-faint font-medium">Completed</p>

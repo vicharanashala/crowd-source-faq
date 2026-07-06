@@ -131,7 +131,7 @@ export default function AdminOnboardingTab() {
                 </td>
                 <td className="px-6 py-4">
                   {u.orientationCompleted ? (
-                    <span className="text-green-500 font-medium">Completed</span>
+                    <span className="text-accent font-medium">Completed</span>
                   ) : (
                     <span className="text-yellow-500 font-medium">Pending</span>
                   )}
@@ -142,7 +142,7 @@ export default function AdminOnboardingTab() {
                   {u.projectSelectionLocked ? (
                     <span className="px-2 py-1 bg-red-500/10 text-red-500 rounded text-xs font-semibold">Locked</span>
                   ) : (
-                    <span className="px-2 py-1 bg-green-500/10 text-green-500 rounded text-xs font-semibold">Unlocked</span>
+                    <span className="px-2 py-1 bg-accent/10 text-accent rounded text-xs font-semibold">Unlocked</span>
                   )}
                 </td>
                 <td className="px-6 py-4">

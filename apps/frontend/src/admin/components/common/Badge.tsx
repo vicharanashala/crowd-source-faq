@@ -20,9 +20,9 @@ const DOT_COLOR: Record<BadgeVariant, string> = {
   approved:  'bg-success',
   pending:   'bg-warning',
   rejected:  'bg-danger',
-  admin:     'bg-[#a78bfa]',
-  user:      'bg-[#93c5fd]',
-  moderator: 'bg-[#67e8f9]',
+  admin:     'bg-accent',     /* sand, deepest tone */
+  user:      'bg-[#D6B78F]',  /* sand, lightest tone — categorical distinction by lightness */
+  moderator: 'bg-[#B89564]',  /* sand, mid tone */
   default:   'bg-ink-faint',
 };
 

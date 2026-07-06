@@ -112,7 +112,7 @@ function msToInput(ms: number): string {
 
 function StatusDot({ p }: { p: ScheduledProcess }): React.ReactElement {
   if (p.isRunning) {
-    return <span className="inline-block w-2 h-2 rounded-full bg-blue-400 animate-pulse" title="running now" />;
+    return <span className="inline-block w-2 h-2 rounded-full bg-accent animate-pulse" title="running now" />;
   }
   if (p.lastError && p.errorCount > 0) {
     return <span className="inline-block w-2 h-2 rounded-full bg-red-400" title="last run errored" />;
@@ -120,7 +120,7 @@ function StatusDot({ p }: { p: ScheduledProcess }): React.ReactElement {
   if (!p.isActive) {
     return <span className="inline-block w-2 h-2 rounded-full bg-gray-400" title="paused or disabled" />;
   }
-  return <span className="inline-block w-2 h-2 rounded-full bg-emerald-400" title="healthy" />;
+  return <span className="inline-block w-2 h-2 rounded-full bg-accent" title="healthy" />;
 }
 
 function KindBadge({ kind }: { kind: ScheduledProcess['kind'] }): React.ReactElement {
@@ -278,7 +278,7 @@ export default function AdminSchedule(): React.ReactElement {
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <SummaryStat label="Total" value={data?.summary.total ?? 0} accent="text-ink" />
         <SummaryStat label="Cron jobs" value={data?.summary.cron ?? 0} accent="text-accent" />
-        <SummaryStat label="Active" value={data?.summary.active ?? 0} accent="text-emerald-400" />
+        <SummaryStat label="Active" value={data?.summary.active ?? 0} accent="text-accent" />
         <SummaryStat label="Erroring" value={data?.summary.erroring ?? 0} accent="text-red-400" />
         <SummaryStat label="Overridden" value={data?.summary.overridden ?? 0} accent="text-warning" />
       </div>
@@ -363,7 +363,7 @@ export default function AdminSchedule(): React.ReactElement {
                         onClick={() => toggleEnabled(p.id, p.isActive)}
                         title={p.isActive ? 'Click to pause' : 'Click to resume'}
                         className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                          p.isActive ? 'bg-emerald-500' : 'bg-border-medium'
+                          p.isActive ? 'bg-accent' : 'bg-border-medium'
                         }`}
                       >
                         <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform ${
@@ -551,7 +551,7 @@ function HistoryDrawer({ jobId, onClose }: { jobId: string; onClose: () => void 
 
   const statusColor = (s: RunRecord['status']): string => {
     switch (s) {
-      case 'success': return 'text-emerald-400';
+      case 'success': return 'text-accent';
       case 'error': return 'text-red-400';
       case 'skipped': return 'text-ink-faint';
     }

@@ -159,7 +159,7 @@ export default function AdminTimelineTab() {
                 <div className="flex items-center gap-3">
                   <h3 className="font-medium text-ink">{p.name}</h3>
                   <span className={`px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider rounded-full ${
-                    p.status === 'completed' ? 'bg-green-500/10 text-green-600' :
+                    p.status === 'completed' ? 'bg-accent/10 text-accent' :
                     p.status === 'current' ? 'bg-accent/10 text-accent' :
                     'bg-yellow-500/10 text-yellow-600'
                   }`}>

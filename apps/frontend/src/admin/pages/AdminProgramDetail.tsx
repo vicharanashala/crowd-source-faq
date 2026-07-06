@@ -174,7 +174,7 @@ export default function AdminProgramDetail(): React.ReactElement {
                 </span>
               )}
               <span className={`text-[10px] font-medium uppercase tracking-wider px-1.5 py-0.5 rounded ${
-                info.status === 'active'    ? 'bg-emerald-100 text-emerald-700' :
+                info.status === 'active'    ? 'bg-accent/15 text-accent' :
                 info.status === 'draft'     ? 'bg-mist text-ink-soft' :
                 info.status === 'completed' ? 'bg-amber-100 text-amber-700' :
                                               'bg-rose-100 text-rose-700'

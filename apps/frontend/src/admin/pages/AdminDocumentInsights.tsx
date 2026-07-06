@@ -52,10 +52,10 @@ function timeAgo(d: string): string {
 
 function TypeBadge({ type }: { type: DocumentInsight['type'] }) {
   const styles: Record<DocumentInsight['type'], string> = {
-    FAQ: 'bg-blue-500/10 text-blue-400',
-    Announcement: 'bg-purple-500/10 text-purple-400',
+    FAQ: 'bg-accent/10 text-accent',
+    Announcement: 'bg-accent/10 text-accent',
     Policy: 'bg-amber-500/10 text-amber-400',
-    HowTo: 'bg-emerald-500/10 text-emerald-400',
+    HowTo: 'bg-accent/10 text-accent',
   };
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold ${styles[type]}`}>
@@ -69,7 +69,7 @@ function StatusBadge({ status }: { status: DocumentInsight['status'] }) {
     pending_review: 'bg-warning/10 text-warning',
     approved:       'bg-success/10 text-success',
     rejected:       'bg-danger/10 text-danger',
-    promoted:       'bg-blue-400/10 text-blue-400',
+    promoted:       'bg-accent/10 text-accent',
   };
   const labels: Record<DocumentInsight['status'], string> = {
     pending_review: 'Pending Review',
@@ -258,7 +258,7 @@ export default function AdminDocumentInsights() {
                 <p className="text-[11px] text-ink-faint italic">↳ {i.promotionReason}</p>
               )}
               {i.publishedFaqId && (
-                <p className="text-[11px] text-blue-400">→ FAQ <code className="font-mono">{i.publishedFaqId}</code></p>
+                <p className="text-[11px] text-accent">→ FAQ <code className="font-mono">{i.publishedFaqId}</code></p>
               )}
 
               {i.status === 'pending_review' && (

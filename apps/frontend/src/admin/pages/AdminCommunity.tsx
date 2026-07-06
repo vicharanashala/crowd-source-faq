@@ -116,7 +116,7 @@ export default function AdminCommunity() {
                 className="w-8 h-8 rounded-lg flex items-center justify-center mb-2"
                 style={{
                   backgroundColor: isActive ? 'rgba(16,185,129,0.1)' : 'var(--bg-mist, #f5f5f7)',
-                  color: isActive ? theme.ctaColorDark || '#10b981' : 'var(--text-ink-soft, #515154)',
+                  color: isActive ? theme.ctaColorDark || 'rgb(var(--accent-rgb))' : 'var(--text-ink-soft, #515154)',
                 }}
               >
                 {icon}

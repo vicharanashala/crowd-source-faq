@@ -12,10 +12,10 @@ interface UsersApiResponse { users: AdminUser[]; total: number; pages: number; }
 const TIER_COLORS: Record<string, string> = {
   newcomer:         'bg-border/40 text-ink-faint',
   contributor:      'bg-warning/10 text-warning',
-  helper:           'bg-blue-500/10 text-blue-400',
+  helper:           'bg-accent/10 text-accent',
   expert:           'bg-yellow-400/10 text-yellow-400',
   champion:         'bg-accent/10 text-accent',
-  knowledge_master: 'bg-purple-500/10 text-purple-400',
+  knowledge_master: 'bg-accent/10 text-accent',
 };
 const TIER_ICONS: Record<string, string> = {
   newcomer:         '🌱',

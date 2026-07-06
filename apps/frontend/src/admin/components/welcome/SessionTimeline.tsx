@@ -97,8 +97,8 @@ export default function SessionTimeline({ sessionId, isActive, onActivate, refre
           </button>
         )}
         {isActive && (
-          <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full bg-green-50 text-green-700 border border-green-200">
-            <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+          <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full bg-accent/10 text-accent border border-accent/30">
+            <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
             Currently active
           </span>
         )}
@@ -195,8 +195,8 @@ function describe(entry: ActivityEntry): MetaOut {
       return {
         label: 'Activated',
         description: 'This session became the active onboarding assessment.',
-        labelClass: 'text-green-700',
-        dot: 'bg-green-500',
+        labelClass: 'text-accent',
+        dot: 'bg-accent',
       };
     case 'activate':
       return {

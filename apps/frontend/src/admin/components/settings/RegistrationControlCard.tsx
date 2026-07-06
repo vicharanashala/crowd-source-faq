@@ -239,7 +239,7 @@ export default function RegistrationControlCard({ onSaved }: Props): React.React
             modeBanner.tone === 'closed'
               ? 'bg-red-50 border-red-200 text-red-900'
               : modeBanner.tone === 'open'
-                ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                ? 'bg-accent/10 border-accent/30 text-accent'
                 : 'bg-amber-50 border-amber-200 text-amber-900',
           ].join(' ')}
           aria-live="polite"
@@ -266,7 +266,7 @@ export default function RegistrationControlCard({ onSaved }: Props): React.React
             onClick={() => toggleEnabled(!enabled)}
             className={[
               'relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors',
-              enabled ? 'bg-emerald-500' : 'bg-border',
+              enabled ? 'bg-accent' : 'bg-border',
               loading || togglingEnabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer',
             ].join(' ')}
           >
@@ -309,7 +309,7 @@ export default function RegistrationControlCard({ onSaved }: Props): React.React
             onClick={() => toggleOpenForAll(!openForAll)}
             className={[
               'relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors',
-              openForAll ? 'bg-emerald-500' : 'bg-border',
+              openForAll ? 'bg-accent' : 'bg-border',
               openToggleDisabled || togglingOpen
                 ? 'opacity-60 cursor-not-allowed'
                 : 'cursor-pointer',

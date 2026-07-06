@@ -64,7 +64,7 @@ function FeatureFlagRow({
         </div>
         <p className="text-[11px] text-ink-soft">{desc}</p>
         <p className="text-[10px] text-ink-faint mt-1">
-          Currently: <span className={row.enabled ? 'text-emerald-700 font-semibold' : 'text-ink-soft font-semibold'}>
+          Currently: <span className={row.enabled ? 'text-accent font-semibold' : 'text-ink-soft font-semibold'}>
             {row.enabled ? 'Enabled' : 'Disabled'}
           </span>
           {' · '}
@@ -188,7 +188,7 @@ export default function ProgramFeatureFlagsTab({ programId }: { programId: strin
           className={`px-4 py-2.5 rounded-lg text-xs font-medium border ${
             toast.type === 'error'
               ? 'bg-rose-50 text-rose-700 border-rose-200'
-              : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+              : 'bg-accent/10 text-accent border-accent/30'
           }`}
         >
           {toast.msg}

@@ -26,7 +26,7 @@ const PROVIDER_META = {
     defaultModel: 'claude-sonnet-4-20250514',
     defaultBaseURL: 'https://api.anthropic.com/v1',
     docsUrl: 'https://console.anthropic.com/settings/keys',
-    badgeColor: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+    badgeColor: 'bg-accent/10 text-accent border-accent/20',
     suggestedModels: ['claude-3-5-sonnet-latest', 'claude-3-5-haiku-latest', 'claude-3-opus-20240229', 'claude-sonnet-4-20250514']
   },
   openai:    {
@@ -53,7 +53,7 @@ const PROVIDER_META = {
     defaultModel: 'MiniMax-Text-01',
     defaultBaseURL: 'https://api.minimax.io/v1',
     docsUrl: 'https://platform.minimax.io',
-    badgeColor: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+    badgeColor: 'bg-accent/10 text-accent border-accent/20',
     suggestedModels: ['MiniMax-Text-01', 'abab6.5g', 'abab6.5-chat']
   },
   gemini:    {
@@ -62,7 +62,7 @@ const PROVIDER_META = {
     defaultModel: 'gemini-1.5-flash',
     defaultBaseURL: 'https://generativelanguage.googleapis.com/v1beta/openai',
     docsUrl: 'https://aistudio.google.com/app/apikey',
-    badgeColor: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
+    badgeColor: 'bg-accent/10 text-accent border-accent/20',
     suggestedModels: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-1.5-flash', 'gemini-1.5-pro']
   },
   custom:    {
@@ -384,7 +384,7 @@ export default function AdminAISettings() {
           </span>
         )}
         {activeBatchId && hasOverride && (
-          <span className="text-[10px] font-medium uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-2 py-0.5">
+          <span className="text-[10px] font-medium uppercase tracking-wider text-accent bg-accent/10 border border-accent/30 rounded-md px-2 py-0.5">
             ✓ Per-program override active
           </span>
         )}
@@ -508,8 +508,8 @@ export default function AdminAISettings() {
               <p className="text-xs text-ink-faint mt-0.5">Manage semantic vector generation settings for search and duplicate detection.</p>
             </div>
             {config?.embedding?.hasKey ? (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />Configured
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border bg-accent/10 text-accent border-accent/20">
+                <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />Configured
               </span>
             ) : (
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border bg-amber-500/10 text-amber-400 border-amber-500/20">

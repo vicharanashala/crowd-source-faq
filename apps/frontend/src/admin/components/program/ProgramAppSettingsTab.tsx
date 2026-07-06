@@ -215,7 +215,7 @@ export default function ProgramAppSettingsTab({ programId }: { programId: string
           className={`px-4 py-2.5 rounded-lg text-xs font-medium border ${
             toast.type === 'error'
               ? 'bg-rose-50 text-rose-700 border-rose-200'
-              : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+              : 'bg-accent/10 text-accent border-accent/30'
           }`}
         >
           {toast.msg}
@@ -234,7 +234,7 @@ export default function ProgramAppSettingsTab({ programId }: { programId: string
           </div>
           <span className={`text-[10px] font-medium uppercase tracking-wider rounded-md px-2 py-0.5 border ${
             hasAnyOverride
-              ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+              ? 'text-accent bg-accent/10 border-accent/30'
               : 'text-ink-faint bg-mist border-border/60'
           }`}>
             {hasAnyOverride ? '✓ Per-program overrides active' : 'Falling back to global'}

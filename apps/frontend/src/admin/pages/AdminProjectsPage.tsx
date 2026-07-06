@@ -211,7 +211,7 @@ export default function AdminProjectsPage() {
                   </td>
                   <td className="px-6 py-4">
                     {p.status === 'active' ? (
-                      <span className="px-2 py-1 bg-green-500/10 text-green-500 rounded text-[11px] font-semibold tracking-wider uppercase">Active</span>
+                      <span className="px-2 py-1 bg-accent/10 text-accent rounded text-[11px] font-semibold tracking-wider uppercase">Active</span>
                     ) : (
                       <span className="px-2 py-1 bg-ink/10 text-ink-soft rounded text-[11px] font-semibold tracking-wider uppercase">Inactive</span>
                     )}

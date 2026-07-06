@@ -372,7 +372,7 @@ export default function ProgramSupportCategoriesTab({ programId }: { programId: 
           className={`px-4 py-2.5 rounded-lg text-xs font-medium border ${
             toast.type === 'error'
               ? 'bg-rose-50 text-rose-700 border-rose-200'
-              : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+              : 'bg-accent/10 text-accent border-accent/30'
           }`}
         >
           {toast.msg}

@@ -28,7 +28,7 @@ export default function ResolutionChart({ approved = 0, pending = 0, rejected = 
       </div>
       <div className="flex gap-4 text-xs">
         <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-emerald-400" />
+          <span className="w-2 h-2 rounded-full bg-accent" />
           <span className="text-white/40">{approved} approved</span>
         </div>
         <div className="flex items-center gap-1.5">

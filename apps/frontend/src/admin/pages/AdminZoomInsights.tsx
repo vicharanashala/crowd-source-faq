@@ -32,8 +32,8 @@ function TypeBadge({ type }: { type: ZoomInsight['type'] }) {
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold ${
       type === 'FAQ'
-        ? 'bg-blue-500/10 text-blue-400'
-        : 'bg-purple-500/10 text-purple-400'
+        ? 'bg-accent/10 text-accent'
+        : 'bg-accent/10 text-accent'
     }`}>
       {type}
     </span>
@@ -60,7 +60,7 @@ function StatusBadge({ status }: { status: ZoomInsight['status'] }) {
 
 function ConfidenceBar({ score }: { score: number }) {
   if (!score || score < 30) return null;
-  const color = score >= 80 ? 'bg-success' : score >= 60 ? 'bg-blue-400' : 'bg-warning';
+  const color = score >= 80 ? 'bg-success' : score >= 60 ? 'bg-accent' : 'bg-warning';
   return (
     <div className="inline-flex items-center gap-1.5" title={`AI confidence: ${Math.round(score)}%`}>
       <div className="h-1 w-12 bg-border rounded-full overflow-hidden">
@@ -304,7 +304,7 @@ export default function AdminZoomInsights() {
                     <button
                       onClick={() => handleConvertToFAQ(insight._id)}
                       disabled={actionLoading === insight._id}
-                      className="text-xs px-3 py-1.5 rounded-md font-medium text-white bg-blue-500 hover:bg-blue-400 disabled:opacity-50 transition-colors"
+                      className="text-xs px-3 py-1.5 rounded-md font-medium text-white bg-accent hover:bg-accent disabled:opacity-50 transition-colors"
                     >
                       Publish as FAQ
                     </button>

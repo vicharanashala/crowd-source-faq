@@ -138,7 +138,7 @@ function SortableStepCard({
             <span className="px-1.5 py-0.5 text-[8px] uppercase font-bold tracking-widest bg-yellow-500/10 text-yellow-600 rounded">Locked</span>
           )}
           <span className={`px-1.5 py-0.5 text-[8px] uppercase font-bold tracking-widest rounded ${
-            step.status === 'active' ? 'bg-green-500/10 text-green-500' : 'bg-ink/10 text-ink-faint'
+            step.status === 'active' ? 'bg-accent/10 text-accent' : 'bg-ink/10 text-ink-faint'
           }`}>{step.status}</span>
         </div>
         <p className="text-xs text-ink-faint truncate">{step.description || 'No description'}</p>
