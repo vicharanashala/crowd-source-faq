@@ -13,7 +13,10 @@ export type NotificationType =
   | 'downvote'
   | 'accepted_answer'
   // ── Session Support (experimental — additively added) ─────────
-  | 'support';           // a session-support ticket the user owns was updated
+  | 'support'           // a session-support ticket the user owns was updated
+  // v1.72 — FAQ bookmark notifications
+  | 'faq_bookmarked'    // user bookmarked an FAQ
+  | 'faq_updated';      // a bookmarked FAQ was updated by admin/mod
 
 export interface INotification extends Document {
   recipient: Types.ObjectId;
@@ -45,6 +48,8 @@ const notificationSchema = new MongooseSchema(
         'upvote', 'downvote', 'accepted_answer',
         // ── Session Support (experimental) ──────────────────────
         'support',
+        // v1.72 — FAQ bookmark notifications
+        'faq_bookmarked', 'faq_updated',
       ] as NotificationType[],
       required: true,
     },

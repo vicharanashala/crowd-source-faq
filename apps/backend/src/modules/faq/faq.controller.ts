@@ -15,6 +15,7 @@ import { sanitizeHtml } from '../../utils/http/sanitize.js';
 import Batch from '../program/batch.model.js';
 import { invalidatePublicCaches } from './public-faq.controller.js';
 import { readSetting } from '../program/app-setting.model.js';
+import { notifyFaqBookmarkers } from './faqBookmarkNotifier.js';
 // v1.69 — Phase 3a: every public read in this file funnels its
 // Mongoose filter through withProgramScope. Single tenant callers
 // (no batchId) keep working until the rollout flips required=true.
@@ -457,6 +458,23 @@ export const updateFAQ = async (req: Request<{ id: string }>, res: Response): Pr
         // Best-effort — log but don't fail the FAQ edit.
         // eslint-disable-next-line no-console
         console.warn(`[updateFAQ] pendingReviews flag failed: ${err.message}`);
+      });
+    }
+
+    // v1.72 — Notify bookmarked users when the FAQ content actually changed.
+    //
+    // Only fire when one of {question, answer, category} changed in value AND a
+    // request field was provided — guards against no-op re-saves spamming
+    // every bookmarker (B2). Status→approved is a content materialisation,
+    // not a content edit, so it intentionally does NOT notify.
+    const contentChanged =
+      (question !== undefined && faq.isModified('question')) ||
+      (answer   !== undefined && faq.isModified('answer'))   ||
+      (category !== undefined && faq.isModified('category'));
+    if (contentChanged) {
+      // Background fan-out — does not block the response.
+      notifyFaqBookmarkers({ faqId: faq._id }).catch((err: unknown) => {
+        adminLog.warn(`[updateFAQ] fan-out kickoff failed: ${(err as Error).message}`);
       });
     }
 

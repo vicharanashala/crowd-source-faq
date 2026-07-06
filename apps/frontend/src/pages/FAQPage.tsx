@@ -31,6 +31,7 @@ import SearchDropdown from '../components/faq/SearchDropdown';
 import SearchFeedback from '../components/faq/SearchFeedback';
 import QuestionList from '../components/faq/QuestionList';
 import QuestionDetail from '../components/faq/QuestionDetail';
+import TrendingNow from '../components/faq/TrendingNow';
 import CTA from '../components/ui/CTA';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -575,6 +576,11 @@ export default function FAQPage() {
                   </div>
                 );
               })}
+            </div>
+
+            {/* Trending Now */}
+            <div className="mt-10">
+              <TrendingNow />
             </div>
 
             {/* CTA bottom section */}

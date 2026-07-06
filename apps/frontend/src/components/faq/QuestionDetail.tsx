@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import api from '../../utils/api';
 import { FAQItem, getQuestionTitle, getAnswerText, formatDate, getCategoryIcon, formatCategoryName, TrustBadge } from './faqUtils';
 import ReportFAQButton from './ReportFAQButton';
-import FreshnessBadge from '../faq/FreshnessBadge';
+import FreshnessBadge from './FreshnessBadge';
+import RelatedFaqs from './RelatedFaqs';
+import { useBatch } from '../../context/BatchContext';
 
 interface QuestionDetailProps {
   item: FAQItem;
@@ -11,13 +14,46 @@ interface QuestionDetailProps {
   backLabel?: string;
 }
 
+const STOPWORDS = new Set([
+  'this','that','these','those','with','from','have','has','had','been',
+  'being','will','would','could','should','their','there','where','when',
+  'what','which','your','also','more','some','into','out','about','than',
+  'then','only','other','some','such','very','just','like','over','after',
+  'before','between','under','above','through','during','each','every',
+  'both','most','once','here','where','while','same','than','been','being',
+  'does','doing','done','make','made','take','took','give','gave','find',
+  'know','think','seem','feel','become','keep','let','put','call','used',
+]);
+
+function getOrCreateSessionId(): string {
+  const stored = sessionStorage.getItem('yaksha_faq_session');
+  if (stored && stored.length >= 4) return stored;
+  const sid = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  sessionStorage.setItem('yaksha_faq_session', sid);
+  return sid;
+}
+
 export default function QuestionDetail({ item, relatedItems, onBack, onSelectRelated, backLabel }: QuestionDetailProps) {
+  const { currentBatch } = useBatch();
+  const batchId: string | null = currentBatch?._id ?? null;
+
+  // v1.72 — fire-and-forget track-view so Popular FAQs ranking actually works.
+  // Backend deduplicates within VIEW_DEDUP_WINDOW_MS (30 min) per (guestId, faqId)
+  // so back/forward navigation won't inflate counts. batchId is required by the
+  // backend (400 if missing); silently skip if no program is selected.
+  useEffect(() => {
+    if (!item._id || !batchId) return;
+    const faqId: string = item._id;
+    const sessionId: string = getOrCreateSessionId();
+    api.post('/public/track-view', { faqId, sessionId, batchId }).catch(() => {});
+  }, [item._id, batchId]);
+
   const title = getQuestionTitle(item);
   const prefix = item.questionNumber ? `${item.questionNumber}. ` : '';
   const answer = getAnswerText(item);
-  const metaDate = formatDate(item?.updatedAt || item?.createdAt);
-  const sourceLabel = item?.source ? (item.source === 'faq' ? 'FAQ' : 'Community') : '';
-  const trustLevel = item?.trustLevel;
+  const metaDate = formatDate(item.updatedAt || item.createdAt);
+  const sourceLabel = item.source === 'faq' ? 'FAQ' : item.source === 'community' ? 'Community' : '';
+  const trustLevel = item.trustLevel;
   const highlight = answer ? answer.split('. ').slice(0, 1).join('. ') : '';
 
   return (
@@ -27,9 +63,9 @@ export default function QuestionDetail({ item, relatedItems, onBack, onSelectRel
           <p className="text-xs font-semibold text-ink-faint uppercase tracking-wide">Category</p>
           <div className="mt-3 flex items-center gap-2 text-sm text-ink">
             <span className="w-8 h-8 rounded-xl bg-mist flex items-center justify-center text-ink-faint">
-              {getCategoryIcon(item?.category || '')}
+              {getCategoryIcon(item.category || '')}
             </span>
-            <span>{item?.categoryNumber ? `${item.categoryNumber}. ` : ''}{formatCategoryName(item?.category || 'General')}</span>
+            <span>{item.categoryNumber ? `${item.categoryNumber}. ` : ''}{formatCategoryName(item.category || 'General')}</span>
           </div>
         </div>
 
@@ -72,7 +108,7 @@ export default function QuestionDetail({ item, relatedItems, onBack, onSelectRel
           {metaDate && (
             <span className="text-[11px] text-ink-faint">Updated {metaDate}</span>
           )}
-          {item?.source === 'faq' && (
+          {item.source === 'faq' && (
             <FreshnessBadge
               reviewStatus={item.reviewStatus}
               lastVerifiedDate={item.lastVerifiedDate}
@@ -119,6 +155,13 @@ export default function QuestionDetail({ item, relatedItems, onBack, onSelectRel
             </div>
           </div>
         )}
+
+        {/* Related FAQs — "People Also Ask" */}
+        <RelatedFaqs
+          currentFaqId={item._id}
+          currentCategory={item.category || ''}
+          keywords={answer ? answer.toLowerCase().match(/\b[a-z]{4,}\b/g)?.filter(w => !STOPWORDS.has(w)) ?? [] : []}
+        />
 
         {/* Report FAQ */}
         <ReportFAQButton item={item} />

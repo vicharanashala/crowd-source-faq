@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { getAllFAQs, getFAQById, getRecentFAQs, createFAQ, updateFAQ, deleteFAQ, checkFAQMatch, getPaginatedFAQs, submitFeedback, reportFAQ, getFAQHistory, createFAQSuggestion, getFAQCategories } from './faq.controller.js';
+import { getFaqBookmarks, toggleFaqBookmark } from './faqBookmark.controller.js';
 import { flagFAQ, voteReview } from './freshness.controller.js';
 import { protect, authorize } from '../../middleware/auth.js';
 import { validateBody, createFAQSchema, updateFAQSchema, flagFAQSchema, voteReviewSchema } from '../../utils/auth/validation.js';
@@ -22,6 +23,9 @@ router.get('/categories', getFAQCategories);
 
 // POST /api/faq/check-match — Check if a question already exists in the FAQ (before posting on community)
 router.post('/check-match', protect, checkFAQMatch);
+
+// GET /api/faq/bookmarks — list current user's bookmarked FAQs (protected)
+router.get('/bookmarks', protect, getFaqBookmarks);
 
 // GET /api/faq/:id — Fetch a single FAQ by ID (public)
 router.get('/:id', getFAQById);
@@ -52,5 +56,9 @@ router.post('/:id/vote-review', protect, validateBody(voteReviewSchema), voteRev
 
 // POST /api/faq/:id/suggest — Submit a better answer suggestion for an FAQ (any logged-in user)
 router.post('/:id/suggest', protect, createFAQSuggestion);
+
+// POST /api/faq/:id/bookmark — Toggle FAQ bookmark on/off (any logged-in user)
+// Registered before /:id so the more-specific path is matched first.
+router.post('/:id/bookmark', protect, toggleFaqBookmark);
 
 export default router;

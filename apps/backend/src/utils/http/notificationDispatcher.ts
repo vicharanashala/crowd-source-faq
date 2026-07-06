@@ -77,6 +77,21 @@ const notificationTextBank: Record<DispatchEventType, string[]> = {
     '💡 Pro tip: a matching FAQ is sitting in the knowledge base.',
     '💡 Quick match: we found an existing FAQ that covers your topic.',
   ],
+  // v1.72 — FAQ bookmark notifications
+  faq_bookmarked: [
+    "🔖 FAQ bookmarked. You'll be notified when this answer gets updated.",
+    "🔖 Saved! We'll ping you if this FAQ changes.",
+    "🔖 Bookmarked. We'll let you know when this FAQ is updated.",
+    "🔖 Done. You're now tracking this FAQ for updates.",
+    "🔖 Pinned. We'll notify you the moment this answer changes.",
+  ],
+  faq_updated: [
+    "🔄 Heads up — an FAQ you're tracking just got updated.",
+    "🔄 Good catch — a bookmarked FAQ has new information.",
+    "🔄 Update alert: an FAQ you follow has changed.",
+    "🔄 Change detected in your tracked FAQ — tap to review.",
+    "🔄 An FAQ you bookmarked was just updated. Review it here.",
+  ],
 };
 
 // ─── Dispatcher ──────────────────────────────────────────────────────────

@@ -93,6 +93,8 @@ export interface IUser extends Document {
   totpSecret?: string; // AES-256-GCM encrypted
   // Bookmarked community posts — NOT used for reputation scoring
   bookmarks: MongooseSchema.Types.ObjectId[];
+  // v1.72 — FAQ bookmarks (separate from community post bookmarks)
+  faqBookmarks: MongooseSchema.Types.ObjectId[];
   // Denormalized counts for leaderboard trust score (updated on write, not computed per-request)
   acceptedAnswers: number;
   faqContributions: number;
@@ -226,6 +228,9 @@ const userSchema = new MongooseSchema<IUser>(
     // which Mongo happily accepted but broke
     // `find({ bookmarks: { $size: N } })` (silently matched 0).
     bookmarks: [{ type: MongooseSchema.Types.ObjectId, ref: 'CommunityPost' }],
+    // v1.72 — FAQ bookmarks (separate from community post bookmarks).
+    // Users bookmark FAQs to track; they receive a notification when the FAQ is updated.
+    faqBookmarks: [{ type: MongooseSchema.Types.ObjectId, ref: 'FAQ' }],
     // Denormalized counts for leaderboard trust score (updated on write, not computed per-request)
     acceptedAnswers: { type: Number, default: 0 },
     faqContributions: { type: Number, default: 0 },

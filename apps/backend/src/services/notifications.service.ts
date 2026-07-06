@@ -34,7 +34,10 @@ export type DispatchEventType =
   | 'downvote'
   | 'accepted_answer'
   | 'post_resolved'
-  | 'faq_match_found';
+  | 'faq_match_found'
+  // v1.72 — FAQ bookmark notifications
+  | 'faq_bookmarked'
+  | 'faq_updated';
 
 export interface NotificationInput {
   recipientId: Types.ObjectId | string;
@@ -104,6 +107,21 @@ const notificationTextBank: Record<string, string[]> = {
     '💡 Pro tip: a matching FAQ is sitting in the knowledge base.',
     '💡 Quick match: we found an existing FAQ that covers your topic.',
   ],
+  // v1.72 — FAQ bookmark notifications
+  faq_bookmarked: [
+    "🔖 FAQ bookmarked. You'll be notified when this answer gets updated.",
+    "🔖 Saved! We'll ping you if this FAQ changes.",
+    "🔖 Bookmarked. We'll let you know when this FAQ is updated.",
+    "🔖 Got it. Updates to this FAQ will land in your inbox.",
+    "🔖 Bookmark set. We'll alert you on changes.",
+  ],
+  faq_updated: [
+    '📝 Update alert! A FAQ you bookmarked has been updated.',
+    '📝 New content alert. A FAQ you saved just changed.',
+    '📝 Heads up — a saved FAQ was refreshed.',
+    '📝 Edit landed. A FAQ you bookmarked just got refreshed.',
+    '📝 Change spotted. Tap to see what is new in a bookmarked FAQ.',
+  ],
 };
 
 const defaultTitles: Record<string, string> = {
@@ -114,6 +132,9 @@ const defaultTitles: Record<string, string> = {
   accepted_answer: 'Answer Accepted',
   post_resolved: 'Post Resolved',
   faq_match_found: 'Matching FAQ Found',
+  // v1.72 — FAQ bookmark notifications
+  faq_bookmarked: 'FAQ Bookmarked',
+  faq_updated: 'FAQ Updated',
 };
 
 // ─── Outbox caps ─────────────────────────────────────────────────────────

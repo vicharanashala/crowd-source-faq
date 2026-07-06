@@ -7,6 +7,13 @@ jspm_packages/
 web_modules/
 pnpm-store/
 
+# v1.72 — Project is pnpm-workspace. Never commit npm lockfiles.
+# (package-lock.json was previously left in the tree by mistake.)
+package-lock.json
+**/package-lock.json
+yarn.lock
+**/yarn.lock
+
 # =============================================================================
 # Environment & Secrets — NEVER COMMIT
 # =============================================================================

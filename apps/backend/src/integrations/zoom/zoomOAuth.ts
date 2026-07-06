@@ -26,7 +26,16 @@ const ZOOM_API_BASE    = 'https://api.zoom.us/v2';
 // Only validate when first called, after dotenv has loaded all env files
 function getClientId()     { const v = process.env.ZOOM_CLIENT_ID;     if (!v) throw new Error('Missing ZOOM_CLIENT_ID env var — add it to backend/.env.local');     return v; }
 function getClientSecret() { const v = process.env.ZOOM_CLIENT_SECRET; if (!v) throw new Error('Missing ZOOM_CLIENT_SECRET env var — add it to backend/.env.local');     return v; }
-function getRedirectUri()  { return process.env.ZOOM_REDIRECT_URI ?? 'http://localhost:6767/csfaq/api/zoom/auth/callback'; }
+function getRedirectUri()  {
+  const fallback = 'http://localhost:6767/csfaq/api/zoom/auth/callback';
+  if (process.env.NODE_ENV === 'production') {
+    if (!process.env.ZOOM_REDIRECT_URI) {
+      throw new Error('ZOOM_REDIRECT_URI is not set in production — set it in Infisical to your public backend URL');
+    }
+    return process.env.ZOOM_REDIRECT_URI;
+  }
+  return process.env.ZOOM_REDIRECT_URI ?? fallback;
+}
 
 /**
  * v1.69 — Phase 5: per-program Zoom credential resolver.
