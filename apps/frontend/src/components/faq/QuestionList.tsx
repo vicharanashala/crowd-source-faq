@@ -2,6 +2,34 @@ import React, { useMemo, useRef, useEffect, useCallback, useState } from 'react'
 import { FAQItem, getQuestionTitle, getAnswerText, formatDate, formatCategoryName, TrustBadge, SourceBadge } from './faqUtils';
 import FreshnessBadge from '../faq/FreshnessBadge';
 
+type PriorityLevel = 'Critical' | 'High' | 'Medium' | 'Low';
+
+function getIntentLabel(title: string): string {
+  const q = title.toLowerCase();
+  if (/\b(when|date|deadline|timeline|schedule|last date)\b/.test(q)) return 'Timeline';
+  if (/\b(how|apply|submit|process|steps|procedure)\b/.test(q)) return 'Process';
+  if (/\b(who|contact|mentor|admin|coordinator)\b/.test(q)) return 'Contact';
+  if (/\b(what|which|where|why)\b/.test(q)) return 'Information';
+  return 'General';
+}
+
+function getPriority(item: FAQItem): { level: PriorityLevel; score: number; style: React.CSSProperties } {
+  const title = getQuestionTitle(item).toLowerCase();
+  const answer = getAnswerText(item).toLowerCase();
+  const text = `${title} ${answer}`;
+  let score = 0;
+
+  if (/\b(deadline|urgent|last date|noc|certificate|registration|submit|approval)\b/.test(text)) score += 3;
+  if (/\b(when|how|required|missing|issue|problem|error|delay)\b/.test(text)) score += 2;
+  if ((item as any)?.reviewStatus === 'pending_review') score += 2;
+  if ((item as any)?.freshnessTier === 'volatile') score += 1;
+
+  if (score >= 5) return { level: 'Critical', score, style: { borderLeft: '4px solid #dc2626', background: 'rgba(220, 38, 38, 0.04)' } };
+  if (score >= 3) return { level: 'High', score, style: { borderLeft: '4px solid #f97316', background: 'rgba(249, 115, 22, 0.04)' } };
+  if (score >= 1) return { level: 'Medium', score, style: { borderLeft: '4px solid #eab308', background: 'rgba(234, 179, 8, 0.04)' } };
+  return { level: 'Low', score, style: { borderLeft: '4px solid #22c55e', background: 'rgba(34, 197, 94, 0.035)' } };
+}
+
 /* ── Chevron icon (rotates on expand) ── */
 function ChevronDown() {
   return (
@@ -33,9 +61,11 @@ export function QuestionItem({ item, isExpanded, onToggle }: QuestionItemProps) 
   const metaDate = formatDate(item?.updatedAt || item?.createdAt);
   const sourceLabel = item?.source ? (item.source === 'faq' ? 'FAQ' : 'Community') : '';
   const showFreshness = item?.source === 'faq';
+  const priority = getPriority(item);
+  const intent = getIntentLabel(title);
 
   return (
-    <div className={`faq-item${isExpanded ? ' faq-item--expanded' : ''}`}>
+    <div className={`faq-item${isExpanded ? ' faq-item--expanded' : ''}`} style={priority.style}>
       {/* Question row — always visible */}
       <div
         className="faq-item__question"
@@ -66,6 +96,8 @@ export function QuestionItem({ item, isExpanded, onToggle }: QuestionItemProps) 
           )}
 
           <div className="faq-item__meta">
+            <span className="faq-item__meta-pill">Priority: {priority.level}</span>
+            <span className="faq-item__meta-pill">Intent: {intent}</span>
             {sourceLabel && (
               <span className="faq-item__meta-pill">{sourceLabel}</span>
             )}
@@ -124,6 +156,10 @@ export default function QuestionList({
 
   const sortedItems = useMemo(() => {
     if (!Array.isArray(items)) return [];
+    if (sortOption === 'priority') {
+      return [...items].sort((a, b) => getPriority(b).score - getPriority(a).score);
+    }
+
     if (sortOption === 'recent') {
       return [...items].sort((a, b) => {
         const aDate = new Date(a?.createdAt || 0).getTime();
@@ -170,6 +206,7 @@ export default function QuestionList({
             className="faq-sort-bar__select"
           >
             <option value="relevant">Most relevant</option>
+            <option value="priority">Priority</option>
             <option value="recent">Most recent</option>
           </select>
         </div>
