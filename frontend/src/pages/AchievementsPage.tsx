@@ -1,25 +1,70 @@
 import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useAuth } from '../hooks/useAuth';
+import api from '../utils/api';
 
-const statCards = [
-  { label: 'Questions asked', value: '24', hint: '+4 this month' },
-  { label: 'Answers shared', value: '81', hint: '+12 this week' },
-  { label: 'Accepted answers', value: '13', hint: 'Top 10%' },
-  { label: 'Saved FAQs', value: '37', hint: 'Curated reads' },
-];
+interface ReputationUser {
+  name: string;
+  email: string;
+  points: number;
+  reputation: number;
+  tier: string;
+  positiveBadges: string[];
+  negativeBadges: string[];
+}
 
-const milestones = [
-  { title: 'Helpful voice', detail: 'Answer 10 questions with 4+ upvotes', progress: 82 },
-  { title: 'Trusted peer', detail: 'Earn 500 reputation points', progress: 64 },
-  { title: 'Knowledge curator', detail: 'Save 50 FAQ items', progress: 74 },
-];
-
-const recentActivity = [
-  { title: 'Answered a question about onboarding', time: '2h ago' },
-  { title: 'Bookmarked a new FAQ', time: '5h ago' },
-  { title: 'Reached a new reputation milestone', time: '1d ago' },
-];
+interface ReputationLog {
+  _id: string;
+  action: string;
+  points: number;
+  createdAt: string;
+}
 
 export default function AchievementsPage() {
+  const { user } = useAuth();
+
+  const [profile, setProfile] = useState<ReputationUser | null>(null);
+  const [logs, setLogs] = useState<ReputationLog[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!user?._id) {
+      setLoading(false);
+      return;
+}
+
+    const fetchReputation = async () => {
+      try {
+        const res = await api.get(`/reputation/user/${user._id}`);
+        setProfile(res.data.user);
+        setLogs(res.data.logs);
+      } catch {
+        setError('Failed to load achievements');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchReputation();
+  }, [user]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Loading achievements...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-red-500">
+        {error}
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-bg text-ink flex flex-col">
       <div className="max-w-6xl mx-auto w-full px-4 pt-20 sm:pt-24 pb-10 space-y-6">
@@ -34,7 +79,7 @@ export default function AchievementsPage() {
           </Link>
         </div>
 
-        <section className="grid gap-4 md:grid-cols-[1.3fr_0.7fr]">
+        <section className="max-w-3xl">
           <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
             <div className="flex items-center justify-between">
               <div>
@@ -42,34 +87,41 @@ export default function AchievementsPage() {
                 <p className="text-sm text-ink-faint mt-1">A snapshot of your recent activity.</p>
               </div>
               <div className="rounded-full bg-accent/10 px-3 py-1 text-sm font-medium text-accent">
-                Level 6
-              </div>
+  {profile?.tier ?? 'Member'}
+</div>
             </div>
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
-              {statCards.map((card) => (
-                <div key={card.label} className="rounded-2xl border border-border/70 bg-bg/70 p-4">
-                  <p className="text-sm text-ink-faint">{card.label}</p>
-                  <p className="mt-2 text-2xl font-semibold text-ink">{card.value}</p>
-                  <p className="mt-1 text-xs text-emerald-600">{card.hint}</p>
-                </div>
-              ))}
-            </div>
-          </div>
+              {profile && (
+                <>
+                  <div className="rounded-2xl border border-border/70 bg-bg/70 p-4">
+                    <p className="text-sm text-ink-faint">Reputation</p>
+                    <p className="mt-2 text-2xl font-semibold text-ink">
+                      {profile.reputation}
+                    </p>
+                  </div>
 
-          <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-ink">Next milestone</h2>
-            <p className="text-sm text-ink-faint mt-1">You are one step away from the next reward.</p>
-            <div className="mt-6 rounded-2xl border border-border/70 bg-bg/70 p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-semibold text-ink">Community mentor</p>
-                  <p className="text-sm text-ink-faint">Answer 25 questions and get featured</p>
-                </div>
-                <span className="text-sm font-semibold text-accent">75%</span>
-              </div>
-              <div className="mt-3 h-2 rounded-full bg-border/70">
-                <div className="h-2 w-[75%] rounded-full bg-accent" />
-              </div>
+                  <div className="rounded-2xl border border-border/70 bg-bg/70 p-4">
+                    <p className="text-sm text-ink-faint">Points</p>
+                    <p className="mt-2 text-2xl font-semibold text-ink">
+                      {profile.points}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-border/70 bg-bg/70 p-4">
+                    <p className="text-sm text-ink-faint">Tier</p>
+                    <p className="mt-2 text-2xl font-semibold text-ink">
+                      {profile.tier}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-border/70 bg-bg/70 p-4">
+                    <p className="text-sm text-ink-faint">Positive Badges</p>
+                    <p className="mt-2 text-2xl font-semibold text-ink">
+                      {profile.positiveBadges.length}
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </section>
@@ -78,34 +130,57 @@ export default function AchievementsPage() {
           <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-ink">Milestones</h2>
             <div className="mt-4 space-y-4">
-              {milestones.map((item) => (
-                <div key={item.title} className="rounded-2xl border border-border/70 bg-bg/70 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="font-medium text-ink">{item.title}</p>
-                      <p className="text-sm text-ink-faint">{item.detail}</p>
-                    </div>
-                    <span className="text-sm font-semibold text-accent">{item.progress}%</span>
+              {profile?.positiveBadges.length ? (
+                profile.positiveBadges.map((badge) => (
+                  <div
+                    key={badge}
+                    className="rounded-2xl border border-border/70 bg-bg/70 p-4"
+                  >
+                    <p className="font-semibold text-ink">
+                      🏅 {badge}
+                    </p>
                   </div>
-                  <div className="mt-3 h-2 rounded-full bg-border/70">
-                    <div className="h-2 rounded-full bg-emerald-500" style={{ width: `${item.progress}%` }} />
-                  </div>
+                ))
+              ) : (
+                <div className="rounded-2xl border border-border/70 bg-bg/70 p-4">
+                  <p className="text-ink-faint">
+                    No badges earned yet.
+                  </p>
                 </div>
-              ))}
+              )}
             </div>
           </div>
 
           <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-ink">Recent activity</h2>
             <ul className="mt-4 space-y-3">
-              {recentActivity.map((entry) => (
-                <li key={entry.title} className="flex items-start justify-between gap-3 rounded-2xl border border-border/70 bg-bg/70 p-3">
-                  <div>
-                    <p className="text-sm font-medium text-ink">{entry.title}</p>
-                  </div>
-                  <span className="text-xs text-ink-faint whitespace-nowrap">{entry.time}</span>
-                </li>
-              ))}
+              {logs.length ? (
+                  logs.map((log) => (
+                    <li
+                      key={log._id}
+                      className="flex items-start justify-between gap-3 rounded-2xl border border-border/70 bg-bg/70 p-3"
+                    >
+                      <div>
+                        <p className="text-sm font-medium text-ink">
+                          {log.action}
+                        </p>
+
+                        <p className="text-xs text-ink-faint">
+                          {log.points > 0 ? '+' : ''}
+                          {log.points} points
+                        </p>
+                      </div>
+
+                      <span className="text-xs text-ink-faint whitespace-nowrap">
+                        {new Date(log.createdAt).toLocaleDateString()}
+                      </span>
+                    </li>
+                  ))
+                ) : (
+                  <li className="rounded-2xl border border-border/70 bg-bg/70 p-3 text-ink-faint">
+                    No recent activity.
+                  </li>
+                )}
             </ul>
           </div>
         </section>
