@@ -18,6 +18,7 @@ function batchIdFromQuery(req: Request): string | null {
 }
 import { communityLog } from '../../utils/http/logger.js';
 import { buildCommentTree, timeTrialHoursRemaining } from './post-core.controller.js';
+import { clusterPosts } from '../../utils/ai/postClusterer.js';
 
 // GET /api/community — All posts (cursor-paginated, filterable, sortable, searchable)
 export const getAllPosts = async (req: Request, res: Response): Promise<void> => {
@@ -193,6 +194,62 @@ export const getSolvedPosts = async (req: Request, res: Response): Promise<void>
     res.json({ posts });
   } catch (error) {
     communityLog.error(`[post] getSolvedPosts failed: ${(error as Error).message}`);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// GET /api/community/grouped — Get community posts grouped into clusters
+export const getGroupedPosts = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const filter = (req.query.filter as string) || 'all';
+    const search = (req.query.search as string)?.trim() || '';
+
+    // Build query filter
+    const query: Record<string, unknown> = { isHidden: { $ne: true } };
+    if (filter === 'unanswered') query.status = 'unanswered';
+    else if (filter === 'answered') query.status = 'answered';
+
+    if (search.length >= 2) {
+      const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      query.title = { $regex: escaped, $options: 'i' };
+    }
+
+    const scoped = withProgramScope(query, batchIdFromQuery(req));
+
+    const populateFields = [
+      { path: 'author', select: 'name' },
+      { path: 'comments.author', select: 'name' },
+      { path: 'comments.upvotes', select: 'name' },
+      { path: 'comments.downvotes', select: 'name' },
+      { path: 'comments.replies.upvotes', select: 'name' },
+      { path: 'comments.replies.downvotes', select: 'name' },
+    ];
+
+    // Load ALL matching posts (capped at 200) to cluster them
+    const posts = await CommunityPost.find(scoped)
+      .populate(populateFields)
+      .sort({ createdAt: -1 })
+      .limit(200);
+
+    const clusters = await clusterPosts(posts);
+
+    // Format the posts within the clusters
+    const formattedClusters = clusters.map(c => {
+      return {
+        id: c.id,
+        canonicalTitle: c.canonicalTitle,
+        postIds: c.postIds,
+        posts: c.posts.map(p => {
+          const doc = typeof p.toObject === 'function' ? p.toObject() : p;
+          doc.timeTrialHoursRemaining = timeTrialHoursRemaining(doc as never);
+          return doc;
+        })
+      };
+    });
+
+    res.json({ clusters: formattedClusters });
+  } catch (error) {
+    communityLog.error(`[post] getGroupedPosts failed: ${(error as Error).message}`);
     res.status(500).json({ message: 'Server error' });
   }
 };
