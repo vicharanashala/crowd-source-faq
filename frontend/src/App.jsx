@@ -5,7 +5,7 @@ import Welcome from "./Pages/Welcome";
 import Signup from "./Pages/Signup";
 import ForgotPassword from "./Pages/ForgotPassword";
 import Login from "./Pages/Login";
-import FAQ from "./Pages/FAQ";
+
 import Dashboard from "./Pages/Dashboard";
 import Discussion from "./Pages/Discussion";
 
@@ -15,7 +15,7 @@ import FAQSearch from "./Pages/FAQSearch";
 import Leaderboard from "./Pages/Leaderboard";
 import SpurtiPoints from "./Pages/SpurtiPoints";
 import Attendance from "./Pages/Attendance";
-
+import Profile from "./Pages/Profile";
 import "./App.css";
 
 function App() {
@@ -53,7 +53,6 @@ function App() {
               <Dashboard darkMode={darkMode} setDarkMode={setDarkMode} />
             }
           />
-          <Route path="/faq" element={<FAQ />} />
 
           <Route
             path="/discussion"
@@ -98,6 +97,7 @@ function App() {
               <Attendance darkMode={darkMode} setDarkMode={setDarkMode} />
             }
           />
+          <Route path="/profile" element={<Profile />} />
         </Routes>
       </BrowserRouter>
     </div>
