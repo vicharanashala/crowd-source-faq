@@ -1,0 +1,292 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.profile-container {
+  min-height: 100vh;
+  background: #f4f7fc;
+  padding: 40px;
+  font-family: "Segoe UI", sans-serif;
+}
+
+.profile-header {
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 30px;
+  display: flex;
+  align-items: center;
+  gap: 25px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+  margin-bottom: 30px;
+}
+
+.avatar {
+  width: 95px;
+  height: 95px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  font-size: 40px;
+  font-weight: bold;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.user-info {
+  flex: 1;
+}
+
+.user-info h1 {
+  font-size: 32px;
+  color: #1e293b;
+  margin-bottom: 8px;
+}
+
+.user-info p {
+  color: #64748b;
+  margin-bottom: 8px;
+}
+
+.role-badge {
+  display: inline-block;
+  background: #2563eb;
+  color: white !important;
+  padding: 8px 18px;
+  border-radius: 25px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+}
+
+.input-field {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  font-size: 15px;
+  outline: none;
+  transition: 0.3s;
+}
+
+.input-field:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 8px rgba(37, 99, 235, 0.15);
+}
+
+.main-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 25px;
+}
+
+.left-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+}
+
+.progress-card {
+  background: white;
+  border-radius: 18px;
+  padding: 25px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+
+.progress-card h3 {
+  color: #1e293b;
+  margin-bottom: 20px;
+}
+
+.progress-bar-bg {
+  width: 100%;
+  height: 15px;
+  background: #e2e8f0;
+  border-radius: 30px;
+  overflow: hidden;
+  margin-bottom: 15px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #22c55e, #16a34a);
+  border-radius: 30px;
+  transition: width 0.5s ease;
+}
+
+.progress-card p {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.progress-card small {
+  color: #64748b;
+}
+
+.stats-container {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+
+.stat-box {
+  background: white;
+  border-radius: 18px;
+  padding: 25px;
+  text-align: center;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
+  transition: 0.3s;
+}
+
+.stat-box:hover {
+  transform: translateY(-5px);
+}
+
+.stat-box h4 {
+  color: #2563eb;
+  font-size: 32px;
+  margin-bottom: 10px;
+}
+
+.stat-box p {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.right-panel {
+  background: white;
+  border-radius: 18px;
+  padding: 25px;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
+}
+
+.right-panel h3 {
+  color: #1e293b;
+  margin-bottom: 25px;
+}
+
+.journey-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.step {
+  padding: 16px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.completed {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.active {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.step:not(.completed):not(.active) {
+  background: #f8fafc;
+  color: #64748b;
+}
+
+.actions {
+  margin-top: 35px;
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.btn-edit,
+.btn-save,
+.btn-cancel,
+.btn-logout {
+  border: none;
+  padding: 14px 24px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 600;
+  transition: 0.3s;
+}
+
+.btn-edit {
+  background: #2563eb;
+  color: white;
+}
+
+.btn-edit:hover {
+  background: #1d4ed8;
+}
+
+.btn-save {
+  background: #16a34a;
+  color: white;
+}
+
+.btn-save:hover {
+  background: #15803d;
+}
+
+.btn-cancel {
+  background: #f59e0b;
+  color: white;
+}
+
+.btn-cancel:hover {
+  background: #d97706;
+}
+
+.btn-logout {
+  background: #ef4444;
+  color: white;
+}
+
+.btn-logout:hover {
+  background: #dc2626;
+}
+
+@media (max-width: 900px) {
+  .profile-container {
+    padding: 20px;
+  }
+
+  .profile-header {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .main-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-container {
+    grid-template-columns: 1fr;
+  }
+
+  .actions {
+    flex-direction: column;
+  }
+
+  .btn-edit,
+  .btn-save,
+  .btn-cancel,
+  .btn-logout {
+    width: 100%;
+  }
+
+  .user-info h1 {
+    font-size: 26px;
+  }
+}
