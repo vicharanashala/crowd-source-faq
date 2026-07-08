@@ -9,6 +9,7 @@ import CommunityHealth from '../components/community/CommunityHealth';
 import api from '../utils/api';
 import { useAuth } from '../hooks/useAuth';
 import { useAuthGate } from '../context/AuthModalContext';
+import { useBatch } from '../context/BatchContext';
 import type { Post } from '../types/ui';
 
 import CreatePostDialog from '../components/community/CreatePostDialog';
@@ -17,6 +18,13 @@ import { buttonCommunityAsk } from '../styles/style_config';
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function CommunityPage() {
   const { user } = useAuth();
+  // Active program from ProgramContext — used to scope the community feed
+  // to the chosen program so summership questions don't leak into
+  // winternship (and vice versa). Falls back to `undefined` when no
+  // program is selected yet, in which case we deliberately send NO
+  // batchId (matches previous behaviour while the picker takes over).
+  const { currentBatch } = useBatch();
+  const activeBatchId = currentBatch?._id ?? undefined;
   const gate = useAuthGate();
   const handleAskQuestion = gate(
     () => setShowCreate(true),
@@ -50,6 +58,14 @@ export default function CommunityPage() {
   // Backend uses cursor-based pagination. The previous version sent `?page=2`
   // which the backend silently ignored — so every "Load more" call returned
   // the FIRST batch and we got duplicates. Send the cursor instead.
+  //
+  // v1.69 — program scoping: always send the active program's batchId
+  // when the user is NOT on "All Programs Feed". Without it, the
+  // backend returns every post across every program because the
+  // community routes don't have the programScope middleware attached
+  // and the controllers fall back to "no batchId filter". The
+  // explicit-`undefined`-when-no-program-selected case preserves the
+  // legacy behaviour while the program picker takes over.
   const fetchPosts = useCallback((reset = false) => {
     if (reset) setLoading(true);
     else setLoadingMore(true);
@@ -58,7 +74,7 @@ export default function CommunityPage() {
         limit: 20,
         filter,
         sort,
-        batchId: showAllPrograms ? 'all' : undefined,
+        batchId: showAllPrograms ? 'all' : activeBatchId,
         ...(reset ? {} : nextCursor ? { cursor: nextCursor } : {}),
       },
     })
@@ -74,7 +90,7 @@ export default function CommunityPage() {
         setLoading(false);
         setLoadingMore(false);
       });
-  }, [filter, sort, nextCursor, showAllPrograms]);
+  }, [filter, sort, nextCursor, showAllPrograms, activeBatchId]);
 
   // Thread detail: when a post ID is set, show ThreadDetail instead of the list/dialog
   const handleOpenThread = useCallback((postId: string) => {
@@ -128,11 +144,12 @@ export default function CommunityPage() {
   }, [posts, user, window.location.search]);
 
   // Reset cursor + posts when filter/sort changes so we paginate the
-  // newly-filtered set from the beginning.
+  // newly-filtered set from the beginning. activeBatchId is also in this
+  // list — switching programs in the header must wipe the visible feed.
   useEffect(() => {
     setNextCursor(null);
     setPosts([]);
-  }, [filter, sort, showAllPrograms]);
+  }, [filter, sort, showAllPrograms, activeBatchId]);
 
   // 2-D (MEDIUM) — previously this page had TWO effects both keyed on
   // [filter, sort, ...] that each fired `fetchPosts(true)` in the same
@@ -158,7 +175,7 @@ export default function CommunityPage() {
       return;
     }
     fetchPosts(true);
-  }, [filter, sort, showAllPrograms]);
+  }, [filter, sort, showAllPrograms, activeBatchId]);
 
   // ── Infinite scroll — fetch the next page when the sentinel enters view ────
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -176,13 +193,13 @@ export default function CommunityPage() {
     );
     observer.observe(sentinelRef.current);
     return () => observer.disconnect();
-  }, [hasMore, loading, loadingMore, nextCursor, filter, sort, showAllPrograms]);
+  }, [hasMore, loading, loadingMore, nextCursor, filter, sort, showAllPrograms, activeBatchId]);
 
   const runSemanticSearch = useCallback(async (q: string) => {
     setSearchLoading(true);
     try {
       const res = await api.get<{ results: Post[] }>('/community/search', {
-        params: { q, batchId: showAllPrograms ? 'all' : undefined }
+        params: { q, batchId: showAllPrograms ? 'all' : activeBatchId }
       });
       setSearchResults(res.data.results || []);
     } catch (err) {
@@ -191,7 +208,7 @@ export default function CommunityPage() {
     } finally {
       setSearchLoading(false);
     }
-  }, [showAllPrograms]);
+  }, [showAllPrograms, activeBatchId]);
 
   // v2 — search is now Enter-only. We still keep the trimmed query handy
   // for downstream effects (filter/sort re-apply on existing results).
