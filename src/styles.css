@@ -1,0 +1,154 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+@import "@fontsource/plus-jakarta-sans/400.css";
+@import "@fontsource/plus-jakarta-sans/500.css";
+@import "@fontsource/plus-jakarta-sans/600.css";
+@import "@fontsource/plus-jakarta-sans/700.css";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/500.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* Modern Quartz — light, clean, minimalist */
+@theme inline {
+  --font-display: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-gold: var(--primary);
+  --color-gold-foreground: var(--primary-foreground);
+  --color-ink: var(--foreground);
+  --color-parchment: var(--background);
+  --color-plum: var(--secondary);
+  --color-electric: var(--primary);
+  --color-violet: var(--accent);
+  --color-surface: var(--card);
+}
+
+:root {
+  --radius: 16px;
+  /* Quartz palette */
+  --background: oklch(0.98 0.005 260);
+  --foreground: oklch(0.25 0.04 260);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.25 0.04 260);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.25 0.04 260);
+  --primary: oklch(0.55 0.22 260);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.96 0.01 260);
+  --secondary-foreground: oklch(0.25 0.04 260);
+  --muted: oklch(0.96 0.01 260);
+  --muted-foreground: oklch(0.55 0.03 260);
+  --accent: oklch(0.6 0.18 200);
+  --accent-foreground: oklch(0.99 0 0);
+  --destructive: oklch(0.6 0.22 25);
+  --destructive-foreground: oklch(0.99 0 0);
+  --border: oklch(0.9 0.01 260);
+  --input: oklch(0.9 0.01 260);
+  --ring: oklch(0.55 0.22 260);
+  --chart-1: oklch(0.55 0.22 260);
+  --chart-2: oklch(0.6 0.18 200);
+  --chart-3: oklch(0.65 0.18 145);
+  --chart-4: oklch(0.62 0.2 45);
+  --chart-5: oklch(0.6 0.22 340);
+}
+
+.dark {
+  --background: oklch(0.98 0.005 260);
+  --foreground: oklch(0.25 0.04 260);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  html { font-family: var(--font-sans); }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+  }
+  h1,h2,h3,h4,h5 { font-family: var(--font-display); letter-spacing: -0.03em; font-weight: 700; }
+}
+
+@utility font-display {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+@utility font-mono {
+  font-family: var(--font-mono);
+}
+
+@utility gold-underline {
+  background-image: linear-gradient(90deg, var(--primary), transparent);
+  background-repeat: no-repeat;
+  background-size: 100% 2px;
+  background-position: 0 100%;
+}
+
+@utility paper-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 2px color-mix(in oklab, var(--foreground) 4%, transparent),
+              0 8px 24px -12px color-mix(in oklab, var(--foreground) 12%, transparent);
+}
+
+@utility bento-tile {
+  position: relative;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: 0 1px 2px color-mix(in oklab, var(--foreground) 4%, transparent),
+              0 8px 24px -12px color-mix(in oklab, var(--foreground) 10%, transparent);
+  transition: border-color .3s ease, transform .3s ease, box-shadow .3s ease;
+}
+@utility bento-tile-hover {
+  &:hover {
+    border-color: color-mix(in oklab, var(--primary) 40%, var(--border));
+    transform: translateY(-2px);
+    box-shadow: 0 12px 32px -12px color-mix(in oklab, var(--foreground) 16%, transparent);
+  }
+}
+
+@utility grid-lines {
+  background-image:
+    linear-gradient(color-mix(in oklab, var(--border) 60%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklab, var(--border) 60%, transparent) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+@utility ornate-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--primary) 70%, transparent), transparent);
+}
+
+@utility glow-electric {
+  box-shadow: 0 0 40px -8px color-mix(in oklab, var(--primary) 35%, transparent);
+}
