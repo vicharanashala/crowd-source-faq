@@ -8,8 +8,30 @@ import {
   searchKnowledge,
 } from './knowledge-base.service.js';
 import { runRag } from '../ai/rag.service.js';
+import AiClient from '../ai/ai-client.service.js';
 import { TranscriptKnowledge } from './transcript-knowledge.model.js';
 import { adminLog } from '../../utils/http/logger.js';
+
+function normalizeRewriteText(value: string): string {
+  return value
+    .replace(/```(?:text)?/gi, '')
+    .replace(/```/g, '')
+    .replace(/^\s*(?:rewritten question|suggestion|output|question)\s*:\s*/i, '')
+    .replace(/^["'`]+|["'`]+$/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function isMeaningfullyDifferent(input: string, suggestion: string): boolean {
+  const clean = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  return clean(input) !== clean(suggestion);
+}
+
+function isRewriteTooExpansive(input: string, suggestion: string): boolean {
+  const inputWords = input.split(/\s+/).filter(Boolean).length;
+  const suggestionWords = suggestion.split(/\s+/).filter(Boolean).length;
+  return suggestionWords > Math.max(18, inputWords * 4 + 8);
+}
 
 // ─── List all knowledge entries ──────────────────────────────────────────────
 
@@ -273,5 +295,53 @@ export const askAIController = async (req: Request, res: Response): Promise<void
   } catch (err) {
     adminLog.error('[askAI] failed', { error: (err as Error).message });
     res.status(500).json({ message: (err as Error).message });
+  }
+};
+
+export const rewriteQuestionController = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const question = String((req.body as { question?: string })?.question ?? '').trim();
+    if (question.length < 12) {
+      res.status(400).json({ message: 'Question must be at least 12 characters' });
+      return;
+    }
+    if (question.length > 300) {
+      res.status(400).json({ message: 'Question must be 300 characters or less' });
+      return;
+    }
+
+    const client = new AiClient();
+    const result = await client.chat(
+      [
+        {
+          role: 'system',
+          content:
+            'Rewrite rough student questions for a community Q&A form. Keep the exact same meaning and perspective. If the input describes the student\'s own situation, prefer first-person wording like "I have..." instead of a broad FAQ-style question. Do not add facts, dates, events, payment details, email details, attendance, program details, or any context not present in the input. Improve spelling, grammar, and clarity. Convert fragments into a concise, natural question. Do not make the question more general than the input. Return one rewritten question only, as plain text.',
+        },
+        {
+          role: 'user',
+          content: `Input: ${question}\n\nRewrite this as one clear question without adding any new details. Keep personal wording if the input sounds personal.`,
+        },
+      ],
+      'faqGeneration',
+      { temperature: 0.1, maxTokens: 80 }
+    );
+
+    let suggestion = normalizeRewriteText(result.content).slice(0, 220);
+    if (suggestion && !/[?!.]$/.test(suggestion)) suggestion += '?';
+
+    if (
+      suggestion.length < 12 ||
+      !isMeaningfullyDifferent(question, suggestion) ||
+      isRewriteTooExpansive(question, suggestion)
+    ) {
+      res.json({ suggestion: '' });
+      return;
+    }
+
+    res.json({ suggestion });
+  } catch (err) {
+    adminLog.warn('[askAI] rewrite-question failed', { error: (err as Error).message });
+    res.status(503).json({ message: 'Question rewrite is temporarily unavailable.' });
   }
 };
