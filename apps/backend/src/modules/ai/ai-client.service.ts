@@ -165,12 +165,16 @@ export class AiClient {
     if (process.env.OPENAI_API_KEY) return process.env.OPENAI_API_KEY;
     if (process.env.XAI_API_KEY) return process.env.XAI_API_KEY;
     if (process.env.MINIMAX_API_KEY) return process.env.MINIMAX_API_KEY;
+    if (process.env.GEMINI_API_KEY) return process.env.GEMINI_API_KEY;
+    if (process.env.CUSTOM_API_KEY) return process.env.CUSTOM_API_KEY;
     throw new Error(
       'No AI API key configured. Set one of:\n' +
       '  ANTHROPIC_API_KEY — https://console.anthropic.com/settings/keys\n' +
       '  OPENAI_API_KEY   — https://platform.openai.com/api-keys\n' +
       '  XAI_API_KEY      — https://console.x.ai/\n' +
-      '  MINIMAX_API_KEY  — https://platform.minimax.io'
+      '  MINIMAX_API_KEY  — https://platform.minimax.io\n' +
+      '  GEMINI_API_KEY   — https://aistudio.google.com/app/apikey\n' +
+      '  CUSTOM_API_KEY   — Custom self-hosted endpoint'
     );
   }
 
@@ -178,6 +182,9 @@ export class AiClient {
     if (process.env.ANTHROPIC_API_KEY) return 'anthropic';
     if (process.env.OPENAI_API_KEY) return 'openai';
     if (process.env.XAI_API_KEY) return 'xai';
+    if (process.env.MINIMAX_API_KEY) return 'minimax';
+    if (process.env.GEMINI_API_KEY) return 'gemini';
+    if (process.env.CUSTOM_API_KEY) return 'custom';
     return 'minimax';
   }
 

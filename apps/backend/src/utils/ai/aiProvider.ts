@@ -5,7 +5,7 @@
  * knowledgeBase, etc.) BEFORE AiClient is available or when you just need
  * the provider config without instantiating a full client.
  *
- * Provider priority: Anthropic > OpenAI > xAI > MiniMax
+ * Provider priority: Anthropic > OpenAI > xAI > MiniMax > Gemini > Custom
  *
  * Resolution order for API key / base URL:
  *   1. Admin-configured value in the AiConfig DB document (set via the dashboard)
@@ -47,6 +47,8 @@ export function resolvePipelineProvider(pipeline: string): AIProvider {
   if (process.env.OPENAI_API_KEY) return 'openai';
   if (process.env.XAI_API_KEY) return 'xai';
   if (process.env.MINIMAX_API_KEY) return 'minimax';
+  if (process.env.GEMINI_API_KEY) return 'gemini';
+  if (process.env.CUSTOM_API_KEY) return 'custom';
   return 'minimax'; // default — will fail gracefully at chat() with a clear error
 }
 

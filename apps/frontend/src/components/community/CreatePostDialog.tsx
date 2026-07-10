@@ -86,8 +86,14 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
   const [tagInput, setTagInput] = useState('');
   const [duplicateMatch, setDuplicateMatch] = useState<{ isDuplicate: boolean; matches: any[] } | null>(null);
   const [checkingDuplicates, setCheckingDuplicates] = useState(false);
+  const [rewriteSuggestion, setRewriteSuggestion] = useState('');
+  const [checkingRewrite, setCheckingRewrite] = useState(false);
+  const [rewriteError, setRewriteError] = useState('');
   const [floatAway] = useState(false);
   const duplicateCheckTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rewriteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rewriteRequestIdRef = useRef(0);
+  const acceptedRewriteRef = useRef('');
 
   // Toast state
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'warn' | 'info' } | null>(null);
@@ -100,6 +106,8 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
   // Save draft on field changes
   const handleTitleChange = (val: string) => {
     setTitle(val);
+    setRewriteSuggestion('');
+    setRewriteError('');
     try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ t: val, b: body })); } catch {}
   };
   const handleBodyChange = (val: string) => {
@@ -154,6 +162,49 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
     }, 600);
     return () => { if (duplicateCheckTimerRef.current) clearTimeout(duplicateCheckTimerRef.current); };
   }, [title]);
+
+  useEffect(() => {
+    if (rewriteTimerRef.current) clearTimeout(rewriteTimerRef.current);
+    const q = title.trim();
+    const requestId = rewriteRequestIdRef.current + 1;
+    rewriteRequestIdRef.current = requestId;
+
+    if (q.length < 12 || q === acceptedRewriteRef.current.trim()) {
+      setRewriteSuggestion('');
+      setRewriteError('');
+      setCheckingRewrite(false);
+      return;
+    }
+
+    rewriteTimerRef.current = setTimeout(async () => {
+      setCheckingRewrite(true);
+      setRewriteError('');
+      try {
+        const res = await api.post<{ suggestion: string }>('/ask-ai/rewrite-question', { question: q });
+        if (rewriteRequestIdRef.current !== requestId) return;
+        const suggestion = (res.data.suggestion ?? '').trim();
+        const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+        setRewriteSuggestion(suggestion && normalize(suggestion) !== normalize(q) ? suggestion : '');
+      } catch {
+        if (rewriteRequestIdRef.current === requestId) {
+          setRewriteSuggestion('');
+          setRewriteError('Could not suggest a rewrite right now.');
+        }
+      } finally {
+        if (rewriteRequestIdRef.current === requestId) setCheckingRewrite(false);
+      }
+    }, 600);
+
+    return () => {
+      if (rewriteTimerRef.current) clearTimeout(rewriteTimerRef.current);
+    };
+  }, [title]);
+
+  const useRewriteSuggestion = () => {
+    if (!rewriteSuggestion) return;
+    acceptedRewriteRef.current = rewriteSuggestion;
+    handleTitleChange(rewriteSuggestion);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -265,17 +316,17 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
         <form onSubmit={handleSubmit} className={`space-y-4${floatAway ? ' animate-float-away' : ''}`}>
           <div>
             <label htmlFor="post-title" className="block text-xs font-medium text-ink-soft mb-1.5">
-              Title <span className="text-danger">*</span>
+              Question <span className="text-danger">*</span>
             </label>
-            <input
+            <textarea
               id="post-title"
-              type="text"
               value={title}
               onChange={(e) => handleTitleChange(e.target.value)}
-              placeholder="E.g. How do I request leave during the internship?"
+              rows={3}
+              placeholder="Ask your question here..."
               maxLength={150}
               required
-              className="w-full rounded-xl border border-border bg-mist px-3 py-2.5 text-sm text-ink placeholder-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/25 focus:bg-card transition-all"
+              className="w-full rounded-xl border border-border bg-mist px-3 py-2.5 text-sm text-ink placeholder-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/25 focus:bg-card transition-all resize-none"
             />
             <div className="flex items-center justify-between mt-1">
               <div>
@@ -288,6 +339,30 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
               </div>
               <p className="text-xs text-ink-faint text-right">{title.length}/150</p>
             </div>
+            {(checkingRewrite || rewriteSuggestion || rewriteError) && (
+              <div className="mt-2 rounded-xl border border-accent/20 bg-accent/5 px-3 py-2.5" aria-live="polite">
+                {checkingRewrite ? (
+                  <div className="flex items-center gap-2 text-xs text-ink-soft">
+                    <span className="w-3 h-3 border border-accent/30 border-t-accent rounded-full animate-spin inline-block" />
+                    Improving question...
+                  </div>
+                ) : rewriteSuggestion ? (
+                  <div className="space-y-2">
+                    <p className="text-[11px] font-semibold uppercase text-accent">Suggested rewrite</p>
+                    <p className="text-sm text-ink leading-snug">{rewriteSuggestion}</p>
+                    <button
+                      type="button"
+                      onClick={useRewriteSuggestion}
+                      className="inline-flex items-center justify-center rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-accent-text hover:brightness-95 active:brightness-90 transition-all"
+                    >
+                      Use this rewrite
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-xs text-ink-faint">{rewriteError}</p>
+                )}
+              </div>
+            )}
           </div>
 
           {duplicateMatch && duplicateMatch.isDuplicate && duplicateMatch.matches.length > 0 && (

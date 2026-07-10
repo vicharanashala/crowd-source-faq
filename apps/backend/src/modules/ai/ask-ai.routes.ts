@@ -2,7 +2,7 @@ import { Router, type Request, type Response, type NextFunction } from 'express'
 import { rateLimit, ipKeyGenerator } from 'express-rate-limit';
 import multer from 'multer';
 import { protect } from '../../middleware/auth.js';
-import { askAIController } from '../knowledge/knowledge.controller.js';
+import { askAIController, rewriteQuestionController } from '../knowledge/knowledge.controller.js';
 
 const router = Router();
 
@@ -63,6 +63,17 @@ const authedAiLimiter = rateLimit({
   legacyHeaders: false,
   message: { message: 'Too many AI searches. Please slow down.' },
 });
+
+const rewriteQuestionLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  keyGenerator: (req: Request) => `rewrite:${ipKeyGenerator(req.ip ?? 'unknown')}`,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many rewrite requests. Please slow down.' },
+});
+
+router.post('/rewrite-question', protect, rewriteQuestionLimiter, rewriteQuestionController);
 
 // Routes that accept text-only (no files) and routes that accept multipart
 // (with files) are mounted as the same path — multer's any() only triggers
