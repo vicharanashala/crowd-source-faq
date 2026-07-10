@@ -193,6 +193,19 @@ function AppRoutes() {
               </AccountRoute>
             }
           />
+          {/* Bug fix: Navbar links to /welcome (WelcomePackagePage was
+              imported but never routed), so the link silently bounced
+              to "/" via the catch-all. Wrapped in AccountRoute since
+              the page reads user.orientationCompleted /
+              projectSelectionLocked and only makes sense signed in. */}
+          <Route
+            path="/welcome"
+            element={
+              <AccountRoute>
+                <WelcomePackagePage />
+              </AccountRoute>
+            }
+          />
           <Route path="/knowledge-sprint" element={<KnowledgeSprintPage />} />
           <Route path="/topic-radar" element={<TopicRadarPage />} />
         </Route>

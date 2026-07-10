@@ -5,6 +5,8 @@ import User, { IUser, UserRole } from '../models/User.js';
 import CommunityPost from '../models/CommunityPost.js';
 import Notification from '../models/Notification.js';
 import RevokedToken from '../models/RevokedToken.js';
+import ReputationLog from '../models/ReputationLog.js';
+import Badge from '../models/Badge.js';
 import { registerSchema, loginSchema, changePasswordSchema } from '../utils/auth/validation.js';
 import { sanitizeHtml } from '../utils/http/sanitize.js';
 import { logger, authLog, securityLog } from '../utils/http/logger.js';
@@ -192,6 +194,100 @@ export const getMe = async (req: Request, res: Response): Promise<void> => {
   };
 
   res.json({ user: userResponse });
+};
+
+// GET /api/auth/me/reputation — Get current user's reputation data
+export const getMyReputation = async (req: Request, res: Response): Promise<void> => {
+  if (!req.user) {
+    res.status(401).json({ message: 'Not authorized.' });
+    return;
+  }
+
+  try {
+    const userId = req.user._id.toString();
+    
+    // Get user with reputation data and populate badges
+    const user = await User.findById(userId)
+      .select('name email points reputation tier positiveBadges negativeBadges acceptedAnswers faqContributions')
+      .populate({
+        path: 'positiveBadges.badgeId',
+        model: 'Badge',
+        select: 'name slug description icon type'
+      })
+      .populate({
+        path: 'negativeBadges.badgeId',
+        model: 'Badge', 
+        select: 'name slug description icon type'
+      });
+
+    if (!user) { 
+      res.status(404).json({ message: 'User not found' }); 
+      return; 
+    }
+
+    // Get additional contribution statistics
+    const now = new Date();
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const [logs, questionsThisMonth, totalQuestions] = await Promise.all([
+      ReputationLog.find({ userId }).sort({ createdAt: -1 }).limit(20),
+      CommunityPost.countDocuments({ 
+        author: userId, 
+        createdAt: { $gte: thisMonthStart } 
+      }),
+      CommunityPost.countDocuments({ author: userId })
+    ]);
+
+    // Transform badges to include populated badge info. Guard against a
+    // badgeId that failed to populate (e.g. the Badge doc was deleted
+    // after being awarded) — otherwise badge.badgeId.name throws.
+    const transformBadges = (badges: any[]) => {
+      return badges
+        .filter((badge) => badge.badgeId)
+        .map(badge => ({
+          id: badge.badgeId._id,
+          name: badge.badgeId.name,
+          slug: badge.badgeId.slug,
+          description: badge.badgeId.description,
+          icon: badge.badgeId.icon,
+          type: badge.badgeId.type,
+          awardedAt: badge.awardedAt,
+          reason: badge.reason
+        }));
+    };
+
+    const responseData = {
+      user: {
+        name: user.name,
+        email: user.email,
+        points: user.points,
+        reputation: user.reputation,
+        tier: user.tier,
+        acceptedAnswers: user.acceptedAnswers || 0,
+        faqContributions: user.faqContributions || 0,
+        positiveBadges: transformBadges(user.positiveBadges || []),
+        negativeBadges: transformBadges(user.negativeBadges || [])
+      },
+      contributions: {
+        questionsThisMonth,
+        totalQuestions,
+        totalAnswers: user.acceptedAnswers || 0, // Use denormalized count
+        reputation: user.reputation
+      },
+      logs: logs.map(log => ({
+        _id: log._id,
+        action: log.action,
+        delta: log.delta,
+        reason: log.reason,
+        createdAt: log.createdAt
+      }))
+    };
+
+    res.json(responseData);
+  } catch (error) {
+    authLog.error('getMyReputation failed', { error: (error as Error).message });
+    res.status(500).json({ message: 'Server error' });
+  }
 };
 
 // GET /api/auth/users (Admin only)

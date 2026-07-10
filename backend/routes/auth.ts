@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { login, register, getMe, getAllUsers, updateUserRole, deleteUser, updateProfile, changePassword, exportUserData, logout } from '../controllers/authController.js';
+import { login, register, getMe, getAllUsers, updateUserRole, deleteUser, updateProfile, changePassword, exportUserData, logout, getMyReputation } from '../controllers/authController.js';
 import { protect, authorize } from '../middleware/auth.js';
 import { loginLimiter, registerLimiter, passwordChangeLimiter } from '../utils/auth/rateLimit.js';
 import { validateBody, registerSchema, loginSchema, updateProfileSchema, changePasswordSchema } from '../utils/auth/validation.js';
@@ -18,6 +18,10 @@ router.post('/logout', protect, logout);
 // GET /api/auth/me (Protected)
 // Uses the 'protect' middleware to verify the token before fetching the user's profile
 router.get('/me', protect, getMe);
+
+// GET /api/auth/me/reputation (Protected)
+// Gets the authenticated user's reputation data including badges and activity logs
+router.get('/me/reputation', protect, getMyReputation);
 
 // GET /api/auth/export (Protected)
 // Exports the authenticated user's data as a JSON file

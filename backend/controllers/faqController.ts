@@ -209,6 +209,78 @@ export const getFAQById = async (req: Request<{ id: string }>, res: Response): P
 //   limit    (default 6, max 20)
 //   source   optional — e.g. "zoom_transcript" to surface only Zoom-derived FAQs
 //   since    optional ISO date — only return FAQs created on/after this date
+// GET /api/faq/topic-radar — Category-level interest + FAQs that
+// genuinely need attention (real reports / more unhelpful than helpful
+// votes), for the Topic Radar page. Public read, program-scoped like
+// getRecentFAQs above. Deliberately does NOT recompute trending search
+// queries — that's already served by GET /api/search/trending; the
+// frontend calls both instead of this duplicating that aggregation.
+export const getTopicRadar = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const scoped = withProgramScope({ status: 'approved' }, batchIdFromQuery(req));
+
+    const topics = await FAQ.aggregate([
+      { $match: scoped },
+      {
+        $group: {
+          _id: '$category',
+          faqCount: { $sum: 1 },
+          totalViews: { $sum: '$views' },
+          totalSearches: { $sum: '$searchCount' },
+          totalHelpful: { $sum: '$helpfulVotes' },
+          totalUnhelpful: { $sum: '$unhelpfulVotes' },
+        },
+      },
+      { $match: { _id: { $ne: null } } },
+      { $sort: { totalViews: -1, totalSearches: -1 } },
+      { $limit: 6 },
+      {
+        $project: {
+          _id: 0,
+          category: '$_id',
+          faqCount: 1,
+          totalViews: 1,
+          totalSearches: 1,
+          helpfulRatio: {
+            $cond: [
+              { $eq: [{ $add: ['$totalHelpful', '$totalUnhelpful'] }, 0] },
+              null,
+              { $divide: ['$totalHelpful', { $add: ['$totalHelpful', '$totalUnhelpful'] }] },
+            ],
+          },
+        },
+      },
+    ]);
+
+    const needsAttention = await FAQ.aggregate([
+      { $match: scoped },
+      {
+        $addFields: {
+          reportCount: { $size: { $ifNull: ['$reports', []] } },
+          unhelpfulDiff: { $subtract: ['$unhelpfulVotes', '$helpfulVotes'] },
+        },
+      },
+      { $match: { $or: [{ reportCount: { $gt: 0 } }, { unhelpfulDiff: { $gt: 0 } }] } },
+      { $sort: { reportCount: -1, unhelpfulDiff: -1 } },
+      { $limit: 5 },
+      {
+        $project: {
+          _id: 1,
+          question: 1,
+          category: 1,
+          reportCount: 1,
+          helpfulVotes: 1,
+          unhelpfulVotes: 1,
+        },
+      },
+    ]);
+
+    res.json({ topics, needsAttention });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 export const getRecentFAQs = async (req: Request, res: Response): Promise<void> => {
   try {
     const limit = Math.max(1, Math.min(20, parseInt(String(req.query.limit ?? '6'))));

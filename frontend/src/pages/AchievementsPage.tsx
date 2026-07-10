@@ -3,20 +3,34 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import api from '../utils/api';
 
+interface Badge {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  icon: string;
+  type: string;
+  awardedAt: string;
+  reason?: string;
+}
+
 interface ReputationUser {
   name: string;
   email: string;
   points: number;
   reputation: number;
   tier: string;
-  positiveBadges: string[];
-  negativeBadges: string[];
+  acceptedAnswers: number;
+  faqContributions: number;
+  positiveBadges: Badge[];
+  negativeBadges: Badge[];
 }
 
 interface ReputationLog {
   _id: string;
   action: string;
-  points: number;
+  delta: number;
+  reason: string;
   createdAt: string;
 }
 
@@ -36,10 +50,11 @@ export default function AchievementsPage() {
 
     const fetchReputation = async () => {
       try {
-        const res = await api.get(`/reputation/user/${user._id}`);
+        const res = await api.get('/auth/me/reputation');
         setProfile(res.data.user);
         setLogs(res.data.logs);
-      } catch {
+      } catch (err: any) {
+        console.error('Failed to load achievements:', err);
         setError('Failed to load achievements');
       } finally {
         setLoading(false);
@@ -133,12 +148,19 @@ export default function AchievementsPage() {
               {profile?.positiveBadges.length ? (
                 profile.positiveBadges.map((badge) => (
                   <div
-                    key={badge}
+                    key={badge.id}
                     className="rounded-2xl border border-border/70 bg-bg/70 p-4"
                   >
-                    <p className="font-semibold text-ink">
-                      🏅 {badge}
-                    </p>
+                    <div className="flex items-start gap-3">
+                      <span className="text-lg">{badge.icon}</span>
+                      <div>
+                        <p className="font-semibold text-ink">{badge.name}</p>
+                        <p className="text-xs text-ink-faint mt-1">{badge.description}</p>
+                        <p className="text-xs text-ink-faint mt-1">
+                          Earned {new Date(badge.awardedAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 ))
               ) : (
@@ -166,8 +188,8 @@ export default function AchievementsPage() {
                         </p>
 
                         <p className="text-xs text-ink-faint">
-                          {log.points > 0 ? '+' : ''}
-                          {log.points} points
+                          {log.delta > 0 ? '+' : ''}
+                          {log.delta} points
                         </p>
                       </div>
 

@@ -44,6 +44,7 @@ import { adminRouter as appSettingsAdminRouter, publicRouter as appSettingsPubli
 import adminCategoryClusterRoutes from './routes/adminCategoryCluster.js';
 import publicCategoryClusterRoutes from './routes/publicCategoryCluster.js';
 import healthRoutes from './routes/health.js';
+import userProgressRoutes from './routes/userProgress.js';
 import { ingestFrontendLog } from './utils/http/fileLogger.js';
 import { logger, startupLog, shutdownLog, cronLog, queueLog } from './utils/http/logger.js';
 import { startBot, stopBot } from './bot/discordBot.js';
@@ -206,6 +207,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/notifications/tea', teaRoutes);
 app.use('/api/zoom', zoomRoutes);
 app.use('/api/knowledge', knowledgeRoutes);
+app.use('/api/user', userProgressRoutes);
 app.use('/api/ask-ai', askAiRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/public', publicFaqRoutes);
