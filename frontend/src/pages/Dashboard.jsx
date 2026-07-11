@@ -35,8 +35,14 @@ export default function Dashboard({ darkMode, setDarkMode }) {
   const [formEmail, setFormEmail] = useState("");
   const [formQuery, setFormQuery] = useState("");
   const [formSubmitted, setFormSubmitted] = useState(false);
+  const [showAskModal, setShowAskModal] = useState(false);
 
-  const [faqData, setFaqData] = useState([
+  const [newQuestion, setNewQuestion] = useState("");
+
+  const [newCategory, setNewCategory] = useState("NOC");
+  const [customCategory, setCustomCategory] = useState("");
+
+  const defaultFaqs = [
     {
       id: 1,
       question:
@@ -52,7 +58,7 @@ export default function Dashboard({ darkMode, setDarkMode }) {
       question:
         "What happens if my monthly biometrics biometric synchronization fails?",
       answer:
-        "In case of hardware latency or sync failure, immediately file an attendance regularization request via the support hub panel. Backdated approvals are accepted until the 5th of each month.",
+        "In case of hardware latency or sync failure, immediately file an attendance regularization request via the support hub panel.",
       points: 25,
       category: "Attendance",
       upvoted: false,
@@ -62,12 +68,86 @@ export default function Dashboard({ darkMode, setDarkMode }) {
       question:
         "How do I update my institutional banking profile parameters for stipend routing?",
       answer:
-        "Navigate to your profile settings console, choose the finance grid, and upload a scanned image of a cancelled check. Group route verification safely processes within 48 operational hours.",
+        "Navigate to your profile settings console and upload a cancelled cheque.",
       points: 40,
       category: "Stipend",
       upvoted: false,
     },
-  ]);
+  ];
+
+  const [faqData, setFaqData] = useState(() => {
+    return JSON.parse(localStorage.getItem("faqs")) || defaultFaqs;
+  });
+
+  const handleAddQuestion = () => {
+    if (!newQuestion.trim()) {
+      alert("Please enter your question");
+      return;
+    }
+
+    const duplicate = faqData.find(
+      (faq) =>
+        faq.question.toLowerCase().trim() === newQuestion.toLowerCase().trim(),
+    );
+
+    if (duplicate) {
+      alert("This question already exists.");
+      return;
+    }
+
+    const finalCategory =
+      newCategory === "Other" ? customCategory.trim() : newCategory;
+    const newFaq = {
+      id: Date.now(),
+      question: newQuestion,
+      answer: "Waiting for admin response...",
+      category: finalCategory,
+      status: "Pending",
+      points: 0,
+      upvoted: false,
+    };
+    setFaqData([newFaq, ...faqData]);
+
+    const loggedUser = JSON.parse(localStorage.getItem("loggedInUser"));
+
+    if (loggedUser) {
+      loggedUser.points = (loggedUser.points || 0) + 10;
+
+      localStorage.setItem("loggedInUser", JSON.stringify(loggedUser));
+    }
+
+    const oldNotifications =
+      JSON.parse(localStorage.getItem("notifications")) || [];
+
+    oldNotifications.unshift({
+      id: Date.now(),
+      title: "Your question has been submitted successfully.",
+      time: "Just now",
+      read: false,
+    });
+
+    localStorage.setItem("notifications", JSON.stringify(oldNotifications));
+
+    if (loggedUser) {
+      loggedUser.points = (loggedUser.points || 0) + 10;
+
+      loggedUser.activity = loggedUser.activity || [];
+
+      loggedUser.activity.unshift("Asked a new question");
+
+      localStorage.setItem("loggedInUser", JSON.stringify(loggedUser));
+    }
+
+    localStorage.setItem("loggedInUser", JSON.stringify(loggedUser));
+
+    setNewQuestion("");
+
+    setNewCategory("NOC");
+    setCustomCategory("");
+    setShowAskModal(false);
+
+    alert("Question Added Successfully 🎉");
+  };
 
   useEffect(() => {
     document.documentElement.setAttribute(
@@ -75,6 +155,10 @@ export default function Dashboard({ darkMode, setDarkMode }) {
       darkMode ? "dark" : "light",
     );
   }, [darkMode]);
+
+  useEffect(() => {
+    localStorage.setItem("faqs", JSON.stringify(faqData));
+  }, [faqData]);
 
   const handleUpvote = (id, e) => {
     e.stopPropagation(); // Stops accordion block from toggling open/close
@@ -253,6 +337,12 @@ export default function Dashboard({ darkMode, setDarkMode }) {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
+          <button
+            className="hq-add-question-btn"
+            onClick={() => setShowAskModal(true)}
+          >
+            + Ask New Question
+          </button>
         </div>
       </section>
 
@@ -390,6 +480,53 @@ export default function Dashboard({ darkMode, setDarkMode }) {
           </div>
         </aside>
       </div>
+
+      {showAskModal && (
+        <div className="ask-modal-overlay">
+          <div className="ask-modal">
+            <h2>Ask a New Question</h2>
+
+            <input
+              type="text"
+              placeholder="Question"
+              value={newQuestion}
+              onChange={(e) => setNewQuestion(e.target.value)}
+            />
+
+            <select
+              value={newCategory}
+              onChange={(e) => setNewCategory(e.target.value)}
+            >
+              <option value="NOC">NOC</option>
+              <option value="Attendance">Attendance</option>
+              <option value="Stipend">Stipend</option>
+              <option value="Other">Other</option>
+            </select>
+
+            {newCategory === "Other" && (
+              <input
+                type="text"
+                placeholder="Enter New Category"
+                value={customCategory}
+                onChange={(e) => setCustomCategory(e.target.value)}
+              />
+            )}
+
+            <div className="ask-buttons">
+              <button
+                className="cancel-btn"
+                onClick={() => setShowAskModal(false)}
+              >
+                Cancel
+              </button>
+
+              <button className="submit-btn" onClick={handleAddQuestion}>
+                Submit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
