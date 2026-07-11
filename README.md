@@ -1,4 +1,4 @@
-# Shamagama (Yaksha FAQ Portal)
+# Samagama (Yaksha FAQ Portal)
 
 Full-stack FAQ portal with semantic vector search, AI-powered community moderation, and an expert promotion layer. Built to handle 1 million registered users.
 
