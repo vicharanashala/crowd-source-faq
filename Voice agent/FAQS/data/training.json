@@ -1,0 +1,357 @@
+{
+  "1.1": {
+    "aliases": [
+      "tell me about the internship",
+      "what is this internship",
+      "what will this programme do",
+      "internship overview",
+      "is the internship real work"
+    ],
+    "voiceAnswer": "It is a two-month full-time internship at Vicharanashala Lab, IIT Ropar. You work on a real open-source project under a mentor after a short training phase."
+  },
+  "1.2": {
+    "aliases": [
+      "what is vins",
+      "meaning of vins",
+      "vins full form",
+      "is vins online",
+      "what is online internship"
+    ],
+    "voiceAnswer": "VINS means Vicharanashala Internship. It is the online programme for selected candidates, with real open-source work, mentorship, no fee, and no stipend."
+  },
+  "1.3": {
+    "aliases": [
+      "explain bronze silver gold platinum",
+      "what are internship badges",
+      "what are the phases",
+      "what is bronze phase",
+      "what is silver phase"
+    ],
+    "voiceAnswer": "VINS has Bronze training, Silver project work, Gold recognition for strong features, and Platinum as an invitation to visit the lab later."
+  },
+  "1.4": {
+    "aliases": [
+      "who is eligible",
+      "can alumni apply",
+      "can graduated students join",
+      "eligibility criteria",
+      "who can join internship"
+    ],
+    "voiceAnswer": "The internship is for currently enrolled students. Already graduated candidates are not eligible for this cycle unless they re-enrol later."
+  },
+  "1.6": {
+    "aliases": [
+      "can i take leave",
+      "can i attend college classes",
+      "i have class tomorrow",
+      "can i skip for class",
+      "leave policy"
+    ],
+    "voiceAnswer": "Leave is not permitted. If you are attending classes or exams during the internship, you may need to join a later batch."
+  },
+  "2.1": {
+    "aliases": [
+      "when can i start",
+      "joining date",
+      "start date",
+      "can i start later",
+      "last date to start"
+    ],
+    "voiceAnswer": "You can start anytime in 2026, but the internship must finish by 31 December 2026. Starting earlier is strongly recommended."
+  },
+  "2.2": {
+    "aliases": [
+      "duration",
+      "how many months",
+      "how long is internship",
+      "internship length"
+    ],
+    "voiceAnswer": "The internship is planned for two months, with up to one month of grace, but everything must finish by 31 December 2026."
+  },
+  "3.1": {
+    "aliases": [
+      "noc dates",
+      "what dates on noc",
+      "start and end dates for noc",
+      "which dates should i write in noc"
+    ],
+    "voiceAnswer": "Use your chosen internship start date and the matching two-month end date on the NOC."
+  },
+  "3.2": {
+    "aliases": [
+      "who can sign noc",
+      "can hod sign noc",
+      "noc signatory",
+      "principal sign noc",
+      "college official signature"
+    ],
+    "voiceAnswer": "Any authorised college signatory can sign the NOC, such as HOD, Acting HOD, Principal, Dean, Director, Registrar, or Training and Placement Officer."
+  },
+  "3.4": {
+    "aliases": [
+      "noc format",
+      "do i design noc",
+      "where is noc template",
+      "sample noc"
+    ],
+    "voiceAnswer": "Use the NOC template from your dashboard unless your college requires its own format."
+  },
+  "3.10": {
+    "aliases": [
+      "online course will not give noc",
+      "masai noc",
+      "coursera noc",
+      "nptel noc",
+      "no college noc"
+    ],
+    "voiceAnswer": "If an online course provider cannot issue an NOC, follow the FAQ guidance and contact the programme through the dashboard chat for your exact case."
+  },
+  "4.1": {
+    "aliases": [
+      "am i selected",
+      "how do i know selected",
+      "selection status",
+      "yellow panel selected",
+      "result page selected"
+    ],
+    "voiceAnswer": "If your result page shows the yellow VINS panel, you are selected for VINS."
+  },
+  "4.3": {
+    "aliases": [
+      "offer letter date",
+      "when offer letter",
+      "when will i get offer",
+      "offer letter not received"
+    ],
+    "voiceAnswer": "The offer letter is issued after you complete the required selection and onboarding steps listed on your dashboard."
+  },
+  "4.4": {
+    "aliases": [
+      "will i get certificate",
+      "certificate after internship",
+      "completion certificate",
+      "internship certificate"
+    ],
+    "voiceAnswer": "Yes, you can receive a certificate after completing the required internship work successfully."
+  },
+  "4.8": {
+    "aliases": [
+      "change dates",
+      "can i change internship dates",
+      "reschedule internship",
+      "change start date"
+    ],
+    "voiceAnswer": "Date changes depend on the programme rules and dashboard process. Check the FAQ answer and use dashboard chat if your case is different."
+  },
+  "4.11": {
+    "aliases": [
+      "switch online to offline",
+      "vins to vise",
+      "can i change to offline",
+      "offline after selected online"
+    ],
+    "voiceAnswer": "Switching from VINS online to VISE offline is not generally available after selection. Follow the dashboard guidance for your case."
+  },
+  "5.1": {
+    "aliases": [
+      "what work will i do",
+      "what project",
+      "project details",
+      "what will i work on",
+      "open source work"
+    ],
+    "voiceAnswer": "You will work on a real open-source project under a Vicharanashala mentor after the training phase."
+  },
+  "5.2": {
+    "aliases": [
+      "hours per day",
+      "daily time commitment",
+      "full time means how many hours",
+      "how much time daily"
+    ],
+    "voiceAnswer": "The internship is full-time. Plan for a serious daily commitment rather than a side activity."
+  },
+  "5.3": {
+    "aliases": [
+      "who is my mentor",
+      "mentor details",
+      "when mentor assigned",
+      "mentor allocation"
+    ],
+    "voiceAnswer": "Your mentor is assigned by the programme team according to the phase and project allocation process."
+  },
+  "5.4": {
+    "aliases": [
+      "is stipend provided",
+      "paid internship",
+      "salary",
+      "payment",
+      "will i get money"
+    ],
+    "voiceAnswer": "No. The internship is free and unpaid. There is no stipend."
+  },
+  "6.1": {
+    "aliases": [
+      "official communication channels",
+      "where to contact",
+      "support channel",
+      "how to ask support",
+      "dashboard chat"
+    ],
+    "voiceAnswer": "Use the official dashboard chat and programme channels mentioned by Vicharanashala. Do not rely on unofficial groups for decisions."
+  },
+  "8.3": {
+    "aliases": [
+      "hard copy certificate",
+      "physical certificate",
+      "e certificate",
+      "certificate format"
+    ],
+    "voiceAnswer": "The FAQ answer explains whether the completion certificate is physical or electronic. Please read the on-screen answer for the exact certificate format."
+  },
+  "9.1": {
+    "aliases": [
+      "what is rosetta",
+      "internship journal",
+      "daily journal",
+      "rosetta meaning"
+    ],
+    "voiceAnswer": "Rosetta is your internship journal. It helps you record thinking, progress, and reflection during the internship."
+  },
+  "9.8": {
+    "aliases": [
+      "can i use chatgpt for rosetta",
+      "ai for journal",
+      "write rosetta with ai",
+      "can ai write entries"
+    ],
+    "voiceAnswer": "Do not use AI to fake your Rosetta entries. The journal should reflect your own thinking and work."
+  },
+  "10.2": {
+    "aliases": [
+      "register ai fundamentals",
+      "vibe ai course",
+      "how to register on vibe",
+      "ai fundamentals course"
+    ],
+    "voiceAnswer": "Follow the ViBe registration steps from the dashboard or FAQ for the AI Fundamentals course."
+  },
+  "10.5": {
+    "aliases": [
+      "kickoff zoom link",
+      "where is zoom link",
+      "kickoff meeting link",
+      "orientation link"
+    ],
+    "voiceAnswer": "Zoom links are shared through the official programme flow. Check your dashboard and official messages."
+  },
+  "10.10": {
+    "aliases": [
+      "attendance rules",
+      "participation rules",
+      "is attendance mandatory",
+      "live session attendance"
+    ],
+    "voiceAnswer": "Attendance and participation rules are tracked. Follow the official live-session and dashboard requirements closely."
+  },
+  "11.1": {
+    "aliases": [
+      "what are spurti points",
+      "sp meaning",
+      "what is sp",
+      "spurti score"
+    ],
+    "voiceAnswer": "Spurti Points are participation indicators. They are useful signals, but they are not the only basis for outcomes."
+  },
+  "11.4": {
+    "aliases": [
+      "low sp termination",
+      "can low spurti points remove me",
+      "will low sp fail me",
+      "negative sp problem"
+    ],
+    "voiceAnswer": "Low SP alone is not the full decision system, but participation requirements still matter. Read the exact FAQ answer on screen."
+  },
+  "13.1": {
+    "aliases": [
+      "login vibe",
+      "how to login vibe",
+      "vibe sign in",
+      "open vibe platform"
+    ],
+    "voiceAnswer": "Use the official ViBe login route and the email connected to your internship process."
+  },
+  "13.5": {
+    "aliases": [
+      "vibe video stuck",
+      "video looping",
+      "video skipping",
+      "vibe technical issue",
+      "video not playing"
+    ],
+    "voiceAnswer": "For ViBe video issues, follow the troubleshooting steps in the FAQ first. If it still fails, contact support through the official channel."
+  },
+  "13.8": {
+    "aliases": [
+      "camera access vibe",
+      "vibe consent form",
+      "do i need camera",
+      "camera permission"
+    ],
+    "voiceAnswer": "The ViBe consent and camera rules are part of the learning platform requirements. Read the exact FAQ answer before refusing access."
+  },
+  "14.1": {
+    "aliases": [
+      "is team compulsory",
+      "team formation compulsory",
+      "do i need a team",
+      "can i work alone"
+    ],
+    "voiceAnswer": "Team formation is part of the internship process where required. The FAQ answer gives the exact rule."
+  },
+  "14.2": {
+    "aliases": [
+      "team size",
+      "how many members in team",
+      "team members count",
+      "group size"
+    ],
+    "voiceAnswer": "The FAQ defines the expected team size. Check the on-screen answer for the exact number."
+  },
+  "14.3": {
+    "aliases": [
+      "how teams are formed",
+      "team allocation",
+      "who makes teams",
+      "team formation process"
+    ],
+    "voiceAnswer": "Teams are formed through the programme process, not by random guessing. Follow the exact instructions in the FAQ and dashboard."
+  },
+  "14.20": {
+    "aliases": [
+      "inactive teammate",
+      "team member not contributing",
+      "teammate not working",
+      "team conflict"
+    ],
+    "voiceAnswer": "If a teammate is inactive or not contributing, follow the official team issue process from the FAQ and contact the programme team if needed."
+  },
+  "15.9": {
+    "aliases": [
+      "what is level",
+      "spurti level",
+      "level meaning",
+      "how levels work"
+    ],
+    "voiceAnswer": "A Level is a progress indicator in Spurti. The exact calculation is shown in the FAQ."
+  },
+  "15.12": {
+    "aliases": [
+      "what is trophy league",
+      "trophy league meaning",
+      "league band",
+      "spurti league"
+    ],
+    "voiceAnswer": "A Trophy League is a banded recognition category in Spurti. It is separate from your Level."
+  }
+}

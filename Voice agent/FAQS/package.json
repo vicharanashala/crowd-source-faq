@@ -1,0 +1,13 @@
+{
+  "scripts": {
+    "start": "node server.js",
+    "import": "node scripts/import-live-faq.js",
+    "builddata": "npm run import && node scripts/build-data.js",
+    "seed": "node scripts/generate-seed.js",
+    "refresh": "npm run builddata && npm run seed"
+  },
+  "dependencies": {
+    "axios": "^1.18.1",
+    "cheerio": "^1.2.0"
+  }
+}
