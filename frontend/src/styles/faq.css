@@ -1,0 +1,137 @@
+.faq-page{
+    max-width:1000px;
+    margin:auto;
+    padding:40px 20px;
+}
+
+.faq-header{
+    text-align:center;
+    margin-bottom:30px;
+}
+
+.faq-header h1{
+    margin-bottom:10px;
+    font-family: "Fraunces", serif;
+    font-size: 1.875rem;
+    font-weight: 600;
+}
+
+.faq-voice-agent-btn{
+    display:inline-block;
+    margin-top:10px;
+    padding:10px 18px;
+    border-radius:20px;
+    background:#3c6b3f;
+    color:white;
+    text-decoration:none;
+    font-weight:600;
+    font-size:14px;
+}
+
+.faq-voice-agent-btn:hover{
+    background:#4d8851;
+}
+
+.faq-search{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:12px 16px;
+    border:1px solid #ddd;
+    border-radius:8px;
+    margin-bottom:20px;
+}
+
+.faq-search-input{
+    flex:1;
+    border:none;
+    outline:none;
+    font-size:16px;
+}
+
+.faq-category-container{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    margin-bottom:30px;
+}
+
+.faq-category-btn{
+    padding:8px 14px;
+    border:none;
+    border-radius:20px;
+    cursor:pointer;
+    background:#eee;
+}
+
+.faq-category-btn.active{
+    background:#3c6b3f;
+    color:white;
+}
+
+.faq-list{
+    display:flex;
+    flex-direction:column;
+    gap:16px;
+}
+
+.faq-card{
+    border:1px solid #ddd;
+    border-radius:10px;
+    overflow:hidden;
+    background:white;
+}
+
+.faq-question{
+    width:100%;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:18px;
+    border:none;
+    background:none;
+    cursor:pointer;
+    font-size:16px;
+    font-weight:600;
+}
+
+.faq-answer{
+    padding:0 18px 18px;
+}
+
+.faq-meta{
+    margin-top:16px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    flex-wrap:wrap;
+}
+
+.faq-category{
+    background:#2563eb;
+    color:white;
+    padding:4px 10px;
+    border-radius:12px;
+    font-size:13px;
+}
+
+.faq-tags{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+}
+
+.faq-tag{
+    display:flex;
+    align-items:center;
+    gap:4px;
+    background:#f3f4f6;
+    padding:4px 8px;
+    border-radius:10px;
+    font-size:12px;
+}
+
+.faq-empty{
+    text-align:center;
+    color:#666;
+}

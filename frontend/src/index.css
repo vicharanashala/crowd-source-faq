@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  background-color: #faf7f0;
+}
+
+body {
+  font-family: "Inter", sans-serif;
+  color: #1c2321;
+}
+
+::selection {
+  background-color: #c79a3a;
+  color: #1c2321;
+}

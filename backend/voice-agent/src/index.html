@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Samagama · FAQ Voice Agent</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">S</div>
+        <span class="brand-name">Samagama</span>
+      </div>
+
+      <nav class="nav-pills" aria-label="Samagama sections">
+        <a class="nav-pill" href="http://localhost:5173/faq">FAQ</a>
+        <a class="nav-pill" href="http://localhost:5173/forum">Discussion Forum</a>
+        <a class="nav-pill" href="http://localhost:5173/escalation">Escalation</a>
+        <a class="nav-pill nav-pill-active" href="#" aria-current="page">Voice Agent</a>
+      </nav>
+    </header>
+
+    <main class="shell">
+      <div class="page-head">
+        <p class="eyebrow">Vicharanashala Internship</p>
+        <h1>FAQ Voice Agent</h1>
+        <a class="source-link" href="https://samagama.in/internship/faq" target="_blank" rel="noreferrer">Official FAQ ↗</a>
+      </div>
+
+      <section class="agent" aria-label="FAQ voice agent">
+        <form id="questionForm" class="ask-form">
+          <label for="questionInput">Ask a question</label>
+          <div class="ask-row">
+            <input id="questionInput" name="question" placeholder="Example: Can my HOD sign the NOC?" autocomplete="off" />
+            <button class="primary-button" type="submit">Ask</button>
+          </div>
+        </form>
+
+        <div class="toolbar" aria-label="Voice controls">
+          <button id="voiceButton" class="tool-button listen-button" type="button">
+            <span class="mic-icon" aria-hidden="true"></span>
+            <span>Speak</span>
+          </button>
+          <button id="stopButton" class="tool-button" type="button">Stop</button>
+          <button id="muteButton" class="tool-button" type="button" aria-pressed="false">Voice on</button>
+          <label class="voice-select-label" for="voiceSelect">
+            Accent
+            <select id="voiceSelect">
+              <option value="en-GB" selected>English UK</option>
+              <option value="en-IN">English India</option>
+              <option value="en-US">English US</option>
+            </select>
+          </label>
+        </div>
+
+        <article class="answer-panel" aria-live="polite">
+          <div class="answer-head">
+            <span id="faqBadge" class="faq-badge">FAQ</span>
+            <span id="agentStatus" class="status-text">Ready</span>
+          </div>
+          <p id="heardText" class="heard-text">Ask by voice or type your question.</p>
+          <h2 id="matchedQuestion">No answer yet</h2>
+          <p id="answerText" class="answer-text">The agent will answer only when it finds a confident FAQ match.</p>
+          <div id="suggestionList" class="suggestion-list" aria-label="Suggested FAQ matches"></div>
+          <p id="confidenceText" class="confidence-text"></p>
+        </article>
+      </section>
+
+      <section class="quick-questions" aria-label="Example questions">
+        <button class="example-button" type="button">What is VINS?</button>
+        <button class="example-button" type="button">Is there a stipend?</button>
+        <button class="example-button" type="button">Who can sign the NOC?</button>
+        <button class="example-button" type="button">How long is the internship?</button>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
