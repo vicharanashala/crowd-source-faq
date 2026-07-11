@@ -847,3 +847,53 @@
 .submit-btn:hover {
   background: #5b49ff;
 }
+.admin-reply-box {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.admin-reply-box textarea {
+  padding: 14px;
+  border-radius: 10px;
+  border: none;
+  resize: none;
+  min-height: 90px;
+}
+
+.admin-reply-box button {
+  align-self: flex-end;
+  padding: 10px 22px;
+  background: #6c63ff;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.admin-reply-box button:hover {
+  opacity: 0.9;
+}
+.reply-btn {
+  margin-top: 15px;
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 10px;
+  background: #6c63ff;
+  color: white;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.reply-btn:hover {
+  background: #574bff;
+}
+
+.hq-dropdown-panel-inner textarea {
+  width: 100%;
+  min-height: 120px;
+  margin-top: 15px;
+}

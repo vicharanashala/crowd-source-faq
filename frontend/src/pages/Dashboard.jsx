@@ -40,6 +40,8 @@ export default function Dashboard({ darkMode, setDarkMode }) {
   const [newQuestion, setNewQuestion] = useState("");
 
   const [newCategory, setNewCategory] = useState("NOC");
+  const [replyingId, setReplyingId] = useState(null);
+  const [adminReply, setAdminReply] = useState("");
   const [customCategory, setCustomCategory] = useState("");
 
   const defaultFaqs = [
@@ -100,11 +102,11 @@ export default function Dashboard({ darkMode, setDarkMode }) {
     const newFaq = {
       id: Date.now(),
       question: newQuestion,
-      answer: "Waiting for admin response...",
+      answer: "",
       category: finalCategory,
-      status: "Pending",
       points: 0,
       upvoted: false,
+      status: "Pending",
     };
     setFaqData([newFaq, ...faqData]);
 
@@ -176,6 +178,40 @@ export default function Dashboard({ darkMode, setDarkMode }) {
     );
   };
 
+  const handleAdminReply = (id) => {
+    if (!adminReply.trim()) {
+      alert("Please enter reply");
+      return;
+    }
+
+    const updatedFaqs = faqData.map((faq) =>
+      faq.id === id
+        ? {
+            ...faq,
+            answer: adminReply,
+            status: "Answered",
+          }
+        : faq,
+    );
+
+    setFaqData(updatedFaqs);
+
+    const notifications =
+      JSON.parse(localStorage.getItem("notifications")) || [];
+
+    notifications.unshift({
+      id: Date.now(),
+      title: "Your question has been answered by Admin.",
+      time: "Just now",
+      read: false,
+    });
+
+    localStorage.setItem("notifications", JSON.stringify(notifications));
+
+    setReplyingId(null);
+    setAdminReply("");
+  };
+
   const handleFormSubmit = (e) => {
     e.preventDefault();
     if (formName && formEmail && formQuery) {
@@ -211,12 +247,14 @@ export default function Dashboard({ darkMode, setDarkMode }) {
   ];
 
   const navigate = useNavigate();
+  const loggedUser = JSON.parse(localStorage.getItem("loggedInUser")) || {};
 
   const handleLogout = () => {
     localStorage.removeItem("loggedInUser");
     localStorage.removeItem("isLoggedIn");
     navigate("/");
   };
+  // const loggedUser = JSON.parse(localStorage.getItem("loggedInUser"));
 
   return (
     <div className="hq-portal-container">
@@ -412,6 +450,21 @@ export default function Dashboard({ darkMode, setDarkMode }) {
                     <div className="hq-accordion-dropdown-panel">
                       <div className="hq-dropdown-panel-inner">
                         <p>{faq.answer}</p>
+
+                        {faq.status === "Pending" && (
+                          <>
+                            <p className="pending-text"></p>
+
+                            {faq.status === "Pending" && (
+                              <div className="pending-box">
+                                <p className="pending-text">
+                                  <br />
+                                  <strong>Status:</strong> 🟡 Pending
+                                </p>
+                              </div>
+                            )}
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
