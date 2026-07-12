@@ -26,9 +26,6 @@ import {
   navMobileLinkBase,
   navMobileLinkIdle,
   navSecondaryLinkBase,
-  themePickerActive,
-  themePickerButtonBase,
-  themePickerIdle,
 } from '../../styles/style_config';
 
 function getAvatarColor(name?: string): string {
@@ -264,32 +261,7 @@ export default function Navbar({ showProgramSwitcher: _showProgramSwitcher = fal
                             Saved
                           </button>
 
-                          <div className="px-4 py-2.5 border-b border-border/30 cursor-default" onClick={(e) => e.stopPropagation()}>
-                            <p className="text-[11px] font-bold uppercase tracking-wider text-ink-faint mb-2">Appearance</p>
-                            <div className="flex bg-mist rounded-lg p-1 gap-1">
-                              <button
-                                onClick={() => handleThemeChange('light')}
-                                className={`${themePickerButtonBase} ${theme === 'light' ? themePickerActive : themePickerIdle}`}
-                              >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" /><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" /><line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" /><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" /></svg>
-                                Light
-                              </button>
-                              <button
-                                onClick={() => handleThemeChange('dark')}
-                                className={`${themePickerButtonBase} ${theme === 'dark' ? themePickerActive : themePickerIdle}`}
-                              >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z" /></svg>
-                                Dark
-                              </button>
-                              <button
-                                onClick={() => handleThemeChange('system')}
-                                className={`${themePickerButtonBase} ${theme === 'system' ? themePickerActive : themePickerIdle}`}
-                              >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-                                System
-                              </button>
-                            </div>
-                          </div>
+  
 
                           <button
                             onClick={handleLogout}
@@ -304,6 +276,42 @@ export default function Navbar({ showProgramSwitcher: _showProgramSwitcher = fal
               )}
             </>
           )}
+
+          {/* Theme cycle button — visible to all users */}
+          <button
+            onClick={() => {
+              const order: Theme[] = ['light', 'dark', 'system'];
+              const idx = order.indexOf(theme);
+              handleThemeChange(order[(idx + 1) % order.length]);
+            }}
+            className="w-9 h-9 rounded-full flex items-center justify-center text-ink-soft hover:text-ink hover:bg-mist transition-all duration-200"
+            aria-label={`Theme: ${theme}. Click to cycle.`}
+            title={`Theme: ${theme}`}
+          >
+            {theme === 'light' ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="5" />
+                <line x1="12" y1="1" x2="12" y2="3" />
+                <line x1="12" y1="21" x2="12" y2="23" />
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                <line x1="1" y1="12" x2="3" y2="12" />
+                <line x1="21" y1="12" x2="23" y2="12" />
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+              </svg>
+            ) : theme === 'dark' ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z" />
+              </svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                <line x1="8" y1="21" x2="16" y2="21" />
+                <line x1="12" y1="17" x2="12" y2="21" />
+              </svg>
+            )}
+          </button>
 
           {/* Mobile hamburger */}
           <button

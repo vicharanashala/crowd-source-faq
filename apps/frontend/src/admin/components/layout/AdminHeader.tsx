@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link, useLocation, useSearchParams } from 'react-router-dom';
 import { useAdminAuth } from '../../hooks/useAdminAuth';
 import { useDebounce } from '../../../hooks/useDebounce';
@@ -6,6 +6,16 @@ import NotificationBell from '../../../components/notifications/NotificationBell
 import AdminActiveProgramIndicator from './AdminActiveProgramIndicator';
 import { NavPills } from '../../../components/layout/NavPills';
 import logoWide from '../../../assets/logo-wide.png';
+
+type Theme = 'light' | 'dark' | 'system';
+function getSystemTheme() {
+  return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+function applyTheme(theme: Theme) {
+  const t = theme === 'system' ? getSystemTheme() : theme;
+  document.documentElement.setAttribute('data-theme', t);
+  try { localStorage.setItem('theme', theme); } catch { void 0 }
+}
 
 function getAvatarColor(name?: string): string {
   if (!name) return '#6b92e0';
@@ -27,6 +37,41 @@ export default function AdminHeader({ mobileOpen, setMobileOpen }: AdminHeaderPr
   const navigate = useNavigate();
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
+
+  const [theme, setTheme] = useState<Theme>(() => {
+    if (typeof window === 'undefined') return 'system';
+    const stored = localStorage.getItem('theme');
+    if (stored === 'dark' || stored === 'light') return stored;
+    return 'system';
+  });
+
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'theme') {
+        const next = (e.newValue as Theme) || 'system';
+        setTheme(next);
+        applyTheme(next);
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
+
+  useEffect(() => {
+    const mql = window.matchMedia('(prefers-color-scheme: dark)');
+    const listener = () => {
+      if (theme === 'system') {
+        document.documentElement.setAttribute('data-theme', mql.matches ? 'dark' : 'light');
+      }
+    };
+    mql.addEventListener('change', listener);
+    return () => mql.removeEventListener('change', listener);
+  }, [theme]);
+
+  const handleThemeChange = useCallback((newTheme: Theme) => {
+    setTheme(newTheme);
+    applyTheme(newTheme);
+  }, []);
   
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -138,6 +183,42 @@ export default function AdminHeader({ mobileOpen, setMobileOpen }: AdminHeaderPr
         <div className="h-6 w-px bg-border/60 mx-1 hidden sm:block" />
 
         <NotificationBell />
+
+        {/* Theme cycle button */}
+        <button
+          onClick={() => {
+            const order: Theme[] = ['light', 'dark', 'system'];
+            const idx = order.indexOf(theme);
+            handleThemeChange(order[(idx + 1) % order.length]);
+          }}
+          className="w-9 h-9 rounded-full flex items-center justify-center text-ink-soft hover:text-ink hover:bg-mist transition-all duration-200"
+          aria-label={`Theme: ${theme}. Click to cycle.`}
+          title={`Theme: ${theme}`}
+        >
+          {theme === 'light' ? (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="5" />
+              <line x1="12" y1="1" x2="12" y2="3" />
+              <line x1="12" y1="21" x2="12" y2="23" />
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+              <line x1="1" y1="12" x2="3" y2="12" />
+              <line x1="21" y1="12" x2="23" y2="12" />
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+            </svg>
+          ) : theme === 'dark' ? (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z" />
+            </svg>
+          ) : (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+              <line x1="8" y1="21" x2="16" y2="21" />
+              <line x1="12" y1="17" x2="12" y2="21" />
+            </svg>
+          )}
+        </button>
 
         <div className="relative" ref={profileRef}>
           <button
