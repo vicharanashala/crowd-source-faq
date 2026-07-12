@@ -19,6 +19,7 @@ interface CategoryCardProps {
   count: number;
   items: FAQItem[];
   onSelect: () => void;
+  onQuestionClick?: (item: FAQItem) => void;
 }
 
 /**
@@ -27,7 +28,7 @@ interface CategoryCardProps {
  * White card, rounded-2xl, subtle border + shadow. Hover lifts and tints
  * the border accent. Clicking anywhere on the card fires onSelect.
  */
-export default function CategoryCard({ name, count, items, onSelect }: CategoryCardProps) {
+export default function CategoryCard({ name, count, items, onSelect, onQuestionClick }: CategoryCardProps) {
   const topTwo = items.slice(0, 2);
   const categoryNumber = items[0]?.categoryNumber;
   const catPrefix = categoryNumber ? `${categoryNumber}.` : '';
@@ -63,7 +64,13 @@ export default function CategoryCard({ name, count, items, onSelect }: CategoryC
             {topTwo.map((q, i) => (
               <li
                 key={q._id}
-                className={`${textXs} ${textBodyFaint} flex gap-1.5 leading-snug`}
+                onClick={(e) => {
+                  if (onQuestionClick) {
+                    e.stopPropagation();
+                    onQuestionClick(q);
+                  }
+                }}
+                className={`${textXs} ${textBodyFaint} flex gap-1.5 leading-snug ${onQuestionClick ? 'cursor-pointer hover:text-accent transition-colors' : ''}`}
               >
                 <span className={`${textBodyFaint} shrink-0 ${textNumeric}`}>{catPrefix}{i + 1}.</span>
                 <span className="truncate">{getQuestionTitle(q)}</span>

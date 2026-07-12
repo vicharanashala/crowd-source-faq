@@ -305,6 +305,155 @@
   100% { background-position: 200% 0; }
 }
 
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Homepage Section Styles — stats strip, timeline, popular cards
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Statistics Strip ────────────────────────────────────────── */
+.stat-card {
+  text-align: center;
+  padding: 1.25rem 0.75rem;
+}
+
+.stat-card__value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: rgb(var(--text-primary-rgb));
+}
+
+.stat-card__label {
+  font-size: 0.75rem;
+  color: rgb(var(--text-secondary-rgb));
+  margin-top: 0.25rem;
+  font-weight: 500;
+}
+
+.stat-card__icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 0.5rem;
+}
+
+/* ── Timeline — vertical dot + line layout for Recent FAQs ─── */
+.timeline {
+  position: relative;
+  padding-left: 1.75rem;
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 0.5rem;
+  top: 0.25rem;
+  bottom: 0;
+  width: 2px;
+  background: rgb(var(--border-rgb));
+  border-radius: 1px;
+}
+
+.timeline-item {
+  position: relative;
+  padding-bottom: 1.25rem;
+}
+
+.timeline-item:last-child {
+  padding-bottom: 0;
+}
+
+.timeline-dot {
+  position: absolute;
+  left: -1.75rem;
+  top: 0.35rem;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 9999px;
+  background: rgb(var(--accent-rgb));
+  border: 2px solid rgb(var(--bg-primary-rgb));
+  z-index: 1;
+}
+
+.timeline-content {
+  min-width: 0;
+}
+
+/* ── Popular Card — horizontal scroll card with sand top border ── */
+.popular-card {
+  min-width: 240px;
+  max-width: 260px;
+  flex-shrink: 0;
+  scroll-snap-align: start;
+  border-top: 2px solid rgb(var(--accent-rgb));
+}
+
+.popular-card:hover {
+  transform: translateY(-2px);
+}
+
+/* ── Horizontal Scroll Container ─────────────────────────────── */
+.h-scroll {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 0.5rem;
+}
+
+.h-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── CTA Arrow animation ─────────────────────────────────────── */
+.cta-arrow {
+  display: inline-block;
+  transition: transform 0.25s ease;
+}
+
+.cta-arrow:hover .cta-arrow-icon {
+  transform: translateX(3px);
+}
+
+/* ── Avatar stack for CTA ────────────────────────────────────── */
+.avatar-stack {
+  display: flex;
+  align-items: center;
+}
+
+.avatar-stack__item {
+  width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  border: 2px solid rgb(var(--bg-card-rgb));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 600;
+  margin-left: -6px;
+}
+
+.avatar-stack__item:first-child {
+  margin-left: 0;
+}
+
 /* Admin dark inputs */
 input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(0.5);

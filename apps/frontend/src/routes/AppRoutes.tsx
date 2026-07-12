@@ -30,7 +30,6 @@ import AdminRoute from './guards/AdminRoute';
 // User pages
 const AccountPage = lazy(() => import('../pages/AccountPage'));
 const HomePage = lazy(() => import('../pages/HomePage'));
-const FAQPage = lazy(() => import('../pages/FAQPage'));
 const CommunityPage = lazy(() => import('../pages/CommunityPage'));
 const SavedKnowledgePage = lazy(() => import('../pages/SavedKnowledgePage'));
 const SupportIndexPage = lazy(() => import('../pages/SupportIndexPage'));
@@ -156,8 +155,8 @@ export default function AppRoutes() {
             <Route path="/" element={<RouteElement name="root"><HomePage /></RouteElement>} />
             <Route path="/programs" element={<RouteElement name="programs"><ProgramPortalPage /></RouteElement>} />
             <Route path="/explore/select" element={<RouteElement name="explore-select"><Navigate to="/programs" replace /></RouteElement>} />
-            <Route path="/faq" element={<RouteElement name="faq"><FAQPage /></RouteElement>} />
-            <Route path="/faq/:id" element={<RouteElement name="faq-:id"><FAQPage /></RouteElement>} />
+            <Route path="/faq" element={<RouteElement name="faq"><HomePage /></RouteElement>} />
+            <Route path="/faq/:id" element={<RouteElement name="faq-:id"><HomePage /></RouteElement>} />
             <Route path="/community" element={<RouteElement name="community"><CommunityPage /></RouteElement>} />
             <Route path="/saved" element={<RouteElement name="saved"><SavedKnowledgePage /></RouteElement>} />
             <Route path="/support" element={<RouteElement name="support"><SupportRoute /></RouteElement>} />

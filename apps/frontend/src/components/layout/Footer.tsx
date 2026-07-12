@@ -23,7 +23,6 @@ export default function Footer({ branding }: { branding?: { logoText?: string; f
         <nav className="flex items-center justify-center gap-6 mb-6" aria-label="Footer navigation">
           {[
             { label: 'Home', to: '/' },
-            { label: 'FAQ', to: '/faq' },
             { label: 'Community', to: '/community' },
           ].map(({ label, to }) => (
             <Link
