@@ -24,6 +24,7 @@ const NAV: NavGroup[] = [
     label: 'Content',
     items: [
       { to: '/admin/faqs',           label: 'FAQs',          icon: DocIcon },
+      { to: '/admin/faq-analytics',  label: 'FAQ Analytics', icon: ActivityIcon },
       { to: '/admin/welcome',        label: 'Welcome',       icon: SparkleIcon },
       { to: '/admin/programs',       label: 'Programs Hub',    icon: LayersIcon },
       { to: '/admin/faqs/review',    label: 'FAQ Review',    icon: ShieldCheckIcon, featureFlag: 'faqFreshness' },

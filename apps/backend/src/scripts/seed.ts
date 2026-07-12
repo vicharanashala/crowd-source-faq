@@ -2,7 +2,7 @@
  * Seed FAQs and users from faqs.json + embedded data.
  * Run: npx tsx scripts/seed.ts
  */
-
+import connectDB from '../config/db.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -45,7 +45,7 @@ const DEFAULT_BATCH = {
 const seed = async () => {
   try {
     console.log('Connecting to MongoDB...');
-    await mongoose.connect(MONGODB_URI);
+    await connectDB();
 
     // Upsert users
     console.log('[1/3] Seeding users...');

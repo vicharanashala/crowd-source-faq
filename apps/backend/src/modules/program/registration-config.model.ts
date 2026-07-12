@@ -53,8 +53,8 @@ export interface IRegistrationConfig extends Document<string> {
 const registrationConfigSchema = new MongooseSchema<IRegistrationConfig>(
   {
     _id: { type: String, default: 'singleton' },
-    registrationEnabled: { type: Boolean, default: false },
-    openForAll: { type: Boolean, default: false },
+    registrationEnabled: { type: Boolean, default: true },
+    openForAll: { type: Boolean, default: true },
     inviteToken: { type: String, required: true },
     tokenGeneratedAt: { type: Date, required: true },
     lastToggledBy: {

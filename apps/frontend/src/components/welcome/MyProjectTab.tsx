@@ -115,6 +115,31 @@ export default function MyProjectTab() {
       {project && (
         <div className="space-y-4">
           
+          {/* ViBe Quick Action */}
+          <button 
+            onClick={() => window.open("https://vibe.vicharanashala.ai/student", "_blank", "noopener,noreferrer")}
+            className="w-full spatial-glass-card border border-[rgb(var(--border-rgb))]/30 bg-[rgb(var(--bg-card-rgb))]/40 hover:bg-[rgb(var(--text-primary-rgb))]/5 transition-colors backdrop-blur-xl rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent group"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center text-accent shrink-0">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 10v6M2 10l10-5 10 5-10 5z"></path>
+                  <path d="M6 12v5c3 3 9 3 12 0v-5"></path>
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-ink group-hover:text-accent transition-colors">Continue Learning on ViBe</h3>
+                <p className="text-sm text-ink-soft mt-1">Continue your learning journey on ViBe.</p>
+              </div>
+            </div>
+            <div className="hidden sm:flex items-center justify-center w-10 h-10 rounded-full bg-mist text-ink-soft group-hover:bg-accent/10 group-hover:text-accent transition-colors">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+              </svg>
+            </div>
+          </button>
+
           {/* Details Section */}
           <div className="spatial-glass-card border border-[rgb(var(--border-rgb))]/30 bg-[rgb(var(--bg-card-rgb))]/40 backdrop-blur-xl rounded-2xl overflow-hidden">
             <button 

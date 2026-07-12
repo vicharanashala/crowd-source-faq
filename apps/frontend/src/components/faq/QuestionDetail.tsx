@@ -2,6 +2,9 @@ import React from 'react';
 import { FAQItem, getQuestionTitle, getAnswerText, formatDate, getCategoryIcon, formatCategoryName, TrustBadge } from './faqUtils';
 import ReportFAQButton from './ReportFAQButton';
 import FreshnessBadge from '../faq/FreshnessBadge';
+import FaqFeedbackSection from './FaqFeedbackSection';
+import { useAuth } from '../../hooks/useAuth';
+import api from '../../utils/api';
 import {
   avatarPlaceholder,
   flexCol,
@@ -33,6 +36,27 @@ interface QuestionDetailProps {
 }
 
 export default function QuestionDetail({ item, relatedItems, onBack, onSelectRelated, backLabel }: QuestionDetailProps) {
+  const { user } = useAuth();
+  const [isSaved, setIsSaved] = React.useState<boolean>(
+    () => user?.savedFaqs?.includes(item._id) ?? false
+  );
+
+  React.useEffect(() => {
+    setIsSaved(user?.savedFaqs?.includes(item._id) ?? false);
+  }, [user?.savedFaqs, item._id]);
+
+  const handleToggleSave = async () => {
+    // Optimistic update
+    setIsSaved(!isSaved);
+    try {
+      await api.post(`/faq/${item._id}/save`);
+    } catch (err) {
+      // Revert on error
+      setIsSaved(isSaved);
+      console.error("Failed to save FAQ", err);
+    }
+  };
+
   const title = getQuestionTitle(item);
   const prefix = item.questionNumber ? `${item.questionNumber}. ` : '';
   const answer = getAnswerText(item);
@@ -73,16 +97,34 @@ export default function QuestionDetail({ item, relatedItems, onBack, onSelectRel
         </div>
       </aside>
 
-      <div className={surfaceCardPadded + ' border-border shadow-subtle'}>
-        <button
-          onClick={onBack}
-          className="inline-flex items-center gap-2 text-xs font-semibold text-ink-soft hover:text-ink transition-colors"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-          {backLabel || 'Back'}
-        </button>
+      <div className={surfaceCardPadded + ' border-border shadow-subtle relative'}>
+        <div className="flex items-center justify-between">
+          <button
+            onClick={onBack}
+            className="inline-flex items-center gap-2 text-xs font-semibold text-ink-soft hover:text-ink transition-colors"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+            {backLabel || 'Back'}
+          </button>
+
+          {user && (
+            <button
+              onClick={handleToggleSave}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                isSaved 
+                  ? 'bg-accent/10 text-accent border border-accent/20 hover:bg-accent/20' 
+                  : 'bg-card text-ink-soft border border-border/70 hover:border-border hover:text-ink'
+              }`}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill={isSaved ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+              </svg>
+              {isSaved ? 'Saved' : 'Save for Later'}
+            </button>
+          )}
+        </div>
 
         <div className={`mt-4 ${flexRowWrap} gap-2`}>
           {sourceLabel && (
@@ -116,6 +158,8 @@ export default function QuestionDetail({ item, relatedItems, onBack, onSelectRel
         ) : (
           <p className={`mt-4 ${textBodySoft}`}>No answer available yet.</p>
         )}
+
+        <FaqFeedbackSection faqId={item._id} />
 
         {highlight && (
           <div className="mt-5 rounded-xl border border-accent/15 bg-accent-light p-4">

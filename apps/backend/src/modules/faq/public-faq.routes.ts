@@ -9,6 +9,7 @@ import {
   searchPublicFaqs,
   trackPublicView,
   trackPublicReading,
+  submitFaqFeedback,
 } from './public-faq.controller.js';
 
 const router = Router();
@@ -57,5 +58,6 @@ router.get('/faqs/:id', readLimiter, getPublicFaqById);
 
 router.post('/track-view', trackLimiter, trackPublicView);
 router.post('/track-reading', trackLimiter, trackPublicReading);
+router.post('/faqs/:id/feedback', trackLimiter, submitFaqFeedback);
 
 export default router;

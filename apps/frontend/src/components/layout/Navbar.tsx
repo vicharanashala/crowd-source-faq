@@ -189,6 +189,14 @@ export default function Navbar({ showProgramSwitcher: _showProgramSwitcher = fal
               {/* Authenticated Utility Group */}
               {isAuthenticated && (
                 <div className="flex items-center gap-2 sm:gap-3 ml-3 sm:ml-5">
+                  <button
+                    onClick={() => window.open("https://vibe.vicharanashala.ai/student", "_blank", "noopener,noreferrer")}
+                    title="Continue your learning journey on ViBe"
+                    className="inline-flex items-center gap-1.5 h-9 px-3 rounded-full border border-border/70 bg-card hover:border-[rgb(var(--accent-rgb))]/60 text-ink text-xs font-semibold shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md z-50 hidden sm:inline-flex"
+                  >
+                    <span className="w-2 h-2 rounded-full bg-[rgb(var(--accent-rgb))] animate-pulse" />
+                    ViBe
+                  </button>
                   <ZoomBubble />
                   {/* Spurti Points chip */}
                   <SpurtiChip />

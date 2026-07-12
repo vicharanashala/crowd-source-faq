@@ -759,3 +759,54 @@ export const createFAQSuggestion = async (req: Request<{ id: string }, Record<st
   }
 };
 
+
+export const toggleSaveFAQ = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const faqId = req.params.id;
+    const user = await User.findById(req.user!._id);
+    if (!user) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+    const faqObjectId = new mongoose.Types.ObjectId(faqId);
+    
+    // Check if the FAQ exists
+    const faq = await FAQ.findById(faqObjectId);
+    if (!faq) {
+      res.status(404).json({ message: "FAQ not found" });
+      return;
+    }
+
+    const savedIndex = user.savedFaqs.findIndex(id => id.toString() === faqId);
+    if (savedIndex === -1) {
+      user.savedFaqs.push(faqObjectId);
+      await user.save();
+      res.json({ message: "FAQ saved successfully", isSaved: true });
+    } else {
+      user.savedFaqs.splice(savedIndex, 1);
+      await user.save();
+      res.json({ message: "FAQ removed from saved list", isSaved: false });
+    }
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: (error as Error).message });
+  }
+};
+
+export const getSavedFAQs = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = await User.findById(req.user!._id).populate({
+      path: "savedFaqs",
+      model: "FAQ"
+    });
+    if (!user) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+    // Filter out nulls in case an FAQ was deleted
+    const validSavedFaqs = user.savedFaqs.filter(faq => faq != null);
+    res.json({ savedFaqs: validSavedFaqs });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: (error as Error).message });
+  }
+};
+
