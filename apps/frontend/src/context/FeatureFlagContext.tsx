@@ -10,7 +10,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import api from '../utils/api';
 import { useAuth } from '../hooks/useAuth';
 import { useCurrentProgramId } from '../hooks/useProgramScopedApi';
-import { isKnownFeatureFlag, type FeatureFlagKey } from '../ds/featureFlags';
+import { isKnownFeatureFlag, FEATURE_FLAGS, type FeatureFlagKey } from '../ds/featureFlags';
 
 export type FeatureFlagSource = 'global' | 'override' | 'default' | 'unknown';
 
@@ -92,7 +92,7 @@ export function useFeatureFlag(key: FeatureFlagKey): UseFeatureFlagResult {
   }
   const resolved = flags[key];
   if (!resolved) {
-    return { enabled: false, source: 'default', loading: false };
+    return { enabled: FEATURE_FLAGS[key].default, source: 'default', loading: false };
   }
   return {
     enabled: resolved.enabled,
