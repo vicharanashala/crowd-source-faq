@@ -1,6 +1,8 @@
 import React, { useMemo, useRef, useEffect, useCallback, useState } from 'react';
 import { FAQItem, getQuestionTitle, getAnswerText, formatDate, formatCategoryName, TrustBadge, SourceBadge } from './faqUtils';
 import FreshnessBadge from '../faq/FreshnessBadge';
+import KnowledgePostCard from '../knowledge/KnowledgePostCard';
+import { useAuth } from '../../hooks/useAuth';
 import {
   flexRowSm,
   skeletonLine,
@@ -116,6 +118,7 @@ export default function QuestionList({
   onLoadMore,
   emptyMessage,
 }: QuestionListProps) {
+  const { user } = useAuth();
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   const toggleItem = useCallback((id: string) => {
@@ -194,11 +197,34 @@ export default function QuestionList({
         </div>
       )}
 
-      {/* FAQ accordion cards */}
+      {/* FAQ cards — real FAQ-sourced items get the full KnowledgePostCard
+          (helpful button + Golden Ticket escalation); community-sourced
+          items (no helpedUsers/isOutdated on that model) keep the
+          lighter accordion view. */}
       {!loading && (
         <div className={stackMd}>
           {visibleItems.map((item, idx) => {
             const id = item._id || `faq-${idx}`;
+            if (item.source === 'faq') {
+              return (
+                <KnowledgePostCard
+                  key={id}
+                  post={{
+                    _id: item._id,
+                    question: getQuestionTitle(item),
+                    answer: getAnswerText(item),
+                    category: item.category || '',
+                    tags: Array.isArray(item.tags) ? (item.tags as string[]) : undefined,
+                    isOutdated: !!item.isOutdated,
+                    helpedUsers: Array.isArray(item.helpedUsers) ? (item.helpedUsers as string[]) : [],
+                    escalationPriority: item.escalationPriority as 'normal' | 'high' | undefined,
+                    createdAt: String(item.createdAt || ''),
+                  }}
+                  currentUserId={user?._id ?? null}
+                  allowEscalation
+                />
+              );
+            }
             return (
               <QuestionItem
                 key={id}

@@ -65,6 +65,8 @@ interface UserResponse {
   projectAssignedAt?: Date;
   projectSelectionLocked?: boolean;
   guidedTourCompleted?: boolean;
+  currentStreak?: number;
+  longestStreak?: number;
 }
 
 // POST /api/auth/register
@@ -232,6 +234,8 @@ export const getMe = async (req: Request, res: Response): Promise<void> => {
     projectAssignedAt: (req.user as any).projectAssignedAt,
     projectSelectionLocked: (req.user as any).projectSelectionLocked,
     guidedTourCompleted: (req.user as any).guidedTourCompleted,
+    currentStreak: (req.user as any).currentStreak,
+    longestStreak: (req.user as any).longestStreak,
   };
 
   res.json({ user: userResponse });

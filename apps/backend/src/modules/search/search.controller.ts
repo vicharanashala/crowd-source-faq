@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import mongoose, { Types } from 'mongoose';
+import { AiClient } from '../ai/ai-client.service.js';
 import SearchLog from './search-log.model.js';
 import { generateQueryEmbedding } from '../../utils/ai/embeddings.js';
 import { LRUCache } from 'lru-cache';
@@ -463,5 +464,21 @@ export const getSuggest = async (req: Request, res: Response): Promise<void> => 
     res.json({ suggestions: results });
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
+  }
+};
+
+export const rewriteQuery = async (req: Request, res: Response): Promise<void> => {
+  const { query } = req.body as { query?: string };
+  if (!query || !query.trim()) {
+    res.status(400).json({ message: 'query string is required.' });
+    return;
+  }
+  try {
+    const client = new AiClient();
+    const result = await client.rewriteQuery(query);
+    res.json(result);
+  } catch (error) {
+    httpLog.warn(`[search] rewriteQuery failed: ${(error as Error).message}`);
+    res.json({ original: query, rewritten: query, changed: false });
   }
 };

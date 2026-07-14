@@ -59,6 +59,11 @@ export interface IUser extends Document {
   reputation: number;
   points: number;
   tier: Tier;
+
+  currentStreak: number;
+  longestStreak: number;
+  lastActiveDate?: Date;
+
   positiveBadges: IUserBadge[];
   negativeBadges: IUserBadge[];
   // Moderation
@@ -186,6 +191,10 @@ const userSchema = new MongooseSchema<IUser>(
     reputation: { type: Number, default: 0, min: 0 },
     points: { type: Number, default: 0, min: 0 },
     tier: { type: String, enum: ['newcomer', 'contributor', 'helper', 'expert', 'champion', 'knowledge_master'] as Tier[], default: 'newcomer' },
+    currentStreak: { type: Number, default: 0 },
+    longestStreak: { type: Number, default: 0 },
+    lastActiveDate: { type: Date, default: null },
+    
     positiveBadges: [{
       badgeId: { type: MongooseSchema.Types.ObjectId, ref: 'Badge' },
       awardedAt: { type: Date, default: Date.now },

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   getAllPosts,
   getPostById,
+  getMyPosts,
 } from './post-reads.controller.js';
 import {
   createPost,
@@ -58,9 +59,10 @@ router.get('/answers/list', getAnswersList);
 router.get('/stats', getCommunityStats);
 
 // Protected non-parameterised routes must come BEFORE /:id to avoid the
-// wildcard swallowing "bookmarks" / "review-queue" as a post ID.
+// wildcard swallowing "bookmarks" / "review-queue" / "my-posts" as a post ID.
 router.get('/review-queue', protect, authorize('admin', 'moderator'), getReviewQueue);
 router.get('/bookmarks', protect, getBookmarks);
+router.get('/my-posts', protect, getMyPosts);
 
 router.get('/', getAllPosts);
 // Audit fix: frontend calls `/community/posts` (literal); without this

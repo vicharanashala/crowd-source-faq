@@ -23,6 +23,8 @@ export interface User {
   projectAssignedAt?: Date;
   projectSelectionLocked?: boolean;
   guidedTourCompleted?: boolean;
+  currentStreak?: number;
+  longestStreak?: number;
   // Index signature kept for forward-compat with backend fields the
   // client hasn't been taught about yet.
   [key: string]: unknown;

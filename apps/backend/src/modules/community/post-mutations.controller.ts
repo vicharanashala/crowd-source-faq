@@ -18,6 +18,7 @@ import { dispatchNotification } from '../../utils/http/notificationDispatcher.js
 import { createTeaDrop } from '../notification/tea-notification.controller.js';
 import ReputationLog from '../moderation/reputation-log.model.js';
 import { autoAwardBadges } from '../moderation/reputation.controller.js';
+import { touchUserStreak } from '../../utils/streak.js';
 import { sanitizeHtml } from '../../utils/http/sanitize.js';
 // v1.68 — L1: communityLog replaces the bare `logger` so all
 // post/comment/upvote log lines carry the [community] tag.
@@ -400,6 +401,9 @@ export const toggleUpvote = async (req: Request, res: Response): Promise<void> =
         // Auto-award tier badges if threshold crossed
         autoAwardBadges(post.author.toString()).catch((err) => {
           communityLog.warn(`[post] Failed to auto-award badges to ${post.author}: ${(err as Error).message}`);
+        });
+        touchUserStreak(post.author.toString()).catch((err) => {
+          communityLog.warn(`[post] Failed to update streak for ${post.author}: ${(err as Error).message}`);
         });
       }
       await ReputationLog.create({

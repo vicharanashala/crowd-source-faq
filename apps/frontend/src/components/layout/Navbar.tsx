@@ -251,6 +251,12 @@ export default function Navbar({ showProgramSwitcher: _showProgramSwitcher = fal
                             </button>
                           )}
                           <button
+                            onClick={() => { navigate('/journey'); setProfileOpen(false); }}
+                            className={`w-full text-left px-4 py-2.5 text-sm font-medium text-ink-soft ${dropdownRowHover} transition-colors border-b ${dropdownRowDivider}`}
+                          >
+                            My Learning Journey
+                          </button>
+                          <button
                             onClick={() => { navigate('/account'); setProfileOpen(false); }}
                             className={`w-full text-left px-4 py-2.5 text-sm font-medium text-ink-soft ${dropdownRowHover} transition-colors border-b ${dropdownRowDivider}`}
                           >

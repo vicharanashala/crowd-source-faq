@@ -10,6 +10,7 @@ export const baseNavItems: NavItem[] = [
   { label: 'FAQ', to: '/faq' },
   { label: 'Welcome Package', to: '/welcome' },
   { label: 'Community', to: '/community' },
+  { label: 'Leaderboard', to: '/leaderboard' },
 ];
 
 export function useNavItems() {
@@ -42,6 +43,21 @@ export function useNavItems() {
         if (item.label === 'Golden') return { ...item, to: '/admin/golden-tickets' };
         return item;
       });
+  }
+
+  // "My Questions" pill — only for logged-in, non-admin users
+  if (user && user.role !== 'admin') {
+    const communityIdx = allNavItems.findIndex(item => item.to === '/community');
+    const myQuestionsItem: NavItem = { label: 'My Questions', to: '/my-questions' };
+    if (communityIdx !== -1) {
+      allNavItems = [
+        ...allNavItems.slice(0, communityIdx + 1),
+        myQuestionsItem,
+        ...allNavItems.slice(communityIdx + 1),
+      ];
+    } else {
+      allNavItems = [...allNavItems, myQuestionsItem];
+    }
   }
 
   return allNavItems;

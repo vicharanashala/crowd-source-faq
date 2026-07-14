@@ -15,10 +15,12 @@ import analyticsRoutes from '../modules/search/analytics.routes.js';
 import notificationRoutes from '../modules/notification/notification.routes.js';
 import teaRoutes from '../modules/notification/tea.routes.js';
 import reputationRoutes from '../modules/moderation/reputation.routes.js';
+import leaderboardRoutes from '../modules/moderation/leaderboard.routes.js';
 import moderationRoutes from '../modules/moderation/moderation.routes.js';
 import zoomRoutes from '../modules/zoom/zoom.routes.js';
 import knowledgeRoutes from '../modules/knowledge/knowledge.routes.js';
 import askAiRoutes from '../modules/ai/ask-ai.routes.js';
+import firstResponderRoutes from '../modules/ai/first-responder.routes.js';
 import uploadRoutes from '../modules/upload/upload.routes.js';
 import publicFaqRoutes from '../modules/faq/public-faq.routes.js';
 import batchRoutes from '../modules/program/batch.routes.js';
@@ -60,6 +62,7 @@ export function registerRoutes(app: Express): void {
   router.use('/admin', adminDocumentsRoutes);
   router.use('/admin', adminAuditRoutes);
   router.use('/reputation', reputationRoutes);
+  router.use('/leaderboard', leaderboardRoutes);
   router.use('/moderation', moderationRoutes);
   router.use('/analytics', analyticsRoutes);
   router.use('/notifications', notificationRoutes);
@@ -67,6 +70,7 @@ export function registerRoutes(app: Express): void {
   router.use('/zoom', zoomRoutes);
   router.use('/knowledge', knowledgeRoutes);
   router.use('/ask-ai', askAiRoutes);
+  router.use('/ai/first-responder', firstResponderRoutes);
   router.use('/upload', uploadRoutes);
   router.use('/public', publicFaqRoutes);
   router.use('/health', healthRoutes);
