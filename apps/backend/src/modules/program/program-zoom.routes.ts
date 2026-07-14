@@ -10,6 +10,7 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import { protect, authorize } from '../../middleware/auth.js';
+import { validateObjectId } from '../../middleware/validateObjectId.js';
 import {
   getProgramZoomConfigRoute,
   upsertProgramZoomConfig,
@@ -31,7 +32,8 @@ router.get(
   protect,
   authorize('admin'),
   limiter,
-  getProgramZoomConfigRoute,
+  validateObjectId('id'),
+  getProgramZoomConfigRoute
 );
 
 router.put(
@@ -39,7 +41,8 @@ router.put(
   protect,
   authorize('admin'),
   limiter,
-  upsertProgramZoomConfig,
+  validateObjectId('id'),
+  upsertProgramZoomConfig
 );
 
 router.post(
@@ -47,7 +50,8 @@ router.post(
   protect,
   authorize('admin'),
   limiter,
-  disconnectProgramZoom,
+  validateObjectId('id'),
+  disconnectProgramZoom
 );
 
 export default router;

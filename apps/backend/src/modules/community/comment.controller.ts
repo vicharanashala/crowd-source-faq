@@ -435,8 +435,11 @@ export const acceptCommentAnswer = async (req: Request, res: Response): Promise<
         { new: true }
       );
       if (answerAuthor) {
-        answerAuthor.tier = calculateTier(answerAuthor.points);
-        await answerAuthor.save();
+        const newTier = calculateTier(answerAuthor.points);
+        await User.updateOne(
+          { _id: answerAuthorId },
+          { $set: { tier: newTier } }
+        );
         // Per-program write. The post's batchId is the program
         // context for the reputation delta.
         await awardToUser(answerAuthorId, post.batchId as Types.ObjectId, {
