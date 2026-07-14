@@ -1,42 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../utils/api';
 import type { SearchResult } from '../../types/ui';
-import {
-  confidenceHigh,
-  confidenceLow,
-  confidenceMedium,
-  confidencePill,
-  resultBody,
-  resultBodyCommunity,
-  resultBodyFaq,
-  resultBodyFaqShort,
-  resultCardCollapsed,
-  resultCardExpanded,
-  resultCommunityLabel,
-  resultFaqLabel,
-  resultHeaderCommunity,
-  resultHeaderFaq,
-  resultMetaCategory,
-  resultMetaSource,
-  resultTitle,
-  suggestBtnCancel,
-  suggestBtnSubmit,
-  suggestCta,
-  suggestCtaAccent,
-  suggestCtaFaint,
-  suggestError,
-  suggestForm,
-  suggestLabel,
-  suggestSuccess,
-  suggestTextarea,
-  textXs,
-  textXsFaint,
-  voteDown,
-  voteDownIdle,
-  votePillBase,
-  voteUp,
-  voteUpIdle,
-} from '../../styles/style_config';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -53,12 +17,12 @@ export function getConfidenceLevel(result: SearchResult): string {
 export function ConfidenceTag({ level }: { level: string }) {
   const colorClass =
     level === 'High'
-      ? confidenceHigh
+      ? 'bg-success-light text-success'
       : level === 'Medium'
-        ? confidenceMedium
-        : confidenceLow;
+        ? 'bg-warning-light text-warning'
+        : 'bg-mist text-ink-faint';
   return (
-    <span className={`${confidencePill} ${colorClass}`}>
+    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold ${colorClass}`}>
       {level} Confidence
     </span>
   );
@@ -153,7 +117,9 @@ export default function ResultItem({ result, expanded, onToggle, onShowHistory, 
 
   return (
     <div
-      className={`${expanded ? resultCardExpanded : resultCardCollapsed}`}
+      className={`rounded-2xl border transition-all duration-300 overflow-hidden ${
+        expanded ? 'border-accent/30 bg-cream' : 'border-border/70 bg-card/80 hover:bg-cream'
+      }`}
       onClick={() => {
         if (isCommunity && result._id) navigate(`/community?post=${result._id}`);
         else onToggle();
@@ -165,14 +131,14 @@ export default function ResultItem({ result, expanded, onToggle, onShowHistory, 
         aria-expanded={expanded}>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap text-[10px] mb-1.5">
-            <span className={resultMetaSource}>{sourceLabel}</span>
+            <span className="px-2.5 py-0.5 rounded-full bg-mist text-ink-soft font-semibold uppercase tracking-wider">{sourceLabel}</span>
             {result.category && (
-              <span className={resultMetaCategory}>{result.category}</span>
+              <span className="px-2.5 py-0.5 rounded-full bg-accent-light text-accent font-semibold uppercase tracking-wider">{result.category}</span>
             )}
           </div>
-          <p className={resultTitle}>{title}</p>
+          <p className="text-sm font-semibold text-ink leading-snug">{title}</p>
           {!expanded && fullContent && (
-            <p className={resultBody}>{fullContent}</p>
+            <p className="mt-1.5 text-xs text-ink-soft leading-relaxed line-clamp-2">{fullContent}</p>
           )}
         </div>
         <ConfidenceTag level={confidence} />
@@ -182,45 +148,49 @@ export default function ResultItem({ result, expanded, onToggle, onShowHistory, 
         <div className="px-4 pb-4 border-t border-border/40">
           {result.source === 'faq' && result.answer && (
             <div className="mt-3 space-y-4">
-              <div className={resultHeaderFaq}>
-                <p className={resultFaqLabel}>Answer</p>
-                <p className={resultBodyFaq}>{result.answer}</p>
+              <div className="rounded-xl bg-accent-light border border-accent/15 p-4">
+                <p className="text-[11px] font-semibold text-accent mb-2 uppercase tracking-wide">Answer</p>
+                <p className="text-sm text-ink/75 leading-relaxed whitespace-pre-wrap">{result.answer}</p>
               </div>
               <div className="flex items-center justify-between border-t border-border/40 pt-3">
                 <div className="flex items-center gap-3 flex-wrap">
                   <span className="text-xs text-ink-soft font-medium">Was this helpful?</span>
                   <button onClick={(e) => { e.stopPropagation(); handleVote(true); }} disabled={voted !== null}
-                    className={`${votePillBase} ${voted === 'helpful' ? voteUp : voteUpIdle}`}>
+                    className={`inline-flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-full border transition-all duration-200 ${
+                      voted === 'helpful' ? 'border-accent/40 bg-accent-light text-accent' : 'border-border text-ink-faint hover:border-accent/40 hover:text-accent'
+                    } disabled:cursor-default`}>
                     <ThumbsUpIcon /><span className="font-semibold">{hv}</span>
                   </button>
                   <button onClick={(e) => { e.stopPropagation(); handleVote(false); }} disabled={voted !== null}
-                    className={`${votePillBase} ${voted === 'unhelpful' ? voteDown : voteDownIdle}`}>
+                    className={`inline-flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-full border transition-all duration-200 ${
+                      voted === 'unhelpful' ? 'border-red-200 bg-red-50 text-red-600' : 'border-border text-ink-faint hover:border-red-200 hover:text-red-500'
+                    } disabled:cursor-default`}>
                     <ThumbsDownIcon /><span className="font-semibold">{uhv}</span>
                   </button>
                   {voted && <span className="text-xs text-ink-soft animate-fade-in font-medium ml-1">· Thanks for your feedback!</span>}
                 </div>
                 <button onClick={(e) => { e.stopPropagation(); setShowSuggest(!showSuggest); }}
-                  className={suggestCtaAccent}>
+                  className="text-xs font-semibold text-accent hover:text-accent-dark hover:underline transition-colors">
                   Suggest better answer
                 </button>
               </div>
               {showSuggest && (
                 <form onSubmit={handleSuggestSubmit}
-                  className={suggestForm}
+                  className="mt-3 bg-mist/60 border border-border/70 rounded-2xl p-4 space-y-3 animate-fade-in"
                   onClick={e => e.stopPropagation()}>
-                  <p className={suggestLabel}>Suggest a better answer</p>
+                  <p className="text-xs font-semibold text-ink">Suggest a better answer</p>
                   <textarea value={suggestion} onChange={e => setSuggestion(e.target.value)}
                     placeholder="What would be a better or more accurate answer to this question?"
                     rows={3}
-                    className={suggestTextarea}
+                    className="w-full text-xs p-3 rounded-xl border border-border bg-card focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent resize-y"
                     required />
-                  {suggestError && <p className={suggestError}>{suggestError}</p>}
-                  {suggestSuccess && <p className={suggestSuccess}>{suggestSuccess}</p>}
+                  {suggestError && <p className="text-[11px] text-danger">{suggestError}</p>}
+                  {suggestSuccess && <p className="text-[11px] text-success">{suggestSuccess}</p>}
                   <div className="flex justify-end gap-2">
                     <button type="button" onClick={() => setShowSuggest(false)}
-                      className={suggestBtnCancel}>Cancel</button>
+                      className="px-3 py-1.5 rounded-full border border-border bg-card text-[11px] font-semibold text-ink-soft hover:bg-cream transition-colors">Cancel</button>
                     <button type="submit" disabled={suggesting}
-                      className={suggestBtnSubmit}>
+                      className="px-4 py-1.5 rounded-full bg-accent text-accent-text text-[11px] font-semibold hover:bg-accent-dark transition-colors disabled:opacity-50">
                       {suggesting ? 'Submitting...' : 'Submit suggestion'}
                     </button>
                   </div>
@@ -229,12 +199,12 @@ export default function ResultItem({ result, expanded, onToggle, onShowHistory, 
             </div>
           )}
           {isCommunity && result.body && (
-            <div className="mt-3"><p className={resultBodyCommunity}>{result.body}</p></div>
+            <div className="mt-3"><p className="text-sm text-ink/70 leading-relaxed">{result.body}</p></div>
           )}
           {isCommunity && result.answer && (
-            <div className={resultHeaderCommunity}>
-              <p className={resultCommunityLabel}>Official Answer</p>
-              <p className={resultBodyFaqShort}>{result.answer}</p>
+            <div className="mt-3 rounded-xl bg-success-light border border-success/15 p-4">
+              <p className="text-[11px] font-semibold text-success mb-2 uppercase tracking-wide">Official Answer</p>
+              <p className="text-sm text-ink/75 leading-relaxed">{result.answer}</p>
             </div>
           )}
         </div>
@@ -242,7 +212,7 @@ export default function ResultItem({ result, expanded, onToggle, onShowHistory, 
 
       <div className="px-4 pb-4 flex items-center justify-between border-t border-border/10 pt-3 bg-mist/30">
         <button onClick={(e) => { e.stopPropagation(); onToggle(); }}
-          className={suggestCta}>
+          className="inline-flex items-center gap-1 text-xs font-semibold text-ink-soft hover:text-accent transition-colors">
           {expanded ? (
             <>Collapse answer <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15" /></svg></>
           ) : (
@@ -251,7 +221,7 @@ export default function ResultItem({ result, expanded, onToggle, onShowHistory, 
         </button>
         {result.source === 'faq' && (
           <button onClick={(e) => { e.stopPropagation(); onShowHistory(result._id, title); }}
-            className={suggestCtaFaint}>
+            className="inline-flex items-center gap-1 text-xs text-ink-faint hover:text-ink-soft transition-colors">
             <ClockIcon /><span>History</span>
           </button>
         )}

@@ -47,25 +47,7 @@ vi.mock('../../components/support/api', () => ({
         notificationSent: true,
       },
     ],
-    // v1.74 — discussion thread + window. The fixture here
-    // mirrors what the GET endpoint returns: a single prominent
-    // admin answer (the first one) + the window open for 7 days
-    // from firstAdminAnswerAt.
-    goldenTicketDiscussion: [
-      {
-        text: 'Try the LTE fallback.',
-        senderRole: 'admin',
-        senderId: 'a1',
-        senderName: 'Helper Admin',
-        createdAt: '2026-06-15T10:30:00Z',
-        isProminent: true,
-      },
-    ],
-    firstAdminAnswerAt: '2026-06-15T10:30:00Z',
-    discussionClosesAt: '2026-06-22T10:30:00Z',
-    discussionOpen: true,
   })),
-  postGoldenDiscussion: vi.fn(),
 }));
 
 // Suppress FeatureGate's loading state + admin-on-feature-off banners
@@ -98,13 +80,7 @@ describe('GoldenTicketDetailPage (user-side bell target, v1.73)', () => {
     await waitFor(() => {
       expect(screen.getByText('Router keeps dropping')).toBeInTheDocument();
     });
-    // v1.74 — the first answer now appears TWICE in the rendered
-    // page: once in the legacy "Answer history" list (driven by
-    // goldenResolutions[]) and once as the pinned "Prominent
-    // answer" card at the top of the discussion thread. The
-    // follow-up admin answer still only appears in the legacy
-    // list (it's NOT a discussion entry in the fixture).
-    expect(screen.getAllByText(/Try the LTE fallback/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/Try the LTE fallback/i)).toBeInTheDocument();
     expect(screen.getByText(/different power outlet/i)).toBeInTheDocument();
   });
 

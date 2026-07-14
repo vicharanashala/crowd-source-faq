@@ -73,9 +73,9 @@ export default function AdminAuditLogTab() {
                       </td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest ${
-                          log.action === 'create' ? 'bg-accent/10 text-accent' :
-                          log.action === 'update' ? 'bg-warning/10 text-warning' :
-                          log.action === 'delete' ? 'bg-danger/10 text-danger' :
+                          log.action === 'create' ? 'bg-green-500/10 text-green-500' :
+                          log.action === 'update' ? 'bg-amber-500/10 text-amber-500' :
+                          log.action === 'delete' ? 'bg-red-500/10 text-red-500' :
                           'bg-ink/10 text-ink-soft'
                         }`}>
                           {log.action}
@@ -95,9 +95,9 @@ export default function AdminAuditLogTab() {
                                 return (
                                   <div key={key} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 bg-bg p-1.5 rounded border border-border/50">
                                     <span className="font-mono text-[10px] text-ink-faint">{key}:</span>
-                                    <span className="font-mono text-[10px] text-danger line-through truncate max-w-[100px] sm:max-w-[150px]" title={oldV}>{oldV}</span>
+                                    <span className="text-red-400 line-through truncate max-w-[100px] sm:max-w-[150px]" title={oldV}>{oldV}</span>
                                     <span className="hidden sm:inline text-ink-faint">→</span>
-                                    <span className="text-accent truncate max-w-[100px] sm:max-w-[150px]" title={newV}>{newV}</span>
+                                    <span className="text-green-400 truncate max-w-[100px] sm:max-w-[150px]" title={newV}>{newV}</span>
                                   </div>
                                 );
                               })}

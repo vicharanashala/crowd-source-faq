@@ -30,8 +30,6 @@ import {
   logAdminAction,
   notifyUser,
   isGoldenTicket,
-  supportTicketLink,
-  isDiscussionOpen,
   requireFeatureOn,
   escapeRegex,
 } from './support-core.controller.js';
@@ -169,16 +167,13 @@ export async function convertToGolden(req: Request, res: Response): Promise<void
       `Converted to Golden${spCost > 0 ? ` (SP cost: ${spCost})` : ''}${note ? ` | ${note.slice(0, 100)}` : ''}`,
     );
 
-    // Tell the student their ticket is now Golden-priority. Use the
-    // golden-aware deep-link so the bell lands them on the page that
-    // actually renders the ticket (the generic /support/:id page
-    // does NOT render goldenResolutions[]).
+    // Tell the student their ticket is now Golden-priority.
     await notifyUser(request.userId, {
       title: 'Your support request was promoted to Golden',
       message: spCost > 0
         ? `An admin converted your ticket to a Golden Ticket (${spCost} SP applied). It will be reviewed with priority.`
         : 'An admin converted your ticket to a Golden Ticket. It will be reviewed with priority.',
-      link: supportTicketLink({ _id: request._id, isGolden: true }),
+      link: '/support/' + request._id.toString(),
       metadata: {
         supportRequestId: request._id.toString(),
         issueType: request.issueType,
@@ -729,144 +724,16 @@ export async function getMyGoldenTicket(req: Request, res: Response): Promise<vo
       res.status(404).json({ message: 'Golden ticket not found.' });
       return;
     }
-    // v1.74 — discussion thread + window. The legacy
-    // goldenResolutions[] is kept in the response so the existing
-    // user-side rendering + golden-logs page still work.
     res.json({
       ticket: {
         ...request,
         goldenResolutions: Array.isArray(request.goldenResolutions)
           ? request.goldenResolutions
           : [],
-        goldenTicketDiscussion: Array.isArray(request.goldenTicketDiscussion)
-          ? request.goldenTicketDiscussion
-          : [],
-        // discussionOpen is computed at response time, so the UI
-        // doesn't have to know the 7-day constant.
-        discussionOpen: isDiscussionOpen(request),
       },
     });
   } catch (err) {
     adminLog.error(`getMyGoldenTicket failed: ${(err as Error).message}`);
     res.status(500).json({ message: 'Failed to load Golden ticket.' });
-  }
-}
-
-// ─── v1.74 — Golden Ticket discussion reply ──────────────────────────────
-
-/**
- * POST /api/support/golden/:id/discussion
- *
- * Both the ticket owner and any admin/moderator can post a reply
- * inside the 7-day discussion window that opens with the first
- * admin answer. The caller's role decides whether the message is
- * recorded as `admin` or `user` — no separate endpoints.
- *
- * Authorisation:
- *   - 404 if the ticket doesn't exist, isn't golden, or (for a
- *     non-admin caller) doesn't belong to the caller. We use 404
- *     instead of 403 to avoid leaking existence.
- *
- * Window enforcement:
- *   - 400 with "Discussion closed" if `discussionClosesAt` has
- *     passed (or if no admin answer has ever been posted — the
- *     window only opens with the first answer).
- *
- * Side effects:
- *   - Appends one entry to `goldenTicketDiscussion[]`. The first
- *     admin answer of all time is the only one flagged
- *     `isProminent: true`; this endpoint never sets that flag.
- *   - Does NOT debit SP. The user paid once at raise-time.
- *   - Does NOT fire a notification bell on the OTHER side yet —
- *     that's a follow-up enhancement. (v1.74 keeps the existing
- *     single-bell-on-resolve semantics; future PR can add per-
- *     reply pings if users want them.)
- */
-export async function postGoldenDiscussion(req: Request, res: Response): Promise<void> {
-  if (!(await requireFeatureOn(req, res, 'goldenTicket'))) return;
-  const userId = getAuthedUserId(req);
-  if (!userId) {
-    res.status(401).json({ message: 'Authentication required.' });
-    return;
-  }
-  const role = getAuthedUserRole(req);
-  const isAdmin = role === 'admin' || role === 'moderator';
-
-  const id = asStringParam(req.params.id);
-  if (!id || !Types.ObjectId.isValid(id)) {
-    res.status(400).json({ message: 'Invalid ticket id.' });
-    return;
-  }
-  const text = String((req.body ?? {}).text ?? '').trim();
-  if (text.length === 0) {
-    res.status(400).json({ message: 'Reply text is required.' });
-    return;
-  }
-  if (text.length > 2000) {
-    res.status(400).json({ message: 'Reply text is too long (max 2000 characters).' });
-    return;
-  }
-
-  try {
-    const request = await SupportRequest.findById(id);
-    if (!request || !isGoldenTicket(request)) {
-      res.status(404).json({ message: 'Golden ticket not found.' });
-      return;
-    }
-    if (!isAdmin && request.userId.toString() !== userId.toString()) {
-      // Don't leak existence.
-      res.status(404).json({ message: 'Golden ticket not found.' });
-      return;
-    }
-    if (!isDiscussionOpen(request)) {
-      res.status(400).json({
-        message:
-          'Discussion closed. The 7-day reply window has ended; you can still read the thread but cannot post new replies.',
-      });
-      return;
-    }
-
-    // Look up the sender's display name. Reuse the same dynamic
-    // import the existing controllers use to avoid a top-level
-    // User import in case test setups prefer to mock at runtime.
-    const { default: User } = await import('../auth/user.model.js');
-    const sender = await User.findById(userId).select('name').lean();
-    if (!sender) {
-      res.status(401).json({ message: 'User not found.' });
-      return;
-    }
-
-    const now = new Date();
-    request.goldenTicketDiscussion.push({
-      text,
-      senderRole: isAdmin ? 'admin' : 'user',
-      senderId: userId as Types.ObjectId,
-      senderName: sender.name,
-      createdAt: now,
-      // Replies via the discussion endpoint are never prominent.
-      // Only the first admin answer (resolve / re-resolve-with-text)
-      // is, and those code paths set it themselves.
-      isProminent: false,
-    });
-    request.updatedAt = now;
-    await request.save();
-
-    res.json({
-      ok: true,
-      noSpCharged: true,
-      ticket: {
-        ...request.toObject(),
-        goldenResolutions: Array.isArray(request.goldenResolutions)
-          ? request.goldenResolutions
-          : [],
-        goldenTicketDiscussion: Array.isArray(request.goldenTicketDiscussion)
-          ? request.goldenTicketDiscussion
-          : [],
-        discussionOpen: isDiscussionOpen(request),
-      },
-    });
-  } catch (err) {
-    adminLog.error(`postGoldenDiscussion failed: ${(err as Error).message}`);
-    res.status(500).json({ message: 'Failed to post discussion reply.' });
   }
 }

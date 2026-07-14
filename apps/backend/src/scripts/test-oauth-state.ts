@@ -25,8 +25,7 @@ console.log('OAuth state security tests:');
 {
   const state = signOAuthState(userId);
   const decoded = verifyOAuthState(state);
-  expect('legit state → userId round-trip', decoded?.userId === userId, `got ${decoded?.userId}`);
-  expect('legit state → codeVerifier present', !!decoded?.codeVerifier && decoded.codeVerifier.length >= 43, `got length=${decoded?.codeVerifier?.length}`);
+  expect('legit state → userId round-trip', decoded === userId, `got ${decoded}`);
 }
 
 // 2. Forged state (the original N1 vulnerability — just base64(userId))
@@ -61,7 +60,7 @@ console.log('OAuth state security tests:');
   const badUserId = 'not-a-valid-objectid';
   const state = signOAuthState(badUserId);
   const decoded = verifyOAuthState(state);
-  expect('invalid userId shape rejected', decoded === null, `got ${decoded?.userId}`);
+  expect('invalid userId shape rejected', decoded === null, `got ${decoded}`);
 }
 
 // 7. Cross-user state forgery (sign for user A, try to use for user B)
@@ -71,16 +70,7 @@ console.log('OAuth state security tests:');
   const otherUser = 'aaaaaaaaaaaaaaaaaaaaaaaa';
   const stateForOther = signOAuthState(otherUser);
   const decoded = verifyOAuthState(stateForOther);
-  expect('cross-user signature only decodes own userId', decoded?.userId === otherUser, `got ${decoded?.userId}`);
-}
-
-// 8. Round-trip with a caller-supplied verifier (the production path
-//    where signOAuthState is called with an existing codeVerifier).
-{
-  const explicit = 'X'.repeat(64);
-  const state = signOAuthState(userId, explicit);
-  const decoded = verifyOAuthState(state);
-  expect('explicit verifier round-trips', decoded?.codeVerifier === explicit, `got ${decoded?.codeVerifier}`);
+  expect('cross-user signature only decodes own userId', decoded === otherUser, `got ${decoded}`);
 }
 
 // 8. Expired state — can't easily test without time mocking, but the

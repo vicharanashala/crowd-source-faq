@@ -1,12 +1,4 @@
 import React from 'react';
-import {
-  badgeCompact,
-  badgePendingReview,
-  badgeUpdateRequested,
-  badgeVerified,
-  badgeVerifiedBold,
-  badgeVerifiedWarn,
-} from '../../styles/style_config';
 
 interface FreshnessBadgeProps {
   reviewStatus: 'verified' | 'pending_review' | 'update_requested' | undefined;
@@ -34,7 +26,7 @@ export default function FreshnessBadge({
 
   if (reviewStatus === 'pending_review') {
     return (
-      <span className={`${badgePendingReview} ${compact ? badgeCompact : ''}`}>
+      <span className={`inline-flex items-center gap-1 text-xs font-medium text-yellow-700 bg-yellow-50 px-1.5 py-0.5 rounded ${compact ? 'text-[10px]' : ''}`}>
         ⏳ Under review
       </span>
     );
@@ -42,7 +34,7 @@ export default function FreshnessBadge({
 
   if (reviewStatus === 'update_requested') {
     return (
-      <span className={`${badgeUpdateRequested} ${compact ? badgeCompact : ''}`}>
+      <span className={`inline-flex items-center gap-1 text-xs font-medium text-orange-700 bg-orange-50 px-1.5 py-0.5 rounded ${compact ? 'text-[10px]' : ''}`}>
         ⚠ Update requested
       </span>
     );
@@ -50,7 +42,7 @@ export default function FreshnessBadge({
 
   if (isEvergreen) {
     return (
-      <span className={`${badgeVerified} ${compact ? '' : 'font-medium'}`}>
+      <span className={`inline-flex items-center gap-1 text-xs text-green-600 ${compact ? '' : 'font-medium'}`}>
         ✓ Verified
       </span>
     );
@@ -60,14 +52,14 @@ export default function FreshnessBadge({
 
   if (nearingExpiry) {
     return (
-      <span className={badgeVerifiedWarn}>
+      <span className="inline-flex items-center gap-1 text-xs text-amber-600 font-medium">
         ✓ Verified {days}d ago
       </span>
     );
   }
 
   return (
-    <span className={badgeVerifiedBold}>
+    <span className="inline-flex items-center gap-1 text-xs text-green-600">
       ✓ Verified {days}d ago
     </span>
   );

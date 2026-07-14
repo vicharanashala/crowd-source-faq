@@ -143,7 +143,7 @@ export async function extractInsightsFromTranscript(
   ];
 
   const body: Record<string, unknown> = {
-    model: cfg.modelName,
+    model: cfg.model,
     messages,
     max_tokens: 2048,
   };

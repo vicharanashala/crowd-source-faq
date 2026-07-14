@@ -27,12 +27,6 @@ export default function AccountPage() {
   const [transcriptMeetingId, setTranscriptMeetingId] = useState<string | null>(null);
   const [transcriptProgress, setTranscriptProgress] = useState<{ stage: string; percent: number; message: string } | null>(null);
   const [transcriptSelectedFile, setTranscriptSelectedFile] = useState<{ file: File; type: 'vtt' | 'txt' } | null>(null);
-  // 2-E (MEDIUM) — topic used to be read via document.getElementById
-  // each time the user clicked Process. That DOM-read lost state when
-  // the modal opened/closed (React re-rendered the input but the DOM
-  // value wasn't in React's state model). Lift it into a real
-  // controlled input.
-  const [transcriptTopic, setTranscriptTopic] = useState('');
 
   // ─── Document Upload (OCR + AI extraction) ─────────────────────
   // v1.68 — admin/moderator only (matches the backend
@@ -155,31 +149,29 @@ export default function AccountPage() {
   // Handle Process button — show confirmation modal
   const handleTranscriptProcess = useCallback(() => {
     if (!transcriptSelectedFile) return;
-    // 2-E — read the topic from React state, not from the DOM.
-    const topic = transcriptTopic.trim();
+    const topic = (document.getElementById('transcript-topic') as HTMLInputElement)?.value?.trim();
     if (!topic) { setTranscriptMsg({ type: 'err', text: 'Add a meeting topic first.' }); return; }
     setShowProcessModal(true);
-  }, [transcriptSelectedFile, transcriptTopic]);
+  }, [transcriptSelectedFile]);
 
   // Confirmed in modal — start upload
   const confirmTranscriptProcess = useCallback(() => {
     if (!transcriptSelectedFile) return;
-    // 2-E — same: read from state.
-    const topic = transcriptTopic.trim();
+    const topic = (document.getElementById('transcript-topic') as HTMLInputElement)?.value?.trim();
     setShowProcessModal(false);
     setTranscriptMsg(null);
     setTranscriptProgress({ stage: 'queued', percent: 0, message: 'Uploading…' });
     setTranscriptUploading(true);
     const form = new FormData();
     form.append('file', transcriptSelectedFile.file);
-    form.append('meetingTopic', topic);
+    form.append('meetingTopic', topic!);
     api.post('/zoom/upload-transcript', form, { headers: { 'Content-Type': 'multipart/form-data' } })
       .then(res => { setTranscriptMeetingId(res.data.meetingId); })
       .catch((err) => {
         setTranscriptMsg({ type: 'err', text: (err as Error).message || 'Upload failed.' });
         setTranscriptUploading(false);
       });
-  }, [transcriptSelectedFile, transcriptTopic]);
+  }, [transcriptSelectedFile]);
 
   // Cancel selected file
   const handleTranscriptCancel = useCallback(() => {
@@ -336,7 +328,7 @@ export default function AccountPage() {
                   </p>
                   {zoomStatus?.connected && lastSyncedLabel && (
                     <p className="text-[11px] text-ink-faint mt-0.5 flex items-center gap-1">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-accent shrink-0">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-500 shrink-0">
                         <polyline points="20 6 9 17 4 12"/>
                       </svg>
                       Last synced: {lastSyncedLabel}
@@ -348,7 +340,7 @@ export default function AccountPage() {
               {/* Connection badge */}
               <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${
                 zoomStatus?.connected
-                  ? 'bg-accent/10 text-accent border border-accent/30'
+                  ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
                   : 'bg-gray-100 text-gray-500 border border-gray-200'
               }`}>
                 {zoomStatus?.connected ? 'Connected' : 'Not connected'}
@@ -357,7 +349,7 @@ export default function AccountPage() {
 
             {/* Error message */}
             {zoomError && (
-              <div className="text-sm text-danger bg-danger-light border border-danger/30 rounded-xl px-4 py-2.5">
+              <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5">
                 {zoomError}
               </div>
             )}
@@ -367,7 +359,7 @@ export default function AccountPage() {
               <button
                 onClick={handleDisconnectZoom}
                 disabled={disconnecting}
-                className="w-full px-4 py-2.5 rounded-xl border border-danger/30 text-danger text-sm font-medium hover:bg-danger-light transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-4 py-2.5 rounded-xl border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {disconnecting ? 'Disconnecting...' : 'Disconnect Zoom'}
               </button>
@@ -421,13 +413,9 @@ export default function AccountPage() {
                 {/* Topic field — always required */}
                 <div>
                   <label htmlFor="transcript-topic" className="text-[11px] font-medium text-ink-soft mb-1.5 block">Meeting topic <span className="text-danger">*</span></label>
-                  {/* 2-E — controlled input bound to React state so the
-                      topic survives modal close→reopen cycles. */}
                   <input
                     id="transcript-topic"
                     type="text"
-                    value={transcriptTopic}
-                    onChange={(e) => setTranscriptTopic(e.target.value)}
                     placeholder="e.g. Q3 Planning, Sprint Retro, Product Review…"
                     className="w-full px-3 py-2 rounded-xl border border-border bg-bg text-sm text-ink placeholder-ink-faint/60 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/10 transition-all"
                   />
@@ -494,9 +482,9 @@ export default function AccountPage() {
 
                 {/* State-dependent area: file selected → Process/Cancel, processing → progress, done → success */}
                 {transcriptProgress?.stage === 'done' ? (
-                  <div className="flex items-center justify-between px-3 py-2 bg-accent/10 border border-accent/30 rounded-xl">
-                    <span className="text-xs text-accent">Done — {transcriptProgress.message}</span>
-                    <button onClick={handleTranscriptCancel} className="text-[10px] text-accent hover:text-accent-hover font-medium underline">Upload another</button>
+                  <div className="flex items-center justify-between px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-xl">
+                    <span className="text-xs text-emerald-700">Done — {transcriptProgress.message}</span>
+                    <button onClick={handleTranscriptCancel} className="text-[10px] text-emerald-600 hover:text-emerald-800 font-medium underline">Upload another</button>
                   </div>
                 ) : transcriptMeetingId ? (
                   <div className="px-3 py-2.5 bg-accent/5 border border-accent/20 rounded-xl">
@@ -540,8 +528,8 @@ export default function AccountPage() {
                 {transcriptMsg && (
                   <div className={`text-xs px-3 py-2 rounded-lg ${
                     transcriptMsg.type === 'ok'
-                      ? 'bg-accent/10 text-accent border border-accent/30'
-                      : 'bg-danger-light text-danger border border-danger/30'
+                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      : 'bg-red-50 text-red-600 border border-red-200'
                   }`}>
                     {transcriptMsg.text}
                   </div>
@@ -612,8 +600,8 @@ export default function AccountPage() {
           {docMsg && (
             <div className={`px-3 py-2 rounded-xl text-xs ${
               docMsg.type === 'ok'
-                ? 'bg-accent/10 border border-accent/30 text-accent'
-                : 'bg-danger-light border border-danger/30 text-danger'
+                ? 'bg-emerald-50 border border-emerald-200 text-emerald-700'
+                : 'bg-red-50 border border-red-200 text-red-700'
             }`}>
               {docMsg.text}
               {docMsg.type === 'ok' && docRecentStatus === 'completed' && docRecentId && (
@@ -650,7 +638,7 @@ export default function AccountPage() {
                 <span className="text-xs text-ink font-medium truncate">{transcriptSelectedFile.file.name}</span>
               </div>
               <div className="text-[10px] text-ink-faint">
-                Topic: {transcriptTopic.trim() || '—'}
+                Topic: {(document.getElementById('transcript-topic') as HTMLInputElement)?.value || '—'}
               </div>
             </div>
             <div className="flex items-center gap-2">

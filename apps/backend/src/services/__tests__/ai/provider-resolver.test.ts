@@ -95,7 +95,7 @@ describe('aiProviderResolver.resolve — DB config', () => {
     const result = await aiProviderResolver.resolve({
       feature: 'duplicateDetection',
     });
-    expect(result.modelName).toBe('custom-model');
+    expect(result.model).toBe('custom-model');
     expect(result.temperature).toBe(0.5);
     expect(result.maxTokens).toBe(256);
   });

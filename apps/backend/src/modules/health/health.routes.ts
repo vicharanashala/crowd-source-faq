@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { getHealth, getBuildInfo } from './health.controller.js';
+import { getHealth } from './health.controller.js';
 
 const router = Router();
 
@@ -18,10 +18,5 @@ const healthLimiter = rateLimit({
 });
 
 router.get('/', healthLimiter, getHealth);
-// v1.85 — public build-provenance endpoint. Same rate-limit
-// bucket as the run-rate health check so a deploy-validation
-// loop can't bypass it by spreading requests across /health
-// and /health/build.
-router.get('/build', healthLimiter, getBuildInfo);
 
 export default router;

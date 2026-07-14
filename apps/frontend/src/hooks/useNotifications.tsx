@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../utils/api';
 
 export interface Notification {
@@ -14,10 +14,8 @@ export interface Notification {
 
 export function useNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState<number>(0);
-  const [loading, setLoading] = useState<boolean>(true);
-  // 2-C: in-flight ref for the markAllAsRead idempotency guard.
-  const markAllInFlightRef = useRef<boolean>(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loading] = useState(false);
 
   const fetchNotifications = useCallback(async () => {
     try {
@@ -50,23 +48,12 @@ export function useNotifications() {
   }, []);
 
   const markAllAsRead = useCallback(async () => {
-    // 2-C (MEDIUM) fix: previously the function was unprotected
-    // against rapid double-clicks. User opens dropdown, clicks
-    // 'mark all read', closes the dropdown within the in-flight
-    // PATCH window, reopens — the optimistic state already shows 0
-    // (cached from the first click) and the second PATCH hits the
-    // server with no idempotency key. Use a ref short-circuit so
-    // the second click no-ops until the first PATCH settles.
-    if (markAllInFlightRef.current) return;
-    markAllInFlightRef.current = true;
     try {
       await api.patch('/notifications/read-all');
       setUnreadCount(0);
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
     } catch {
       // non-critical
-    } finally {
-      markAllInFlightRef.current = false;
     }
   }, []);
 
@@ -78,13 +65,7 @@ export function useNotifications() {
     // Without this, the badge is stuck until the user re-mounts the bell
     // or refreshes the page. The NotificationBell already re-fetches on focus,
     // so the interval only needs to cover backgrounded-tab time.
-    // 2-B (MEDIUM) fix: previously the interval fired even when the tab
-    // was hidden. With 1000+ active tabs in the background, this
-    // wastes thousands of API calls per minute. Skip the fetch when
-    // document.visibilityState === 'hidden' — the focus handler
-    // already covers "user came back to the tab".
     const intervalId = window.setInterval(() => {
-      if (typeof document !== 'undefined' && document.hidden) return;
       fetchUnreadCount();
     }, 30_000);
     return () => window.clearInterval(intervalId);

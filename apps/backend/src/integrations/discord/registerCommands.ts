@@ -19,6 +19,7 @@ import { adminCommandData } from './commands/admin.js';
 import { crudCommandData } from './commands/crud.js';
 import { healthCommandData } from './commands/health.js';
 import { setupAdminCommandData } from './commands/setupadmin.js';
+import { synthesizeCommandData } from './commands/synthesize.js';
 
 function buildCommandList(): RESTPostAPIChatInputApplicationCommandsJSONBody[] {
   return [
@@ -34,6 +35,7 @@ function buildCommandList(): RESTPostAPIChatInputApplicationCommandsJSONBody[] {
     crudCommandData,
     healthCommandData,
     setupAdminCommandData,
+    synthesizeCommandData,
   ];
 }
 

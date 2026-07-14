@@ -4,8 +4,7 @@
 // types (e.g. "Stipend Issue", "Certificate Problem"). Admin only.
 
 import React, { useEffect, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion'
-import { adminBtnGhost, adminBtnPrimary, adminInput, adminLabel, adminSelect } from '../../styles/style_config';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   listCategories,
   createCategory,
@@ -146,7 +145,7 @@ function CategoriesInner(): React.ReactElement {
         <button
           type="button"
           onClick={() => setCreating((c) => !c)}
-          className={`${adminBtnPrimary}`}
+          className="admin-btn-primary"
         >
           {creating ? '− Cancel' : '+ New category'}
         </button>
@@ -157,49 +156,49 @@ function CategoriesInner(): React.ReactElement {
           <p className="text-sm font-semibold text-ink">Add a new category</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className={`${adminLabel}`}>issueType (key, kebab-case)</label>
+              <label className="admin-label">issueType (key, kebab-case)</label>
               <input
                 value={newCat.issueType}
                 onChange={(e) => setNewCat((c) => ({ ...c, issueType: e.target.value.toLowerCase().trim() }))}
                 placeholder="e.g. stipend-issue"
-                className={`${adminInput}`}
+                className="admin-input"
               />
             </div>
             <div>
-              <label className={`${adminLabel}`}>Label (display name)</label>
+              <label className="admin-label">Label (display name)</label>
               <input
                 value={newCat.label}
                 onChange={(e) => setNewCat((c) => ({ ...c, label: e.target.value }))}
                 placeholder="e.g. Stipend Issue"
-                className={`${adminInput}`}
+                className="admin-input"
               />
             </div>
             <div>
-              <label className={`${adminLabel}`}>Short label</label>
+              <label className="admin-label">Short label</label>
               <input
                 value={newCat.shortLabel}
                 onChange={(e) => setNewCat((c) => ({ ...c, shortLabel: e.target.value }))}
                 placeholder="e.g. Stipend"
-                className={`${adminInput}`}
+                className="admin-input"
               />
             </div>
             <div>
-              <label className={`${adminLabel}`}>Icon</label>
+              <label className="admin-label">Icon</label>
               <select
                 value={newCat.iconKey}
                 onChange={(e) => setNewCat((c) => ({ ...c, iconKey: e.target.value }))}
-                className={`${adminSelect} w-full`}
+                className="admin-select w-full"
               >
                 {ICON_KEYS.map((i) => <option key={i.value} value={i.value}>{i.label}</option>)}
               </select>
             </div>
           </div>
           <div>
-            <label className={`${adminLabel}`}>Description (admin-only, optional)</label>
+            <label className="admin-label">Description (admin-only, optional)</label>
             <input
               value={newCat.description}
               onChange={(e) => setNewCat((c) => ({ ...c, description: e.target.value }))}
-              className={`${adminInput}`}
+              className="admin-input"
               placeholder="Internal note for admins."
             />
           </div>
@@ -212,7 +211,7 @@ function CategoriesInner(): React.ReactElement {
                 !newCat.issueType || !/^[a-z0-9][a-z0-9-]*$/.test(newCat.issueType) ||
                 !newCat.label || !newCat.shortLabel
               }
-              className={`${adminBtnPrimary}`}
+              className="admin-btn-primary"
             >
               {creatingBusy ? 'Creating…' : 'Create category'}
             </button>
@@ -432,12 +431,12 @@ function FieldModal({
 
         <div className="space-y-3">
           <div>
-            <label className={`${adminLabel}`}>Label</label>
+            <label className="admin-label">Label</label>
             <input
               autoFocus
               value={label}
               onChange={(e) => setLabel(e.target.value)}
-              className={`${adminInput} w-full`}
+              className="admin-input w-full"
               placeholder="e.g. Operating system"
               maxLength={120}
             />
@@ -447,12 +446,12 @@ function FieldModal({
           </div>
 
           <div>
-            <label className={`${adminLabel}`}>Type</label>
+            <label className="admin-label">Type</label>
             <select
               value={type}
               onChange={(e) => setType(e.target.value as SupportFieldType)}
               disabled={isEdit}
-              className={`${adminSelect} w-full`}
+              className="admin-select w-full"
             >
               {SUPPORT_FIELD_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
@@ -471,22 +470,22 @@ function FieldModal({
 
           {(type === 'text' || type === 'textarea') && (
             <div>
-              <label className={`${adminLabel}`}>Placeholder</label>
+              <label className="admin-label">Placeholder</label>
               <input
                 value={placeholder}
                 onChange={(e) => setPlaceholder(e.target.value)}
-                className={`${adminInput} w-full`}
+                className="admin-input w-full"
                 maxLength={200}
               />
             </div>
           )}
 
           <div>
-            <label className={`${adminLabel}`}>Help text</label>
+            <label className="admin-label">Help text</label>
             <input
               value={helpText}
               onChange={(e) => setHelpText(e.target.value)}
-              className={`${adminInput} w-full`}
+              className="admin-input w-full"
               placeholder="Optional grey text shown below the field"
               maxLength={500}
             />
@@ -494,7 +493,7 @@ function FieldModal({
 
           {type === 'dropdown' && (
             <div>
-              <label className={`${adminLabel}`}>Options</label>
+              <label className="admin-label">Options</label>
               <ul className="space-y-2">
                 {options.map((o, i) => (
                   <li key={i} className="flex items-center gap-2">
@@ -502,13 +501,13 @@ function FieldModal({
                       value={o.value}
                       onChange={(e) => setOptions((opts) => opts.map((x, idx) => idx === i ? { ...x, value: e.target.value } : x))}
                       placeholder="value"
-                      className={`${adminInput} flex-1`}
+                      className="admin-input flex-1"
                     />
                     <input
                       value={o.label}
                       onChange={(e) => setOptions((opts) => opts.map((x, idx) => idx === i ? { ...x, label: e.target.value } : x))}
                       placeholder="Display label"
-                      className={`${adminInput} flex-1`}
+                      className="admin-input flex-1"
                     />
                     <button
                       type="button"
@@ -530,12 +529,12 @@ function FieldModal({
         </div>
 
         <div className="flex items-center justify-end gap-2 pt-4 border-t border-border/60 mt-4">
-          <button type="button" onClick={onClose} className={`${adminBtnGhost}`}>Cancel</button>
+          <button type="button" onClick={onClose} className="admin-btn-ghost">Cancel</button>
           <button
             type="button"
             onClick={save}
             disabled={!label.trim() || (type === 'dropdown' && options.filter((o) => o.value && o.label).length === 0)}
-            className={`${adminBtnPrimary}`}
+            className="admin-btn-primary"
           >
             {isEdit ? 'Save' : 'Add field'}
           </button>

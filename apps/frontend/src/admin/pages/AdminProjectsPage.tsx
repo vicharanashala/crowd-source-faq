@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { motion, AnimatePresence } from 'framer-motion';
 import adminApi from '../utils/adminApi';
-import { inputStandardRing } from '../../styles/style_config';
 
 interface Project {
   _id: string;
@@ -212,7 +211,7 @@ export default function AdminProjectsPage() {
                   </td>
                   <td className="px-6 py-4">
                     {p.status === 'active' ? (
-                      <span className="px-2 py-1 bg-accent/10 text-accent rounded text-[11px] font-semibold tracking-wider uppercase">Active</span>
+                      <span className="px-2 py-1 bg-green-500/10 text-green-500 rounded text-[11px] font-semibold tracking-wider uppercase">Active</span>
                     ) : (
                       <span className="px-2 py-1 bg-ink/10 text-ink-soft rounded text-[11px] font-semibold tracking-wider uppercase">Inactive</span>
                     )}
@@ -251,7 +250,7 @@ export default function AdminProjectsPage() {
                       <button onClick={() => handleDuplicate(p)} className="text-ink-soft hover:text-ink transition-colors" title="Duplicate">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                       </button>
-                      <button onClick={() => handleArchive(p._id)} className="text-danger/70 hover:text-danger transition-colors" title="Archive">
+                      <button onClick={() => handleArchive(p._id)} className="text-red-500/70 hover:text-red-500 transition-colors" title="Archive">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                       </button>
                     </div>
@@ -295,7 +294,7 @@ export default function AdminProjectsPage() {
                         required
                         value={formData.projectName}
                         onChange={e => setFormData(prev => ({ ...prev, projectName: e.target.value }))}
-                        className={inputStandardRing + ""}
+                        className="w-full bg-bg border border-border rounded-lg px-4 py-2.5 text-ink focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all"
                         placeholder="e.g. AjraSakha"
                       />
                     </div>
@@ -307,7 +306,7 @@ export default function AdminProjectsPage() {
                         rows={3}
                         value={formData.description}
                         onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                        className={inputStandardRing + " resize-none"}
+                        className="w-full bg-bg border border-border rounded-lg px-4 py-2.5 text-ink focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all resize-none"
                         placeholder="Project overview..."
                       />
                     </div>
@@ -318,7 +317,7 @@ export default function AdminProjectsPage() {
                         required
                         value={formData.mentor}
                         onChange={e => setFormData(prev => ({ ...prev, mentor: e.target.value }))}
-                        className={inputStandardRing + ""}
+                        className="w-full bg-bg border border-border rounded-lg px-4 py-2.5 text-ink focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all"
                       >
                         <option value="">-- Select a Mentor --</option>
                         {mentors.map(m => (
@@ -332,7 +331,7 @@ export default function AdminProjectsPage() {
                       <select
                         value={formData.status}
                         onChange={e => setFormData(prev => ({ ...prev, status: e.target.value as 'active' | 'inactive' }))}
-                        className={inputStandardRing + ""}
+                        className="w-full bg-bg border border-border rounded-lg px-4 py-2.5 text-ink focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all"
                       >
                         <option value="active">Active</option>
                         <option value="inactive">Inactive</option>
@@ -356,7 +355,7 @@ export default function AdminProjectsPage() {
                         type="text"
                         value={formData.skills}
                         onChange={e => setFormData(prev => ({ ...prev, skills: e.target.value }))}
-                        className={inputStandardRing + ""}
+                        className="w-full bg-bg border border-border rounded-lg px-4 py-2.5 text-ink focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all"
                         placeholder="e.g. React, Node.js, AI"
                       />
                     </div>
@@ -371,7 +370,7 @@ export default function AdminProjectsPage() {
                         rows={2}
                         value={formData.problemStatement}
                         onChange={e => setFormData(prev => ({ ...prev, problemStatement: e.target.value }))}
-                        className={inputStandardRing + " resize-none"}
+                        className="w-full bg-bg border border-border rounded-lg px-4 py-2.5 text-ink focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all resize-none"
                         placeholder="What problem does this project solve?"
                       />
                     </div>
@@ -382,7 +381,7 @@ export default function AdminProjectsPage() {
                         rows={2}
                         value={formData.whyMatters}
                         onChange={e => setFormData(prev => ({ ...prev, whyMatters: e.target.value }))}
-                        className={inputStandardRing + " resize-none"}
+                        className="w-full bg-bg border border-border rounded-lg px-4 py-2.5 text-ink focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all resize-none"
                         placeholder="Impact of the project..."
                       />
                     </div>
@@ -393,7 +392,7 @@ export default function AdminProjectsPage() {
                         type="text"
                         value={formData.outcomes}
                         onChange={e => setFormData(prev => ({ ...prev, outcomes: e.target.value }))}
-                        className={inputStandardRing + ""}
+                        className="w-full bg-bg border border-border rounded-lg px-4 py-2.5 text-ink focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all"
                         placeholder="e.g. Build and deploy a real-world product"
                       />
                     </div>
@@ -403,7 +402,7 @@ export default function AdminProjectsPage() {
                       <select
                         value={formData.difficulty}
                         onChange={e => setFormData(prev => ({ ...prev, difficulty: e.target.value as 'Beginner Friendly' | 'Intermediate' | 'Advanced' }))}
-                        className={inputStandardRing + ""}
+                        className="w-full bg-bg border border-border rounded-lg px-4 py-2.5 text-ink focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all"
                       >
                         <option value="Beginner Friendly">Beginner Friendly</option>
                         <option value="Intermediate">Intermediate</option>
@@ -417,7 +416,7 @@ export default function AdminProjectsPage() {
                         type="text"
                         value={formData.weeklyCommitment}
                         onChange={e => setFormData(prev => ({ ...prev, weeklyCommitment: e.target.value }))}
-                        className={inputStandardRing + ""}
+                        className="w-full bg-bg border border-border rounded-lg px-4 py-2.5 text-ink focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all"
                         placeholder="e.g. 10-15 hours"
                       />
                     </div>
@@ -428,7 +427,7 @@ export default function AdminProjectsPage() {
                         type="text"
                         value={formData.teamSize}
                         onChange={e => setFormData(prev => ({ ...prev, teamSize: e.target.value }))}
-                        className={inputStandardRing + ""}
+                        className="w-full bg-bg border border-border rounded-lg px-4 py-2.5 text-ink focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all"
                         placeholder="e.g. 2-4 members"
                       />
                     </div>
@@ -440,7 +439,7 @@ export default function AdminProjectsPage() {
                         min="1"
                         value={formData.capacity}
                         onChange={e => setFormData(prev => ({ ...prev, capacity: parseInt(e.target.value) || 0 }))}
-                        className={inputStandardRing + ""}
+                        className="w-full bg-bg border border-border rounded-lg px-4 py-2.5 text-ink focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all"
                         placeholder="e.g. 30"
                       />
                     </div>
@@ -451,7 +450,7 @@ export default function AdminProjectsPage() {
                         type="text"
                         value={formData.techStack}
                         onChange={e => setFormData(prev => ({ ...prev, techStack: e.target.value }))}
-                        className={inputStandardRing + ""}
+                        className="w-full bg-bg border border-border rounded-lg px-4 py-2.5 text-ink focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/50 transition-all"
                         placeholder="e.g. React, Node, MongoDB"
                       />
                     </div>

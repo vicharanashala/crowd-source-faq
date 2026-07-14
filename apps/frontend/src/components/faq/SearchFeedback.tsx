@@ -1,17 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import api from '../../utils/api';
-import {
-  buttonGhost,
-  buttonPrimary,
-  cardSectionPad,
-  flexGrow,
-  iconBtnSm,
-  inputError,
-  stackMd,
-  suggestError,
-  textBody,
-  textLabel,
-} from '../../styles/style_config';
 
 interface SearchFeedbackProps {
   searchQuery: string;
@@ -25,21 +13,9 @@ export default function SearchFeedback({ searchQuery, resultFaqId }: SearchFeedb
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // 1.5 (MEDIUM) — the previous 8-second timer unconditionally reset
-  // dismissed back to false, so the prompt popped back up after the
-  // user had explicitly closed it. Track dismissal in a ref so the
-  // timer callback can bail early and never re-show the prompt after
-  // an explicit "Yes, I am good" / Cancel / close click.
-  const dismissedRef = useRef(false);
-  useEffect(() => { dismissedRef.current = dismissed; }, [dismissed]);
-
   useEffect(() => {
     const timer = setTimeout(() => {
-      // Only re-show the prompt if the user has not explicitly
-      // dismissed it. We read the latest value through the ref so
-      // this effect (keyed on searchQuery/resultFaqId) doesn't need
-      // dismissed in its dep array.
-      if (dismissedRef.current) return;
+      setDismissed(false);
       setPhase('prompt');
     }, 8000);
     return () => clearTimeout(timer);
@@ -84,19 +60,19 @@ export default function SearchFeedback({ searchQuery, resultFaqId }: SearchFeedb
 
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-4">
-      <div className={cardSectionPad}>
+      <div className="bg-card rounded-2xl border border-border shadow-float p-4">
         {phase === 'prompt' ? (
           <div className="flex items-center gap-3">
-            <p className={`${flexGrow} ${textBody}`}>Did this answer your question?</p>
+            <p className="flex-1 text-sm text-ink">Did this answer your question?</p>
             <button
               onClick={handleYes}
-              className={buttonPrimary}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-accent text-accent-text text-xs font-semibold hover:bg-accent/90 transition-colors"
             >
               <span>👍</span> Yes, I am good
             </button>
             <button
               onClick={handleNo}
-              className={buttonGhost}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-border bg-card text-xs font-semibold text-ink hover:bg-mist transition-colors"
             >
               No, I need more help
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -105,13 +81,13 @@ export default function SearchFeedback({ searchQuery, resultFaqId }: SearchFeedb
             </button>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className={stackMd}>
+          <form onSubmit={handleSubmit} className="space-y-3">
             <div className="flex items-center justify-between">
-              <p className={textLabel}>What specifically did not work?</p>
+              <p className="text-sm font-medium text-ink">What specifically did not work?</p>
               <button
                 type="button"
                 onClick={() => setDismissed(true)}
-                className={iconBtnSm}
+                className="text-ink-faint hover:text-ink transition-colors"
               >
                 <svg width="14" height="14" viewBox="0 0 12 12" fill="none">
                   <path d="M2 2L10 10M10 2L2 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
@@ -123,17 +99,17 @@ export default function SearchFeedback({ searchQuery, resultFaqId }: SearchFeedb
               onChange={(e) => setFeedback(e.target.value)}
               rows={3}
               placeholder="e.g. This FAQ did not mention deadlines for submissions..."
-              className={inputError}
+              className="w-full rounded-xl border border-border bg-mist px-3 py-2.5 text-sm text-ink placeholder-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/25 focus:bg-card transition-all resize-none"
               autoFocus
             />
             {error && (
-              <p className={suggestError}>{error}</p>
+              <p className="text-xs text-danger">{error}</p>
             )}
             <div className="flex gap-2">
               <button
                 type="submit"
                 disabled={feedback.trim().length < 10 || loading}
-                className={`${buttonPrimary} flex-1 py-2.5 rounded-full disabled:opacity-50`}
+                className="flex-1 py-2.5 rounded-full bg-accent text-accent-text text-xs font-semibold hover:bg-accent/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <><span className="w-3 h-3 border border-white/40 border-t-white rounded-full animate-spin inline-block" /> Submitting...</>
@@ -142,7 +118,7 @@ export default function SearchFeedback({ searchQuery, resultFaqId }: SearchFeedb
               <button
                 type="button"
                 onClick={() => setDismissed(true)}
-                className={`${buttonGhost} px-4 py-2.5 rounded-full`}
+                className="px-4 py-2.5 rounded-full border border-border text-xs font-semibold text-ink hover:bg-mist transition-colors"
               >
                 Cancel
               </button>

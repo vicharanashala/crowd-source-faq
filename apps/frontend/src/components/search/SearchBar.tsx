@@ -1,17 +1,9 @@
-import React, { useState, useRef, useEffect, type FormEvent, type ChangeEvent } from 'react';
+import React, { useState, useRef, type FormEvent, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import api from '../../utils/api';
 import type { SearchResult } from '../../types/ui';
 import { useBatch } from '../../context/BatchContext';
-import {
-  btnBase,
-  btnSecondary,
-  searchInputCompact,
-  searchInputDefault,
-  searchPanelGlow,
-  searchSuggestionItem,
-} from '../../styles/style_config';
 
 interface Suggestion {
   _id: string;
@@ -23,6 +15,7 @@ interface SearchBarProps {
   onResults: (results: SearchResult[] | null) => void;
   onLoading: (loading: boolean) => void;
   onError?: (error: string | null) => void;
+  onClarifications?: (clarifications: string[]) => void;
   value?: string;
   onQueryChange?: (value: string) => void;
   placeholder?: string;
@@ -38,6 +31,7 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
     onResults,
     onLoading,
     onError,
+    onClarifications,
     value,
     onQueryChange,
     placeholder = 'Ask anything about your internship...',
@@ -56,13 +50,60 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestionError, setSuggestionError] = useState<string | null>(null);
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
+  const startListening = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert('Speech recognition is not supported in this browser. Please try Chrome, Edge, or Safari.');
+      return;
+    }
+    
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+
+    const rec = new SpeechRecognition();
+    rec.continuous = false;
+    rec.interimResults = false;
+    rec.lang = 'en-US';
+
+    rec.onstart = () => {
+      setIsListening(true);
+    };
+
+    rec.onend = () => {
+      setIsListening(false);
+    };
+
+    rec.onerror = (e: any) => {
+      console.error(e);
+      setIsListening(false);
+    };
+
+    rec.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      if (transcript) {
+        if (isControlled) {
+          onQueryChange?.(transcript);
+        } else {
+          setInternalQuery(transcript);
+        }
+        handleSearch(transcript);
+      }
+    };
+
+    recognitionRef.current = rec;
+    rec.start();
+  };
+
   const isControlled = value !== undefined;
   const query = isControlled ? (value ?? '') : internalQuery;
   const suggestDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // 1.6 — tracks the suggestionError auto-dismiss timer so we can
-  // clear it on the next click / unmount.
-  const suggestErrorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -76,16 +117,22 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
     onLoading(true);
     onError?.(null);
     try {
-      const res = await api.post<{ results: SearchResult[] }>('/search', {
+      const res = await api.post<{ results: SearchResult[]; clarifications?: string[] }>('/search', {
         query: searchQuery.trim(),
         batchId: batchId || undefined,
       });
       onResults(res.data.results ?? null);
+      if (onClarifications) {
+        onClarifications(res.data.clarifications ?? []);
+      }
     } catch (err: any) {
       if (axios.isCancel(err)) {
         return; // Ignore cancelled requests
       }
       onResults([]);
+      if (onClarifications) {
+        onClarifications([]);
+      }
       onError?.('Search failed. Please check your connection and try again.');
     } finally {
       onLoading(false);
@@ -152,38 +199,14 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
     setShowSuggestions(false);
     setSuggestions([]);
     setSuggestionError(null);
-    // 1.6 (LOW) — clear any stale suggestionError on every click so it
-    // doesn't linger indefinitely if the user stopped typing. The
-    // 4-second auto-dismiss below still applies for fresh errors.
-    if (suggestErrorTimerRef.current) {
-      clearTimeout(suggestErrorTimerRef.current);
-      suggestErrorTimerRef.current = null;
-    }
     try {
       const res = await api.get<{ _id: string; question: string; answer: string; category: string }>(`/faq/${faqId}`);
       sessionStorage.setItem('yaksha_faq_highlight', JSON.stringify(res.data));
     } catch {
-      // 1.6 (LOW) — auto-dismiss after 4 seconds so the red banner
-      // doesn't linger until the next fetchSuggestions cycle.
       setSuggestionError('Could not load FAQ. Navigating anyway.');
-      suggestErrorTimerRef.current = setTimeout(() => {
-        setSuggestionError(null);
-        suggestErrorTimerRef.current = null;
-      }, 4000);
     }
     navigate(`/faq/${faqId}`);
   };
-
-  // 1.6 — clear pending auto-dismiss timer on unmount so we don't
-  // try to setState after the component is gone.
-  useEffect(() => {
-    return () => {
-      if (suggestErrorTimerRef.current) {
-        clearTimeout(suggestErrorTimerRef.current);
-        suggestErrorTimerRef.current = null;
-      }
-    };
-  }, []);
 
   // Close suggestions on outside click
   const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
@@ -198,7 +221,7 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
 
   return (
     <form data-tour="search-bar" onSubmit={handleSubmit} className={`w-full ${variant === 'default' ? 'max-w-3xl mx-auto' : ''} ${className}`}>
-      <div ref={wrapperRef} className={`relative transition-all duration-300 ${variant === 'default' ? `${searchPanelGlow} rounded-[26px]` : ''}`}>
+      <div ref={wrapperRef} className={`relative transition-all duration-300 ${variant === 'default' ? 'search-glow rounded-[26px]' : ''}`}>
         <div className={`absolute top-1/2 -translate-y-1/2 text-ink-faint pointer-events-none ${variant === 'compact' ? 'left-3.5 w-4 h-4 group-focus-within:text-accent transition-colors' : 'left-4'}`}>
           <svg width={variant === 'compact' ? '16' : '18'} height={variant === 'compact' ? '16' : '18'} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -219,22 +242,56 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
           onFocus={onFocus}
           onBlur={handleBlur}
           placeholder={placeholder}
-          className={variant === 'compact' ? searchInputCompact : searchInputDefault}
+          className={variant === 'compact' 
+            ? "w-full bg-mist border border-border/60 text-ink text-sm rounded-[14px] pl-10 pr-3 py-1.5 outline-none focus:bg-card focus:border-accent/40 focus:ring-2 focus:ring-accent/10 transition-all placeholder-ink-faint"
+            : "w-full pl-12 pr-40 py-5 sm:py-[22px] rounded-[26px] border border-border bg-card text-sm sm:text-base text-ink placeholder-ink-faint focus:outline-none focus:border-accent focus:bg-card transition-all duration-300 shadow-[0_14px_34px_rgba(31,41,51,0.07)]"
+          }
           autoComplete="off"
         />
 
         {variant === 'default' && (
-          <button
-            type="submit"
-            disabled={!query.trim()}
-            className={`absolute right-2.5 top-1/2 -translate-y-1/2 ${btnBase} ${btnSecondary} disabled:opacity-40 disabled:cursor-not-allowed`}
-          >
-            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-              <circle cx="5.5" cy="5.5" r="4"/>
-              <path d="M9.5 9.5L12.5 12.5"/>
-            </svg>
-            Search
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={startListening}
+              className={`absolute right-28 top-1/2 -translate-y-1/2 p-2 rounded-full transition-colors duration-200 ${
+                isListening
+                  ? 'bg-danger text-white animate-pulse'
+                  : 'text-ink-faint hover:text-accent hover:bg-cream/40'
+              }`}
+              title="Search by voice"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                {isListening ? (
+                  <>
+                    <line x1="1" y1="1" x2="23" y2="23" />
+                    <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6" />
+                    <path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23" />
+                    <line x1="12" y1="19" x2="12" y2="23" />
+                    <line x1="8" y1="23" x2="16" y2="23" />
+                  </>
+                ) : (
+                  <>
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                    <line x1="12" y1="19" x2="12" y2="23"/>
+                    <line x1="8" y1="23" x2="16" y2="23"/>
+                  </>
+                )}
+              </svg>
+            </button>
+            <button
+              type="submit"
+              disabled={!query.trim()}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 btn-base btn-secondary disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                <circle cx="5.5" cy="5.5" r="4"/>
+                <path d="M9.5 9.5L12.5 12.5"/>
+              </svg>
+              Search
+            </button>
+          </>
         )}
 
         {/* Suggestions dropdown */}
@@ -245,14 +302,14 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
                 key={s._id}
                 type="button"
                 onMouseDown={() => handleSuggestionClick(s._id)}
-                className={searchSuggestionItem}
+                className="w-full text-left px-5 py-3.5 text-sm text-ink hover:bg-cream/60 transition-colors duration-150 border-b border-border/30 last:border-0 flex items-center gap-3"
               >
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="text-accent shrink-0">
                   <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" strokeWidth="1.5"/>
                   <path d="M9.5 9.5L12.5 12.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
                 </svg>
                 <span className="line-clamp-1 text-ink">{s.question}</span>
-                <span className="ml-auto text-xs text-ink-faint shrink-0">{s.category}</span>
+                <span className="ml-auto text-xs text-ink-faint  shrink-0">{s.category}</span>
               </button>
             ))}
           </div>

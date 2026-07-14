@@ -93,6 +93,9 @@ export interface IFAQ extends Document {
   expectedReadMs: number;
   /** Last popularity score recompute timestamp. */
   popularityUpdatedAt: Date | null;
+  isLikelyOutdated: boolean;
+  driftReason: string | null;
+  lastDriftCheckAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -206,6 +209,19 @@ const faqSchema = new MongooseSchema(
     },
     // AI audit tracking
     lastCheckedAt: { type: Date, default: null },
+    // Drift-Guard verifier
+    isLikelyOutdated: {
+      type: Boolean,
+      default: false,
+    },
+    driftReason: {
+      type: String,
+      default: null,
+    },
+    lastDriftCheckAt: {
+      type: Date,
+      default: null,
+    },
     // Promotion system — trust levels
     trustLevel: {
       type: String,

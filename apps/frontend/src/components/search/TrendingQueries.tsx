@@ -1,7 +1,6 @@
 import React, { useEffect, useState, type ReactNode } from 'react';
 import api from '../../utils/api';
 import type { TrendingQuery } from '../../types/ui';
-import { cardSectionPad, flexRowLg, skeletonLine, textLabel } from '../../styles/style_config';
 
 // Icon pool for popular searches
 const searchIcons: ReactNode[] = [
@@ -13,7 +12,7 @@ const searchIcons: ReactNode[] = [
     <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
   </svg>,
   <svg key="dot" width="16" height="16" viewBox="0 0 24 24" fill="none">
-    <circle cx="12" cy="12" r="5" fill="currentColor" className="text-danger" opacity="0.7"/>
+    <circle cx="12" cy="12" r="5" fill="#e74c3c" opacity="0.7"/>
   </svg>,
   <svg key="box" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
@@ -25,7 +24,7 @@ const searchIcons: ReactNode[] = [
 
 function CheckmarkIcon(): ReactNode {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-success" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5a9a6b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
       <polyline points="20 6 9 17 4 12"/>
     </svg>
   );
@@ -48,12 +47,12 @@ export default function TrendingQueries({ onQueryClick }: TrendingQueriesProps) 
 
   if (loading) {
     return (
-      <div className={`${cardSectionPad} mt-3 shadow-subtle animate-pulse`}>
-        <div className={`${skeletonLine} h-3.5 w-28 mb-4`} />
+      <div className="mt-3 bg-card rounded-2xl border border-border p-5 shadow-subtle animate-pulse">
+        <div className="h-3.5 bg-mist rounded w-28 mb-4" />
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className={`${flexRowLg} py-2.5`}>
-            <div className={`${skeletonLine} w-4 h-4 rounded`} />
-            <div className={`${skeletonLine} h-3.5 flex-1`} />
+          <div key={i} className="flex items-center gap-3 py-2.5">
+            <div className="w-4 h-4 bg-mist rounded" />
+            <div className="h-3.5 bg-mist rounded flex-1" />
           </div>
         ))}
       </div>
@@ -63,8 +62,8 @@ export default function TrendingQueries({ onQueryClick }: TrendingQueriesProps) 
   if (!trending.length) return null;
 
   return (
-    <div className={`${cardSectionPad} mt-3 shadow-subtle`}>
-      <p className={`${textLabel} text-xs mb-3`}>
+    <div className="mt-3 bg-card rounded-2xl border border-border p-5 shadow-subtle">
+      <p className="text-xs font-medium text-ink-soft mb-3">
         Popular Searches
       </p>
       <div className="space-y-0.5">

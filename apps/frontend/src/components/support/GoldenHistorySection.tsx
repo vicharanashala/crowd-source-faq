@@ -32,12 +32,6 @@ import type {
   GoldenHistoryItem,
   GoldenResolutionPublic,
 } from './types';
-import {
-  badgePendingReview,
-  dangerBorder,
-  inlineDangerBanner,
-  getGoldenStatusStyle,
-} from '../../styles/style_config';
 
 type Tab = 'resolved' | 'banned' | 'activity';
 
@@ -48,8 +42,17 @@ interface Props {
   loading: boolean;
 }
 
+function statusBadgeStyles(status: string): { bg: string; text: string; label: string } {
+  if (status === 'Resolved') return { bg: 'bg-emerald-100', text: 'text-emerald-800', label: 'Resolved' };
+  if (status === 'Rejected') return { bg: 'bg-rose-100', text: 'text-rose-800', label: 'Rejected' };
+  if (status === 'closed') return { bg: 'bg-stone-100', text: 'text-stone-700', label: 'Closed' };
+  if (status === 'Pending' || status === 'open') return { bg: 'bg-amber-100', text: 'text-amber-800', label: 'Pending' };
+  if (status === 'In Review') return { bg: 'bg-blue-100', text: 'text-blue-800', label: 'In Review' };
+  return { bg: 'bg-mist', text: 'text-ink-faint', label: status };
+}
+
 function statusBadge(status: string): React.ReactElement {
-  const s = getGoldenStatusStyle(status);
+  const s = statusBadgeStyles(status);
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold ${s.bg} ${s.text}`}>
       {s.label}
@@ -59,7 +62,7 @@ function statusBadge(status: string): React.ReactElement {
 
 function spBadge(sp: number): React.ReactElement {
   return (
-    <span className={badgePendingReview}>
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-500/10 text-amber-700">
       <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
         <path d="M12 2c.5 0 1 .3 1.2.7l1.4 2.8 3.1.5c.6.1.9.8.5 1.3l-2.2 2.1.5 3.1c.1.6-.5 1-1.1.8L12 11.9l-2.7 1.4c-.6.2-1.2-.2-1.1-.8l.5-3.1L6.5 7.3c-.4-.5-.1-1.2.5-1.3l3.1-.5L11.5 2.7c.2-.4.7-.7 1.2-.7z" />
       </svg>
@@ -118,7 +121,7 @@ function HistoryCard({
                 </span>
               )}
               {ticket.rejectedAt && (
-                <span className="text-[10px] text-danger font-mono">
+                <span className="text-[10px] text-rose-700 font-mono">
                   rejected {new Date(ticket.rejectedAt).toLocaleString()}
                 </span>
               )}
@@ -142,8 +145,8 @@ function HistoryCard({
         <div className="px-4 pb-4 space-y-3 border-t border-border">
           {/* Rejection reason */}
           {isRejected && ticket.rejectionReason && (
-            <div className={`${inlineDangerBanner} mt-3 whitespace-pre-wrap break-words text-sm`}>
-              <p className="text-[10px] uppercase tracking-wider font-semibold mb-1">
+            <div className="mt-3 rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-sm text-rose-900 whitespace-pre-wrap break-words">
+              <p className="text-[10px] uppercase tracking-wider font-semibold text-rose-700 mb-1">
                 Rejection reason
               </p>
               {ticket.rejectionReason}
@@ -212,9 +215,9 @@ function BannedCard({ ban }: { ban: GoldenHistoryBanned }): React.ReactElement {
   const active = ms > 0;
 
   return (
-    <div className={`bg-card ${dangerBorder} rounded-2xl p-5 shadow-sm space-y-3`}>
+    <div className="bg-card border border-rose-200 rounded-2xl p-5 shadow-sm space-y-3">
       <div className="flex items-center gap-3">
-        <div className={`w-10 h-10 rounded-full bg-danger-light border border-danger/40 flex items-center justify-center text-danger`}>
+        <div className="w-10 h-10 rounded-full bg-rose-100 border border-rose-300 flex items-center justify-center text-rose-700">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <rect x="4" y="11" width="16" height="10" rx="2" />
             <path d="M8 11V7a4 4 0 0 1 8 0v4" />
@@ -230,7 +233,7 @@ function BannedCard({ ban }: { ban: GoldenHistoryBanned }): React.ReactElement {
         </div>
       </div>
       <div className="flex items-baseline gap-3">
-        <span className="font-mono text-2xl font-bold tabular-nums text-danger">
+        <span className="font-mono text-2xl font-bold tabular-nums text-rose-700">
           {active ? label : 'unlocked'}
         </span>
         <span className="text-xs text-ink-faint">
@@ -254,10 +257,10 @@ function ActivityRow({
 }): React.ReactElement {
   const icon =
     event.type === 'resolved' || event.type === 're_resolved'
-      ? { glyph: '✅', bg: 'bg-accent/15', text: 'text-accent' }
+      ? { glyph: '✅', bg: 'bg-emerald-100', text: 'text-emerald-800' }
       : event.type === 'rejected'
-      ? { glyph: '⛔', bg: 'bg-danger/10', text: 'text-danger' }
-      : { glyph: '🎟️', bg: 'bg-warning/10', text: 'text-warning' };
+      ? { glyph: '⛔', bg: 'bg-rose-100', text: 'text-rose-800' }
+      : { glyph: '🎟️', bg: 'bg-amber-100', text: 'text-amber-800' };
   const label =
     event.type === 'resolved'
       ? 'Resolved'

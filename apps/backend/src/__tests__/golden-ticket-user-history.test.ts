@@ -117,11 +117,6 @@ vi.mock('../modules/support/support-core.controller.js', () => ({
     }
     return true;
   },
-  // v1.74 — getMyGoldenTicket now stamps `discussionOpen` in the
-  // response. The history test doesn't assert the discussion
-  // fields, so a no-op stub is enough.
-  isDiscussionOpen: (): boolean => false,
-  computeDiscussionClosesAt: (when: Date): Date => when,
 }));
 
 vi.mock('../utils/http/logger.js', () => ({

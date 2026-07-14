@@ -253,7 +253,7 @@ export default function GoldenTicketPage(): React.ReactElement {
   }
 
   return (
-    <div data-tour="golden-page-content" className="max-w-6xl mx-auto px-4 sm:px-6 pt-20 sm:pt-24 pb-8">
+    <div data-tour="golden-page-content" className="max-w-6xl mx-auto px-4 sm:px-6 pt-28 sm:pt-32 pb-8">
       {/* v1.66 anti-pattern: never use navigate(-1) for back. */}
       <button
         type="button"
@@ -299,7 +299,7 @@ export default function GoldenTicketPage(): React.ReactElement {
             aria-live="polite"
             className="bg-card border border-border rounded-2xl px-6 py-16 shadow-sm flex flex-col items-center justify-center text-center min-h-[420px]"
           >
-            <div className="w-16 h-16 rounded-full bg-warning/10 border-2 border-warning/30 flex items-center justify-center text-warning mb-4">
+            <div className="w-16 h-16 rounded-full bg-amber-100 border-2 border-amber-300 flex items-center justify-center text-amber-700 mb-4">
               <svg
                 width="28"
                 height="28"
@@ -364,7 +364,7 @@ export default function GoldenTicketPage(): React.ReactElement {
 
             <div>
               <label className="block text-sm font-semibold text-ink mb-1">
-                Urgent Query <span className="text-danger">*</span>
+                Urgent Query <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -378,7 +378,7 @@ export default function GoldenTicketPage(): React.ReactElement {
 
             <div>
               <label className="block text-sm font-semibold text-ink mb-1">
-                Full Context <span className="text-danger">*</span>
+                Full Context <span className="text-red-500">*</span>
               </label>
               <textarea
                 value={details}
@@ -394,7 +394,7 @@ export default function GoldenTicketPage(): React.ReactElement {
             </div>
 
             {submitError && (
-              <div className="rounded-lg border border-danger/30 bg-danger-light px-3 py-2 text-sm text-danger">
+              <div className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-900">
                 {submitError}
               </div>
             )}
@@ -403,7 +403,7 @@ export default function GoldenTicketPage(): React.ReactElement {
               <button
                 type="submit"
                 disabled={!canSubmit}
-                className="px-5 py-2.5 rounded-lg bg-accent hover:bg-accent-hover disabled:bg-accent/40 disabled:cursor-not-allowed text-accent-text text-sm font-semibold transition-colors"
+                className="px-5 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-600 disabled:bg-orange-300 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
               >
                 {submitting ? 'Submitting…' : 'Submit Escalation'}
               </button>
@@ -490,7 +490,7 @@ export default function GoldenTicketPage(): React.ReactElement {
       )}
 
       {loadError && (
-        <div className="max-w-2xl mx-auto mt-6 rounded-lg border border-danger/30 bg-danger-light px-4 py-3 text-sm text-danger">
+        <div className="max-w-2xl mx-auto mt-6 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900">
           {loadError}
         </div>
       )}

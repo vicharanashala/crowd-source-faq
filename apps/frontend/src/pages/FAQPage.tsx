@@ -32,7 +32,7 @@ import SearchFeedback from '../components/faq/SearchFeedback';
 import QuestionList from '../components/faq/QuestionList';
 import QuestionDetail from '../components/faq/QuestionDetail';
 import CTA from '../components/ui/CTA';
-import { searchPanel } from '../styles/style_config';
+import CategoryQuizDialog from '../components/faq/CategoryQuizDialog';
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  Main page
@@ -55,6 +55,8 @@ export default function FAQPage() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [sortOption, setSortOption] = useState('relevant');
   const [visibleCount, setVisibleCount] = useState(8);
+  const [clarifications, setClarifications] = useState<string[]>([]);
+  const [quizCategory, setQuizCategory] = useState<string | null>(null);
 
   const searchBarRef = useRef<HTMLInputElement>(null);
   const [resultFaqId, setResultFaqId] = useState<string | undefined>(undefined);
@@ -70,42 +72,27 @@ export default function FAQPage() {
   const noProgramSelected = !batchId;
 
   // ── Fetch all FAQs when batchId changes ─────────────────────────
-  //
-  // 1.8 (LOW) — the previous retry button re-fired `api.get('/faq')`
-  // WITHOUT the batchId param, dropping the active program filter
-  // when the user hit a transient error and tapped Retry. Hoist the
-  // fetch into a `load()` helper that closes over the current
-  // `batchId`; both the effect and the retry button call it.
-  //
-  // 1.10 (LOW) — the inline retry handler had no in-flight guard, so
-  // a double-click could fire two parallel `/faq` requests whose
-  // responses could race. Track in-flight in a ref so a second call
-  // from anywhere (Retry button, programmatic, etc.) no-ops while a
-  // fetch is pending. The state-based `loading` flag drives the UI
-  // disabled state.
-  const inFlightRef = useRef(false);
-  const load = useCallback(async (): Promise<void> => {
-    if (!batchId) return;
-    if (inFlightRef.current) return;
-    inFlightRef.current = true;
-    setLoading(true);
-    try {
-      const res = await api.get('/faq', { params: { batchId } });
-      setGrouped(applyQuestionNumbers(res.data.grouped || {}));
-      setTotal(res.data.total || 0);
-      setError('');
-    } catch (err: unknown) {
-      const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Failed to load FAQs. Please try again.';
-      setError(message);
-    } finally {
-      inFlightRef.current = false;
-      setLoading(false);
-    }
-  }, [batchId]);
-
   useEffect(() => {
-    void load();
-  }, [batchId, load]);
+    if (!batchId) return;
+    let mounted = true;
+    setLoading(true);
+
+    // /api/faq — full grouped list
+    api.get('/faq', { params: { batchId } })
+      .then((res) => {
+        if (!mounted) return;
+        setGrouped(applyQuestionNumbers(res.data.grouped || {}));
+        setTotal(res.data.total || 0);
+      })
+      .catch((err: unknown) => {
+        if (!mounted) return;
+        const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Failed to load FAQs. Please try again.';
+        setError(message);
+      })
+      .finally(() => { if (mounted) setLoading(false); });
+
+    return () => { mounted = false; };
+  }, [batchId]);
 
   // ── Derived data ─────────────────────────────────────────────────────────
   const categories = useMemo(() => Object.keys(grouped).sort((a, b) => {
@@ -291,6 +278,7 @@ export default function FAQPage() {
     setSearchQuery('');
     setSearchResults(null);
     setSearchLoading(false);
+    setClarifications([]);
   };
 
   // ── Render ──────────────────────────────────────────────────────────────
@@ -298,7 +286,7 @@ export default function FAQPage() {
     <div className="min-h-screen bg-bg grid-bg relative">
       <HomeDoodles />
 
-      <main className="max-w-[1200px] mx-auto px-4 sm:px-6 pt-20 sm:pt-24 pb-10 relative z-10">
+      <main className="max-w-[1200px] mx-auto px-4 sm:px-6 pt-[112px] sm:pt-[128px] pb-10 relative z-10">
         {/* Active program pill */}
         <div className="flex justify-center">
           <UserActiveProgramIndicator />
@@ -329,6 +317,7 @@ export default function FAQPage() {
               onResults={(res) => setSearchResults(res as unknown as FAQItem[])}
               onLoading={setSearchLoading}
               onError={(err) => setError(err || '')}
+              onClarifications={setClarifications}
               placeholder="Ask anything about your internship..."
               disableSuggestions={true}
             />
@@ -405,13 +394,9 @@ export default function FAQPage() {
         {error && !loading && (
           <div className="mt-8 rounded-2xl bg-danger-light border border-danger/15 p-6 text-center space-y-3">
             <p className="text-sm text-danger font-medium">{error}</p>
-            {/* 1.8 + 1.10 — call the shared load() helper so Retry
-                keeps the batchId param AND is disabled while a fetch
-                is already in flight. */}
             <button
-              onClick={() => { void load(); }}
-              disabled={loading}
-              className="px-5 py-2 text-sm font-medium bg-danger text-accent-text rounded-full hover:bg-danger/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={() => { setError(''); setLoading(true); api.get('/faq').then(res => { setGrouped(applyQuestionNumbers(res.data.grouped || {})); setTotal(res.data.total || 0); }).catch((err: unknown) => { const m = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Failed to load FAQs.'; setError(m); }).finally(() => setLoading(false)); }}
+              className="px-5 py-2 text-sm font-medium bg-danger text-accent-text rounded-full hover:bg-danger/90 transition-colors"
             >
               Retry
             </button>
@@ -444,7 +429,7 @@ export default function FAQPage() {
             user keeps their navigation scaffold.
         */}
         {!loading && !error && !activeQuestion && searchActive && (
-          <section className={`${searchPanel} max-w-4xl mx-auto mt-6 p-6`}>
+          <section className="max-w-4xl mx-auto mt-6 search-panel p-6">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
               <div>
                 <p className="text-xs font-semibold text-ink-faint uppercase tracking-wide">Search results</p>
@@ -466,36 +451,67 @@ export default function FAQPage() {
               onLoadMore={() => setVisibleCount((prev) => prev + 6)}
               emptyMessage="No results yet. Try another keyword or browse a category."
             />
+            {searchResults && searchResults.length === 0 && !searchLoading && clarifications.length > 0 && (
+              <div className="mt-6 p-5 rounded-2xl border border-accent/15 bg-accent-light/30 max-w-xl">
+                <p className="text-xs font-bold text-accent uppercase tracking-wider">Did you mean?</p>
+                <div className="mt-3 space-y-2">
+                  {clarifications.map((c, i) => (
+                    <button
+                      key={i}
+                      onClick={() => {
+                        handleSearchChange(c);
+                        if (searchBarRef.current) {
+                          searchBarRef.current.value = c;
+                        }
+                      }}
+                      className="block text-left text-sm text-ink hover:text-accent font-semibold transition-colors flex items-center gap-2 group"
+                    >
+                      <span className="text-base group-hover:scale-110 transition-transform">💡</span> {c}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </section>
         )}
 
         {/* ─── FILTERED CATEGORY VIEW ───────────────────────────────── */}
         {!loading && !error && !activeQuestion && !searchActive && activeCategory && (
           <section className="max-w-4xl mx-auto mt-6">
-            <div className="mb-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6 border-b border-border/40 pb-5">
+              <div>
+                <button
+                  onClick={handleBackToCategories}
+                  className="inline-flex items-center gap-2 text-xs font-semibold text-ink-soft hover:text-ink transition-colors"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                  Back to all categories
+                </button>
+                <h2 className="mt-3 text-xl font-semibold text-ink flex items-center gap-2">
+                  <span className={`w-9 h-9 rounded-xl bg-mist flex items-center justify-center ${getCategoryTone(activeCategory).accent}`}>
+                    {getCategoryIcon(activeCategory)}
+                  </span>
+                  {activeCategoryItems[0]?.categoryNumber ? `${activeCategoryItems[0].categoryNumber}. ` : ''}{formatCategoryName(activeCategory)}
+                  <span className="ml-1 text-[11px] uppercase tracking-wider font-semibold text-ink-faint">
+                    · {activeCategoryItems.length} {activeCategoryItems.length === 1 ? 'question' : 'questions'}
+                  </span>
+                </h2>
+                {activeCategoryMeta && (
+                  <p className="mt-2 text-sm text-ink-soft max-w-2xl">
+                    {activeCategoryMeta}
+                  </p>
+                )}
+              </div>
+
               <button
-                onClick={handleBackToCategories}
-                className="inline-flex items-center gap-2 text-xs font-semibold text-ink-soft hover:text-ink transition-colors"
+                type="button"
+                onClick={() => setQuizCategory(activeCategory)}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-accent hover:bg-accent-hover text-accent-text text-xs font-bold transition-all shadow-md self-start md:self-center"
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="15 18 9 12 15 6" />
-                </svg>
-                Back to all categories
+                <span>📝</span> Practice Category Quiz
               </button>
-              <h2 className="mt-3 text-xl font-semibold text-ink flex items-center gap-2">
-                <span className={`w-9 h-9 rounded-xl bg-mist flex items-center justify-center ${getCategoryTone(activeCategory).accent}`}>
-                  {getCategoryIcon(activeCategory)}
-                </span>
-                {activeCategoryItems[0]?.categoryNumber ? `${activeCategoryItems[0].categoryNumber}. ` : ''}{formatCategoryName(activeCategory)}
-                <span className="ml-1 text-[11px] uppercase tracking-wider font-semibold text-ink-faint">
-                  · {activeCategoryItems.length} {activeCategoryItems.length === 1 ? 'question' : 'questions'}
-                </span>
-              </h2>
-              {activeCategoryMeta && (
-                <p className="mt-2 text-sm text-ink-soft max-w-2xl">
-                  {activeCategoryMeta}
-                </p>
-              )}
             </div>
             <QuestionList
               items={activeCategoryItems.map((item) => ({
@@ -609,6 +625,13 @@ export default function FAQPage() {
 
       {searchActive && searchResults && searchResults.length > 0 && (
         <SearchFeedback searchQuery={searchQuery} resultFaqId={resultFaqId} />
+      )}
+
+      {quizCategory && (
+        <CategoryQuizDialog
+          category={quizCategory}
+          onClose={() => setQuizCategory(null)}
+        />
       )}
     </div>
   );

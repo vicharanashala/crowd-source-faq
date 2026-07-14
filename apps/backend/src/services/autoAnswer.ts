@@ -35,11 +35,10 @@ import {
   type RankedHit,
 } from './contextRetriever.js';
 import {
+  chatWithConfig,
   getPipelineProviderConfig,
 } from '../utils/ai/aiProvider.js';
-import { runWithFallback } from './ai/fallbackChain.js';
 import { isSensitiveContent } from '../utils/ai/pipelineCommon.js';
-import { getAssistantPersona } from '../utils/ai/assistantPersona.js';
 
 // ─── Public types ─────────────────────────────────────────────────────────
 
@@ -112,17 +111,6 @@ function readPriorResult(
   const ageMs = opts.now.getTime() - lastAt.getTime();
   if (ageMs >= opts.cooldownMinutes * 60_000) return null;
 
-  // 5.3 fix: if an admin reviewed the post (approve / reject / edit) AFTER
-  // the last auto-answer was generated, force a fresh pipeline run on the
-  // next call — even if it's inside the cooldown window. Without this,
-  // an admin clicks "Approve" then "Ask AI again" within 60 min and gets
-  // back the same cached decision; the work the admin explicitly asked
-  // for never happens and no log line marks the (silent) skip.
-  const reviewedAt: Date | null = post.aiAnswerReviewedAt ?? null;
-  if (reviewedAt && opts.now.getTime() - reviewedAt.getTime() < opts.cooldownMinutes * 60_000) {
-    return null;
-  }
-
   // Cooldown active — reconstruct a representative result from the
   // post's persisted fields. We don't have the live context here
   // (the snapshot may have been cleared on a rejection), but for an
@@ -167,31 +155,24 @@ async function generateAnswerFromContext(
     };
   }
 
-  // LLM synthesis path — calls runWithFallback with context blocks.
-  // v1.85 — automatic provider failover. A primary-provider 401/429
-  // walks the configured fallback chain instead of throwing.
+  // LLM synthesis path — calls chatWithConfig with context blocks.
   try {
     const contextBlocks = hits
       .slice(0, 4)
       .map((h, i) => `[${h.source}:${i + 1}] Q: ${h.question}\nA: ${h.answer.slice(0, 400)}`);
     const cfg = await getPipelineProviderConfig('auto_answer', post.batchId?.toString() ?? null);
-    const { reply } = await runWithFallback(
-      'auto_answer',
-      [
-        {
-          role: 'system',
-          // Persona first — establishes identity, tone, and rules. Then
-          // task-specific instructions for THIS call (synthesis, length
-          // cap, honesty about missing context).
-          content: `${getAssistantPersona()}\n\n---\n\nYou are answering a community question. Use ONLY the provided context sources to answer. Keep replies under 300 words. If the context does not contain a complete answer, say so explicitly and suggest the user post to the community for help.`,
-        },
-        {
-          role: 'user',
-          content: `Context:\n${contextBlocks.join('\n\n')}\n\nUser question: ${post.title}${post.body ? `\nDetails: ${post.body}` : ''}`,
-        },
-      ],
-      { primaryOverride: cfg, batchId: post.batchId?.toString() ?? null, feature: 'auto_answer' },
-    );
+    const reply = await chatWithConfig(cfg, [
+      {
+        role: 'system',
+        content:
+          "You are an assistant. Use the provided context to answer the user's question concisely. " +
+          'Keep replies under 300 words. If the context does not contain a complete answer, say so explicitly.',
+      },
+      {
+        role: 'user',
+        content: `Context:\n${contextBlocks.join('\n\n')}\n\nUser question: ${post.title}${post.body ? `\nDetails: ${post.body}` : ''}`,
+      },
+    ]);
     return { answer: (reply ?? '').trim().slice(0, 1500), sensitive };
   } catch (err) {
     logDecision('error', post._id, { phase: 'llm', message: (err as Error).message });
@@ -542,44 +523,31 @@ export async function rerunWithContext(
   postId: string | Types.ObjectId,
   extraContext: string,
 ): Promise<AutoAnswerResult> {
-  // 5.2 fix: previously this function appended `[ADMIN NOTE] …` to
-  // post.body, ran processPost, then split it back off. Two problems:
-  // (1) the augmented body was briefly visible to the user between
-  // the first save and the strip; (2) if processPost itself threw or
-  // the second save failed, the admin note was permanently persisted
-  // as the user's actual question. Now: we inject the extra context
-  // into the post's persisted aiContext snapshot — that's what
-  // fetchContext reads from, so the LLM still sees it. We never
-  // touch post.body. Clear lastAutoAnswerAt so the cooldown gate
-  // (in processPost → readPriorResult) does NOT short-circuit this
-  // rerun.
+  // Append the admin note to the post body transiently by reading
+  // the post, composing an augmented body, and forcing
+  // processPost (which itself rewrites lastAutoAnswerAt and clears
+  // the cooldown gate automatically).
   const post = await CommunityPost.findById(postId);
   if (!post) return makeErrorResult('post not found');
 
-  const augmentedQuery = `[ADMIN NOTE — extra context to incorporate] ${extraContext.slice(0, 2000)}`;
+  const augmentedBody = `${post.body ?? ''}\n\n[ADMIN NOTE] ${extraContext}`.slice(0, 4000);
+  // Clear the cooldown gate so this rerun is never short-circuited.
+  // Without this, a second call within 60min returns the prior decision
+  // without doing the work the admin explicitly asked for.
+  post.lastAutoAnswerAt = null;
+  post.body = augmentedBody;
+  await post.save();
 
-  // Merge with any existing aiContext snapshot (preserve hits, sources, takenAt)
-  const priorCtx = (post.lifecycle as any)?.aiContext ?? {};
-  const mergedCtx = {
-    ...priorCtx,
-    query: `${priorCtx.query ?? `${post.title} ${post.body ?? ''}`}\n\n${augmentedQuery}`,
-    takenAt: new Date().toISOString(),
-  };
+  const result = await processPost(post._id);
 
-  // Clear the cooldown gate + persist the augmented context. Single
-  // atomic write — no save/strip dance, no body mutation.
-  await CommunityPost.updateOne(
-    { _id: post._id },
-    {
-      $set: {
-        lastAutoAnswerAt: null,
-        'lifecycle.aiContext': mergedCtx,
-        'lifecycle.aiAnswerStatus': 'pending',
-      },
-    },
-  );
-
-  return processPost(post._id);
+  // Strip the admin note back off — we don't want it persisted as
+  // the user's actual question body. The aiContext snapshot still
+  // carries it for audit.
+  if (typeof post.body === 'string') {
+    post.body = post.body.split('\n\n[ADMIN NOTE]')[0];
+    await post.save();
+  }
+  return result;
 }
 
 // ─── ProgramKnowledge side-effect (admin approve-edit) ────────────────────

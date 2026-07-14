@@ -24,29 +24,12 @@ import { sanitizeHtml } from '../../utils/http/sanitize.js';
 import { communityLog } from '../../utils/http/logger.js';
 import { evaluateDuplicates, isBlockingMatch } from './post-duplicate.controller.js';
 import { assertCanCreateContent } from '../../utils/banUtils.js';
-import { checkIdempotency, storeIdempotency } from '../../utils/http/idempotency.js';
 
 // POST /api/community — Create a new post (protected)
 export const createPost = async (req: Request, res: Response): Promise<void> => {
   if (!req.user) { res.status(401).json({ message: 'Not authorized' }); return; }
   // v1.66 — Golden-ban gate. 72h ban blocks new posts (questions, answers).
   if (!assertCanCreateContent(req.user, res)) return;
-
-  // Idempotency-Key (RFC 7231-ish): if the client provides a key, the
-  // same key within a 60s window returns the original response instead
-  // of creating a duplicate. Frontend generates a UUID per form-mount
-  // and sends it on submit. The check happens AFTER auth + ban gate
-  // so an unauthenticated request can't poison another user's cache.
-  // Read the Idempotency-Key header defensively — Express's req.headers
-  // is the standard access path but unit-test stubs may provide neither
-  // a method nor a property. The nullish fallback lets the controller
-  // work in both the real Express runtime and bare test fixtures.
-  const rawHeader = (req as { headers?: Record<string, string | string[] | undefined> }).headers?.['idempotency-key'];
-  const idempotencyKey = (Array.isArray(rawHeader) ? rawHeader[0] : rawHeader ?? '').toString().trim() || null;
-  if (idempotencyKey) {
-    const cached = checkIdempotency(idempotencyKey, 'createPost', req.user._id.toString());
-    if (cached) { res.status(cached.status).json(cached.body); return; }
-  }
   try {
     const { title, body, tags, attachments } = req.body as {
       title?: string;
@@ -95,42 +78,6 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
         isDuplicate: true,
       });
       return;
-    }
-
-    // ── Same-author duplicate guard ──────────────────────────────────────────
-    // The AI / FAQ blocker catches "this has been asked before, see answer"
-    // but doesn't catch "you just posted this ten minutes ago, stop spamming".
-    // Compare on normalised title (case-folded, whitespace collapsed) so
-    // trivial re-submissions ("Hi" vs "hi.") still match. Block creation
-    // with the SAME 409 shape the UI already knows how to surface.
-    if (req.user?._id) {
-      const normalisedTitle = title.toLowerCase().replace(/\s+/g, ' ').trim();
-      const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      const recent = await CommunityPost.findOne({
-        author: req.user._id,
-        status: { $ne: 'spam_confirmed' },
-        createdAt: { $gte: since },
-      })
-        .select('_id title createdAt status')
-        .lean();
-      if (recent) {
-        const recentNorm = (recent.title ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
-        if (recentNorm === normalisedTitle) {
-          res.status(409).json({
-            message: 'You posted the same question in the last 24 hours. Check your earlier post and add a comment instead of creating a duplicate.',
-            isDuplicate: true,
-            matches: [{
-              _id: recent._id.toString(),
-              title: recent.title,
-              score: 1.0,
-              source: 'community' as const,
-              matchType: 'text' as const,
-              reason: 'Same author posted this title within 24 hours.',
-            }],
-          });
-          return;
-        }
-      }
     }
 
     // Skip live embedding on create. The weekly batch cron (startup.ts
@@ -224,6 +171,12 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
+    const { checkContentToxicity } = await import('../ai/aiModeration.service.js');
+    const moderation = await checkContentToxicity(`${title}\n\n${body}`);
+
+    const communityMatches = matches.filter(m => m.source === 'community');
+    const potentialDuplicates = communityMatches.map(m => new Types.ObjectId(m._id));
+
     // Create post linked to the authenticated user with a default 'unanswered' status
     const post = await CommunityPost.create({
       title: sanitizeHtml(title),
@@ -234,6 +187,12 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
       batchId: resolvedBatchId,
       tags: safeTags,
       attachments: safeAttachments,
+      potentialDuplicates,
+      isHidden: moderation.isToxic,
+      hiddenAt: moderation.isToxic ? new Date() : null,
+      hiddenBy: moderation.isToxic ? req.user!._id : null,
+      hiddenReason: moderation.isToxic ? `AI Moderation: ${moderation.reason}` : null,
+      reports: moderation.isToxic ? [{ reportedBy: req.user!._id, reason: `AI Moderation: ${moderation.reason}` }] : [],
       lifecycle: {
         status: 'open',
         statusHistory: [{
@@ -241,7 +200,7 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
           to: 'open',
           changedBy: req.user!._id,
           changedAt: new Date(),
-          note: 'Question created',
+          note: moderation.isToxic ? `Question created (Hidden by AI: ${moderation.reason})` : 'Question created',
         }],
       },
     });
@@ -269,14 +228,34 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
       communityLog.warn(`[post] Failed to invalidate cache on post creation: ${(err as Error).message}`);
     });
 
+    // ── Smart Expert Routing ──────────────────────────────────────────────────
+    // Find top-reputed active users in this batch to notify about the new post
+    import('../notification/notification.model.js')
+      .then(async ({ default: Notification }) => {
+        const experts = await User.find({
+          _id: { $ne: req.user!._id },
+          isDeleted: false,
+          isBanned: false
+        })
+        .sort({ reputation: -1, acceptedAnswers: -1 })
+        .limit(3);
+
+        if (experts.length === 0) return;
+
+        const notifications = experts.map(expert => ({
+          userId: expert._id,
+          eventType: 'mention',
+          content: `New question with tags [${safeTags.join(', ')}] might match your expertise: "${title.slice(0, 45)}..."`,
+          link: `/community?highlight=${post._id}`
+        }));
+        await Notification.insertMany(notifications);
+        communityLog.info(`[post] Routed post ${post._id} to ${experts.length} potential experts`);
+      })
+      .catch((err) => {
+        communityLog.warn(`[post] Expert routing failed: ${err.message}`);
+      });
+
     res.status(201).json({ post });
-    // Store the response under the idempotency key (if any) so a
-    // retried request within 60s gets the same payload verbatim. Done
-    // AFTER the success response so the in-memory write doesn't add
-    // measurable latency to the user's request.
-    if (idempotencyKey) {
-      storeIdempotency(idempotencyKey, 'createPost', req.user._id.toString(), 201, { post });
-    }
   } catch (error) {
     communityLog.error(`[post] createPost failed: ${(error as Error).message}`);
     res.status(500).json({ message: 'Server error' });
@@ -305,37 +284,21 @@ export const toggleUpvote = async (req: Request, res: Response): Promise<void> =
     }
 
     const userId = req.user!._id.toString();
-    // M4-5 (MEDIUM) fix: previously this read `alreadyUpvoted` from
-    // the loaded doc BEFORE the atomic update. Two concurrent upvotes
-    // by the same user could both read `alreadyUpvoted === false`,
-    // then both call `$addToSet` (idempotent — no double-vote) and
-    // both read `alreadyUpvoted === false` afterward, so downstream
-    // decisions like "did this user just upvote?" got the wrong
-    // answer. Now: rely on the post-update `updated.upvotes` to
-    // determine the *current* membership of the user, not the pre-update
-    // snapshot. `$addToSet` is idempotent so the membership is
-    // always correct after the atomic write.
-    const wasUpvotedBefore = post.upvotes.map((u: Types.ObjectId) => u.toString()).includes(userId);
+    const alreadyUpvoted = post.upvotes.map((u: Types.ObjectId) => u.toString()).includes(userId);
 
     // Use atomic $pull/$addToSet to avoid race-condition duplicates
     const updated = await CommunityPost.findOneAndUpdate(
       { _id: post._id },
-      wasUpvotedBefore
+      alreadyUpvoted
         ? { $pull: { upvotes: new Types.ObjectId(userId) } }
         : { $addToSet: { upvotes: new Types.ObjectId(userId) } },
       { returnDocument: 'after' }
     );
 
     const newUpvotes = updated?.upvotes?.length ?? 0;
-    // S5-M5-style fresh-state check: derive `isUpvotedByMe` from
-    // the post-update doc, not the pre-update snapshot. Eliminates
-    // the brief read-then-write race where two concurrent upvotes
-    // could both think the user was "just upvoting" and both fire
-    // the post-promotion side-effect.
-    const isUpvotedByMe = !!updated?.upvotes?.some((u: Types.ObjectId) => u.toString() === userId);
 
     // Check if this upvote just crossed the promotion threshold
-    if (wasUpvotedBefore !== isUpvotedByMe) {
+    if (!alreadyUpvoted) {
       const { checkPromotionEligibility, startPromotionReview } = await import('../program/promotion.service.js').catch((err) => {
         communityLog.warn(`[post] Failed to dynamically import promotionService: ${(err as Error).message}`);
         return { checkPromotionEligibility: null, startPromotionReview: null };
@@ -355,12 +318,7 @@ export const toggleUpvote = async (req: Request, res: Response): Promise<void> =
 
     // Notify post author on new upvote only (self-votes and vote retractions send nothing)
     const isSelfVote = post.author.toString() === userId;
-    // M4-5: use post-update `wasUpvotedBefore` / `isUpvotedByMe` to
-    // pick the right branch. `wasUpvotedBefore === true &&
-    // !isUpvotedByMe` means the user just retracted an upvote
-    // (rollback the +2 author points). The opposite means the
-    // user just upvoted (dispatch the notification + add +2).
-    if (!isSelfVote && wasUpvotedBefore && !isUpvotedByMe) {
+    if (!isSelfVote && alreadyUpvoted) {
       await User.findByIdAndUpdate(post.author, { $inc: { points: -2, reputation: -2 } });
       await ReputationLog.deleteMany({
         userId: post.author,
@@ -369,7 +327,7 @@ export const toggleUpvote = async (req: Request, res: Response): Promise<void> =
         action: 'upvote_received',
       });
     }
-    if (!isSelfVote && !wasUpvotedBefore && isUpvotedByMe) {
+    if (!isSelfVote && !alreadyUpvoted) {
       dispatchNotification({
         recipientId: post.author,
         eventType: 'upvote',
@@ -413,7 +371,7 @@ export const toggleUpvote = async (req: Request, res: Response): Promise<void> =
       });
     }
 
-    res.json({ upvotes: newUpvotes, upvotedByMe: isUpvotedByMe });
+    res.json({ upvotes: newUpvotes, upvotedByMe: !alreadyUpvoted });
   } catch (error) {
     communityLog.error(`[post] toggleUpvote failed: ${(error as Error).message}`);
     res.status(500).json({ message: 'Server error' });

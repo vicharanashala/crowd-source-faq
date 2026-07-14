@@ -80,7 +80,7 @@ async function aiChat(userQuestion: string, candidateList: string): Promise<stri
     ];
 
   const body: Record<string, unknown> = {
-    model: cfg.modelName,
+    model: cfg.model,
     max_tokens: 1024,
     temperature: 0.1,
     messages,

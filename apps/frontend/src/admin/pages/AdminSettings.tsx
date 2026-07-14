@@ -1,5 +1,4 @@
-import { useState, useEffect, type FormEvent } from 'react'
-import { adminBtnPrimary, adminInput, adminLabel } from '../../styles/style_config';
+import { useState, useEffect, type FormEvent } from 'react';
 import { motion } from 'framer-motion';
 import { useAdminAuth } from '../hooks/useAdminAuth';
 import adminApi from '../utils/adminApi';
@@ -41,13 +40,11 @@ export default function AdminSettings() {
   };
 
   return (
-    <div className="w-full space-y-5">
+    <div className="space-y-5 max-w-xl">
       {toast && <Toast toast={toast} />}
       <p className="text-sm text-ink-faint -mt-2">Manage your profile</p>
 
-      {/* Profile + Security (left column on md+, full width on mobile) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
-      <div className="space-y-5">
+      {/* Profile */}
       <div className="admin-card-surface">
         <div className="admin-card-header">
           <p className="text-sm font-semibold text-ink">Profile</p>
@@ -62,14 +59,14 @@ export default function AdminSettings() {
             </div>
           </div>
           <div>
-            <label className={`${adminLabel}`}>Display Name</label>
-            <input value={name} onChange={e => setName(e.target.value)} className={`${adminInput}`} />
+            <label className="admin-label">Display Name</label>
+            <input value={name} onChange={e => setName(e.target.value)} className="admin-input" />
           </div>
           <div>
-            <label className={`${adminLabel}`}>Email</label>
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)} className={`${adminInput}`} />
+            <label className="admin-label">Email</label>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="admin-input" />
           </div>
-          <button onClick={saveProfile} disabled={saving} className={`${adminBtnPrimary}`}>{saving ? 'Saving…' : 'Save Profile'}</button>
+          <button onClick={saveProfile} disabled={saving} className="admin-btn-primary">{saving ? 'Saving…' : 'Save Profile'}</button>
         </div>
       </div>
 
@@ -81,11 +78,11 @@ export default function AdminSettings() {
         <form onSubmit={changePassword} className="px-5 py-4 space-y-3">
           {[{ label: 'Current Password', key: 'current' as const }, { label: 'New Password', key: 'next' as const }, { label: 'Confirm Password', key: 'confirm' as const }].map(f => (
             <div key={f.key}>
-              <label className={`${adminLabel}`}>{f.label}</label>
-              <input type="password" value={passwords[f.key]} onChange={e => setPasswords(p => ({ ...p, [f.key]: e.target.value }))} placeholder="••••••••" className={`${adminInput}`} />
+              <label className="admin-label">{f.label}</label>
+              <input type="password" value={passwords[f.key]} onChange={e => setPasswords(p => ({ ...p, [f.key]: e.target.value }))} placeholder="••••••••" className="admin-input" />
             </div>
           ))}
-          <button type="submit" className={`${adminBtnPrimary}`}>Change Password</button>
+          <button type="submit" className="admin-btn-primary">Change Password</button>
         </form>
       </div>
 
@@ -100,9 +97,7 @@ export default function AdminSettings() {
           <p className="text-xs text-ink-faint pt-1">Tokens stored in localStorage. Use HTTPS in production.</p>
         </div>
       </div>
-      </div>
 
-      <div className="space-y-5">
       {/* v1.65 — Global app settings (Golden Ticket knobs). Live in
           the admin's own /admin/settings page (not on /admin/features)
           because they're runtime tunables, not feature toggles. */}
@@ -112,8 +107,6 @@ export default function AdminSettings() {
           link + regenerate button. The card manages its own state and
           calls /api/admin/registration-config directly. */}
       <RegistrationControlCard onSaved={showToast} />
-      </div>
-      </div>
     </div>
   );
 }
@@ -166,7 +159,7 @@ function GoldenTicketSettingsCard({ onSaved }: { onSaved: (msg: string, type: 's
       </div>
       <div className="px-5 py-4 space-y-5">
         <div>
-          <label className={`${adminLabel}`}>Cooldown (hours)</label>
+          <label className="admin-label">Cooldown (hours)</label>
           <p className="text-xs text-ink-faint mb-2">
             How long a user must wait after a Golden Ticket is closed (by admin
             resolution OR rejection) before submitting another. This is the only
@@ -182,13 +175,13 @@ function GoldenTicketSettingsCard({ onSaved }: { onSaved: (msg: string, type: 's
               value={cooldownHours}
               disabled={loading}
               onChange={(e) => setCooldownHours(Math.max(0, Math.min(720, Math.trunc(Number(e.target.value) || 0))))}
-              className={`${adminInput} w-32`}
+              className="admin-input w-32"
             />
             <button
               type="button"
               disabled={loading || savingKey === 'goldenCooldownHours'}
               onClick={() => save('goldenCooldownHours', cooldownHours)}
-              className={`${adminBtnPrimary}`}
+              className="admin-btn-primary"
             >
               {savingKey === 'goldenCooldownHours' ? 'Saving…' : 'Save'}
             </button>

@@ -138,7 +138,7 @@ export default function SavedKnowledgePage() {
                 key={post._id}
                 post={post}
                 onClick={handleOpenThread}
-                currentUserId={user?._id}
+                currentUserId={user?._id || (user?.id as string | undefined)}
                 onToggleBookmark={handleToggleBookmark}
               />
             ))}

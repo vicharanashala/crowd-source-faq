@@ -18,13 +18,25 @@ Four zero-touch pillars, in order of automation:
 ## Key features
 
 - **Hybrid search** — vector + keyword + Reciprocal Rank Fusion. Auto-falls-back to keyword when vector search is empty.
+- **AI-Clarifications** — Generates "Did you mean?" search suggestions automatically if search results are empty.
+- **Interactive Practice Quizzes** — Dynamic AI category quizzes with progress trackers, immediate option highlights, and score completion screens.
+- **Multi-Language Translation** — Localizes FAQ pages instantly (English, Hindi, Spanish, French, Telugu) cached in Redis, with matching local SpeechSynthesis voices.
+- **Weekly Digest Generator** — Mentors can build, preview, edit, and copy formatted Markdown digests/newsletters summarizing weekly activity.
 - **Public FAQ portal** — no-auth browse path, batch-scoped, with popularity ranking and guest analytics.
 - **Community Q&A** — posts + threaded comments + upvotes + AI auto-answer; admin escalation flow.
+- **Pre-emptive Collision Warnings** — Dialogue editor splits into split-screen when matching duplicates are detected.
 - **Session Support** — student issue tracker with 4-step troubleshooting checklists, evidence uploads, admin follow-ups.
+- **Hardware & Network Diagnostics** — Step 2 checklists trigger client camera, mic, battery, and VPN-latency check.
 - **Golden Tickets** — admin-promoted high-priority support requests with Spurti Points (SP) economy and 48h cooldown.
 - **Reputation system** — points, tier ladder (newcomer → knowledge_master), auto-awarded badges.
 - **Admin panel** — FAQs, users, golden tickets, support inbox, AI settings, feature flags, batches, categories.
 - **Real-time observability** — tagged colored logs (`[ INFO ] [ cron ]` etc.), Discord ALERT webhook, optional Sentry.
+- **Email Domain Restriction** — Gating self-registration to a configured list of email domains (e.g. `@university.edu`), acting as a spam guard.
+- **Bulk FAQ CSV Import** — Client-side CSV parser that maps, validates, and bulk-inserts FAQs into the system in a single request.
+- **AI Answer Co-pilot** — Refines user's draft answer in community comments using retrieved RAG context.
+- **AI-Powered Content Moderation** — Scans new posts/comments for toxicity/spam on submission and auto-hides violations.
+- **AI FAQ Auto-Translation Pre-Generation** — Pre-translates and caches FAQs in all supported languages immediately upon creation/approval.
+- **AI Search Query Expander** — Uses LLM to expand search queries with synonyms and keyphrases to increase semantic search recall.
 
 ---
 
@@ -34,20 +46,40 @@ Four zero-touch pillars, in order of automation:
 |---|---|
 | Frontend | React 18 + Vite + TS + Tailwind + Framer Motion |
 | Backend | Node 22 + Express 4 + TS (ESM) + Mongoose 8 |
-| DB | MongoDB Atlas (with Vector Search) + Upstash Redis (optional cache) + Cloudinary (uploads) |
+| DB | MongoDB Atlas (with Vector Search) + Upstash Redis (vector caching & translations) + Cloudinary (uploads) |
 | Search & AI | `mixedbread-ai/mxbai-embed-large-v1` (1024-dim, via HF Inference API; falls back to in-process ONNX), RRF, Atlas `$vectorSearch` |
 | AI providers | Anthropic, OpenAI, XAI, MiniMax, Gemini, custom — admin-configurable per-pipeline |
 | Infra | Sentry, Ngrok (webhook dev tunnel), Twilio (SMS), SMTP, Helmet, express-rate-limit, JWT, bcryptjs |
 
 ---
 
-## Recent changes (v1.68)
+## Recent changes (v2.0.0)
 
-- **Embedding model swap**: `Xenova/multi-qa-mpnet-base-dot-v1` (768-dim) → `mixedbread-ai/mxbai-embed-large-v1` (1024-dim, SOTA MTEB 64.68). Now routed through the HuggingFace Inference API when `HUGGINGFACE_API_KEY` is set, with a fall-back to the in-process ONNX pipeline. The retrieval-tuned query prompt (`Represent this sentence for searching relevant passages:`) is auto-prepended for queries via `generateQueryEmbedding()`.
-- **Schema + data audit pass** — 3 critical, 4 high, 7 medium, 6 low fixes across the 29 Mongoose models. See [`docs/schema-audit.md`](docs/schema-audit.md).
-- **Race-condition sweep** — all 8 `findByIdAndUpdate` + `save()` anti-patterns in user-facing controllers (comments, bookmarks, FAQ, posts, golden tickets) replaced with atomic `$set` / `$addToSet` / `$pull`.
-- **Observability overhaul** — 11 named loggers (`authLog`, `adminLog`, `cronLog`, etc.), background-colored level tags (`[ INFO ]`, `[ WARN ]`, `[ ERR ]`, `[ ALRT ]`), glyph-prefixed lines, Discord webhook forwarder with exponential-backoff retry queue.
-- **Live-data seed** — `npm run seed:live` populates 20 community posts, 8 support tickets, 2 zoom meetings, badge awards, search logs, and a populated leaderboard. Idempotent.
+- **AI Category Quizzes & Flashcards** — Dynamically compiles interactive MCQs to test user knowledge inside category views.
+- **Newsletter digests** — Exposes `/admin/digest` to automatically assemble Markdown digests from new FAQs, community threads, and search logs.
+- **Dynamic Translation & Audio Localizations** — Swaps details instantly to English, Hindi, Spanish, French, or Telugu, cached in Redis for 30 days, adjusting browser SpeechSynthesis speaking voice dynamically.
+- **Submission Collision Warning** — Compares titles/descriptions during drafting to warn users about duplicate threads in real-time.
+- **Diagnostics Checklist** — Integrates browser hardware (mic/camera) and server-vpn indicators directly inside the troubleshooting wizard.
+- **Semantic Vector Caching** — Added `ioredis` cache layer bypassing Hugging Face API vector generation.
+- **Aggregated Analytics** — Added `DashboardMetric` tracking daily counts atomically on write, accelerating admin dashboard loading.
+- **Drift-Guard cron** — Registers weekly cron that automatically audits approved FAQs for deprecations or drift.
+- **Build Cleanups** — Removed dead code pages from the bundle compiler.
+- **Email Domain Restriction (P1)** — Added allowedDomains configuration array to the controlled registration singleton, allowing admins to restrict access to specific organization domains.
+- **Bulk CSV FAQ Import (P2)** — Introduced POST `/api/faq/bulk-import` and a client-side CSV paste-and-parse interface on the Admin FAQ page for importing batches of questions.
+- **AI/ML Core Enhancements (v2.2.0)**:
+  - *AI Answer Co-pilot*: Integrated a RAG-powered co-pilot text refiner and previewer in the community thread detail Q&A comment form.
+  - *AI Content Moderation*: Automatic toxicity and spam gating on post and comment creation.
+  - *AI FAQ Auto-Translation Pre-Generation*: Translates newly approved FAQs into Hindi, Spanish, French, and Telugu immediately to populate Redis caches.
+  - *AI Search Query Expander*: Automatically enriches brief user queries with technical synonyms before hybrid database text search.
+- **AI/ML Core Enhancements (v2.1.0)**:
+  - *Cross-Encoder Search Reranker*: Added Cross-Encoder LLM reranking to refine hybrid candidate queries and boost precision.
+  - *Hallucination Guard*: Implemented LLM-as-a-Judge faithfulness check in the auto-answer pipeline to prevent hallucinated answers.
+  - *Voice Search integration*: Added Web Speech API mic button for local/server speech-to-text search.
+  - *Topic Map Graph*: Visualized FAQ knowledge base using an interactive 2D node map (`/explore/map`).
+  - *Student Telemetry & Distress Index*: Created user telemetry tracking to compute distress indices.
+  - *Smart Expert Routing*: Dynamically routes new community questions to top contributors.
+  - *Hybrid TTS*: Synthesizes and streams FAQ audio with local web speech fallback.
+  - *Embedded Code Sandboxes*: Allows inline Javascript/HTML execution for coding FAQs.
 
 ---
 

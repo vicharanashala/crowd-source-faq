@@ -1,18 +1,6 @@
 import React from 'react';
 import { getCategoryIcon, formatCategoryName, getQuestionTitle } from './faqUtils';
 import type { FAQItem } from './faqUtils';
-import {
-  flexRowBetween,
-  stackXs,
-  surfaceCardHover,
-  textBodyFaint,
-  textHeaderSm,
-  textLabelBold,
-  textLabelXsBold,
-  textNumeric,
-  textXs,
-  textXsLabel,
-} from '../../styles/style_config';
 
 interface CategoryCardProps {
   name: string;
@@ -23,6 +11,18 @@ interface CategoryCardProps {
 
 /**
  * Single category card for the FAQ landing grid.
+ * Layout (from image 1 — sage-green themed card):
+ *   ┌─────────────────────────────────────────┐
+ *   │ [icon]                       [N questions]│
+ *   │                                          │
+ *   │ Category title (bold)                    │
+ *   │                                          │
+ *   │ TOP QUESTIONS                            │
+ *   │ 1.  1.1 Question text...                 │
+ *   │ 2.  1.2 Question text...                 │
+ *   │                                          │
+ *   │ Explore all →                            │
+ *   └─────────────────────────────────────────┘
  *
  * White card, rounded-2xl, subtle border + shadow. Hover lifts and tints
  * the border accent. Clicking anywhere on the card fires onSelect.
@@ -36,10 +36,10 @@ export default function CategoryCard({ name, count, items, onSelect }: CategoryC
     <button
       onClick={onSelect}
       aria-label={`Explore ${formatCategoryName(name)} — ${count} questions`}
-      className={`${surfaceCardHover} group block w-full text-left p-5 hover:-translate-y-0.5 transition-all duration-300 ease-smooth`}
+      className="group block w-full text-left bg-card rounded-2xl border border-border/60 shadow-subtle p-5 hover:shadow-card-hover hover:-translate-y-0.5 hover:border-accent/30 transition-all duration-300 ease-smooth"
     >
-      {/* Top row: icon in accent tile (left) + count pill (right) */}
-      <div className={`${flexRowBetween} mb-3.5`}>
+      {/* Top row: icon in sage circle (left) + count pill (right) */}
+      <div className="flex items-start justify-between mb-3.5">
         <span className="w-10 h-10 rounded-xl bg-accent/10 text-accent flex items-center justify-center transition-colors group-hover:bg-accent/15">
           {getCategoryIcon(name)}
         </span>
@@ -49,23 +49,23 @@ export default function CategoryCard({ name, count, items, onSelect }: CategoryC
       </div>
 
       {/* Title */}
-      <h3 className={`${textHeaderSm} leading-snug mb-3.5 line-clamp-2`}>
+      <h3 className="text-base font-semibold text-ink leading-snug mb-3.5 line-clamp-2">
         {categoryNumber ? `${categoryNumber}. ` : ''}{formatCategoryName(name)}
       </h3>
 
       {/* Top questions — numbered list of the first 2 FAQs in this category */}
       {topTwo.length > 0 && (
         <div className="mb-4">
-          <p className={`${textLabelXsBold} mb-2`}>
+          <p className="text-[10px] font-semibold text-ink-faint uppercase tracking-wider mb-2">
             Top questions
           </p>
-          <ol className={stackXs}>
+          <ol className="space-y-1.5">
             {topTwo.map((q, i) => (
               <li
                 key={q._id}
-                className={`${textXs} ${textBodyFaint} flex gap-1.5 leading-snug`}
+                className="text-xs text-ink-soft flex gap-1.5 leading-snug"
               >
-                <span className={`${textBodyFaint} shrink-0 ${textNumeric}`}>{catPrefix}{i + 1}.</span>
+                <span className="text-ink-faint shrink-0 tabular-nums">{catPrefix}{i + 1}.</span>
                 <span className="truncate">{getQuestionTitle(q)}</span>
               </li>
             ))}
@@ -73,7 +73,7 @@ export default function CategoryCard({ name, count, items, onSelect }: CategoryC
         </div>
       )}
 
-      {/* Explore all CTA — accent, arrow nudges right on hover */}
+      {/* Explore all CTA — accent green, arrow nudges right on hover */}
       <div className="flex items-center gap-1 text-xs font-semibold text-accent pt-3 border-t border-border/40">
         <span>Explore all</span>
         <svg

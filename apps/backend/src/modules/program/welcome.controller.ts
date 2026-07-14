@@ -150,24 +150,7 @@ export const trackWelcomeOnboarding = async (req: Request, res: Response): Promi
       return;
     }
 
-    // 5.18 fix: validate timeSpent shape and apply a sane policy.
-    //   - Reject negative values, non-numbers, or > 4 hours (caller
-    //     could send `timeSpent: 9999` to flip welcomePackageOnboarded
-    //     on a single POST).
-    //   - Require a single-POST timeSpent of 300s (5 min) before
-    //     marking the user onboarded. The previous code accepted
-    //     timeSpent >= 60 (1 minute), which is trivially gameable.
-    //   - The User schema does NOT yet have a `welcomePackageTotalSeconds`
-    //     accumulator field — adding that is a schema migration
-    //     deferred to a follow-up PR. Until then, this single-POST
-    //     check is the only server-side gate. Document the trade-off
-    //     in the schema PR.
-    const t = Number(timeSpent);
-    if (!Number.isFinite(t) || t < 0 || t > 60 * 60 * 4) {
-      res.status(400).json({ message: 'timeSpent must be 0..14400 seconds.' });
-      return;
-    }
-    if (t >= 300) {
+    if (timeSpent >= 60) {
       const User = (await import('../auth/user.model.js')).default;
       await User.findByIdAndUpdate(userId, { welcomePackageOnboarded: true });
     }

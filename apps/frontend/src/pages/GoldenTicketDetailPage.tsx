@@ -3,39 +3,22 @@
 // ticket; without this page the answer is silently invisible on
 // the generic /support/:id page (which doesn't render
 // goldenResolutions[]).
-//
-// v1.74 — also renders the Golden Ticket discussion thread. The
-// first admin answer is pinned at the top with a "Prominent
-// answer" badge, then any replies from either side render below in
-// chronological order. A reply form at the bottom lets the caller
-// post inside the 7-day window; after that, the form is replaced
-// with a "Discussion closed" notice.
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { FeatureGate } from '../components/support/FeatureGate';
-import { getMyGoldenTicket, postGoldenDiscussion } from '../components/support/api';
-import type {
-  GoldenDiscussionEntry,
-  GoldenResolutionPublic,
-  GoldenTicket,
-} from '../components/support/types';
+import { getMyGoldenTicket } from '../components/support/api';
+import type { GoldenResolutionPublic, GoldenTicket } from '../components/support/types';
 import Spinner from '../components/ui/Spinner';
 import { friendlyError } from '../utils/api';
-import { getGoldenStatusStyle } from '../styles/style_config';
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-/** "3d 4h", "11h 22m", "47m" — used for the "closes in" countdown. */
-function formatTimeRemaining(target: Date, now: Date = new Date()): string {
-  const ms = target.getTime() - now.getTime();
-  if (ms <= 0) return 'closed';
-  const days = Math.floor(ms / DAY_MS);
-  const hours = Math.floor((ms % DAY_MS) / (60 * 60 * 1000));
-  const minutes = Math.floor((ms % (60 * 60 * 1000)) / (60 * 1000));
-  if (days > 0) return `${days}d ${hours}h`;
-  if (hours > 0) return `${hours}h ${minutes}m`;
-  return `${minutes}m`;
+function statusStyles(status: string): { bg: string; text: string; label: string } {
+  if (status === 'Resolved') return { bg: 'bg-emerald-100', text: 'text-emerald-800', label: 'Resolved' };
+  if (status === 'Rejected') return { bg: 'bg-rose-100', text: 'text-rose-800', label: 'Rejected' };
+  if (status === 'Pending' || status === 'open') return { bg: 'bg-amber-100', text: 'text-amber-800', label: 'Pending' };
+  if (status === 'In Review') return { bg: 'bg-blue-100', text: 'text-blue-800', label: 'In Review' };
+  if (status === 'closed') return { bg: 'bg-stone-100', text: 'text-stone-700', label: 'Closed' };
+  return { bg: 'bg-mist', text: 'text-ink-faint', label: status };
 }
 
 function GoldenTicketDetailInner(): React.ReactElement {
@@ -78,7 +61,7 @@ function GoldenTicketDetailInner(): React.ReactElement {
   if (error) {
     return (
       <div className="max-w-md mx-auto mt-12 text-center">
-        <p className="text-sm text-danger">{error}</p>
+        <p className="text-sm text-rose-700">{error}</p>
         <Link to="/golden" className="inline-block mt-4 text-sm text-accent hover:underline">
           ← Back to Golden Ticket
         </Link>
@@ -87,26 +70,11 @@ function GoldenTicketDetailInner(): React.ReactElement {
   }
   if (!ticket) return <div />;
 
-  const s = getGoldenStatusStyle(ticket.status);
+  const s = statusStyles(ticket.status);
   const isResolved = ticket.status === 'Resolved';
   const isRejected = ticket.status === 'Rejected';
   const answers = ticket.goldenResolutions ?? [];
-  const discussion = ticket.goldenTicketDiscussion ?? [];
-  // Split the prominent first-admin answer (pinned at the top) from
-  // the chronological reply thread below. Inline `.find`/`.filter`
-  // (no useMemo) — the arrays are short and React would warn about
-  // hooks called after the early returns above.
-  const prominent = discussion.find((d) => d.isProminent) ?? null;
-  const replies = discussion.filter((d) => !d.isProminent);
-  const closesAt = ticket.discussionClosesAt ? new Date(ticket.discussionClosesAt) : null;
   const inFlight = !isResolved && !isRejected;
-  // Only allow the user to reply once the discussion window has
-  // been opened by the first admin answer. Before that, the
-  // ticket is still in the queue and there's nothing to talk
-  // about yet.
-  const showReplyForm = ticket.discussionOpen && (isResolved || isRejected);
-  const showClosedNotice =
-    !!closesAt && !ticket.discussionOpen && (isResolved || isRejected);
 
   return (
     <div className="min-h-screen bg-bg">
@@ -121,7 +89,7 @@ function GoldenTicketDetailInner(): React.ReactElement {
         {/* Header card */}
         <div className="bg-card rounded-2xl border border-border p-5 mb-4">
           <div className="flex items-start gap-3">
-            <span className="shrink-0 w-10 h-10 rounded-xl bg-warning/10 text-warning flex items-center justify-center text-lg">
+            <span className="shrink-0 w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center text-lg">
               🎟️
             </span>
             <div className="flex-1 min-w-0">
@@ -129,7 +97,7 @@ function GoldenTicketDetailInner(): React.ReactElement {
                 <span className={`text-[10px] px-2 py-0.5 rounded font-semibold uppercase tracking-wider ${s.bg} ${s.text}`}>
                   {s.label}
                 </span>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-warning/10 text-warning">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-500/10 text-amber-700">
                   🎟️ {ticket.spCost} SP
                 </span>
                 {answers.length > 0 && (
@@ -150,18 +118,18 @@ function GoldenTicketDetailInner(): React.ReactElement {
 
         {/* Rejection reason */}
         {isRejected && ticket.rejectionReason && (
-          <div className="bg-danger-light border border-danger/30 rounded-2xl p-4 mb-4">
-            <p className="text-[10px] uppercase tracking-wider font-semibold text-danger mb-1">
+          <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 mb-4">
+            <p className="text-[10px] uppercase tracking-wider font-semibold text-rose-800 mb-1">
               Rejection reason
             </p>
-            <p className="text-sm text-danger whitespace-pre-line">{ticket.rejectionReason}</p>
+            <p className="text-sm text-rose-900 whitespace-pre-line">{ticket.rejectionReason}</p>
           </div>
         )}
 
         {/* Pending / open state */}
         {inFlight && (
-          <div className="bg-warning/10 border border-warning/30 rounded-2xl p-4 mb-4">
-            <p className="text-sm text-warning">
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-4">
+            <p className="text-sm text-amber-900">
               Your ticket is still in the queue. You can track its status from the Escalation Queue on the{' '}
               <Link to="/golden" className="font-semibold underline">Golden Ticket page</Link>.
             </p>
@@ -176,14 +144,16 @@ function GoldenTicketDetailInner(): React.ReactElement {
           <p className="text-sm text-ink whitespace-pre-line">{ticket.details}</p>
         </section>
 
-        {/* Admin answers thread — legacy read-only log retained
-            for the /admin/golden-logs page compatibility. The
-            interactive discussion is the section below. */}
-        {answers.length > 0 && (
-          <section className="bg-card rounded-2xl border border-border p-5 mb-4">
-            <p className="text-[10px] uppercase tracking-wider font-semibold text-ink-faint mb-3">
-              Answer history ({answers.length})
+        {/* Admin answers thread */}
+        <section className="bg-card rounded-2xl border border-border p-5">
+          <p className="text-[10px] uppercase tracking-wider font-semibold text-ink-faint mb-3">
+            Admin answers ({answers.length})
+          </p>
+          {answers.length === 0 ? (
+            <p className="text-sm text-ink-faint italic">
+              No answers yet — you&apos;ll get a notification when the support team posts one.
             </p>
+          ) : (
             <ul className="space-y-3">
               {answers.map((r: GoldenResolutionPublic, idx: number) => (
                 <li
@@ -204,175 +174,14 @@ function GoldenTicketDetailInner(): React.ReactElement {
                 </li>
               ))}
             </ul>
-          </section>
-        )}
-
-        {/* v1.74 — Discussion thread. Pinned prominent answer at
-            the top, then any replies in chronological order. */}
-        {(prominent || replies.length > 0) && (
-          <section className="bg-card rounded-2xl border border-border p-5 mb-4">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-[10px] uppercase tracking-wider font-semibold text-ink-faint">
-                Discussion ({discussion.length})
-              </p>
-              {ticket.discussionOpen && closesAt && (
-                <p className="text-[10px] text-ink-faint">
-                  Closes in{' '}
-                  <span className="font-mono text-ink-soft">
-                    {formatTimeRemaining(closesAt)}
-                  </span>
-                </p>
-              )}
-            </div>
-
-            {prominent && (
-              <div className="mb-4 rounded-2xl border-2 border-accent/30 bg-accent/5 p-4">
-                <div className="flex items-center justify-between gap-2 mb-1.5">
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-accent text-accent-text uppercase tracking-wider">
-                    ⭐ Prominent answer
-                  </span>
-                  <p className="text-[10px] text-ink-faint font-mono">
-                    {new Date(prominent.createdAt).toLocaleString()}
-                  </p>
-                </div>
-                <p className="text-[10px] uppercase tracking-wider text-accent font-semibold mb-1">
-                  {prominent.senderName}
-                </p>
-                <p className="text-sm text-ink whitespace-pre-wrap break-words">
-                  {prominent.text}
-                </p>
-              </div>
-            )}
-
-            {replies.length > 0 && (
-              <ul className="space-y-3">
-                {replies.map((entry, idx) => (
-                  <li
-                    key={entry._id ?? `${entry.createdAt}-${idx}`}
-                    className={`flex ${entry.senderRole === 'admin' ? 'justify-end' : 'justify-start'}`}
-                  >
-                    <div
-                      className={`max-w-[90%] rounded-2xl px-3 py-2 text-sm text-ink whitespace-pre-wrap break-words ${
-                        entry.senderRole === 'admin'
-                          ? 'rounded-tr-sm bg-accent/10'
-                          : 'rounded-tl-sm bg-mist'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <p
-                          className={`text-[10px] uppercase tracking-wider font-semibold ${
-                            entry.senderRole === 'admin' ? 'text-accent' : 'text-ink-soft'
-                          }`}
-                        >
-                          {entry.senderName}
-                          <span className="ml-1 normal-case tracking-normal text-ink-faint">
-                            ({entry.senderRole === 'admin' ? 'support' : 'you'})
-                          </span>
-                        </p>
-                        <p className="text-[10px] text-ink-faint font-mono">
-                          {new Date(entry.createdAt).toLocaleString()}
-                        </p>
-                      </div>
-                      {entry.text}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        )}
-
-        {/* Reply form (open) or "discussion closed" notice. */}
-        {showReplyForm && (
-          <DiscussionReplyForm
-            ticketId={ticket._id}
-            onReplied={(updated) => setTicket(updated)}
-          />
-        )}
-        {showClosedNotice && (
-          <section className="bg-card rounded-2xl border border-border p-5 text-center">
-            <p className="text-sm font-medium text-ink-soft">🔒 Discussion closed</p>
-            <p className="text-xs text-ink-faint mt-1">
-              The 7-day reply window ended on{' '}
-              <span className="font-mono">
-                {closesAt ? closesAt.toLocaleString() : '—'}
-              </span>
-              . You can still read the thread above, but new replies
-              can&apos;t be posted.
-            </p>
-          </section>
-        )}
+          )}
+        </section>
 
         <p className="text-center text-xs text-ink-faint mt-4">
           Need more help? Raise a fresh Golden Ticket — paid SP unlocks a new priority slot.
         </p>
       </div>
     </div>
-  );
-}
-
-/**
- * v1.74 — Reply box for the discussion thread. Both the user
- * (on this page) and an admin viewing the same page can post here;
- * the server's `postGoldenDiscussion` decides the bubble style
- * from the caller's `auth.role`. Free, no SP charge.
- */
-function DiscussionReplyForm({
-  ticketId,
-  onReplied,
-}: {
-  ticketId: string;
-  onReplied: (updated: GoldenTicket) => void;
-}): React.ReactElement {
-  const [text, setText] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-
-  const trimmed = text.trim();
-  const canSubmit = trimmed.length > 0 && trimmed.length <= 2000 && !submitting;
-
-  const submit = useCallback(async () => {
-    if (!canSubmit) return;
-    setSubmitting(true);
-    setErr(null);
-    try {
-      const updated = await postGoldenDiscussion(ticketId, trimmed);
-      onReplied(updated);
-      setText('');
-    } catch (e) {
-      setErr(friendlyError(e, 'Could not post your reply.'));
-    } finally {
-      setSubmitting(false);
-    }
-  }, [canSubmit, onReplied, ticketId, trimmed]);
-
-  return (
-    <section className="bg-card rounded-2xl border border-border p-5 mb-4">
-      <p className="text-[10px] uppercase tracking-wider font-semibold text-ink-faint mb-2">
-        Add to the discussion
-      </p>
-      <textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder="Share more context or follow up on the answer…"
-        maxLength={2000}
-        rows={3}
-        className="w-full rounded-xl border border-border bg-bg p-3 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/40 resize-y"
-      />
-      <div className="flex items-center justify-between mt-2">
-        <p className="text-[10px] text-ink-faint">
-          {trimmed.length}/2000 · no SP charged
-        </p>
-        <button
-          onClick={() => void submit()}
-          disabled={!canSubmit}
-          className="px-4 py-1.5 rounded-lg bg-accent text-accent-text text-sm font-medium hover:bg-accent-dark disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-        >
-          {submitting ? 'Posting…' : 'Post reply'}
-        </button>
-      </div>
-      {err && <p className="text-xs text-danger mt-2">{err}</p>}
-    </section>
   );
 }
 

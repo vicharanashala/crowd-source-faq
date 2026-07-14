@@ -13,6 +13,10 @@ import {
 } from '../../utils/http/search.js';
 import { searchRequests, searchResultsReturned, searchLogFlushActive, searchLogFlushes } from '../../utils/http/metrics.js';
 import { searchKnowledge } from '../knowledge/knowledge-base.service.js';
+import { incrementSearchMetric } from '../admin/dashboard-metric.service.js';
+import { resolveProviderAsync, chatWithConfig } from '../../utils/ai/aiProvider.js';
+import { stripAllWrappers } from '../../utils/ai/aiResponseParsers.js';
+import { rerankCandidates } from '../../utils/ai/reranker.js';
 
 // Cache configuration: Store up to 500 recent queries for 1 hour to reduce DB/AI loads
 const searchCache = new LRUCache<string, SearchResultItem[]>({
@@ -59,6 +63,10 @@ function scheduleFlush(): void {
 }
 
 function bufferSearchLog(entry: Omit<PendingLog, 'createdAt'>): void {
+  const userIdStr = entry.userId ? entry.userId.toString() : null;
+  const batchIdStr = entry.batchId ? entry.batchId.toString() : null;
+  incrementSearchMetric(userIdStr, batchIdStr).catch(() => {});
+
   pendingLogs.push({ ...entry, createdAt: new Date() });
   if (pendingLogs.length >= BATCH_MAX_SIZE) {
     // Immediate flush when buffer is full
@@ -203,6 +211,45 @@ const runVectorSearch = async (collectionName: string, queryEmbedding: number[],
 };
 
 /**
+ * Uses the active AI provider to expand a search query with synonyms and keyphrases.
+ * Fails open to the original query if unconfigured or error.
+ */
+async function expandSearchQuery(query: string, batchId: string | null): Promise<string> {
+  try {
+    const aiConfig = await resolveProviderAsync();
+    if (!aiConfig || !aiConfig.apiKey) {
+      return query;
+    }
+
+    const systemPrompt = `You are a search query expansion assistant for a student Q&A forum.
+Your task is to take a user's brief search query and expand it with 3-4 synonyms, relevant technical keyphrases, or closely related concepts.
+Do not output long explanations. Output only the original query followed by the expanded terms separated by spaces, on a single line.
+
+Examples:
+User: can't login
+Output: can't login login failure authentication failed credentials sign in error
+
+User: check zoom schedule
+Output: check zoom schedule meeting schedule class timings calendar timeline zoom links
+
+User: build fails
+Output: build fails compile error npm run build compilation failure build error build crashed
+
+User: "${query}"
+Output:`;
+
+    const response = await chatWithConfig(aiConfig, [
+      { role: 'user', content: systemPrompt }
+    ]);
+
+    const result = response.trim();
+    return result || query;
+  } catch (error) {
+    return query;
+  }
+}
+
+/**
  * POST /api/search
  * Main Hybrid Search Controller
  */
@@ -271,27 +318,12 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
       return;
     }
 
-    // 2. Compute AI Embedding for the search term.
-    //
-    // v1.71 — Phase 8 R3: NO LONGER compute the embed on every search
-    // request. The audit showed repeated
-    // `[knowledgeBase] Failed to generate embedding for query '...':
-    //  Connection error.` log lines because every POST /api/search
-    // hit the Hugging Face / local-Ollama embedder, which is
-    // routinely unreachable. Now the embedding-warm cron
-    // (`bootstrap/startup.ts`, every 60 minutes) is the ONLY thing
-    // that calls the embedder on the search service. The search
-    // itself stays text-only; the vector branch of the hybrid pipeline
-    // is temporarily disabled because we have no query embedding.
-    //
-    // The OLD code path (kept here as a commented recipe, so future
-    // maintainers can re-enable it once the embedder is reliably up):
-    //
-    //   try {
-    //     embedding = await generateQueryEmbedding(query);
-    //   } catch (embErr) {
-    //     httpLog.warn('search.embedding.failed — falling back to keyword-only search', { error: embErr.message });
-    //   }
+    // 2. Expand search query if it is short
+    let searchQuery = query;
+    if (query.trim().length > 0 && query.trim().length < 45) {
+      searchQuery = await expandSearchQuery(query, batchIdObjectId?.toString() || null);
+    }
+
     const embedding: number[] | null = null;
 
     // 3. Execute Vector (when an embedding is available) + Text searches in
@@ -304,8 +336,8 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
       // is a one-line change: `embedding ? runVectorSearch(...) : empty`.
       empty,
       empty,
-      runTextSearch('yaksha_faq_faqs', query, 5, batchIdObjectId),
-      runTextSearch('yaksha_faq_communityposts', query, 5, batchIdObjectId)
+      runTextSearch('yaksha_faq_faqs', searchQuery, 5, batchIdObjectId),
+      runTextSearch('yaksha_faq_communityposts', searchQuery, 5, batchIdObjectId)
     ]);
     
     // Tag results with their origin source (FAQ vs Community)
@@ -318,7 +350,30 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
     const merged = computeRRF(allVec, allTxt);
 
     // 5. Apply threshold filters to remove irrelevant garbage results
-    const filtered = applySearchThreshold(merged).slice(0, 5); // Return only the absolute top 5 results
+    const filtered = applySearchThreshold(merged).slice(0, 10); // Fetch up to 10 candidates for reranking
+
+    // 5a. Rerank top candidates using Cross-Encoder Reranker
+    let finalResults = filtered.slice(0, 5);
+    if (filtered.length > 0) {
+      try {
+        const rerankCandidatesInput = filtered.map(item => ({
+          id: item._id.toString(),
+          title: item.title || item.question || '',
+          body: item.body || item.answer || '',
+          source: item.source,
+          originalScore: item.score,
+          doc: item
+        }));
+        const reranked = await rerankCandidates(query, rerankCandidatesInput, batchIdObjectId?.toString() || null);
+        finalResults = reranked.slice(0, 5).map(r => ({
+          ...r.candidate.doc,
+          score: r.score
+        }));
+      } catch (rerankErr) {
+        httpLog.warn(`[search] Reranking failed, using original order: ${(rerankErr as Error).message}`);
+        finalResults = filtered.slice(0, 5);
+      }
+    }
 
     // 5b. TranscriptKnowledge fallback — if FAQ + Community returned nothing,
     // try the auto-extracted Zoom knowledge base. Zero-human data path:
@@ -333,7 +388,7 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
     // hits the text index only.
     if (filtered.length === 0) {
       try {
-        const knowledgeHits = await searchKnowledge(query, 5, { embedQuery: false });
+        const knowledgeHits = await searchKnowledge(searchQuery, 5, { embedQuery: false });
         if (knowledgeHits.length > 0) {
           const knowledgeResults: SearchResultItem[] = knowledgeHits.map((k) => ({
             _id: new Types.ObjectId(k._id),
@@ -364,14 +419,14 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
     }
 
     // 6. Save to both Redis (shared) and LRU (process-local)
-    searchCache.set(normalizedQuery, filtered);
-    await setCachedResults(normalizedQuery, filtered);
+    searchCache.set(normalizedQuery, finalResults);
+    await setCachedResults(normalizedQuery, finalResults);
 
     // 7. Buffer search log entry for batched async write (non-blocking)
-    const topResult = filtered[0] || null;
+    const topResult = finalResults[0] || null;
     bufferSearchLog({
       query,
-      resultsCount: filtered.length,
+      resultsCount: finalResults.length,
       topResultId: topResult?._id ?? null,
       topResultSource: topResult?.source ?? null,
       userId: userObjectId,
@@ -379,9 +434,51 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
     });
 
     searchRequests.inc({ source: 'fresh', cached: 'false' });
-    searchResultsReturned.observe({ source: 'fresh' }, filtered.length);
+    searchResultsReturned.observe({ source: 'fresh' }, finalResults.length);
 
-    res.json({ results: filtered, total: filtered.length, cached: false });
+    let clarifications: string[] = [];
+    if (finalResults.length === 0) {
+      try {
+        const aiConfig = await resolveProviderAsync();
+        if (aiConfig && aiConfig.apiKey) {
+          const prompt = `The user searched for: "${query}".
+No FAQs or community posts matched this query.
+Generate up to 3 short, clear search clarification questions that the user might actually be asking, based on this search query.
+Return ONLY a raw JSON string array, like: ["Did you mean X?", "Did you mean Y?", "Did you mean Z?"]
+Do not include any formatting, markdown, or other text.`;
+          const response = await chatWithConfig(aiConfig, [{ role: 'user', content: prompt }]);
+          const cleaned = stripAllWrappers(response);
+          clarifications = JSON.parse(cleaned);
+        }
+      } catch (e) {
+        // Ignore failures
+      }
+    }
+
+    if (userObjectId) {
+      const isFailed = finalResults.length === 0;
+      import('../support/student-telemetry.model.js')
+        .then(({ default: StudentTelemetry }) => {
+          return StudentTelemetry.findOneAndUpdate(
+            { userId: userObjectId },
+            { 
+              $inc: { 
+                totalSearches: 1, 
+                failedSearches: isFailed ? 1 : 0 
+              },
+              $set: { batchId: batchIdObjectId }
+            },
+            { upsert: true, new: true, setDefaultsOnInsert: true }
+          );
+        })
+        .then((telemetry) => {
+          return telemetry.save();
+        })
+        .catch(() => { /* ignore */ });
+    }
+
+    res.json({ results: finalResults, total: finalResults.length, cached: false, clarifications });
+
   } catch (error) {
     httpLog.error('Search error', { error: error instanceof Error ? error.message : String(error) });
     res.status(500).json({ message: 'Search failed', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });

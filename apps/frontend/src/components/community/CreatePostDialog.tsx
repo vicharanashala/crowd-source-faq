@@ -9,12 +9,6 @@ import { useGcsUpload, type GcsAsset } from '../../hooks/useGcsUpload';
 import { buildGcsTransformedUrl } from '../../utils/gcsTransform';
 import { useBatch } from '../../context/BatchContext';
 import { useCategories } from '../explore/usePublicFaqApi';
-import {
-  communityTemplateCard,
-  communityTemplateLabel,
-  communityTemplateIcon,
-  communityToastWarn,
-} from '../../styles/style_config';
 
 function CategoryDropdown({
   value,
@@ -172,14 +166,6 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
     return '';
   });
   const [loading, setLoading] = useState(false);
-  // Synchronous re-entry guard. The button's `disabled` prop already
-  // prevents the second click once React re-renders, but between the
-  // first click and the next render there's a small window where a fast
-  // double-click (or a screen-reader user hitting Enter twice) gets
-  // through. The ref updates synchronously, so the second call returns
-  // immediately without firing a duplicate POST. Reset in the finally
-  // block so the dialog can be reopened for a different post.
-  const submittingRef = useRef(false);
   const [error, setError] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [categoryOption, setCategoryOption] = useState<string>('');
@@ -235,7 +221,7 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
 
   useEffect(() => {
     if (duplicateCheckTimerRef.current) clearTimeout(duplicateCheckTimerRef.current);
-    const q = title.trim();
+    const q = (title.trim() + ' ' + body.trim()).trim();
     if (q.length < 10) {
       setDuplicateMatch(null);
       setCheckingDuplicates(false);
@@ -253,12 +239,10 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
       }
     }, 600);
     return () => { if (duplicateCheckTimerRef.current) clearTimeout(duplicateCheckTimerRef.current); };
-  }, [title]);
+  }, [title, body]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (submittingRef.current) return;
-    submittingRef.current = true;
     setError('');
     if (!title.trim() || !body.trim()) {
       setError('Both title and description are required.');
@@ -279,34 +263,22 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
     }
     setLoading(true);
     try {
-      // Per-form-mount idempotency key. Combined with the in-handler
-      // submittingRef guard, this catches (a) fast double-clicks within
-      // the React-render-lag window, and (b) network retries (mobile
-      // drop / VPN reconnect). The backend's `Idempotency-Key` header
-      // handler returns the same response for the same key within 60s.
-      // Random UUID per form mount — re-mounting the dialog gets a new
-      // key, which is what we want.
-      const idempotencyKey = crypto.randomUUID();
-      const res = await api.post<{ post: Post }>(
-        '/community',
-        {
-          title: title.trim(),
-          body: body.trim(),
-          tags,
-          // Send only the persisted fields the backend expects. The full
-          // Cloudinary response has more (eager, etc.) that we don't save.
-          attachments: attachments.map((a) => ({
-            url: a.url,
-            gcsUri: a.gcsUri,
-            objectPath: a.objectPath,
-            width: a.width,
-            height: a.height,
-            format: a.format,
-            bytes: a.bytes,
-          })),
-        },
-        { headers: { 'Idempotency-Key': idempotencyKey } },
-      );
+      const res = await api.post<{ post: Post }>('/community', {
+        title: title.trim(),
+        body: body.trim(),
+        tags,
+        // Send only the persisted fields the backend expects. The full
+        // Cloudinary response has more (eager, etc.) that we don't save.
+        attachments: attachments.map((a) => ({
+          url: a.url,
+          gcsUri: a.gcsUri,
+          objectPath: a.objectPath,
+          width: a.width,
+          height: a.height,
+          format: a.format,
+          bytes: a.bytes,
+        })),
+      });
       // Clear draft on success
       try { sessionStorage.removeItem(DRAFT_KEY); } catch { void 0 }
       // Show toast with duplicate check result
@@ -327,7 +299,6 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
     } catch (err) {
       setError(friendlyError(err, 'Failed to post. Please try again.'));
     } finally {
-      submittingRef.current = false;
       setLoading(false);
     }
   };
@@ -358,12 +329,14 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
     loading ||
     attaching;
 
+  const hasMatches = duplicateMatch && duplicateMatch.isDuplicate && duplicateMatch.matches.length > 0;
+
   return (
     <dialog
       ref={dialogRef}
       closedby="any"
       aria-labelledby="create-post-title"
-      className={`m-auto w-full max-w-lg rounded-2xl border border-border shadow-2xl bg-card p-0 backdrop:bg-ink/30 backdrop:backdrop-blur-sm transition-all duration-300${floatAway ? " opacity-60 scale-[0.98]" : ""}`}
+      className={`m-auto w-full rounded-2xl border border-border shadow-2xl bg-card p-0 backdrop:bg-ink/30 backdrop:backdrop-blur-sm transition-all duration-300 ${hasMatches ? 'max-w-4xl' : 'max-w-lg'}${floatAway ? " opacity-60 scale-[0.98]" : ""}`}
     >
       <div className="p-6">
         <div className="flex items-center justify-between mb-5">
@@ -382,7 +355,9 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className={`space-y-4${floatAway ? ' animate-float-away' : ''}`}>
+        <div className={hasMatches ? "grid grid-cols-1 md:grid-cols-5 gap-6" : ""}>
+          <div className={hasMatches ? "md:col-span-3" : ""}>
+            <form onSubmit={handleSubmit} className={`space-y-4${floatAway ? ' animate-float-away' : ''}`}>
           <div>
             <label htmlFor="post-title" className="block text-xs font-medium text-ink-soft mb-1.5">
               Title <span className="text-danger">*</span>
@@ -410,55 +385,7 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
             </div>
           </div>
 
-          {duplicateMatch && duplicateMatch.isDuplicate && duplicateMatch.matches.length > 0 && (
-            <div className="faq-match-banner">
-              <div className="flex items-center gap-1.5 mb-2">
-                <span>📖</span>
-                <p className="font-medium text-sm">Similar question found!</p>
-                <span className="ml-auto text-[10px] text-ink-faint">Click to view</span>
-              </div>
-              <div className="space-y-1">
-                {duplicateMatch.matches.slice(0, 3).map((m: any, i: number) => {
-                  // Decide where to send the user
-                  const href = m.source === 'faq'
-                    ? `/faq/${m._id}`
-                    : m.source === 'community'
-                      ? `/community?post=${m._id}`
-                      : `/faq/${m._id}`;
-                  const icon = m.source === 'faq' ? '📋' : m.source === 'community' ? '💬' : '🧠';
-                  const label = m.source === 'faq' ? 'FAQ' : m.source === 'community' ? 'Community' : 'Knowledge';
-                  return (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => {
-                        // Close dialog and navigate to the existing item
-                        dialogRef.current?.close();
-                        navigate(href);
-                      }}
-                      className={communityTemplateCard}
-                    >
-                      <span className="shrink-0 mt-0.5">{icon}</span>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className={communityTemplateLabel}>{label}</span>
-                          {m.score && (
-                            <span className="text-[10px] text-ink-faint">{(m.score * 100).toFixed(0)}% match</span>
-                          )}
-                        </div>
-                        <p className="text-xs text-ink-soft group-hover:text-ink line-clamp-1">
-                          "{m.question || m.title}"
-                        </p>
-                      </div>
-                      <svg className={communityTemplateIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M9 18l6-6-6-6"/>
-                      </svg>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+
 
           <div>
             <label htmlFor="post-body" className="block text-xs font-medium text-ink-soft mb-1.5">
@@ -574,9 +501,9 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
 
           {toast && (
             <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] px-5 py-3 rounded-xl text-sm font-medium shadow-float border animate-fade-in
-              ${toast.type === 'success' ? 'bg-accent/10 border-accent/30 text-accent' :
-                toast.type === 'warn' ? communityToastWarn :
-                'bg-accent/10 border-accent/30 text-accent'}`}>
+              ${toast.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
+                toast.type === 'warn' ? 'bg-amber-50 border-amber-200 text-amber-700' :
+                'bg-blue-50 border-blue-200 text-blue-700'}`}>
               {toast.msg}
             </div>
           )}
@@ -598,7 +525,73 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
               Cancel
             </Button>
           </div>
-        </form>
+            </form>
+          </div>
+
+          {hasMatches && (
+            <div className="md:col-span-2 border-t md:border-t-0 md:border-l border-border/80 pt-4 md:pt-0 md:pl-6 space-y-4">
+              <div className="bg-amber-50/75 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 p-4 rounded-xl">
+                <div className="flex items-center gap-2 mb-2 text-amber-800 dark:text-amber-300 font-semibold text-sm">
+                  <span>⚠️</span>
+                  <h4>Collision Warning: Similar Posts</h4>
+                </div>
+                <p className="text-xs text-amber-700 dark:text-amber-400 mb-3">
+                  Your draft is highly similar to existing posts. Would you like to check them out instead of posting a duplicate?
+                </p>
+                
+                <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
+                  {duplicateMatch!.matches.slice(0, 4).map((m: any, i: number) => {
+                    const href = m.source === 'faq'
+                      ? `/faq/${m._id}`
+                      : m.source === 'community'
+                        ? `/community?post=${m._id}`
+                        : `/faq/${m._id}`;
+                    const icon = m.source === 'faq' ? '📋' : '💬';
+                    const scorePercent = (m.score * 100).toFixed(0);
+                    return (
+                      <div key={i} className="p-3 rounded-lg bg-card border border-border shadow-sm hover:border-amber-400 transition-all flex flex-col gap-2">
+                        <div className="flex items-center justify-between text-[10px]">
+                          <span className="font-semibold text-accent uppercase">{m.source}</span>
+                          <span className="bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 px-1.5 py-0.5 rounded font-medium">{scorePercent}% Match</span>
+                        </div>
+                        <h5 className="text-xs font-semibold text-ink line-clamp-2">"{m.question || m.title}"</h5>
+                        <div className="flex gap-2 mt-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              dialogRef.current?.close();
+                              navigate(href);
+                            }}
+                            className="text-[10px] text-accent font-medium hover:underline flex items-center gap-0.5"
+                          >
+                            Read Post ↗
+                          </button>
+                          {m.source === 'community' && (
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                try {
+                                  await api.post(`/community/${m._id}/upvote`);
+                                  showToast("Subscribed and upvoted the existing post!", "success");
+                                  dialogRef.current?.close();
+                                } catch {
+                                  showToast("Failed to upvote/subscribe.", "warn");
+                                }
+                              }}
+                              className="text-[10px] text-emerald-600 font-medium hover:underline flex items-center gap-0.5"
+                            >
+                              👍 Upvote & Subscribe
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </dialog>
   );

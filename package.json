@@ -12,6 +12,7 @@
     "test:run": "turbo test:run",
     "test:e2e": "tsx scripts/run-e2e.ts",
     "test:all": "turbo test:run && npm run test:e2e",
+    "dev:local": "tsx scripts/run-local.ts",
     "lint": "eslint . --ext .ts,.tsx",
     "format:check": "prettier --check .",
     "format:write": "prettier --write .",

@@ -15,6 +15,7 @@ import { sanitizeHtml } from '../../utils/http/sanitize.js';
 import Batch from '../program/batch.model.js';
 import { invalidatePublicCaches } from './public-faq.controller.js';
 import { readSetting } from '../program/app-setting.model.js';
+import { incrementFaqMetric } from '../admin/dashboard-metric.service.js';
 // v1.69 — Phase 3a: every public read in this file funnels its
 // Mongoose filter through withProgramScope. Single tenant callers
 // (no batchId) keep working until the rollout flips required=true.
@@ -374,6 +375,7 @@ export const createFAQ = async (req: Request, res: Response): Promise<void> => {
       flaggedBy: null,
       reviewCycle: 0,
     });
+    incrementFaqMetric(batchId).catch(() => {});
 
     // Invalidate search cache so new FAQ appears in results immediately
     await invalidateCache();
@@ -382,6 +384,11 @@ export const createFAQ = async (req: Request, res: Response): Promise<void> => {
 
     // Fan out tea drops to all non-admin users
     createTeaDropsForFAQ(faq._id.toString(), question, category_).catch((err) => adminLog.warn(`[faq] createTeaDropsForFAQ failed: ${(err as Error).message}`));
+
+    // Pre-generate translations in the background
+    import('./translation.controller.js').then(({ preGenerateFaqTranslations }) => {
+      preGenerateFaqTranslations(faq._id.toString(), faq.question, faq.answer).catch(() => {});
+    }).catch(() => {});
 
     res.status(201).json({ message: 'FAQ created successfully.', faq });
   } catch (error) {
@@ -441,6 +448,11 @@ export const updateFAQ = async (req: Request<{ id: string }>, res: Response): Pr
     }
 
     await faq.save();
+
+    // Pre-generate translations in the background
+    import('./translation.controller.js').then(({ preGenerateFaqTranslations }) => {
+      preGenerateFaqTranslations(faq._id.toString(), faq.question, faq.answer).catch(() => {});
+    }).catch(() => {});
 
     // ── Phase 3 R12 auto-answer hook ─────────────────────────────────────
     // When an admin edits a FAQ, find any community posts that quoted
@@ -759,3 +771,99 @@ export const createFAQSuggestion = async (req: Request<{ id: string }, Record<st
   }
 };
 
+// POST /api/faq/bulk-import (Admin/Moderator only)
+export const bulkImportFAQs = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { faqs, batchId: rawBatchId } = req.body as {
+      faqs?: Array<{
+        question?: string;
+        answer?: string;
+        category?: string;
+        freshnessTier?: 'evergreen' | 'seasonal' | 'volatile';
+        reviewIntervalDays?: number;
+      }>;
+      batchId?: string;
+    };
+
+    const batchId = rawBatchId || req.programContext?.batchId;
+
+    if (!batchId || !Types.ObjectId.isValid(batchId)) {
+      res.status(400).json({ message: 'A valid batchId is required.' });
+      return;
+    }
+
+    if (!Array.isArray(faqs) || faqs.length === 0) {
+      res.status(400).json({ message: 'A non-empty list of faqs is required.' });
+      return;
+    }
+
+    // Verify the batch exists (and is active — we don't allow new FAQs in archived programs).
+    const batchExists = await Batch.exists({ _id: batchId, isActive: true });
+    if (!batchExists) {
+      res.status(400).json({ message: 'Program not found or archived.' });
+      return;
+    }
+
+    const now = new Date();
+    const seasonalDefault = parseInt(process.env['FAQ_SEASONAL_DAYS'] ?? '15');
+    const volatileDefault  = parseInt(process.env['FAQ_VOLATILE_DAYS']  ?? '4');
+
+    const documentsToInsert = [];
+    const invalidEntries = [];
+
+    for (let i = 0; i < faqs.length; i++) {
+      const entry = faqs[i];
+      if (!entry.question || !entry.question.trim() || !entry.answer || !entry.answer.trim() || !entry.category || !entry.category.trim()) {
+        invalidEntries.push({ index: i, error: 'Question, answer, and category are required.' });
+        continue;
+      }
+
+      const question_ = sanitizeHtml(entry.question);
+      const answer_ = sanitizeHtml(entry.answer);
+      const category_ = sanitizeHtml(entry.category);
+      const tier = entry.freshnessTier ?? 'evergreen';
+      const interval = entry.reviewIntervalDays
+        ?? (tier === 'seasonal' ? seasonalDefault : tier === 'volatile' ? volatileDefault : 0);
+
+      documentsToInsert.push({
+        question: question_,
+        answer: answer_,
+        category: category_,
+        batchId: new Types.ObjectId(batchId),
+        freshnessTier: tier,
+        reviewIntervalDays: interval,
+        reviewStatus: 'verified',
+        lastVerifiedDate: now,
+        flaggedAt: null,
+        flagType: null,
+        flagReason: null,
+        flaggedBy: null,
+        reviewCycle: 0,
+      });
+    }
+
+    if (documentsToInsert.length === 0) {
+      res.status(400).json({ message: 'No valid FAQs found to import.', errors: invalidEntries });
+      return;
+    }
+
+    const inserted = await FAQ.insertMany(documentsToInsert);
+    
+    // Bump metrics
+    incrementFaqMetric(batchId).catch(() => {});
+
+    // Invalidate caches
+    await invalidateCache();
+    invalidatePublicCaches();
+
+    res.status(201).json({
+      message: `Successfully imported ${inserted.length} FAQs.`,
+      count: inserted.length,
+      invalidCount: invalidEntries.length,
+      errors: invalidEntries.length > 0 ? invalidEntries : undefined,
+    });
+  } catch (error) {
+    adminLog.error(`[faq] bulk import failed: ${(error as Error).message}`);
+    res.status(500).json({ message: 'Server error during bulk import.' });
+  }
+};

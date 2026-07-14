@@ -7,7 +7,6 @@ import {
   callbackZoom,
   disconnectZoom,
   zoomStatus,
-  getZoomDiagnostics,
   adminBackfill,
 } from './zoom-auth.controller.js';
 import {
@@ -45,11 +44,6 @@ router.get('/auth/connect',    protect, authorize('admin'), connectZoom);
 router.get('/auth/callback',   callbackZoom);
 router.delete('/auth/disconnect', protect, authorize('admin'), disconnectZoom);
 router.get('/auth/status',     protect, authorize('admin'), zoomStatus);
-// v1.85 — admin diagnostics. Reports every Zoom env var's
-// presence + the per-program override rows + a resolution probe
-// so the admin UI can show "which env var is missing on prod"
-// without grepping server logs.
-router.get('/auth/diagnostics', protect, authorize('admin'), getZoomDiagnostics);
 router.post('/auth/backfill',  protect, authorize('admin'), adminBackfill);
 
 // ── Webhook (no auth — Zoom calls this) ───────────────────────────────────────

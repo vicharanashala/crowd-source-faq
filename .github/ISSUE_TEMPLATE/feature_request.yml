@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Crowd Source FAQ's north star: **automate the FAQ lifecycle end-to-end, zero people in the loop.**
+        Shamagama's north star: **automate the FAQ lifecycle end-to-end, zero people in the loop.**
         Before filing, check that your proposal ladders up to that goal.
 
   - type: dropdown
@@ -14,16 +14,14 @@ body:
       label: Area
       description: Which part of the system does this touch?
       options:
-        - Backend (Express / Mongoose)
-        - Frontend (React / Vite)
-        - Admin / Train tab (`/admin/*`)
-        - Community (`/community` — posts, comments, auto-answer)
-        - Search (hybrid text retrieval, training stats)
-        - Auth / middleware / samagama.in bridge
-        - Crons / schedulers / embedding-warm
-        - Observability (Sentry / logging / Discord alerts)
-        - AI provider / prompt (assistant persona, model routing)
-        - Infrastructure / Docker / CI workflows
+        - Backend (API / Express)
+        - Frontend (React / UI)
+        - Pipeline — auto-answer
+        - Pipeline — FAQ audit
+        - Pipeline — Zoom ingestion
+        - Search (hybrid vector + keyword)
+        - Auth / middleware
+        - Infrastructure / Docker
         - New area
     validations:
       required: true

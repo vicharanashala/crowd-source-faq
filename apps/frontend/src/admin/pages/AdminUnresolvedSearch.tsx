@@ -1,5 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
-import { adminBtnGhost, adminLabel, adminSearchInput, adminSelect } from '../../styles/style_config';
+import { useEffect, useState, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import adminApi from '../utils/adminApi';
 import Badge from '../components/common/Badge';
@@ -180,10 +179,10 @@ export default function AdminUnresolvedSearch() {
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
           <input type="text" placeholder="Search queries…" value={search} onChange={e => setSearch(e.target.value)}
-            className={`${adminSearchInput}`} />
+            className="admin-search-input" />
         </div>
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as '' | 'pending' | 'addressed')}
-          className={`${adminSelect}`}>
+          className="admin-select">
           <option value="">All</option>
           <option value="pending">Pending</option>
           <option value="addressed">Addressed</option>
@@ -273,33 +272,33 @@ export default function AdminUnresolvedSearch() {
         {viewItem && (
           <div className="space-y-3">
             <div>
-              <p className={`${adminLabel}`}>Query</p>
+              <p className="admin-label">Query</p>
               <p className="text-sm text-ink font-medium">"{viewItem.query}"</p>
             </div>
             {viewItem.faqId && (
               <div>
-                <p className={`${adminLabel}`}>FAQ Shown</p>
+                <p className="admin-label">FAQ Shown</p>
                 <p className="text-sm text-ink">{viewItem.faqId.question}</p>
                 <p className="text-xs text-ink-faint mt-0.5">{viewItem.faqId.category}</p>
               </div>
             )}
             <div>
-              <p className={`${adminLabel}`}>User</p>
+              <p className="admin-label">User</p>
               <p className="text-sm text-ink-soft">{viewItem.userId?.name ?? 'Anonymous'} ({viewItem.userId?.email ?? '—'})</p>
             </div>
             <div>
-              <p className={`${adminLabel}`}>Feedback</p>
+              <p className="admin-label">Feedback</p>
               <p className="text-sm text-ink whitespace-pre-wrap bg-mist rounded-lg px-3 py-2 border border-border">{viewItem.feedback}</p>
             </div>
             <div>
-              <p className={`${adminLabel}`}>Status</p>
+              <p className="admin-label">Status</p>
               <Badge status={viewItem.status === 'pending' ? 'pending' : 'approved'} label={viewItem.status === 'pending' ? 'Pending' : 'Addressed'} showDot={false} />
               {viewItem.resolution && (
                 <p className="text-xs text-ink-faint mt-1">Resolution: {viewItem.resolution.replace('_', ' ')}</p>
               )}
             </div>
             <div className="flex justify-end pt-2 border-t border-border">
-              <button onClick={() => setViewItem(null)} className={`${adminBtnGhost} text-xs px-3 py-1.5`}>Close</button>
+              <button onClick={() => setViewItem(null)} className="admin-btn-ghost text-xs px-3 py-1.5">Close</button>
             </div>
           </div>
         )}
@@ -310,11 +309,11 @@ export default function AdminUnresolvedSearch() {
         {selectedForResolve && (
           <div className="space-y-3">
             <div>
-              <p className={`${adminLabel}`}>Query</p>
+              <p className="admin-label">Query</p>
               <p className="text-sm text-ink font-medium">"{selectedForResolve.query}"</p>
             </div>
             <div>
-              <p className={`${adminLabel}`}>User feedback</p>
+              <p className="admin-label">User feedback</p>
               <p className="text-sm text-ink whitespace-pre-wrap bg-mist rounded-lg px-3 py-2 border border-border">{selectedForResolve.feedback}</p>
             </div>
             <div className="border-t border-border pt-3">
@@ -344,7 +343,7 @@ export default function AdminUnresolvedSearch() {
               </div>
             </div>
             <div className="flex justify-end pt-2">
-              <button onClick={() => setSelectedForResolve(null)} className={`${adminBtnGhost} text-xs px-3 py-1.5`}>Cancel</button>
+              <button onClick={() => setSelectedForResolve(null)} className="admin-btn-ghost text-xs px-3 py-1.5">Cancel</button>
             </div>
           </div>
         )}

@@ -46,6 +46,8 @@ export interface IRegistrationConfig extends Document<string> {
   lastToggledBy: Types.ObjectId | null;
   /** When the toggle or token was last changed. */
   lastToggledAt: Date;
+  /** Allowed email domains (e.g. ['gmail.com', 'flowkey.io']). Empty array means any domain. */
+  allowedDomains: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -63,6 +65,7 @@ const registrationConfigSchema = new MongooseSchema<IRegistrationConfig>(
       default: null,
     },
     lastToggledAt: { type: Date, default: () => new Date() },
+    allowedDomains: { type: [String], default: [] },
   },
   { timestamps: true }
 );
@@ -103,6 +106,7 @@ export async function ensureRegistrationConfig(): Promise<IRegistrationConfig> {
       tokenGeneratedAt: new Date(),
       lastToggledBy: null,
       lastToggledAt: new Date(),
+      allowedDomains: [],
     });
     // eslint-disable-next-line no-console
     console.warn(

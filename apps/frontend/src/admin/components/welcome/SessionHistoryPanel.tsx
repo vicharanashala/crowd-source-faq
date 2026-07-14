@@ -16,7 +16,6 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import adminApi from '../../utils/adminApi';
-import { inlineDangerBanner } from '../../../styles/style_config';
 
 export interface SessionHistoryRow {
   _id: string;
@@ -152,7 +151,7 @@ export default function SessionHistoryPanel({ onSelect, selectedId, refreshKey }
       </header>
 
       {error && (
-        <div className={`${inlineDangerBanner} mx-6 mb-4 px-3 py-2 rounded-lg text-xs`}>
+        <div className="mx-6 mb-4 px-3 py-2 rounded-lg border border-red-200 bg-red-50 text-xs text-red-700">
           {error}
         </div>
       )}
@@ -203,7 +202,7 @@ export default function SessionHistoryPanel({ onSelect, selectedId, refreshKey }
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold text-ink">{row.title}</span>
                     {row.isActive && (
-                      <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-accent/10 text-accent border border-accent/30">
+                      <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200">
                         Active
                       </span>
                     )}
@@ -274,12 +273,12 @@ export default function SessionHistoryPanel({ onSelect, selectedId, refreshKey }
 function StatusPill({ active, attempts }: { active: boolean; attempts: number }): React.ReactElement {
   if (active) {
     return (
-      <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-accent/10 text-accent border border-accent/30">
+      <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200">
         <span className="relative flex h-1.5 w-1.5">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-60" />
-          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-accent" />
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-60" />
+          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-green-500" />
         </span>
-        Live{attempts > 0 && <span className="font-mono normal-case tracking-normal text-accent">·{attempts}</span>}
+        Live{attempts > 0 && <span className="font-mono normal-case tracking-normal text-green-800/70">·{attempts}</span>}
       </span>
     );
   }

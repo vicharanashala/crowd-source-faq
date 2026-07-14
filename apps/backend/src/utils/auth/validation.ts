@@ -36,14 +36,6 @@ export const changePasswordSchema = z.object({
   newPassword:     passwordPolicy,
 });
 
-// v1.85 — admin-initiated password reset for any non-admin user.
-// Body is just the new password (no currentPassword — admin
-// doesn't know it). Reuses the same passwordPolicy as the
-// user-self-change path so the bar is consistent.
-export const adminResetPasswordSchema = z.object({
-  newPassword: passwordPolicy,
-});
-
 export const updateProfileSchema = z.object({
   name:  z.string().min(2).max(100).optional(),
   email: z.string().email().optional(),
@@ -127,37 +119,17 @@ export const reportPostSchema = z.object({
   reason: z.string().min(3).max(300),
 });
 
-// H4-2 (HIGH) fix: refresh token Zod schema. The previous
-// `refresh` controller read `req.body.refreshToken` raw — a 10MB
-// string would hit `jwt.verify` and exhaust memory. Bound it
-// between min 20 chars (longest reasonable JWT) and max 2048 chars
-// (plenty for a JWT + a few bytes of padding). The controller
-// already handles the `refreshToken: undefined` case (returns 400
-// 'Refresh token is required') so a missing field doesn't need a
-// separate Zod error.
-export const refreshSchema = z.object({
-  refreshToken: z.string().min(20).max(2048),
-});
-
 // ─── Search ─────────────────────────────────────────────────────────────────────
-// v1.79.1 (HOTFIX) — schema renamed `q` → `query` so it matches the
-// shape the frontend POSTs (`SearchBar.tsx`, `InteractiveSearchOverlay.tsx`).
-// Previously every request returned 400 with `{ field: 'q', message: 'Required' }`
-// even though the body contained `query`. The `limit`/`page`/`source` fields
-// are dropped because the controller doesn't use them — keeping them
-// required-as-defaults would silently bind the controller to unused knobs.
 export const searchSchema = z.object({
-  query: z.string().min(1).max(200),
-  batchId: z.string().regex(/^[0-9a-fA-F]{24}$/).optional(),
+  q:      z.string().min(1),
+  page:   z.coerce.number().int().min(1).default(1),
+  limit:  z.coerce.number().int().min(1).max(50).default(10),
+  source: z.enum(['all', 'faq', 'community']).optional(),
 });
 
-// v1.79.1 (HOTFIX) — `feedback` was being POSTed by `SearchFeedback.tsx`
-// but the schema didn't declare it, so Zod's `.object()` rejected the
-// unknown key → 400. Added as optional to match the controller's read.
 export const submitUnresolvedSchema = z.object({
-  query:    z.string().min(1).max(500),
-  faqId:    z.string().regex(/^[0-9a-fA-F]{24}$/).nullish(),
-  feedback: z.string().max(2000).optional(),
+  query:  z.string().min(1).max(500),
+  faqId:  z.string().regex(/^[0-9a-fA-F]{24}$/).nullish(),
 });
 
 export const resolveUnresolvedSchema = z.object({
@@ -172,17 +144,9 @@ export const warnUserSchema = z.object({
 
 export const suspendUserSchema = z.object({
   userId:   z.string().regex(/^[0-9a-fA-F]{24}$/),
-  // 5.1 fix: the controller reads `duration` as a string like `"24h"` or `"7d"`,
-  // not a `days: number`. We accept BOTH for backward compat — `days` is
-  // still honored by the controller (converted internally to `${days}d`),
-  // but new callers should prefer `duration`.
-  duration: z.string().regex(/^\d+(h|d)$/).optional(),
-  days:     z.coerce.number().int().min(1).max(365).optional(),
+  days:     z.coerce.number().int().min(1).max(365),
   reason:   z.string().min(3).max(500),
-}).refine(
-  (data) => data.duration !== undefined || data.days !== undefined,
-  { message: 'Either duration (e.g. "24h", "7d") or days (1-365) is required.' },
-);
+});
 
 export const banUserSchema = z.object({
   userId: z.string().regex(/^[0-9a-fA-F]{24}$/),

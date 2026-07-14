@@ -201,7 +201,7 @@ export const askAIController = async (req: Request, res: Response): Promise<void
     const DEFAULT_THRESHOLD = 0.05;
 
     const t0 = Date.now();
-    let result: { answer: string; sources: Array<{ id: string; type: string; title: string; snippet: string; url: string; score: number }>; modelName: string };
+    let result: { answer: string; sources: Array<{ id: string; type: string; title: string; snippet: string; url: string; score: number }>; model: string };
     let aiFailed = false;
     try {
       result = await runRag(question, attachments);
@@ -215,7 +215,7 @@ export const askAIController = async (req: Request, res: Response): Promise<void
       const kbMatches = await searchKnowledge(question, 6);
       result = {
         answer: '',
-        modelName: 'fallback',
+        model: 'fallback',
         sources: kbMatches.map((m) => ({
           id: m._id,
           type: 'knowledge',
@@ -272,7 +272,7 @@ export const askAIController = async (req: Request, res: Response): Promise<void
       }),
       relevantCount: ranked.length,
       sourceCount: sources.length,
-      modelName: result.modelName,
+      model: result.model,
       aiFailed,
     });
   } catch (err) {

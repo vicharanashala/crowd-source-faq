@@ -159,9 +159,9 @@ export default function AdminTimelineTab() {
                 <div className="flex items-center gap-3">
                   <h3 className="font-medium text-ink">{p.name}</h3>
                   <span className={`px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider rounded-full ${
-                    p.status === 'completed' ? 'bg-accent/10 text-accent' :
+                    p.status === 'completed' ? 'bg-green-500/10 text-green-600' :
                     p.status === 'current' ? 'bg-accent/10 text-accent' :
-                    'bg-warning/10 text-warning'
+                    'bg-yellow-500/10 text-yellow-600'
                   }`}>
                     {p.status}
                   </span>
@@ -180,7 +180,7 @@ export default function AdminTimelineTab() {
                 </button>
                 <button
                   onClick={() => handleDelete(p._id)}
-                  className="px-3 py-1.5 text-sm text-danger hover:bg-danger/10 rounded-md transition-colors"
+                  className="px-3 py-1.5 text-sm text-red-500 hover:bg-red-500/10 rounded-md transition-colors"
                 >
                   Delete
                 </button>

@@ -19,7 +19,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useBatch } from '../../../context/BatchContext';
 import type { Batch } from '../../../context/BatchContext';
-import { accentDot, warningDot } from '../../../styles/style_config';
 
 export default function AdminActiveProgramIndicator(): React.ReactElement | null {
   const { currentBatch, availableBatches, setCurrentBatch } = useBatch();
@@ -32,7 +31,7 @@ export default function AdminActiveProgramIndicator(): React.ReactElement | null
         to="/admin/programs"
         className="inline-flex items-center gap-2 text-[11px] font-medium text-ink-faint hover:text-ink"
       >
-        <span className={warningDot} />
+        <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
         No program selected — set a default →
       </Link>
     );
@@ -51,7 +50,7 @@ export default function AdminActiveProgramIndicator(): React.ReactElement | null
         className="inline-flex items-center gap-2 text-[11px] font-medium text-ink hover:text-ink group"
         data-testid="active-program-chip"
       >
-        <span className="w-1.5 h-1.5 rounded-full bg-accent" />
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
         <span>Active program:</span>
         <span className="font-semibold">{currentBatch.name}</span>
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-50 group-hover:opacity-100">
@@ -89,7 +88,7 @@ export default function AdminActiveProgramIndicator(): React.ReactElement | null
                       >
                         <span
                           className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                            isActive ? 'bg-accent' : 'bg-border'
+                            isActive ? 'bg-emerald-500' : 'bg-border'
                           }`}
                         />
                         <span className="truncate flex-1">{b.name}</span>

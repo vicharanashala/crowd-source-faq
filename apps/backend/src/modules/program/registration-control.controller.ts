@@ -25,7 +25,6 @@ import RegistrationConfig, {
 import AdminLog from '../admin/admin-log.model.js';
 import User from '../auth/user.model.js';
 import { adminLog } from '../../utils/http/logger.js';
-import { publicBasePath } from '../../utils/publicBasePath.js';
 
 /**
  * Pull the admin id off the request. Routes mounted with
@@ -39,42 +38,17 @@ function adminIdFromReq(req: Request): Types.ObjectId | null {
 
 /**
  * Build the full invite-link URL for display. Uses PUBLIC_BASE_URL
- * if set (recommended for production), otherwise falls back to the
- * request's host header so the admin always sees a usable URL even
- * in dev. The invite always lands on the frontend root — which on
- * share-the-link visit fires the AuthModalContext mount-time effect
- * that opens the register tab automatically. The path follows the
- * app's public mount point (PUBLIC_BASE_PATH, defaulting to /csfaq),
- * so the link works under both domain-rooted and subpath deploys
- * without admin config. PUBLIC_INVITE_PATH lets ops override the
- * landing path (e.g. '/' for a custom landing page).
+ * if set (recommended for production), falls back to the request's
+ * own host header so the admin always sees a usable URL even in dev.
  */
 function buildInviteLink(req: Request, token: string): string {
   const configured = (process.env.PUBLIC_BASE_URL ?? '').trim().replace(/\/$/, '');
-  // Resolve the path: explicit override wins, else mount prefix + "/".
-  let pathPart: string;
-  const override = process.env.PUBLIC_INVITE_PATH?.trim();
-  if (override && override !== '') {
-    pathPart = override.endsWith('/') ? override : `${override}/`;
-  } else {
-    const base = publicBasePath(); // '' when mounted at root, '/csfaq' otherwise
-    pathPart = base === '' ? '/' : `${base}/`;
-  }
-  const query = `?token=${token}`;
-  if (configured) return `${configured}${pathPart}${query}`;
+  if (configured) return `${configured}/?token=${token}`;
   // Fallback: derive from the request so the admin gets a working link
-  // in dev without needing to configure PUBLIC_BASE_URL. The request host
-  // is the backend in this app (admin page hits /csfaq/api/...), but the
-  // link must point at the FRONTEND. Prefer FRONTEND_BASE_URL (set in
-  // dev to e.g. http://localhost:5173) so the admin sees a clickable
-  // invite link. When unset, fall back to the request host — same
-  // behaviour we had before, which works when reverse-proxied under a
-  // single host.
-  const frontendBase = (process.env.FRONTEND_BASE_URL ?? '').trim().replace(/\/$/, '');
-  if (frontendBase) return `${frontendBase}${pathPart}${query}`;
+  // in dev without needing to configure PUBLIC_BASE_URL.
   const proto = (req.headers['x-forwarded-proto'] as string) || req.protocol || 'http';
   const host = req.headers['x-forwarded-host'] || req.headers.host || 'localhost';
-  return `${proto}://${host}${pathPart}${query}`;
+  return `${proto}://${host}/?token=${token}`;
 }
 
 /**
@@ -99,6 +73,7 @@ export async function adminGetRegistrationConfig(req: Request, res: Response): P
       inviteRequired: doc.registrationEnabled && !doc.openForAll,
       inviteLink: buildInviteLink(req, doc.inviteToken),
       tokenGeneratedAt: doc.tokenGeneratedAt,
+      allowedDomains: doc.allowedDomains || [],
       lastToggledBy: lastToggledBy
         ? {
             id: String(lastToggledBy._id),
@@ -129,14 +104,21 @@ export async function adminGetRegistrationConfig(req: Request, res: Response): P
  */
 export async function adminUpdateRegistrationConfig(req: Request, res: Response): Promise<void> {
   try {
-    const body = (req.body ?? {}) as { enabled?: unknown; openForAll?: unknown };
+    const body = (req.body ?? {}) as { enabled?: unknown; openForAll?: unknown; allowedDomains?: unknown };
     const hasEnabled = typeof body.enabled === 'boolean';
     const hasOpenForAll = typeof body.openForAll === 'boolean';
-    if (!hasEnabled && !hasOpenForAll) {
+    const hasAllowedDomains = Array.isArray(body.allowedDomains);
+    if (!hasEnabled && !hasOpenForAll && !hasAllowedDomains) {
       res
         .status(400)
-        .json({ message: 'At least one of `enabled` or `openForAll` (boolean) is required.' });
+        .json({ message: 'At least one of `enabled`, `openForAll`, or `allowedDomains` is required.' });
       return;
+    }
+    let safeDomains: string[] = [];
+    if (hasAllowedDomains && Array.isArray(body.allowedDomains)) {
+      safeDomains = (body.allowedDomains as unknown[])
+        .map((d: any) => String(d).trim().toLowerCase())
+        .filter((d: string) => d.length > 0 && d.includes('.') && !d.includes('@'));
     }
     const adminId = adminIdFromReq(req);
     if (!adminId) {
@@ -156,6 +138,7 @@ export async function adminUpdateRegistrationConfig(req: Request, res: Response)
     };
     if (hasEnabled) setOps.registrationEnabled = body.enabled;
     if (hasOpenForAll) setOps.openForAll = body.openForAll;
+    if (hasAllowedDomains) setOps.allowedDomains = safeDomains;
 
     const doc = await RegistrationConfig.findByIdAndUpdate('singleton', { $set: setOps }, {
       new: true,
@@ -166,6 +149,7 @@ export async function adminUpdateRegistrationConfig(req: Request, res: Response)
     const detailParts: string[] = [];
     if (hasEnabled) detailParts.push(`enabled → ${body.enabled}`);
     if (hasOpenForAll) detailParts.push(`openForAll → ${body.openForAll}`);
+    if (hasAllowedDomains) detailParts.push(`allowedDomains → [${safeDomains.join(', ')}]`);
     AdminLog.create({
       adminId,
       action: 'settings_update',
@@ -177,6 +161,7 @@ export async function adminUpdateRegistrationConfig(req: Request, res: Response)
     res.json({
       enabled: doc?.registrationEnabled ?? Boolean(body.enabled),
       openForAll: doc?.openForAll ?? Boolean(body.openForAll),
+      allowedDomains: doc?.allowedDomains ?? safeDomains,
       lastToggledAt: doc?.lastToggledAt,
     });
   } catch (err) {

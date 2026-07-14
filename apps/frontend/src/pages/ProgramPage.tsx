@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { btnBase, btnPrimary } from '../styles/style_config';
 import { Link, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import Footer from '../components/layout/Footer';
@@ -164,7 +163,7 @@ export default function ProgramPage() {
         <div className="max-w-md mx-auto pt-32 px-4 text-center">
           <h1 className="font-serif text-3xl text-ink mb-3">Program not found</h1>
           <p className="text-sm text-ink-soft mb-6">{error ?? 'This program does not exist.'}</p>
-          <Link to="/programs" className={`${btnBase} ${btnPrimary} text-sm`}>Browse programs</Link>
+          <Link to="/programs" className="btn-base btn-primary text-sm">Browse programs</Link>
         </div>
       </div>
     );

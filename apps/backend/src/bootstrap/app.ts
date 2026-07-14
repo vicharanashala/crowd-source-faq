@@ -172,20 +172,7 @@ export function createApp(config: any): Express {
   // setupExpressErrorHandler installs the Express-aware Sentry error handler
   // (handles setting transaction status, attaching request context, etc.).
   if (sentryEnabled && sentryDsn) {
-    // v1.81 — also fire Sentry on 4xx, not just 5xx. The skill's
-    // default is 5xx-only, which means auth failures, 422s from
-    // validations, and 404s from mistyped URLs never reach
-    // Sentry. For an admin tool we want to see those too — they
-    // are useful signals during rollout. Sample rate is
-    // unchanged; Sentry will still group by endpoint+status.
-    setupExpressErrorHandler(app, {
-      shouldHandleError: (error) => {
-        const status = (error as { status?: number; statusCode?: number }).status
-          ?? (error as { statusCode?: number }).statusCode
-          ?? 500;
-        return status >= 400;
-      },
-    });
+    setupExpressErrorHandler(app);
   }
   app.use((err: { status?: number; message?: string; stack?: string }, req: Request, res: Response, next: NextFunction) => {
     const requestId: string = (req as Request & { id: string }).id || '-';

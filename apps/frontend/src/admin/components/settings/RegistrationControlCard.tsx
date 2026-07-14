@@ -23,11 +23,9 @@
  * (so the admin can flip back without regenerating), but we de-emphasise
  * it in the UI to avoid suggesting it's the active registration path.
  */
-import { useEffect, useState, useCallback } from 'react'
-import { adminBtnPrimary, adminBtnSecondary, adminInput, adminLabel, dangerBorder, warningBorder } from '../../../styles/style_config';
+import { useEffect, useState, useCallback } from 'react';
 import adminApi from '../../utils/adminApi';
 import { useAdminAuth } from '../../hooks/useAdminAuth';
-
 
 interface ConfigResponse {
   enabled: boolean;
@@ -35,6 +33,7 @@ interface ConfigResponse {
   inviteRequired: boolean;
   inviteLink: string;
   tokenGeneratedAt: string;
+  allowedDomains: string[];
   lastToggledBy: { id: string; name: string | null; email: string | null } | null;
   lastToggledAt: string;
 }
@@ -67,6 +66,9 @@ export default function RegistrationControlCard({ onSaved }: Props): React.React
   const [enabled, setEnabled] = useState(false);
   const [openForAll, setOpenForAll] = useState(false);
   const [inviteLink, setInviteLink] = useState('');
+  const [allowedDomains, setAllowedDomains] = useState<string[]>([]);
+  const [allowedDomainsInput, setAllowedDomainsInput] = useState('');
+  const [savingDomains, setSavingDomains] = useState(false);
   const [lastToggledBy, setLastToggledBy] = useState<ConfigResponse['lastToggledBy']>(null);
   const [lastToggledAt, setLastToggledAt] = useState<string | null>(null);
   const [tokenGeneratedAt, setTokenGeneratedAt] = useState<string | null>(null);
@@ -83,6 +85,8 @@ export default function RegistrationControlCard({ onSaved }: Props): React.React
       setEnabled(res.data.enabled);
       setOpenForAll(res.data.openForAll);
       setInviteLink(res.data.inviteLink);
+      setAllowedDomains(res.data.allowedDomains || []);
+      setAllowedDomainsInput((res.data.allowedDomains || []).join(', '));
       setLastToggledBy(res.data.lastToggledBy);
       setLastToggledAt(res.data.lastToggledAt);
       setTokenGeneratedAt(res.data.tokenGeneratedAt);
@@ -105,17 +109,20 @@ export default function RegistrationControlCard({ onSaved }: Props): React.React
   // The backend accepts { enabled?, openForAll? } and 400s if both are
   // missing, so we always send at least one flag.
   const patchConfig = async (
-    body: { enabled?: boolean; openForAll?: boolean },
+    body: { enabled?: boolean; openForAll?: boolean; allowedDomains?: string[] },
     successMsg: string,
   ): Promise<void> => {
     try {
       const res = await adminApi.patch<{
         enabled: boolean;
         openForAll: boolean;
+        allowedDomains: string[];
         lastToggledAt: string;
       }>('/admin/registration-config', body);
       setEnabled(res.data.enabled);
       setOpenForAll(res.data.openForAll);
+      setAllowedDomains(res.data.allowedDomains || []);
+      setAllowedDomainsInput((res.data.allowedDomains || []).join(', '));
       setLastToggledAt(res.data.lastToggledAt);
       onSaved(successMsg, 'success');
     } catch (err) {
@@ -146,6 +153,19 @@ export default function RegistrationControlCard({ onSaved }: Props): React.React
       );
     } finally {
       setTogglingOpen(false);
+    }
+  };
+
+  const saveDomains = async (): Promise<void> => {
+    setSavingDomains(true);
+    const domains = allowedDomainsInput
+      .split(',')
+      .map((d) => d.trim().toLowerCase())
+      .filter((d) => d.length > 0);
+    try {
+      await patchConfig({ allowedDomains: domains }, 'Allowed email domains updated.');
+    } finally {
+      setSavingDomains(false);
     }
   };
 
@@ -226,7 +246,7 @@ export default function RegistrationControlCard({ onSaved }: Props): React.React
         {/* Error banner — shown when initial load fails */}
         {error && (
           <div
-            className={dangerBorder}
+            className="rounded-md px-3 py-2 text-xs border border-red-200 bg-red-50 text-red-900"
             aria-live="assertive"
           >
             <span className="font-semibold">Load failed: </span>
@@ -239,10 +259,10 @@ export default function RegistrationControlCard({ onSaved }: Props): React.React
           className={[
             'rounded-md px-3 py-2 text-xs border',
             modeBanner.tone === 'closed'
-              ? dangerBorder
+              ? 'bg-red-50 border-red-200 text-red-900'
               : modeBanner.tone === 'open'
-                ? 'bg-accent/10 border-accent/30 text-accent'
-                : warningBorder,
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                : 'bg-amber-50 border-amber-200 text-amber-900',
           ].join(' ')}
           aria-live="polite"
         >
@@ -268,7 +288,7 @@ export default function RegistrationControlCard({ onSaved }: Props): React.React
             onClick={() => toggleEnabled(!enabled)}
             className={[
               'relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors',
-              enabled ? 'bg-accent' : 'bg-border',
+              enabled ? 'bg-emerald-500' : 'bg-border',
               loading || togglingEnabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer',
             ].join(' ')}
           >
@@ -297,7 +317,7 @@ export default function RegistrationControlCard({ onSaved }: Props): React.React
               regenerating.
             </p>
             {!enabled && (
-              <p className="text-[11px] text-warning mt-1">
+              <p className="text-[11px] text-amber-700 mt-1">
                 Enable "Allow new registrations" first to make this take effect.
               </p>
             )}
@@ -311,7 +331,7 @@ export default function RegistrationControlCard({ onSaved }: Props): React.React
             onClick={() => toggleOpenForAll(!openForAll)}
             className={[
               'relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors',
-              openForAll ? 'bg-accent' : 'bg-border',
+              openForAll ? 'bg-emerald-500' : 'bg-border',
               openToggleDisabled || togglingOpen
                 ? 'opacity-60 cursor-not-allowed'
                 : 'cursor-pointer',
@@ -326,12 +346,38 @@ export default function RegistrationControlCard({ onSaved }: Props): React.React
           </button>
         </div>
 
+        {/* Email Domain Restriction input */}
+        <div className="pb-4 border-b border-border pl-3">
+          <label className="admin-label">Allowed Email Domains</label>
+          <p className="text-xs text-ink-faint mb-2">
+            Restrict self-registration to specific email domains (comma-separated, e.g. <code className="font-mono">flowkey.io, university.edu</code>). Leave empty for no restriction.
+          </p>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              disabled={loading || savingDomains}
+              placeholder="e.g. flowkey.io, college.edu"
+              value={allowedDomainsInput}
+              onChange={(e) => setAllowedDomainsInput(e.target.value)}
+              className="admin-input flex-1"
+            />
+            <button
+              type="button"
+              onClick={saveDomains}
+              disabled={loading || savingDomains}
+              className="admin-btn-primary shrink-0"
+            >
+              {savingDomains ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </div>
+
         {/* Invite link */}
         <div className={openForAll ? 'opacity-70' : ''}>
-          <label className={`${adminLabel}`}>
+          <label className="admin-label">
             Current invite link
             {openForAll && (
-              <span className="ml-2 text-[10px] uppercase tracking-wider text-warning">
+              <span className="ml-2 text-[10px] uppercase tracking-wider text-amber-700">
                 Inactive — open-for-all is on
               </span>
             )}
@@ -341,14 +387,14 @@ export default function RegistrationControlCard({ onSaved }: Props): React.React
               readOnly
               value={loading ? 'Loading…' : inviteLink}
               onFocus={(e) => e.currentTarget.select()}
-              className={`${adminInput} font-mono text-xs flex-1`}
+              className="admin-input font-mono text-xs flex-1"
               aria-label="Current invite link URL"
             />
             <button
               type="button"
               onClick={copyLink}
               disabled={!inviteLink || loading}
-              className={`${adminBtnSecondary} shrink-0`}
+              className="admin-btn-secondary shrink-0"
             >
               {copied ? 'Copied!' : 'Copy'}
             </button>
@@ -367,14 +413,14 @@ export default function RegistrationControlCard({ onSaved }: Props): React.React
               type="button"
               onClick={() => setConfirmingRegen(true)}
               disabled={loading || regenerating}
-              className={`${adminBtnSecondary}`}
+              className="admin-btn-secondary"
             >
               Regenerate invite link
             </button>
           ) : (
-            <div className="rounded-md border border-warning/30 bg-warning/10 p-3 space-y-2">
-              <p className="text-xs text-warning">
-                <span className="font-semibold">Heads up:</span> the token in the link above was issued under the previous settings. Regenerate to invalidate the old token.
+            <div className="rounded-md border border-amber-300 bg-amber-50 p-3 space-y-2">
+              <p className="text-xs text-amber-900">
+                Regenerating will invalidate the current link immediately.
                 Anyone using the old link will get a 403.
               </p>
               <div className="flex items-center gap-2">
@@ -382,7 +428,7 @@ export default function RegistrationControlCard({ onSaved }: Props): React.React
                   type="button"
                   onClick={regenerate}
                   disabled={regenerating}
-                  className={`${adminBtnPrimary}`}
+                  className="admin-btn-primary"
                 >
                   {regenerating ? 'Regenerating…' : 'Confirm regenerate'}
                 </button>
@@ -390,7 +436,7 @@ export default function RegistrationControlCard({ onSaved }: Props): React.React
                   type="button"
                   onClick={() => setConfirmingRegen(false)}
                   disabled={regenerating}
-                  className={`${adminBtnSecondary}`}
+                  className="admin-btn-secondary"
                 >
                   Cancel
                 </button>

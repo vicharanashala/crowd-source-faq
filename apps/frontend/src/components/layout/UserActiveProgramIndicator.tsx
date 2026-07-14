@@ -18,25 +18,24 @@
 
 import React from 'react';
 import { useBatch } from '../../context/BatchContext';
-import { accentChipCompact, accentDot, accentTextMuted, textXsFaint } from '../../styles/style_config';
 
 export default function UserActiveProgramIndicator(): React.ReactElement | null {
   const { currentBatch } = useBatch();
   if (!currentBatch) return null;
   return (
     <div
-      className={`${accentChipCompact} mb-4`}
+      className="inline-flex items-center gap-2 text-[11px] font-medium text-ink-faint bg-card/70 border border-border/60 rounded-full px-3 py-1 mb-4"
       data-testid="user-active-program-pill"
     >
-      <span className={accentDot} />
+      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
       <span>Browsing program:</span>
       <span className="font-semibold text-ink">{currentBatch.name}</span>
       {currentBatch.isDefault && (
-        <span className={accentTextMuted}>
+        <span className="text-[9px] font-semibold uppercase tracking-wider text-accent">
           ★ Default
         </span>
       )}
-      <span className={`${textXsFaint} hidden sm:inline`}>
+      <span className="text-ink-faint text-[10px] hidden sm:inline">
         · use the program switcher in the navbar to change
       </span>
     </div>

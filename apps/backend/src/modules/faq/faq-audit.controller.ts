@@ -25,7 +25,6 @@ import { cronLog } from '../../utils/http/logger.js';
 import { searchKnowledge } from '../knowledge/knowledge-base.service.js';
 import { chatWithConfig } from '../../utils/ai/aiProvider.js';
 import { getPipelineProviderConfig } from '../../utils/ai/aiProvider.js';
-import { runWithFallback } from '../../services/ai/fallbackChain.js';
 import { stripAllWrappers, extractJsonSubstring } from '../../utils/ai/aiResponseParsers.js';
 import { PipelineResult } from '../ai/pipeline-result.model.js';
 import {
@@ -184,17 +183,10 @@ Respond with ONLY a valid JSON object:`;
   let raw: string | undefined;
   try {
     const cfg = await getPipelineProviderConfig('faq_audit');
-    // v1.85 — automatic provider failover. A primary-provider 401/429
-    // walks the configured fallback chain instead of failing the audit.
-    const result = await runWithFallback(
-      'faq_audit',
-      [
-        { role: 'system', content: systemPrompt },
-        { role: 'user',   content: userPrompt },
-      ],
-      { primaryOverride: cfg, feature: 'faq_audit' },
-    );
-    raw = result.reply;
+    raw = await chatWithConfig(cfg, [
+      { role: 'system', content: systemPrompt },
+      { role: 'user',   content: userPrompt },
+    ]);
   } catch (err) {
     cronLog.warn(`[faqAudit] AI comparison failed for FAQ ${_id}: ${(err as Error).message}`);
     return null;

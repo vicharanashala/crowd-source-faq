@@ -196,6 +196,8 @@ export interface ICommunityPost extends Document {
       grammarIssues: string[];
     };
   };
+  potentialDuplicates: Types.ObjectId[];
+  duplicateOf: Types.ObjectId | null;
 }
 
 // ─── Schema ─────────────────────────────────────────────────────────────────────
@@ -291,6 +293,15 @@ const communityPostSchema = new MongooseSchema(
       default: [],
     },
     embedding: { type: [Number], default: undefined },
+    potentialDuplicates: {
+      type: [{ type: MongooseSchema.Types.ObjectId, ref: 'CommunityPost' }],
+      default: [],
+    },
+    duplicateOf: {
+      type: MongooseSchema.Types.ObjectId,
+      ref: 'CommunityPost',
+      default: null,
+    },
     escalationStatus: {
       type: String,
       enum: ['none', 'escalated', 'resolved', 'dismissed'] as EscalationStatus[],

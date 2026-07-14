@@ -138,7 +138,6 @@ export function registerMiddleware(app: Express, config: any): void {
         // (RAG / embeddings). Zoom endpoints included for symmetry
         // since the server may proxy to them too.
         "connect-src 'self' https://api.cloudinary.com https://res.cloudinary.com https://api-inference.huggingface.co https://zoom.us https://api.zoom.us",
-        "frame-src 'self' https://res.cloudinary.com",
         "frame-ancestors 'self'",
         "form-action 'self'",
         "object-src 'none'",

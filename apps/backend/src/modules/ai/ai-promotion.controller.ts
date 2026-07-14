@@ -24,13 +24,6 @@ import { Types } from 'mongoose';
 import CommunityPost from '../community/community-post.model.js';
 import FAQ from '../faq/faq.model.js';
 import { cronLog } from '../../utils/http/logger.js';
-// S5-L2 (LOW) fix: replaced dynamic `await import('./ai-client.service.js')`
-// and `await import('../../utils/ai/duplicateDetector.js')` (which sat
-// in hot paths and re-resolved the module on every call) with static
-// imports at the top of the file. If a future circular-dep is
-// introduced, hoist that specific import back to dynamic.
-import AiClient from './ai-client.service.js';
-import { detectDuplicatesWithAI } from '../../utils/ai/duplicateDetector.js';
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
@@ -79,23 +72,12 @@ export async function runCommunityPromotionReview(postId: string): Promise<AIRev
   }
 
   try {
-    // S5-L2: static import (see header).
+    const { default: AiClient } = await import('./ai-client.service.js');
     const client = new AiClient();
-
-    // S5-H7 (HIGH) fix: scope the FAQ grounding query to the post's
-    // own program. Previously `FAQ.find({ status: 'approved' })` ran
-    // across ALL programs, leaking cross-program data into the
-    // AI-validation context. The post's `batchId` is the program
-    // scope; fall back to a no-filter global search only if the
-    // post has no batchId (legacy single-tenant mode).
-    const postBatchId = post.batchId ?? null;
-    const faqScope = postBatchId
-      ? { status: 'approved', batchId: postBatchId }
-      : { status: 'approved' };
 
     // Gather related context: similar community posts + existing related FAQs for grounding
     const [_relatedFaqs, relatedPosts] = await Promise.all([
-      FAQ.find(faqScope)
+      FAQ.find({ status: 'approved' })
         .select('_id question answer category')
         .sort({ helpfulVotes: -1 })
         .limit(5)
@@ -103,8 +85,6 @@ export async function runCommunityPromotionReview(postId: string): Promise<AIRev
       CommunityPost.find({
         _id: { $ne: post._id },
         status: 'answered',
-        // S5-H7: also scope related-posts query to the post's program.
-        ...(postBatchId ? { batchId: postBatchId } : {}),
         tags: { $in: post.tags ?? [] },
       })
         .select('_id title answer')
@@ -170,21 +150,15 @@ RULES:
     if (result.isDuplicate && result.duplicateOfId) {
       duplicateOf = result.duplicateOfId;
     } else {
-      // S5-L2: static import (see header).
+      const { detectDuplicatesWithAI } = await import('../../utils/ai/duplicateDetector.js');
       const dupes = await detectDuplicatesWithAI(post.title);
       const strongDuplicate = dupes.find((d: { score: number; source: string }) => d.score >= 0.80 && d.source === 'faq');
       if (strongDuplicate) duplicateOf = strongDuplicate._id;
     }
 
     // ── 3. Store result on post lifecycle ─────────────────────────────────
-    // S5-H8 (HIGH) fix: replace in-memory `post.lifecycle.aiGeneratedFaq = ...`
-    // followed by `post.save()` (TOCTOU race) with an atomic
-    // findOneAndUpdate that only writes if `lifecycle.aiGeneratedFaq`
-    // is not already set. Two concurrent calls (cron + admin rerun)
-    // would otherwise both pass the existing check at line 70-72
-    // and last-writer-wins.
-    // (post.lifecycle is already populated by the function preamble.)
-    const aiGeneratedFaqUpdate = {
+    post.lifecycle ??= { status: 'community_accepted', statusHistory: [] };
+    post.lifecycle.aiGeneratedFaq = {
       question: result.refinedQuestion,
       answer: result.refinedAnswer,
       category: result.category,
@@ -194,55 +168,28 @@ RULES:
       hallucinationFlags: result.hallucinationFlags,
       grammarIssues: result.grammarIssues,
     };
-    const status = duplicateOf ? 'community_accepted' : 'ai_validated';
-    const statusUpdate = duplicateOf ? {} : {
-      'lifecycle.status': 'ai_validated',
-      'lifecycle.aiValidatedAt': new Date(),
-    };
 
-    const updated = await CommunityPost.findOneAndUpdate(
-      {
-        _id: post._id,
-        'lifecycle.aiGeneratedFaq': { $exists: false },
-      },
-      {
-        $set: {
-          'lifecycle.aiGeneratedFaq': aiGeneratedFaqUpdate,
-          ...statusUpdate,
-        },
-      },
-      { new: true }
-    );
-    if (!updated) {
-      // Another caller (admin manual run, second cron tick) already
-      // wrote the aiGeneratedFaq. Return their result by re-reading.
-      cronLog.info(`[ai-promotion] Skipped post ${post._id} — aiGeneratedFaq already populated by another caller.`);
-      return post.lifecycle.aiGeneratedFaq as unknown as AIReviewResult;
+    if (!duplicateOf) {
+      post.lifecycle.status = 'ai_validated';
+      post.lifecycle.aiValidatedAt = new Date();
+      (post.lifecycle.statusHistory ??= []).push({
+        from: 'community_accepted',
+        to: 'ai_validated',
+        changedBy: new Types.ObjectId('000000000000000000000000'),
+        changedAt: new Date(),
+        note: `AI validated — confidence ${Math.round(result.confidence * 100)}%, ${result.hallucinationFlags.length} hallucination flags`,
+      });
+    } else {
+      (post.lifecycle.statusHistory ??= []).push({
+        from: 'community_accepted',
+        to: 'community_accepted',
+        changedBy: new Types.ObjectId('000000000000000000000000'),
+        changedAt: new Date(),
+        note: `AI flagged duplicate of FAQ ${duplicateOf} — awaiting admin merge decision`,
+      });
     }
-    // S5-H8: append the status history entry as a separate atomic
-    // $push. Done after the aiGeneratedFaq write so the doc passes
-    // its guard `aiGeneratedFaq: { $exists: false }` first; the push
-    // is independent and always succeeds (statusHistory is always
-    // append-only).
-    await CommunityPost.updateOne(
-      { _id: post._id },
-      {
-        $push: {
-          'lifecycle.statusHistory': {
-            from: 'community_accepted',
-            to: status,
-            // S5-H9: hard-coded system actor; production debugging
-            // should rely on the per-call metadata logged in
-            // cronLog rather than this placeholder.
-            changedBy: new Types.ObjectId('000000000000000000000000'),
-            changedAt: new Date(),
-            note: duplicateOf
-              ? `AI flagged duplicate of FAQ ${duplicateOf} — awaiting admin merge decision`
-              : `AI validated — confidence ${Math.round(result.confidence * 100)}%, ${result.hallucinationFlags.length} hallucination flags`,
-          },
-        },
-      },
-    );
+
+    await post.save();
 
     cronLog.info(`[aiReview] Post ${postId} AI review complete. confidence=${Math.round(result.confidence * 100)}%, duplicate=${!!duplicateOf}`);
 

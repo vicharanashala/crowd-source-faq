@@ -112,7 +112,7 @@ export default function AdminLogin() {
             {error && (
               <motion.p
                 initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
-                className="text-xs text-danger bg-danger/10 border border-danger/30 rounded-lg px-3 py-2"
+                className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2"
               >
                 {error}
               </motion.p>

@@ -115,11 +115,6 @@ const CATEGORY_COLORS: Record<string, (s: string) => string> = {
   audit:      C.boldRed,
   community:  C.green,
   support:    C.yellow,
-  // v1.79 — AI subsystem logger. Used by utils/ai/* and
-  // modules/ai/* to log every external API call (inference +
-  // embeddings) for auditability. Magenta makes it pop next
-  // to the green/yellow subsystem loggers.
-  ai:         C.magenta,
 };
 
 function coloredCategory(text: string, rawCategory: string): string {
@@ -255,14 +250,6 @@ export const securityLog = createLogger('security');
 // covers the BullMQ job worker.
 export const communityLog = createLogger('community');
 export const supportLog   = createLogger('support');
-// v1.79 — AI subsystem logger. Used to log every external AI
-// API call (inference + embeddings) so admins can audit spend,
-// per-call model/feature, and failures. Goes through the
-// standard named-logger pipeline: console + (warn+) Discord +
-// (error+) Sentry. Replaces the ad-hoc `console.log('--- AI
-// Request Configuration ---')` block that used to live in
-// ai-client.service.ts.
-export const aiLog        = createLogger('ai');
 
 // ─── Generic logger (for one-off use; consider createLogger instead) ────────
 

@@ -17,6 +17,7 @@ import { generateEmbedding } from '../../utils/ai/embeddings.js';
 import { withProgramScope, assertSameProgram } from '../../utils/db/scopedQuery.js';
 import ProgramEnrollment from '../program/program-enrollment.model.js';
 import { setContextBatchId } from '../../utils/http/requestContext.js';
+import DashboardMetric from './dashboard-metric.model.js';
 
 export const logAction = async (
   adminId: string,
@@ -45,14 +46,16 @@ export const getStats = async (req: Request, res: Response): Promise<void> => {
       setContextBatchId(batchId);
     }
 
+    const dateStr = now.toISOString().split('T')[0];
+
     const [
       totalFaqs,
       pendingFaqs,
       approvedFaqs,
       rejectedFaqs,
       totalUsers,
-      searchesToday,
-      totalSearches,
+      todayMetric,
+      totalMetricAggregation,
       faqsThisWeek,
       faqsLastWeek,
       usersThisWeek,
@@ -65,8 +68,16 @@ export const getStats = async (req: Request, res: Response): Promise<void> => {
       batchId
         ? ProgramEnrollment.countDocuments({ batchId, isActive: true })
         : User.countDocuments(),
-      SearchLog.countDocuments(withProgramScope({ createdAt: { $gte: todayStart } }, batchId)),
-      SearchLog.countDocuments(withProgramScope({}, batchId)),
+      DashboardMetric.findOne({ date: dateStr, batchId: batchId ? new Types.ObjectId(batchId) : null }),
+      DashboardMetric.aggregate([
+        ...(batchId ? [{ $match: { batchId: new Types.ObjectId(batchId) } }] : []),
+        {
+          $group: {
+            _id: null,
+            totalSearches: { $sum: '$searchesCount' },
+          },
+        },
+      ]),
       FAQ.countDocuments(withProgramScope({ createdAt: { $gte: weekAgo } }, batchId)),
       FAQ.countDocuments(withProgramScope({ createdAt: { $gte: twoWeeksAgo, $lt: weekAgo } }, batchId)),
       batchId
@@ -79,6 +90,9 @@ export const getStats = async (req: Request, res: Response): Promise<void> => {
         { $limit: 1 },
       ]),
     ]);
+
+    const searchesToday = todayMetric?.searchesCount ?? 0;
+    const totalSearches = totalMetricAggregation[0]?.totalSearches ?? 0;
 
     const unanswered = await FAQ.countDocuments(withProgramScope({
       $or: [{ status: 'pending' }, { answer: { $in: ['', null] } }],
@@ -109,7 +123,7 @@ export const getStats = async (req: Request, res: Response): Promise<void> => {
       documentQueueStatus,
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -117,17 +131,21 @@ export const getStats = async (req: Request, res: Response): Promise<void> => {
 export const getFaqGrowth = async (req: Request, res: Response): Promise<void> => {
   try {
     const days = parseInt(req.query.days as string) || 30;
-    const from = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const fromDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const fromStr = fromDate.toISOString().split('T')[0];
     const batchId = (req.query.batchId as string | undefined) ?? null;
 
-    const data = await FAQ.aggregate([
-      { $match: withProgramScope({ createdAt: { $gte: from } }, batchId) },
+    const data = await DashboardMetric.aggregate([
+      {
+        $match: {
+          date: { $gte: fromStr },
+          ...(batchId ? { batchId: new Types.ObjectId(batchId) } : {}),
+        },
+      },
       {
         $group: {
-          _id: {
-            $dateToString: { format: '%Y-%m-%d', date: '$createdAt' },
-          },
-          count: { $sum: 1 },
+          _id: '$date',
+          count: { $sum: '$faqsCreatedCount' },
         },
       },
       { $sort: { _id: 1 } },
@@ -144,7 +162,7 @@ export const getFaqGrowth = async (req: Request, res: Response): Promise<void> =
 
     res.json(result);
   } catch (error) {
-    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -218,10 +236,7 @@ function escapeRegex(str: string): string {
 export const getUsers = async (req: Request, res: Response): Promise<void> => {
   try {
     const page = parseInt(req.query.page as string) || 1;
-    // S5-H10 (HIGH) fix: cap the limit to 50 (was uncapped — `?limit=9999999`
-    // would dump the entire users collection in one response). Matches
-    // the cap used in getModerationLogs.
-    const limit = Math.min(50, parseInt(req.query.limit as string) || 20);
+    const limit = parseInt(req.query.limit as string) || 20;
     const skip = (page - 1) * limit;
     const search = (req.query.search as string) || '';
 
@@ -249,8 +264,7 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
 export const getAdminFAQs = async (req: Request, res: Response): Promise<void> => {
   try {
     const page = parseInt(req.query.page as string) || 1;
-    // S5-H10 (HIGH) fix: cap limit to 50 (was uncapped).
-    const limit = Math.min(50, parseInt(req.query.limit as string) || 10);
+    const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;
     const status = (req.query.status as string) || '';
     const category = (req.query.category as string) || '';
@@ -295,25 +309,13 @@ export const approveFAQ = async (req: Request, res: Response): Promise<void> => 
     if (!faq) { res.status(404).json({ message: 'FAQ not found.' }); return; }
     if (assertSameProgram(faq, req.programContext, res)) return;
     faq.status = 'approved';
-    // S5-M6 (MEDIUM) fix: previously the three side effects
-    // (faq.save, invalidateCache, invalidatePublicCaches, logAction)
-    // were sequential non-atomic — if invalidateCache throws, the
-    // FAQ is saved with status='approved' but the public cache is
-    // stale. Now: run the two cache invalidations in parallel via
-    // Promise.all (both are best-effort). logAction runs in the
-    // finally branch so the audit trail is always written.
-    try {
-      await Promise.all([
-        faq.save(),
-        invalidateCache().catch((e) => console.error('[admin] invalidateCache after approve:', e)),
-      ]);
-      invalidatePublicCaches();
-    } finally {
-      await logAction(req.user!._id.toString(), 'approve_faq', faq._id.toString(), 'faq', faq.question);
-    }
+    await faq.save();
+    await invalidateCache();
+    invalidatePublicCaches();
+    await logAction(req.user!._id.toString(), 'approve_faq', faq._id.toString(), 'faq', faq.question);
     res.json({ message: 'FAQ approved.', faq });
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -326,19 +328,13 @@ export const rejectFAQ = async (req: Request, res: Response): Promise<void> => {
     if (!faq) { res.status(404).json({ message: 'FAQ not found.' }); return; }
     if (assertSameProgram(faq, req.programContext, res)) return;
     faq.status = 'rejected';
-    // S5-M6: same cache-invalidation pattern as approveFAQ.
-    try {
-      await Promise.all([
-        faq.save(),
-        invalidateCache().catch((e) => console.error('[admin] invalidateCache after reject:', e)),
-      ]);
-      invalidatePublicCaches();
-    } finally {
-      await logAction(req.user!._id.toString(), 'reject_faq', faq._id.toString(), 'faq', faq.question);
-    }
+    await faq.save();
+    await invalidateCache();
+    invalidatePublicCaches();
+    await logAction(req.user!._id.toString(), 'reject_faq', faq._id.toString(), 'faq', faq.question);
     res.json({ message: 'FAQ rejected.', faq });
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -368,24 +364,9 @@ export const updateFAQ = async (req: Request, res: Response): Promise<void> => {
 
     // Recalculate embedding if key fields updated
     if (question || answer || category) {
-      // S5-M7 (MEDIUM) fix: previously this awaited `generateEmbedding`
-      // inline with no timeout — a cold provider could stall the
-      // admin response indefinitely. Now: race the embedding against
-      // a 5-second timeout. On timeout, log + continue without
-      // updating the embedding (the next cron will regenerate).
-      try {
-        const text = `Section: ${faq.category}. Question: ${faq.question}. Answer: ${faq.answer}`;
-        const timeout = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('generateEmbedding timeout (5s)')), 5000)
-        );
-        faq.embedding = (await Promise.race([
-          generateEmbedding(text),
-          timeout,
-        ])) as any;
-      } catch (embErr) {
-        console.warn('[admin] updateFAQ: embedding skipped:', (embErr as Error).message);
-        // Leave the existing embedding in place; the AI cron will regenerate.
-      }
+      faq.embedding = await generateEmbedding(
+        `Section: ${faq.category}. Question: ${faq.question}. Answer: ${faq.answer}`
+      );
     }
 
     // Admin edit while under review = re-verification
@@ -487,28 +468,12 @@ export const getReports = async (req: Request, res: Response): Promise<void> => 
     if (from) dateFilter.$gte = new Date(from);
     if (to) dateFilter.$lte = new Date(to);
 
-    // S5-L6 (LOW) fix: previously the page/limit query params were
-    // ignored — every call did an uncapped `.limit(500)` and returned
-    // the latest 500 rows regardless of what the admin asked for.
-    // Admins requesting a wide date range silently got only the most
-    // recent 500, with no `total` / `hasMore` so they couldn't tell
-    // it was truncated. Add proper page/limit + total/hasMore.
-    const page = Math.max(1, parseInt(req.query.page as string) || 1);
-    const requestedLimit = parseInt(req.query.limit as string) || 50;
-    // Cap at 500 to keep payload size sane; admins can paginate.
-    const limit = Math.max(1, Math.min(500, requestedLimit));
-    const skip = (page - 1) * limit;
-
     const faqQuery = Object.keys(dateFilter).length ? { createdAt: dateFilter } : {};
     const searchQuery = Object.keys(dateFilter).length ? { createdAt: dateFilter } : {};
 
-    const [faqs, searchLogs, totalFaqs, totalSearches, categoryBreakdown, statusBreakdown] = await Promise.all([
-      FAQ.find(faqQuery).select('-embedding').sort('-createdAt').skip(skip).limit(limit),
-      SearchLog.find(searchQuery).sort('-createdAt').skip(skip).limit(limit),
-      // Counts respect the date filter but ignore pagination so the
-      // admin can see "X of Y total" on the response.
-      FAQ.countDocuments(faqQuery),
-      SearchLog.countDocuments(searchQuery),
+    const [faqs, searchLogs, categoryBreakdown, statusBreakdown] = await Promise.all([
+      FAQ.find(faqQuery).select('-embedding').sort('-createdAt').limit(500),
+      SearchLog.find(searchQuery).sort('-createdAt').limit(500),
       FAQ.aggregate([{ $group: { _id: '$category', count: { $sum: 1 } } }, { $sort: { count: -1 } }]),
       FAQ.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
     ]);
@@ -517,17 +482,14 @@ export const getReports = async (req: Request, res: Response): Promise<void> => 
       faqs,
       searchLogs,
       summary: {
-        totalFaqs,
-        totalSearches,
+        totalFaqs: faqs.length,
+        totalSearches: searchLogs.length,
         categoryBreakdown,
         statusBreakdown,
-        page,
-        limit,
-        hasMore: skip + faqs.length < totalFaqs || skip + searchLogs.length < totalSearches,
       },
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
 
@@ -563,36 +525,31 @@ export const getActivityFeed = async (req: Request, res: Response): Promise<void
 export const getUserActivityChart = async (req: Request, res: Response): Promise<void> => {
   try {
     const days = parseInt(req.query.days as string) || 14;
-    const from = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const fromDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const fromStr = fromDate.toISOString().split('T')[0];
 
-    // Aggregate actual search activity per day: count searches + unique users.
-    // v1.68 — M1: SearchLog now has a userId field. The aggregation
-    // uses $addToSet to count distinct userIds per day, then $size
-    // to count the set. Anonymous searches (userId=null) are
-    // excluded from the unique count.
-    const searchActivity = await SearchLog.aggregate([
-      { $match: { createdAt: { $gte: from } } },
+    const metrics = await DashboardMetric.aggregate([
+      { $match: { date: { $gte: fromStr } } },
       {
         $group: {
-          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
-          searches: { $sum: 1 },
-          uniqueUsers: { $addToSet: '$userId' },
+          _id: '$date',
+          searches: { $sum: '$searchesCount' },
+          uniqueUsers: { $addToSet: '$uniqueUsers' },
         },
       },
       {
         $project: {
           searches: 1,
-          // Count the set minus the null (anonymous) bucket.
           users: {
             $size: {
-              $filter: {
+              $reduce: {
                 input: '$uniqueUsers',
-                as: 'u',
-                cond: { $ne: ['$$u', null] },
-              },
-            },
-          },
-        },
+                initialValue: [],
+                in: { $setUnion: ['$$value', '$$this'] }
+              }
+            }
+          }
+        }
       },
       { $sort: { _id: 1 } },
     ]);
@@ -601,7 +558,7 @@ export const getUserActivityChart = async (req: Request, res: Response): Promise
     for (let i = days - 1; i >= 0; i--) {
       const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
       const dateStr = d.toISOString().split('T')[0];
-      const found = searchActivity.find((x) => x._id === dateStr);
+      const found = metrics.find((x) => x._id === dateStr);
       result.push({
         date: dateStr,
         searches: found ? found.searches : 0,
@@ -611,7 +568,7 @@ export const getUserActivityChart = async (req: Request, res: Response): Promise
 
     res.json(result);
   } catch (error) {
-    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -628,13 +585,9 @@ export const getCommunityPosts = async (req: Request, res: Response): Promise<vo
 
     const base: Record<string, any> = {};
     if (search) {
-      // S5-H11 (HIGH) fix: previously this built `{ $regex: search }` raw,
-      // letting admin-controlled regex special characters trigger ReDoS.
-      // The `escapeRegex` helper exists at the top of this file and is
-      // used by getUsers / getAdminFAQs — apply it here too.
       base.$or = [
-        { title: { $regex: escapeRegex(search), $options: 'i' } },
-        { body: { $regex: escapeRegex(search), $options: 'i' } },
+        { title: { $regex: search, $options: 'i' } },
+        { body: { $regex: search, $options: 'i' } },
       ];
     }
     if (status) base.status = status;
@@ -681,23 +634,11 @@ export const getCommunityPosts = async (req: Request, res: Response): Promise<vo
 // DELETE /api/admin/community/:id
 export const deleteCommunityPost = async (req: Request, res: Response): Promise<void> => {
   try {
-    // S5-H12 (HIGH) fix: previously this had NO assertSameProgram check,
-    // so an admin from program A could hard-delete any post from program B.
-    // Compare with approveFAQ / rejectFAQ / updateFAQ / deleteFAQ above
-    // (lines 286-405) which all gate on assertSameProgram. The pattern
-    // in the same file: read the doc, check, then act.
-    const post = await CommunityPost.findById(req.params.id);
+    const post = await CommunityPost.findByIdAndDelete(req.params.id);
     if (!post) {
       res.status(404).json({ message: 'Post not found.' });
       return;
     }
-    // Per-program scope check (matches the other admin FAQ delete pattern).
-    if (post.batchId && req.programContext?.batchId &&
-        post.batchId.toString() !== req.programContext.batchId) {
-      res.status(404).json({ message: 'Post not found.' });
-      return;
-    }
-    await CommunityPost.findByIdAndDelete(req.params.id);
     await logAction(req.user!._id.toString(), 'delete_community_post', post._id.toString(), 'community_post', post.title);
     res.json({ message: 'Post deleted.' });
   } catch (error) {

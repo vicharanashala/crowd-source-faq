@@ -4,7 +4,6 @@ import { useNotifications } from '../../hooks/useNotifications';
 import api from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
 import { timeAgo } from '../../utils/time';
-import { notificationBellButton } from '../../styles/style_config';
 
 interface TeaDrop {
   _id: string;
@@ -138,7 +137,7 @@ export default function NotificationBell() {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
-        className={notificationBellButton}
+        className="hidden lg:flex w-9 h-9 items-center justify-center rounded-full hover:bg-black/[0.04] transition-colors relative cursor-pointer"
         aria-label="Notifications"
       >
         <BellIcon hasUnread={totalUnread > 0} />

@@ -16,12 +16,12 @@ const sizeClasses = {
 };
 
 const palette = [
-  'bg-warning/15 text-warning',
-  'bg-success/10 text-success',
-  'bg-accent/15 text-accent',
-  'bg-info/10 text-info',
-  'bg-accent/20 text-accent',
-  'bg-warning/10 text-warning',
+  'bg-accent-light text-accent',
+  'bg-success-light text-success',
+  'bg-warning-light text-warning',
+  'bg-purple-100 text-purple-700',
+  'bg-pink-100 text-pink-700',
+  'bg-teal-100 text-teal-700',
 ];
 
 export default function Avatar({ name, src, size = 'sm', className = '' }: AvatarProps) {

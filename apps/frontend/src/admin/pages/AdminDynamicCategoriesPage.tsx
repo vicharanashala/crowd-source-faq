@@ -192,7 +192,7 @@ export default function AdminDynamicCategoriesPage(): React.ReactElement {
   }, [rows]);
 
   if (!batchId) {
-    return <div className="p-8 text-sm text-danger">No program id in URL.</div>;
+    return <div className="p-8 text-sm text-red-600">No program id in URL.</div>;
   }
 
   return (
@@ -232,10 +232,10 @@ export default function AdminDynamicCategoriesPage(): React.ReactElement {
 
       {feedback && (
         <div
-          className={`text-xs px-3 py-2 rounded-lg mb-3 border ${
+          className={`text-xs px-3 py-2 rounded-lg mb-3 ${
             feedback.kind === 'ok'
-              ? 'bg-accent/10 text-accent border-accent/20'
-              : 'bg-danger-light text-danger border-danger/30'
+              ? 'bg-accent/10 text-accent border border-accent/20'
+              : 'bg-red-50 text-red-700 border border-red-200'
           }`}
         >
           {feedback.msg}
@@ -243,7 +243,7 @@ export default function AdminDynamicCategoriesPage(): React.ReactElement {
       )}
 
       {error && (
-        <div className="text-xs px-3 py-2 rounded-lg mb-3 bg-danger-light text-danger border border-danger/30">
+        <div className="text-xs px-3 py-2 rounded-lg mb-3 bg-red-50 text-red-700 border border-red-200">
           {error}
         </div>
       )}
@@ -319,7 +319,7 @@ export default function AdminDynamicCategoriesPage(): React.ReactElement {
                       <button
                         type="button"
                         onClick={() => void remove(r.id, r.canonicalName)}
-                        className="text-[11px] px-2 py-1 rounded-full border border-danger/30 text-danger hover:bg-danger-light"
+                        className="text-[11px] px-2 py-1 rounded-full border border-red-200 text-red-600 hover:bg-red-50"
                       >
                         Delete
                       </button>

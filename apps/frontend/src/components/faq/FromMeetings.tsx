@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import type { RecentFAQ, ZoomPublicStats } from '../../types/ui';
 import { useBatch } from '../../context/BatchContext';
-import { sourceBadgeBase, sourceBadgeZoom, sourceBadgeZoomCircle } from '../../styles/style_config';
 
 /**
  * "From Zoom Meetings" — surfaces the project's actual goal on the home page.
@@ -137,11 +136,11 @@ export default function FromMeetings() {
               className="group cursor-pointer rounded-2xl border border-border bg-card hover:border-accent/30 hover:shadow-subtle transition-all p-4 flex flex-col"
             >
               <div className="flex items-center gap-1.5 mb-2.5">
-                <span className={`${sourceBadgeBase} bg-success-light text-success`}>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-success-light text-success text-[10px] font-semibold uppercase tracking-wider">
                   <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor"><circle cx="4" cy="4" r="3"/></svg>
                   FROM MEETING
                 </span>
-                <span className={`${sourceBadgeBase} ${sourceBadgeZoom}`}>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#2D8CFF]/10 text-[#2D8CFF] text-[10px] font-semibold uppercase tracking-wider">
                   <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor"><circle cx="4" cy="4" r="3"/></svg>
                   ZOOM
                 </span>
@@ -194,7 +193,7 @@ function HowItWorksStep({ n, title, body }: { n: string; title: string; body: st
   return (
     <div className="rounded-2xl border border-border bg-card p-5">
       <div className="flex items-center gap-2 mb-2">
-        <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full ${sourceBadgeZoomCircle} text-xs font-semibold`}>
+        <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#2D8CFF]/10 text-[#2D8CFF] text-xs font-semibold">
           {n}
         </span>
         <h3 className="text-sm font-semibold text-ink">{title}</h3>

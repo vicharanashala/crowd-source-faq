@@ -23,6 +23,13 @@ import type {
 } from '../components/support/types';
 import Spinner from '../components/ui/Spinner';
 import { friendlyError } from '../utils/api';
+import {
+  checkCameraAccess,
+  checkMicrophoneAccess,
+  checkBatteryStatus,
+  checkVpnAndNetwork,
+  type DiagnosticResult,
+} from '../utils/diagnostics';
 
 const STEPS = ['Issue type', 'Troubleshoot', 'Submit'] as const;
 
@@ -39,6 +46,44 @@ function NewRequestInner(): React.ReactElement {
   const [erroredFields, setErroredFields] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [diagStatus, setDiagStatus] = useState<Record<number, { running: boolean; result?: DiagnosticResult }>>({});
+
+  function getDiagnosticType(stepText: string): 'camera' | 'mic' | 'battery' | 'vpn' | null {
+    const t = stepText.toLowerCase();
+    if (t.includes('camera') || t.includes('video') || t.includes('webcam')) return 'camera';
+    if (t.includes('microphone') || t.includes('audio') || t.includes('mic') || t.includes('sound')) return 'mic';
+    if (t.includes('battery') || t.includes('power') || t.includes('charge')) return 'battery';
+    if (t.includes('vpn') || t.includes('internet') || t.includes('connection') || t.includes('network') || t.includes('speed') || t.includes('wifi')) return 'vpn';
+    return null;
+  }
+
+  const runDiagnosticForStep = async (index: number, type: 'camera' | 'mic' | 'battery' | 'vpn') => {
+    setDiagStatus(prev => ({ ...prev, [index]: { running: true } }));
+    try {
+      let res: DiagnosticResult;
+      if (type === 'camera') res = await checkCameraAccess();
+      else if (type === 'mic') res = await checkMicrophoneAccess();
+      else if (type === 'battery') res = await checkBatteryStatus();
+      else res = await checkVpnAndNetwork();
+
+      setDiagStatus(prev => ({
+        ...prev,
+        [index]: { running: false, result: res }
+      }));
+
+      if (res.passed) {
+        const stepText = guidance?.steps[index];
+        if (stepText && !attemptedSteps.includes(stepText)) {
+          toggleStep(stepText);
+        }
+      }
+    } catch (err) {
+      setDiagStatus(prev => ({
+        ...prev,
+        [index]: { running: false, result: { passed: false, status: 'Error', details: String(err) } }
+      }));
+    }
+  };
 
   // Fetch checklist + custom fields when user picks a type
   useEffect(() => {
@@ -219,8 +264,9 @@ function NewRequestInner(): React.ReactElement {
               <ul className="space-y-2">
                 {(guidance?.steps ?? []).map((stepText, i) => {
                   const checked = attemptedSteps.includes(stepText);
+                  const diagType = getDiagnosticType(stepText);
                   return (
-                    <li key={i}>
+                    <li key={i} className="space-y-1">
                       <label className="flex items-start gap-3 p-3 rounded-xl border border-border bg-card hover:border-accent/30 cursor-pointer transition-colors">
                         <input
                           type="checkbox"
@@ -232,6 +278,39 @@ function NewRequestInner(): React.ReactElement {
                           {stepText}
                         </span>
                       </label>
+                      {diagType && (
+                        <div className="pl-7 pb-1">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              runDiagnosticForStep(i, diagType);
+                            }}
+                            disabled={diagStatus[i]?.running}
+                            className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-accent/10 hover:bg-accent/20 text-accent transition-colors flex items-center gap-1.5"
+                          >
+                            {diagStatus[i]?.running ? (
+                              <>
+                                <span className="w-3 h-3 border border-accent/30 border-t-accent rounded-full animate-spin inline-block" />
+                                Running...
+                              </>
+                            ) : (
+                              <>🛠️ Run Diagnostic</>
+                            )}
+                          </button>
+                          {diagStatus[i]?.result && (
+                            <div className={`mt-1.5 text-xs p-2.5 rounded-xl border flex flex-col gap-0.5 ${diagStatus[i].result.passed ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-rose-50 border-rose-200 text-rose-800'}`}>
+                              <span className="font-semibold flex items-center gap-1">
+                                {diagStatus[i].result.passed ? '✅' : '⚠️'} {diagStatus[i].result.status}
+                              </span>
+                              {diagStatus[i].result.details && (
+                                <span className="opacity-90">{diagStatus[i].result.details}</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </li>
                   );
                 })}

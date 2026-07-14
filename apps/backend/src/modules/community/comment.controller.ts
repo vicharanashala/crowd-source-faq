@@ -92,6 +92,13 @@ export const addComment = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
+    const { checkContentToxicity } = await import('../ai/aiModeration.service.js');
+    const moderation = await checkContentToxicity(body.trim());
+    if (moderation.isToxic) {
+      res.status(400).json({ message: `Comment blocked by AI moderation: ${moderation.reason}` });
+      return;
+    }
+
     // Resolve parent comment if this is a reply
     let resolvedParent: any = null;
     if (parentId) {

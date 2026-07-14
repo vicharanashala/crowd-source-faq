@@ -148,66 +148,6 @@ export function stripAdminOnlyFields<T extends object>(ticket: T, isAdmin: boole
   return copy as T;
 }
 
-/**
- * Build the user-facing deep-link URL for a support ticket. Golden
- * tickets route through `/golden/ticket/:id` (the v1.73 page that
- * actually renders `goldenResolutions[]`); regular tickets stay on
- * the generic `/support/:id` thread.
- *
- * Used by every notification fan-out site so the bell always lands
- * the recipient on the page that shows the change they just got
- * notified about — instead of bouncing them to the wrong view where
- * the moderation is silently invisible.
- */
-export function supportTicketLink(
-  ticket: { _id: Types.ObjectId | string; isGolden?: boolean } | null | undefined
-): string {
-  if (!ticket) return '#';
-  return isGoldenTicket(ticket)
-    ? `/golden/ticket/${String(ticket._id)}`
-    : `/support/${String(ticket._id)}`;
-}
-
-// ─── v1.74 — Golden Ticket discussion window ─────────────────────────────
-
-/**
- * How long the user + admin can keep replying in the Golden Ticket
- * discussion thread after the FIRST admin answer is posted. 7 days
- * per the v1.74 spec. After this, new POSTs to the discussion
- * endpoint return 400; the thread itself stays visible read-only.
- */
-export const GOLDEN_DISCUSSION_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
-
-/**
- * `discussionClosesAt` for a given first-admin-answer timestamp.
- * Pure function — exposed so the controllers + tests don't have to
- * know the constant.
- */
-export function computeDiscussionClosesAt(firstAdminAnswerAt: Date): Date {
-  return new Date(firstAdminAnswerAt.getTime() + GOLDEN_DISCUSSION_WINDOW_MS);
-}
-
-/**
- * Is the Golden Ticket discussion still open for new replies?
- *
- *   - firstAdminAnswerAt must be set (no answer posted yet → closed)
- *   - now < discussionClosesAt (otherwise → closed, read-only)
- *
- * Defensive: `discussionClosesAt` is computed at first-answer time
- * so this is a single comparison.
- */
-export function isDiscussionOpen(
-  ticket: { firstAdminAnswerAt?: Date | null; discussionClosesAt?: Date | null } | null | undefined,
-  now: Date = new Date(),
-): boolean {
-  if (!ticket || !ticket.firstAdminAnswerAt || !ticket.discussionClosesAt) return false;
-  const closes = ticket.discussionClosesAt instanceof Date
-    ? ticket.discussionClosesAt
-    : new Date(ticket.discussionClosesAt);
-  if (isNaN(closes.getTime())) return false;
-  return now.getTime() < closes.getTime();
-}
-
 // ─── Notification fan-out ────────────────────────────────────────────────
 
 export async function fanOutToAdmins(

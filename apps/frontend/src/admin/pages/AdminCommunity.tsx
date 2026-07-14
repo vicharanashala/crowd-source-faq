@@ -1,5 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
-import { adminBtnGhost, adminLabel, adminSearchInput, adminSelect } from '../../styles/style_config';
+import { useEffect, useState, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import adminApi from '../utils/adminApi';
 import Badge from '../components/common/Badge';
@@ -117,7 +116,7 @@ export default function AdminCommunity() {
                 className="w-8 h-8 rounded-lg flex items-center justify-center mb-2"
                 style={{
                   backgroundColor: isActive ? 'rgba(16,185,129,0.1)' : 'var(--bg-mist, #f5f5f7)',
-                  color: isActive ? theme.ctaColorDark || 'rgb(var(--accent-rgb))' : 'var(--text-ink-soft, #515154)',
+                  color: isActive ? theme.ctaColorDark || '#10b981' : 'var(--text-ink-soft, #515154)',
                 }}
               >
                 {icon}
@@ -136,9 +135,9 @@ export default function AdminCommunity() {
       <div className="flex flex-wrap gap-2">
         <div className="relative flex-1 min-w-[160px]">
           <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-faint" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" placeholder="Search posts…" value={search} onChange={e => setSearch(e.target.value)} className={`${adminSearchInput}`} />
+          <input type="text" placeholder="Search posts…" value={search} onChange={e => setSearch(e.target.value)} className="admin-search-input" />
         </div>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className={`${adminSelect}`}>
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="admin-select">
           <option value="">All Status</option><option value="unanswered">Unanswered</option><option value="answered">Answered</option>
         </select>
       </div>
@@ -209,7 +208,7 @@ export default function AdminCommunity() {
       <Modal open={!!viewPost} onClose={() => setViewPost(null)} title="Post Details">
         {viewPost && (
           <div className="space-y-3">
-            <div><p className={`${adminLabel}`}>Title</p><p className="text-sm text-ink">{viewPost.title}</p></div>
+            <div><p className="admin-label">Title</p><p className="text-sm text-ink">{viewPost.title}</p></div>
             {(() => {
               const programName = typeof (viewPost as any).batchId === 'object' && (viewPost as any).batchId !== null && 'name' in (viewPost as any).batchId
                 ? ((viewPost as any).batchId as { name: string }).name
@@ -217,7 +216,7 @@ export default function AdminCommunity() {
               if (!programName) return null;
               return (
                 <div>
-                  <p className={`${adminLabel}`}>Program</p>
+                  <p className="admin-label">Program</p>
                   <p className="text-sm text-ink-soft">
                     <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-accent-light text-accent text-[9px] font-bold uppercase tracking-wider">
                       {programName}
@@ -226,10 +225,10 @@ export default function AdminCommunity() {
                 </div>
               );
             })()}
-            <div><p className={`${adminLabel}`}>Author</p><p className="text-sm text-ink-soft">{viewPost.author?.name} ({viewPost.author?.email})</p></div>
-            <div><p className={`${adminLabel}`}>Body</p><p className="text-sm text-ink-soft whitespace-pre-wrap">{viewPost.body}</p></div>
-            <div><p className={`${adminLabel}`}>Status</p><Badge status={viewPost.status === 'answered' ? 'approved' : 'pending'} label={viewPost.status} showDot={false} /></div>
-            {viewPost.answer && <div><p className={`${adminLabel}`}>Official Answer</p><p className="text-sm text-success whitespace-pre-wrap border-l-2 border-success/40 pl-3">{viewPost.answer}</p></div>}
+            <div><p className="admin-label">Author</p><p className="text-sm text-ink-soft">{viewPost.author?.name} ({viewPost.author?.email})</p></div>
+            <div><p className="admin-label">Body</p><p className="text-sm text-ink-soft whitespace-pre-wrap">{viewPost.body}</p></div>
+            <div><p className="admin-label">Status</p><Badge status={viewPost.status === 'answered' ? 'approved' : 'pending'} label={viewPost.status} showDot={false} /></div>
+            {viewPost.answer && <div><p className="admin-label">Official Answer</p><p className="text-sm text-success whitespace-pre-wrap border-l-2 border-success/40 pl-3">{viewPost.answer}</p></div>}
             {viewPost.reports && viewPost.reports.length > 0 && (
               <div className="p-3 rounded-lg bg-danger/10 border border-danger/20">
                 <p className="text-xs font-semibold text-danger mb-2">⚠ {viewPost.reports.length} Report{viewPost.reports.length !== 1 ? 's' : ''}</p>
@@ -243,7 +242,7 @@ export default function AdminCommunity() {
               </div>
             )}
             <div>
-              <p className={`${adminLabel}`}>Comments ({viewPost.comments?.length ?? 0})</p>
+              <p className="admin-label">Comments ({viewPost.comments?.length ?? 0})</p>
               {viewPost.comments?.length ? (
                 <div className="space-y-1.5 max-h-40 overflow-y-auto">
                   {viewPost.comments.map(c => (
@@ -259,7 +258,7 @@ export default function AdminCommunity() {
               <span className="text-xs text-ink-faint">{new Date(viewPost.createdAt).toLocaleString('en-IN')}</span>
               <div className="flex gap-2">
                 <button onClick={() => { handleDelete(viewPost._id); setViewPost(null); }} className="px-3 py-1.5 rounded-md text-xs font-medium text-danger hover:bg-danger/10 transition-colors">Delete</button>
-                <button onClick={() => setViewPost(null)} className={`${adminBtnGhost} px-3 py-1.5 text-xs`}>Close</button>
+                <button onClick={() => setViewPost(null)} className="admin-btn-ghost px-3 py-1.5 text-xs">Close</button>
               </div>
             </div>
           </div>

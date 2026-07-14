@@ -1,6 +1,7 @@
 import { logger, startupLog } from '../utils/http/logger.js';
 import connectDB from '../config/db.js';
 import { migrateZoomSettingsToSessions } from '../utils/zoomMigration.js';
+import { backfillDashboardMetrics } from '../modules/admin/dashboard-metric.service.js';
 import { startBot, stopBot } from '../integrations/discord/discordBot.js';
 import { botManager } from '../integrations/discord/botManager.js';
 import { startEscalationScheduler, stopEscalationScheduler } from '../modules/community/escalation.controller.js';
@@ -48,8 +49,9 @@ export async function startup(config: any): Promise<void> {
   try {
     await connectDB();
     await migrateZoomSettingsToSessions();
+    await backfillDashboardMetrics();
   } catch (e) {
-    startupLog.error('startup DB connect / migrate failed', { error: (e as Error).message });
+    startupLog.error('startup DB connect / migrate / backfill failed', { error: (e as Error).message });
   }
 
   // Lazy-init the RegistrationConfig singleton
@@ -298,6 +300,20 @@ export async function startup(config: any): Promise<void> {
   } else {
     logger.info('[server] category-recategorize cron disabled (categoryRecategorize feature flag off)');
   }
+
+  // Drift-Guard — weekly FAQ drift check
+  const driftGuardIntervalMs = 7 * 24 * 60 * 60 * 1000; // 7 days
+  cronManager.register({
+    name: 'faq-drift-guard',
+    handler: async () => {
+      const { runFaqDriftGuard } = await import('../modules/faq/faq-drift-guard.service.js');
+      await runFaqDriftGuard();
+    },
+    intervalMs: driftGuardIntervalMs,
+    runOnStartup: false,
+    startupDelayMs: 60_000, // 1 min grace delay
+  });
+  logger.info(`[server] faq-drift-guard cron registered (every ${driftGuardIntervalMs / 1000}s)`);
 
   // Start cron manager
   cronManager.startAll();

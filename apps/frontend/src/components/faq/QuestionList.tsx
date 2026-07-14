@@ -1,14 +1,6 @@
 import React, { useMemo, useRef, useEffect, useCallback, useState } from 'react';
 import { FAQItem, getQuestionTitle, getAnswerText, formatDate, formatCategoryName, TrustBadge, SourceBadge } from './faqUtils';
 import FreshnessBadge from '../faq/FreshnessBadge';
-import {
-  flexRowSm,
-  skeletonLine,
-  stackMd,
-  textBodyFaint,
-  textXsFaint,
-  textNumeric,
-} from '../../styles/style_config';
 
 /* ── Chevron icon (rotates on expand) ── */
 function ChevronDown() {
@@ -42,6 +34,100 @@ export function QuestionItem({ item, isExpanded, onToggle }: QuestionItemProps) 
   const sourceLabel = item?.source ? (item.source === 'faq' ? 'FAQ' : 'Community') : '';
   const showFreshness = item?.source === 'faq';
 
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [audioLoading, setAudioLoading] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const fallbackToBrowserSpeech = useCallback(() => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const cleanText = `${title}. ${answer ? answer.replace(/[*#`_\-]/g, '') : ''}`;
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.onstart = () => setIsPlaying(true);
+      utterance.onend = () => setIsPlaying(false);
+      utterance.onerror = () => setIsPlaying(false);
+      window.speechSynthesis.speak(utterance);
+    } else {
+      alert('Text-to-speech is not supported by your browser.');
+    }
+  }, [title, answer]);
+
+  const handleListen = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    if (isPlaying) {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+      setIsPlaying(false);
+      return;
+    }
+
+    setAudioLoading(true);
+    try {
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      const response = await fetch(`/csfaq/api/faq/${item._id}/tts`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.status === 200) {
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        audioRef.current = audio;
+        
+        audio.oncanplaythrough = () => {
+          setAudioLoading(false);
+          setIsPlaying(true);
+          audio.play().catch(() => setIsPlaying(false));
+        };
+
+        audio.onended = () => {
+          setIsPlaying(false);
+        };
+
+        audio.onerror = () => {
+          setAudioLoading(false);
+          fallbackToBrowserSpeech();
+        };
+      } else {
+        setAudioLoading(false);
+        fallbackToBrowserSpeech();
+      }
+    } catch (err) {
+      setAudioLoading(false);
+      fallbackToBrowserSpeech();
+    }
+  };
+
+  useEffect(() => {
+    if (!isExpanded) {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+      setIsPlaying(false);
+    }
+  }, [isExpanded]);
+
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
   return (
     <div className={`faq-item${isExpanded ? ' faq-item--expanded' : ''}`}>
       {/* Question row — always visible */}
@@ -54,7 +140,7 @@ export function QuestionItem({ item, isExpanded, onToggle }: QuestionItemProps) 
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(); } }}
       >
         <span className="faq-item__question-text">
-          <span className={`${textBodyFaint} mr-1 ${textNumeric}`}>{prefix}</span>
+          <span className="text-ink-faint mr-1 tabular-nums">{prefix}</span>
           {title}
           <TrustBadge level={item.trustLevel} />
           <SourceBadge sourceType={item.sourceType} />
@@ -88,6 +174,25 @@ export function QuestionItem({ item, isExpanded, onToggle }: QuestionItemProps) 
                 compact
               />
             )}
+            <button
+              type="button"
+              onClick={handleListen}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border transition-all duration-200 ml-auto cursor-pointer ${
+                isPlaying 
+                  ? 'bg-danger text-white border-danger animate-pulse' 
+                  : 'bg-card border-border hover:bg-cream/40 text-ink-faint hover:text-accent'
+              }`}
+              disabled={audioLoading}
+            >
+              {audioLoading ? (
+                <div className="w-3.5 h-3.5 border-2 border-accent border-t-transparent rounded-full animate-spin"></div>
+              ) : isPlaying ? (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+              )}
+              {audioLoading ? 'Loading...' : isPlaying ? 'Stop' : 'Listen'}
+            </button>
           </div>
         </div>
       </div>
@@ -185,10 +290,10 @@ export default function QuestionList({
 
       {/* Loading skeleton */}
       {loading && (
-        <div className={stackMd}>
+        <div className="space-y-4">
           {[1, 2, 3].map((i) => (
             <div key={i} className="faq-item animate-pulse" style={{ minHeight: 64 }}>
-              <div className={`${skeletonLine} h-4 w-3/4`} />
+              <div className="h-4 rounded bg-mist w-3/4" />
             </div>
           ))}
         </div>
@@ -196,7 +301,7 @@ export default function QuestionList({
 
       {/* FAQ accordion cards */}
       {!loading && (
-        <div className={stackMd}>
+        <div className="space-y-4">
           {visibleItems.map((item, idx) => {
             const id = item._id || `faq-${idx}`;
             return (

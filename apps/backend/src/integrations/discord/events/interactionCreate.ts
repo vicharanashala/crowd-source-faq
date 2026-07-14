@@ -21,6 +21,7 @@ import { executeAdmin } from '../commands/admin.js';
 import { executeCrud } from '../commands/crud.js';
 import { executeHealth } from '../commands/health.js';
 import { executeSetupAdmin } from '../commands/setupadmin.js';
+import { executeSynthesize } from '../commands/synthesize.js';
 import {
   handleUnlockButton,
   handlePassphraseModal,
@@ -62,6 +63,7 @@ export async function handleInteraction(
         case 'crud':      return await executeCrud(cmd, runtime.config, runtime.batchId);
         case 'health':    return await executeHealth(cmd, runtime.config, runtime.batchId);
         case 'setupadmin': return await executeSetupAdmin(cmd, runtime.config, runtime.batchId);
+        case 'synthesize': return await executeSynthesize(cmd, runtime.config, runtime.batchId);
         default:
           await cmd.reply({
             embeds: [new EmbedBuilder()

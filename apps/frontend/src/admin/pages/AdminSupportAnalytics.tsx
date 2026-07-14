@@ -8,7 +8,6 @@ import { getIssueIcon } from '../../components/support/icons';
 import type { SupportAnalytics } from '../../components/support/types';
 import Spinner from '../../components/ui/Spinner';
 import { friendlyError } from '../../utils/api';
-import { STATUS_STYLES } from '../../styles/style_config';
 
 const SHORT_LABEL: Record<string, string> = Object.fromEntries(
   SUPPORT_ISSUE_OPTIONS.map((o) => [o.key, o.shortLabel]),
@@ -164,7 +163,13 @@ function Kpi({ label, value, tone }: { label: string; value: number; tone?: 'war
 }
 
 function statusStyle(s: string): string {
-  return STATUS_STYLES[s] || 'bg-mist text-ink-soft';
+  switch (s) {
+    case 'Pending':   return 'bg-warning/15 text-warning border-warning/30';
+    case 'In Review': return 'bg-admin-blue/15 text-admin-blue border-admin-blue/30';
+    case 'Resolved':  return 'bg-success/15 text-success border-success/30';
+    case 'Rejected':  return 'bg-danger/15 text-danger border-danger/30';
+    default:          return 'bg-mist text-ink-soft';
+  }
 }
 
 export default function AdminSupportAnalytics(): React.ReactElement {

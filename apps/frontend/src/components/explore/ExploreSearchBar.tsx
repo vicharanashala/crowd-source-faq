@@ -3,11 +3,6 @@
 // at the top of the page once the user scrolls past the hero.
 
 import React, { useEffect, useRef, useState } from 'react';
-import {
-  exploreSearchBar,
-  exploreSearchClear,
-  exploreSearchIcon,
-} from '../../styles/style_config';
 
 interface ExploreSearchBarProps {
   value: string;
@@ -52,7 +47,7 @@ export function ExploreSearchBar({
 
   return (
     <div className={`relative ${className}`}>
-      <div className={exploreSearchIcon}>
+      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-faint pointer-events-none">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
           strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <circle cx="11" cy="11" r="7" />
@@ -73,13 +68,13 @@ export function ExploreSearchBar({
         autoFocus={autoFocus}
         autoComplete="off"
         aria-label="Search FAQs"
-        className={exploreSearchBar}
+        className="w-full pl-12 pr-24 py-3.5 rounded-full border border-border/70 bg-cream text-sm text-ink placeholder-ink-faint focus:outline-none focus:border-accent/50 focus:bg-card transition-all duration-200 shadow-subtle"
       />
       {showClear && internal && (
         <button
           type="button"
           onClick={clear}
-          className={exploreSearchClear}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-ink-faint hover:text-ink px-2 py-1 rounded-full hover:bg-mist transition-colors"
           aria-label="Clear search"
         >
           Clear

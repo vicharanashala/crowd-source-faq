@@ -1,9 +1,7 @@
-import { useEffect, useState } from 'react'
-import { adminBtnDanger, adminBtnOutline, adminBtnPrimary, adminBtnWarn, adminLabel, adminTextarea, modalBackdrop } from '../../styles/style_config';
+import { useEffect, useState } from 'react';
 import adminApi from '../utils/adminApi';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { timeAgo } from '../../utils/time';
-
 
 interface BannedUser { _id: string; name: string; email: string; banReason?: string; bannedAt?: string; tier: string; points: number; }
 interface SuspendedUser { _id: string; name: string; email: string; suspendedUntil?: string; tier: string; points: number; }
@@ -275,11 +273,11 @@ export default function AdminModeration() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => { setResolveModal(post); setResolveReason(''); }}
-                        className={`${adminBtnPrimary} px-3 py-1 text-xs`}
+                        className="admin-btn-primary px-3 py-1 text-xs"
                       >Resolve</button>
                       <button
                         onClick={() => setDismissModal({ post, reason: '' })}
-                        className={`${adminBtnOutline} px-3 py-1 text-xs`}
+                        className="admin-btn-outline px-3 py-1 text-xs"
                       >Dismiss</button>
                     </div>
                   </div>
@@ -292,18 +290,18 @@ export default function AdminModeration() {
 
       {/* Dismiss Modal */}
       {dismissModal && (
-        <div className={modalBackdrop} onClick={() => setDismissModal(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setDismissModal(null)}>
           <div className="w-full max-w-sm admin-modal-panel" onClick={e => e.stopPropagation()}>
             <div className="admin-modal-header"><p className="text-sm font-semibold text-ink">Dismiss Escalation</p></div>
             <div className="admin-modal-body space-y-3">
               <p className="text-xs text-ink-faint">Dismissing will remove this post from the escalation queue. It will remain unanswered.</p>
               <div>
-                <label className={`${adminLabel}`}>Reason (required)</label>
-                <textarea rows={3} value={dismissModal.reason} onChange={e => setDismissModal({ ...dismissModal, reason: e.target.value })} placeholder="Reason for dismissal…" className={`${adminTextarea}`} />
+                <label className="admin-label">Reason (required)</label>
+                <textarea rows={3} value={dismissModal.reason} onChange={e => setDismissModal({ ...dismissModal, reason: e.target.value })} placeholder="Reason for dismissal…" className="admin-textarea" />
               </div>
               <div className="flex gap-2 justify-end">
-                <button onClick={() => setDismissModal(null)} className={`${adminBtnOutline}`}>Cancel</button>
-                <button onClick={() => { if (dismissModal.reason.trim()) { handleDismissEscalated(dismissModal.post._id, dismissModal.reason); setDismissModal(null); } }} disabled={!dismissModal.reason.trim()} className={`${adminBtnDanger}`}>Dismiss</button>
+                <button onClick={() => setDismissModal(null)} className="admin-btn-outline">Cancel</button>
+                <button onClick={() => { if (dismissModal.reason.trim()) { handleDismissEscalated(dismissModal.post._id, dismissModal.reason); setDismissModal(null); } }} disabled={!dismissModal.reason.trim()} className="admin-btn-danger">Dismiss</button>
               </div>
             </div>
           </div>
@@ -312,24 +310,24 @@ export default function AdminModeration() {
 
       {/* H22 — Resolve Modal (replaces window.prompt). */}
       {resolveModal && (
-        <div className={modalBackdrop} onClick={() => setResolveModal(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setResolveModal(null)}>
           <div className="w-full max-w-sm admin-modal-panel" onClick={e => e.stopPropagation()}>
             <div className="admin-modal-header"><p className="text-sm font-semibold text-ink">Resolve Escalation</p></div>
             <div className="admin-modal-body space-y-3">
               <p className="text-xs text-ink-faint">Mark this post as resolved and return it to the community.</p>
               <div>
-                <label className={`${adminLabel}`}>Resolution details (required)</label>
+                <label className="admin-label">Resolution details (required)</label>
                 <textarea
                   rows={3}
                   value={resolveReason}
                   onChange={e => setResolveReason(e.target.value)}
                   placeholder="How was this resolved?"
-                  className={`${adminTextarea}`}
+                  className="admin-textarea"
                   autoFocus
                 />
               </div>
               <div className="flex gap-2 justify-end">
-                <button onClick={() => setResolveModal(null)} className={`${adminBtnOutline}`}>Cancel</button>
+                <button onClick={() => setResolveModal(null)} className="admin-btn-outline">Cancel</button>
                 <button
                   onClick={() => {
                     if (resolveReason.trim()) {
@@ -338,7 +336,7 @@ export default function AdminModeration() {
                     }
                   }}
                   disabled={!resolveReason.trim()}
-                  className={`${adminBtnPrimary}`}
+                  className="admin-btn-primary"
                 >Resolve</button>
               </div>
             </div>
@@ -348,17 +346,17 @@ export default function AdminModeration() {
 
       {/* Warn Modal */}
       {warnModal && (
-        <div className={modalBackdrop} onClick={() => setWarnModal(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setWarnModal(null)}>
           <div className="w-full max-w-sm admin-modal-panel" onClick={e => e.stopPropagation()}>
             <div className="admin-modal-header"><p className="text-sm font-semibold text-ink">Warn {warnModal.name}</p></div>
             <div className="admin-modal-body space-y-3">
               <div>
-                <label className={`${adminLabel}`}>Reason</label>
-                <textarea rows={3} value={warnReason} onChange={e => setWarnReason(e.target.value)} placeholder="Describe the violation…" className={`${adminTextarea}`} />
+                <label className="admin-label">Reason</label>
+                <textarea rows={3} value={warnReason} onChange={e => setWarnReason(e.target.value)} placeholder="Describe the violation…" className="admin-textarea" />
               </div>
               <div className="flex gap-2 justify-end">
-                <button onClick={() => setWarnModal(null)} className={`${adminBtnOutline}`}>Cancel</button>
-                <button onClick={handleWarn} disabled={!warnReason} className={`${adminBtnPrimary}`}>Send Warning</button>
+                <button onClick={() => setWarnModal(null)} className="admin-btn-outline">Cancel</button>
+                <button onClick={handleWarn} disabled={!warnReason} className="admin-btn-primary">Send Warning</button>
               </div>
             </div>
           </div>
@@ -367,12 +365,12 @@ export default function AdminModeration() {
 
       {/* Suspend Modal */}
       {suspendModal && (
-        <div className={modalBackdrop} onClick={() => setSuspendModal(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setSuspendModal(null)}>
           <div className="w-full max-w-sm admin-modal-panel" onClick={e => e.stopPropagation()}>
             <div className="admin-modal-header"><p className="text-sm font-semibold text-ink">Suspend {suspendModal.name}</p></div>
             <div className="admin-modal-body space-y-3">
               <div>
-                <label className={`${adminLabel}`}>Duration</label>
+                <label className="admin-label">Duration</label>
                 <div className="flex gap-2">
                   {['1h','6h','24h','3d','7d'].map(d => (
                     <button key={d} onClick={() => setSuspendDuration(d)}
@@ -381,12 +379,12 @@ export default function AdminModeration() {
                 </div>
               </div>
               <div>
-                <label className={`${adminLabel}`}>Reason</label>
-                <textarea rows={2} value={suspendReason} onChange={e => setSuspendReason(e.target.value)} placeholder="Reason for suspension…" className={`${adminTextarea}`} />
+                <label className="admin-label">Reason</label>
+                <textarea rows={2} value={suspendReason} onChange={e => setSuspendReason(e.target.value)} placeholder="Reason for suspension…" className="admin-textarea" />
               </div>
               <div className="flex gap-2 justify-end">
-                <button onClick={() => setSuspendModal(null)} className={`${adminBtnOutline}`}>Cancel</button>
-                <button onClick={handleSuspend} disabled={!suspendReason} className={`${adminBtnWarn}`}>Suspend</button>
+                <button onClick={() => setSuspendModal(null)} className="admin-btn-outline">Cancel</button>
+                <button onClick={handleSuspend} disabled={!suspendReason} className="admin-btn-warn">Suspend</button>
               </div>
             </div>
           </div>
@@ -395,18 +393,18 @@ export default function AdminModeration() {
 
       {/* Ban Modal */}
       {banModal && (
-        <div className={modalBackdrop} onClick={() => setBanModal(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setBanModal(null)}>
           <div className="w-full max-w-sm admin-modal-panel" onClick={e => e.stopPropagation()}>
             <div className="admin-modal-header"><p className="text-sm font-semibold text-danger">Permanently Ban {banModal.name}</p></div>
             <div className="admin-modal-body space-y-3">
               <p className="text-xs text-ink-faint">This will permanently ban the user. They will not be able to access their account.</p>
               <div>
-                <label className={`${adminLabel}`}>Reason (required)</label>
-                <textarea rows={3} value={banReason} onChange={e => setBanReason(e.target.value)} placeholder="Detailed reason for permanent ban…" className={`${adminTextarea}`} />
+                <label className="admin-label">Reason (required)</label>
+                <textarea rows={3} value={banReason} onChange={e => setBanReason(e.target.value)} placeholder="Detailed reason for permanent ban…" className="admin-textarea" />
               </div>
               <div className="flex gap-2 justify-end">
-                <button onClick={() => setBanModal(null)} className={`${adminBtnOutline}`}>Cancel</button>
-                <button onClick={handleBan} disabled={!banReason} className={`${adminBtnDanger}`}>Permanently Ban</button>
+                <button onClick={() => setBanModal(null)} className="admin-btn-outline">Cancel</button>
+                <button onClick={handleBan} disabled={!banReason} className="admin-btn-danger">Permanently Ban</button>
               </div>
             </div>
           </div>

@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react';
 import type { TrendingQuery } from '../../types/ui';
-import { textXsFaint } from '../../styles/style_config';
 
 interface WordCloudProps {
   words?: TrendingQuery[];
@@ -28,20 +27,15 @@ export default function WordCloud({ words = [], onWordClick, maxWords = 40 }: Wo
     const minCount = sorted[sorted.length - 1]?.count || 1;
     const range = maxCount - minCount || 1;
 
-    // Word-cloud colour ramp — derived from --accent-rgb so the
-    // cloud re-skins with the theme. Each step is the same accent
-    // at a different alpha so the hierarchy reads as "depth" of
-    // accent rather than a multi-colour palette. (Old: hardcoded
-    // sage greens #5A7A5A/#6B8F6B/... that bypassed the theme.)
     const colors = [
-      'rgb(var(--accent-rgb) / 0.95)',
-      'rgb(var(--accent-rgb) / 0.85)',
-      'rgb(var(--accent-rgb) / 0.75)',
-      'rgb(var(--accent-rgb) / 0.95)',
-      'rgb(var(--accent-rgb) / 0.80)',
-      'rgb(var(--accent-rgb) / 0.90)',
-      'rgb(var(--accent-rgb) / 0.70)',
-      'rgb(var(--accent-rgb) / 0.95)',
+      'var(--color-accent, #5A7A5A)',
+      '#6B8F6B',
+      '#8BA88B',
+      '#4A6A4A',
+      '#7C9A7C',
+      '#3D5E3D',
+      '#97B397',
+      '#2F4F2F',
     ];
 
     const rotations = [0, 0, 0, -8, 8, -4, 4, -12, 12];
@@ -67,7 +61,7 @@ export default function WordCloud({ words = [], onWordClick, maxWords = 40 }: Wo
   if (!processedWords.length) {
     return (
       <div className="word-cloud-empty">
-        <p className={textXsFaint}>No search data available yet.</p>
+        <p className="text-xs text-ink-soft">No search data available yet.</p>
       </div>
     );
   }

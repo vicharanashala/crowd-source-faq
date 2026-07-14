@@ -187,3 +187,55 @@ export const unlockPost = async (req: Request, res: Response): Promise<void> => 
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+// POST /api/community/:id/merge — Admin/Mod: merge duplicate post into a target post
+export const mergePost = async (req: Request, res: Response): Promise<void> => {
+  if (!req.user) { res.status(401).json({ message: 'Not authorized' }); return; }
+  try {
+    const { targetPostId } = req.body as { targetPostId?: string };
+    if (!targetPostId || !Types.ObjectId.isValid(targetPostId)) {
+      res.status(400).json({ message: 'Valid targetPostId is required' });
+      return;
+    }
+
+    const post = await CommunityPost.findById(req.params.id);
+    if (!post) { res.status(404).json({ message: 'Source post not found.' }); return; }
+    if (assertSameProgram(post, req.programContext, res)) return;
+
+    const targetPost = await CommunityPost.findById(targetPostId);
+    if (!targetPost) { res.status(404).json({ message: 'Target post not found.' }); return; }
+    if (assertSameProgram(targetPost, req.programContext, res)) return;
+
+    if (post._id.toString() === targetPost._id.toString()) {
+      res.status(400).json({ message: 'Cannot merge a post into itself.' });
+      return;
+    }
+
+    // Merge comments/replies of source post into target post
+    if (post.comments && post.comments.length > 0) {
+      targetPost.comments.push(...post.comments);
+      post.comments = [];
+    }
+
+    post.duplicateOf = targetPost._id;
+    post.isLocked = true;
+    post.isHidden = true;
+    
+    post.lifecycle ??= { status: 'open', statusHistory: [] };
+    post.lifecycle.statusHistory.push({
+      from: post.lifecycle.status,
+      to: post.lifecycle.status,
+      changedBy: req.user._id,
+      changedAt: new Date(),
+      note: `Merged into post: ${targetPost.title}`,
+    });
+
+    await post.save();
+    await targetPost.save();
+
+    res.json({ message: 'Posts merged successfully.' });
+  } catch (error) {
+    adminLog.error(`[post] mergePost failed: ${(error as Error).message}`);
+    res.status(500).json({ message: 'Server error' });
+  }
+};

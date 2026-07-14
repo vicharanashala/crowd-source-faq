@@ -14,7 +14,6 @@
 
 import React, { useEffect, useState } from 'react';
 import adminApi from '../../utils/adminApi';
-import { inlineDangerBanner } from '../../../styles/style_config';
 
 export interface ActivityEntry {
   _id: string;
@@ -98,8 +97,8 @@ export default function SessionTimeline({ sessionId, isActive, onActivate, refre
           </button>
         )}
         {isActive && (
-          <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full bg-accent/10 text-accent border border-accent/30">
-            <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
+          <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full bg-green-50 text-green-700 border border-green-200">
+            <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
             Currently active
           </span>
         )}
@@ -107,7 +106,7 @@ export default function SessionTimeline({ sessionId, isActive, onActivate, refre
 
       <div className="px-6 py-5">
         {error && (
-          <div className={`${inlineDangerBanner} mb-4 px-3 py-2 rounded-lg text-xs`}>
+          <div className="mb-4 px-3 py-2 rounded-lg border border-red-200 bg-red-50 text-xs text-red-700">
             {error}
           </div>
         )}
@@ -189,22 +188,22 @@ function describe(entry: ActivityEntry): MetaOut {
       return {
         label: 'Session deleted',
         description: title ? `"${title}" and its pool/attempts were removed.` : 'Session removed.',
-        labelClass: 'text-danger',
-        dot: 'bg-danger',
+        labelClass: 'text-red-600',
+        dot: 'bg-red-500',
       };
     case 'switch_active':
       return {
         label: 'Activated',
         description: 'This session became the active onboarding assessment.',
-        labelClass: 'text-accent',
-        dot: 'bg-accent',
+        labelClass: 'text-green-700',
+        dot: 'bg-green-500',
       };
     case 'activate':
       return {
         label: 'Deactivated',
         description: 'Lost active status to a newer session in this program.',
-        labelClass: 'text-warning',
-        dot: 'bg-warning',
+        labelClass: 'text-amber-700',
+        dot: 'bg-amber-500',
       };
     case 'transcript_upload':
       return {

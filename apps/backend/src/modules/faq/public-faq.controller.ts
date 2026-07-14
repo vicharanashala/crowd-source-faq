@@ -118,7 +118,7 @@ export async function getPopularFaqs(req: Request, res: Response): Promise<void>
     if (courseId) filter.courseId = courseId;
     const faqs = await FAQ.find(filter)
       .select(PUBLIC_PROJECTION)
-      .sort({ popularityScore: -1, guestViewCount: -1, createdAt: -1 })
+      .sort({ popularityScore: -1, createdAt: -1 })
       .limit(limit)
       .lean();
 

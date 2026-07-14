@@ -9,7 +9,13 @@ import { getIssueIcon } from '../components/support/icons';
 import type { SupportRequest, SupportStatus } from '../components/support/types';
 import Spinner from '../components/ui/Spinner';
 import { friendlyError } from '../utils/api';
-import { STATUS_STYLES } from '../styles/style_config';
+
+const STATUS_STYLES: Record<SupportStatus, string> = {
+  'Pending':   'bg-warning/15 text-warning border-warning/30',
+  'In Review': 'bg-admin-blue/15 text-admin-blue border-admin-blue/30',
+  'Resolved':  'bg-success/15 text-success border-success/30',
+  'Rejected':  'bg-danger/15 text-danger border-danger/30',
+};
 
 function SupportTicketInner(): React.ReactElement {
   const { id } = useParams<{ id: string }>();

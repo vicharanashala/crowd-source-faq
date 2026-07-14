@@ -169,25 +169,6 @@ export interface IGoldenResolutionEntry {
   notificationSent: boolean;
 }
 
-/**
- * v1.74 — One entry in the Golden Ticket discussion thread. Both
- * sides (admin + ticket owner) can post during the 7-day window
- * that opens with the first admin answer. The first admin answer
- * is flagged `isProminent: true` so the UI can pin it to the top
- * of the thread; every other entry is just a chronological message.
- */
-export interface IGoldenDiscussionEntry {
-  _id?: Types.ObjectId;
-  text: string;
-  /** 'admin' for any admin/moderator, 'user' for the ticket owner. */
-  senderRole: 'admin' | 'user';
-  senderId: Types.ObjectId;
-  senderName: string;
-  createdAt: Date;
-  /** Only set on the first admin answer. Drives the pinned top card. */
-  isProminent: boolean;
-}
-
 // ─── Document ───────────────────────────────────────────────────────────────
 
 export interface ISupportRequest extends Document {
@@ -261,22 +242,6 @@ export interface ISupportRequest extends Document {
    * re-notified beyond a single in-app bell per entry.
    */
   goldenResolutions: IGoldenResolutionEntry[];
-
-  /**
-   * v1.74 — Golden Ticket discussion thread. After the first admin
-   * answer is posted, both sides can reply in chronological order
-   * for `GOLDEN_DISCUSSION_WINDOW_MS` (7 days). The first admin
-   * answer is flagged `isProminent: true` so the UI can pin it to
-   * the top of the thread. Replaces the prior "answers only"
-   * behaviour with a true two-way conversation.
-   *
-   * `firstAdminAnswerAt` is stamped when the FIRST admin entry is
-   * pushed; `discussionClosesAt` is computed from it. Both are
-   * null until the first answer lands.
-   */
-  goldenTicketDiscussion: IGoldenDiscussionEntry[];
-  firstAdminAnswerAt: Date | null;
-  discussionClosesAt: Date | null;
 
   /**
    * v1.69 — Program this support ticket was opened within. Most
@@ -439,27 +404,6 @@ const supportRequestSchema = new MongooseSchema<ISupportRequest>(
       ],
       default: [],
     },
-    // v1.74 — Golden Ticket discussion thread. The first admin
-    // answer stamps `firstAdminAnswerAt` + `discussionClosesAt`
-    // (now + 7d) and is pushed here with `isProminent: true`.
-    // Both sides can reply while the window is open; replies
-    // arrive in chronological order.
-    goldenTicketDiscussion: {
-      type: [
-        {
-          _id: false,
-          text: { type: String, required: true, trim: true, maxlength: 2000 },
-          senderRole: { type: String, enum: ['admin', 'user'], required: true },
-          senderId: { type: MongooseSchema.Types.ObjectId, ref: 'User', required: true },
-          senderName: { type: String, required: true, trim: true, maxlength: 100 },
-          createdAt: { type: Date, default: Date.now },
-          isProminent: { type: Boolean, default: false },
-        },
-      ],
-      default: [],
-    },
-    firstAdminAnswerAt: { type: Date, default: null },
-    discussionClosesAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

@@ -22,27 +22,6 @@ const ZOOM_AUTH_URL    = 'https://zoom.us/oauth/authorize';
 const ZOOM_TOKEN_URL   = 'https://zoom.us/oauth/token';
 const ZOOM_API_BASE    = 'https://api.zoom.us/v2';
 
-// PKCE (Enhanced Client Proof) — see buildZoomAuthUrl / signOAuthState
-// below. Zoom's "ECP" (Enhanced Client Proof) is their name for the
-// OAuth 2.0 PKCE extension. When the Zoom Marketplace app has ECP
-// enabled (which is increasingly the default for new apps and
-// required for many production-grade apps), the authorize URL must
-// include `code_challenge` + `code_challenge_method=S256`, and the
-// token-exchange POST must include the matching `code_verifier`. The
-// verifier is 43–128 URL-safe chars; we generate 64 random bytes
-// (86 base64url chars) and store the SHA-256 challenge in the
-// authorize URL, then send the verifier in the token exchange.
-const PKCE_VERIFIER_BYTES = 64;
-const PKCE_METHOD = 'S256' as const;
-
-function generateCodeVerifier(): string {
-  return crypto.randomBytes(PKCE_VERIFIER_BYTES).toString('base64url');
-}
-
-function deriveCodeChallenge(verifier: string): string {
-  return crypto.createHash('sha256').update(verifier).digest('base64url');
-}
-
 // Lazy getters — read process.env directly (avoids module-level capture timing issues)
 // Only validate when first called, after dotenv has loaded all env files
 function getClientId()     { const v = process.env.ZOOM_CLIENT_ID;     if (!v) throw new Error('Missing ZOOM_CLIENT_ID env var — add it to backend/.env.local');     return v; }
@@ -187,56 +166,26 @@ function getStateSecret(): string {
   return v;
 }
 
-/**
- * Pack the OAuth state payload. Format:
- *   base64url( userId | "." | expiryMs | "." | codeVerifier | "." | hmacSha256 )
- *
- * The code_verifier is embedded in the signed state (rather than
- * kept in server-side storage) so the PKCE flow works without
- * Redis/DB lookups and survives process restarts. The HMAC covers
- * userId + expiry + codeVerifier — flipping the verifier without
- * invalidating the HMAC is impossible.
- */
-function packState(userId: string, expiry: number, codeVerifier: string, hmac: string): string {
-  return Buffer.from(`${userId}.${expiry}.${codeVerifier}.${hmac}`, 'utf8').toString('base64url');
-}
-
-function unpackState(state: string): { userId: string; expiry: number; codeVerifier: string; providedHmac: string } | null {
-  try {
-    const decoded = Buffer.from(state, 'base64url').toString('utf8');
-    const parts = decoded.split('.');
-    if (parts.length !== 4) return null;
-    const [userId, expiryStr, codeVerifier, providedHmac] = parts;
-    return {
-      userId,
-      expiry: Number(expiryStr),
-      codeVerifier,
-      providedHmac,
-    };
-  } catch {
-    return null;
-  }
-}
-
 /** Sign a state token for the given user. Returns the encoded `state` param. */
-export function signOAuthState(internalUserId: string, codeVerifier?: string): string {
+export function signOAuthState(internalUserId: string): string {
   const expiry = Date.now() + STATE_TTL_MS;
-  const verifier = codeVerifier ?? generateCodeVerifier();
-  const payload = `${internalUserId}.${expiry}.${verifier}`;
+  const payload = `${internalUserId}.${expiry}`;
   const hmac = crypto
     .createHmac('sha256', getStateSecret())
     .update(payload)
     .digest('base64url');
-  return packState(internalUserId, expiry, verifier, hmac);
+  // base64url-encode the whole "payload.hmac" so the callback can decode safely
+  return Buffer.from(`${payload}.${hmac}`, 'utf8').toString('base64url');
 }
 
-/** Verify a state token, return the userId + codeVerifier on success, null on any failure. */
-export function verifyOAuthState(state: string): { userId: string; codeVerifier: string } | null {
+/** Verify a state token, return the userId on success, null on any failure. */
+export function verifyOAuthState(state: string): string | null {
   try {
-    const unpacked = unpackState(state);
-    if (!unpacked) return null;
-    const { userId, expiry, codeVerifier, providedHmac } = unpacked;
-    const payload = `${userId}.${expiry}.${codeVerifier}`;
+    const decoded = Buffer.from(state, 'base64url').toString('utf8');
+    const parts = decoded.split('.');
+    if (parts.length !== 3) return null;
+    const [userId, expiryStr, providedHmac] = parts;
+    const payload = `${userId}.${expiryStr}`;
     const expectedHmac = crypto
       .createHmac('sha256', getStateSecret())
       .update(payload)
@@ -248,15 +197,13 @@ export function verifyOAuthState(state: string): { userId: string; codeVerifier:
     if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
 
     // Reject expired states
+    const expiry = Number(expiryStr);
     if (!Number.isFinite(expiry) || expiry < Date.now()) return null;
 
     // userId must be a 24-char hex ObjectId
     if (!/^[a-f0-9]{24}$/i.test(userId)) return null;
 
-    // codeVerifier must be non-empty base64url — 43..128 chars per RFC 7636
-    if (codeVerifier.length < 43 || codeVerifier.length > 128) return null;
-
-    return { userId, codeVerifier };
+    return userId;
   } catch (err) {
     logger.warn(`[zoomOAuth] State verification failed for state token: ${(err as Error).message}`);
     return null;
@@ -274,27 +221,16 @@ export async function buildZoomAuthUrl(
   internalUserId: string,
   request?: { headers?: Record<string, string | string[] | undefined>; protocol?: string },
   batchId: string | null = null
-): Promise<{ url: string; codeVerifier: string }> {
+): Promise<string> {
   const redirectUri = buildDynamicRedirectUri(request);
   const cfg = await getProgramZoomConfig(batchId);
-  // PKCE — generate the verifier here, then pass it to signOAuthState
-  // so the same value is embedded in the signed state. The challenge
-  // (SHA-256 of the verifier, base64url) goes to Zoom; the verifier
-  // is recovered from the state at callback time.
-  const codeVerifier = generateCodeVerifier();
-  const codeChallenge = deriveCodeChallenge(codeVerifier);
   const params = new URLSearchParams({
     response_type: 'code',
     client_id: cfg.clientId,
     redirect_uri: redirectUri,
-    state: signOAuthState(internalUserId, codeVerifier),
-    code_challenge: codeChallenge,
-    code_challenge_method: PKCE_METHOD,
+    state: signOAuthState(internalUserId),
   });
-  return {
-    url: `${ZOOM_AUTH_URL}?${params}`,
-    codeVerifier,
-  };
+  return `${ZOOM_AUTH_URL}?${params}`;
 }
 
 // ─── Token Exchange ────────────────────────────────────────────────────────────
@@ -319,31 +255,16 @@ interface ZoomTokens {
  * then scoped to that program — every subsequent API call
  * via that token operates against the program's Zoom app.
  */
-export async function exchangeCodeForTokens(
-  code: string,
-  batchId: string | null = null,
-  codeVerifier: string | null = null,
-): Promise<ZoomTokens> {
+export async function exchangeCodeForTokens(code: string, batchId: string | null = null): Promise<ZoomTokens> {
   const cfg = await getProgramZoomConfig(batchId);
   return await zoomOAuthCircuit.execute(async () => {
     const credentials = Buffer.from(`${cfg.clientId}:${cfg.clientSecret}`).toString('base64');
-    const body = new URLSearchParams({
-      grant_type: 'authorization_code',
-      code,
-      redirect_uri: getRedirectUri(),
-    });
-    // PKCE — when the Zoom app has ECP enabled, the token exchange
-    // must include the same code_verifier that the authorize URL
-    // sent the challenge for. Without this, Zoom returns
-    // `invalid_grant` ("code_verifier does not match").
-    if (codeVerifier) {
-      body.set('code_verifier', codeVerifier);
-    }
-    const res = await fetch(`${ZOOM_TOKEN_URL}?${body.toString()}`, {
+
+    const res = await fetch(`${ZOOM_TOKEN_URL}?grant_type=authorization_code&code=${code}&redirect_uri=${encodeURIComponent(getRedirectUri())}`, {
       method: 'POST',
       headers: {
         Authorization: `Basic ${credentials}`,
-        'Content-Type': 'application/x-form-urlencoded',
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
     });
 

@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
-import { communityCloseButton } from '../../styles/style_config';
 
 type TeaEventType = 'faq_published' | 'post_answered' | 'post_deleted' | 'post_answered_user';
 
@@ -24,10 +23,10 @@ interface TeaDrop {
 }
 
 const EVENT_META: Record<TeaEventType, { label: string; icon: string; color: string; bgColor: string }> = {
-  faq_published:     { label: 'new faq',        icon: '📋', color: 'text-accent',  bgColor: 'bg-accent' },
-  post_answered:     { label: 'resolved',        icon: '✅', color: 'text-accent',  bgColor: 'bg-accent' },
-  post_deleted:      { label: 'removed',         icon: '🗑',  color: 'text-danger',  bgColor: 'bg-danger' },
-  post_answered_user:{ label: 'new answer',      icon: '💡', color: 'text-warning', bgColor: 'bg-warning' },
+  faq_published:     { label: 'new faq',        icon: '📋', color: 'text-purple-600',   bgColor: 'bg-purple-50' },
+  post_answered:     { label: 'resolved',        icon: '✅', color: 'text-emerald-600',   bgColor: 'bg-emerald-50' },
+  post_deleted:      { label: 'removed',         icon: '🗑',  color: 'text-red-500',       bgColor: 'bg-red-50' },
+  post_answered_user:{ label: 'new answer',      icon: '💡', color: 'text-amber-600',     bgColor: 'bg-amber-50' },
 };
 
 function timeAgo(dateStr: string): string {
@@ -66,17 +65,11 @@ export default function SpillTheTea() {
       );
       const newDrops = res.data.drops;
 
-      // 2-H (LOW) — previously lastSeenIdRef was only updated in the
-      // !open branch, so when the user opened the dropdown, fetchTea
-      // still compared against a possibly-stale ref on the next close.
-      // Now we always advance the ref to the most recent drop we just
-      // saw, regardless of open/closed state — that's what "last seen"
-      // semantically means.
-      const latestDrop = newDrops[0];
-      if (latestDrop) {
-        // Background poll (dropdown closed): detect new post_answered events and toast
+      // Background poll (dropdown closed): detect new post_answered events and toast
+      if (!open && newDrops.length > 0) {
+        const latestDrop = newDrops[0];
+        // Only toast for post_answered (Admin/AI resolved) and only if it's a new drop
         if (
-          !open &&
           latestDrop.eventType === 'post_answered' &&
           lastSeenIdRef.current !== null &&
           latestDrop._id !== lastSeenIdRef.current
@@ -174,7 +167,7 @@ export default function SpillTheTea() {
       {/* Trigger */}
       <button
         onClick={() => setOpen((v) => !v)}
-        className={communityCloseButton}
+        className="relative flex items-center justify-center w-9 h-9 rounded-full hover:bg-black/[0.04] transition-colors"
         title="Spill the Tea ☕"
       >
         <span className="text-lg" style={{ fontSize: '1.15rem' }}>☕</span>

@@ -52,10 +52,10 @@ function timeAgo(d: string): string {
 
 function TypeBadge({ type }: { type: DocumentInsight['type'] }) {
   const styles: Record<DocumentInsight['type'], string> = {
-    FAQ: 'bg-accent/10 text-accent',
-    Announcement: 'bg-accent/10 text-accent',
-    Policy: 'bg-warning/10 text-warning',
-    HowTo: 'bg-accent/10 text-accent',
+    FAQ: 'bg-blue-500/10 text-blue-400',
+    Announcement: 'bg-purple-500/10 text-purple-400',
+    Policy: 'bg-amber-500/10 text-amber-400',
+    HowTo: 'bg-emerald-500/10 text-emerald-400',
   };
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold ${styles[type]}`}>
@@ -69,7 +69,7 @@ function StatusBadge({ status }: { status: DocumentInsight['status'] }) {
     pending_review: 'bg-warning/10 text-warning',
     approved:       'bg-success/10 text-success',
     rejected:       'bg-danger/10 text-danger',
-    promoted:       'bg-accent/10 text-accent',
+    promoted:       'bg-blue-400/10 text-blue-400',
   };
   const labels: Record<DocumentInsight['status'], string> = {
     pending_review: 'Pending Review',
@@ -98,11 +98,7 @@ function InsightCardSkeleton() {
   );
 }
 
-/**
- * Named export — the inner tab content. Re-used by the unified
- * `/admin/knowledge` tab page.
- */
-export function DocumentInsightsView({ onJumpToUpload }: { onJumpToUpload?: () => void } = {}) {
+export default function AdminDocumentInsights() {
   const [insights, setInsights] = useState<DocumentInsight[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -193,26 +189,14 @@ export function DocumentInsightsView({ onJumpToUpload }: { onJumpToUpload?: () =
           Sorted by how often an UnresolvedSearch log semantically matches — the auto-promote cron uses the
           same signal.
         </p>
-        <div className="flex items-center gap-2">
-          {onJumpToUpload && (
-            <button
-              type="button"
-              onClick={onJumpToUpload}
-              className="px-3 py-1.5 rounded-lg border border-accent text-accent text-xs font-semibold hover:bg-accent/10"
-              data-testid="admin-doc-insights-upload-cta"
-            >
-              Upload a document
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={handleRunAutoPromote}
-            disabled={promoteLoading}
-            className="px-3 py-1.5 rounded-lg bg-accent text-white text-xs font-semibold hover:bg-accent/90 disabled:opacity-50"
-          >
-            {promoteLoading ? 'Running…' : 'Run auto-promote'}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={handleRunAutoPromote}
+          disabled={promoteLoading}
+          className="px-3 py-1.5 rounded-lg bg-accent text-white text-xs font-semibold hover:bg-accent/90 disabled:opacity-50"
+        >
+          {promoteLoading ? 'Running…' : 'Run auto-promote'}
+        </button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
@@ -244,17 +228,8 @@ export function DocumentInsightsView({ onJumpToUpload }: { onJumpToUpload?: () =
           <InsightCardSkeleton /><InsightCardSkeleton /><InsightCardSkeleton />
         </div>
       ) : insights.length === 0 ? (
-        <div className="admin-card-surface p-12 text-center text-sm text-ink-soft space-y-3">
-          <p>No {statusFilter.replace('_', ' ')} insights.</p>
-          {onJumpToUpload && (
-            <button
-              type="button"
-              onClick={onJumpToUpload}
-              className="px-3 py-1.5 rounded-lg bg-accent text-white text-xs font-semibold hover:bg-accent/90"
-            >
-              Upload a document
-            </button>
-          )}
+        <div className="admin-card-surface p-12 text-center text-sm text-ink-soft">
+          No {statusFilter.replace('_', ' ')} insights.
         </div>
       ) : (
         <div className="space-y-3">
@@ -264,7 +239,7 @@ export function DocumentInsightsView({ onJumpToUpload }: { onJumpToUpload?: () =
                 <TypeBadge type={i.type} />
                 <StatusBadge status={i.status} />
                 {i.searchMatchCount > 0 && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-accent/10 text-accent" title="UnresolvedSearch log match count">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-pink-500/10 text-pink-400" title="UnresolvedSearch log match count">
                     🔥 {i.searchMatchCount} match{i.searchMatchCount === 1 ? '' : 'es'}
                   </span>
                 )}
@@ -283,7 +258,7 @@ export function DocumentInsightsView({ onJumpToUpload }: { onJumpToUpload?: () =
                 <p className="text-[11px] text-ink-faint italic">↳ {i.promotionReason}</p>
               )}
               {i.publishedFaqId && (
-                <p className="text-[11px] text-accent">→ FAQ <code className="font-mono">{i.publishedFaqId}</code></p>
+                <p className="text-[11px] text-blue-400">→ FAQ <code className="font-mono">{i.publishedFaqId}</code></p>
               )}
 
               {i.status === 'pending_review' && (
@@ -342,14 +317,4 @@ export function DocumentInsightsView({ onJumpToUpload }: { onJumpToUpload?: () =
       )}
     </div>
   );
-}
-
-/**
- * Default export kept for the legacy `/admin/document-insights`
- * route — thin wrapper that mounts the named inner view. After
- * `/admin/knowledge` lands and bookmarks/links settle, this can
- * be deleted and the route can be removed.
- */
-export default function AdminDocumentInsights() {
-  return <DocumentInsightsView />;
 }

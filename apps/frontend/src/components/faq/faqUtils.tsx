@@ -27,30 +27,18 @@ export interface FAQItem {
   [key: string]: unknown;
 }
 
-import {
-  sourceBadgeBase,
-  sourceBadgeCommunity,
-  sourceBadgeExpert,
-  sourceBadgeZoom,
-  trustBadgeBase,
-  trustBadgeExpert,
-  trustBadgeHigh,
-  trustBadgeLow,
-  trustBadgeMedium,
-} from '../../styles/style_config';
-
 export function TrustBadge({ level }: { level?: string }) {
   if (!level) return null;
   const map: Record<string, { label: string; class: string }> = {
-    high:   { label: 'Official',          class: trustBadgeHigh },
-    expert: { label: 'Admin Approved',   class: trustBadgeExpert },
-    medium: { label: 'Community Approved', class: trustBadgeMedium },
-    low:    { label: 'Community',        class: trustBadgeLow },
+    high:   { label: 'Official', class: 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-white/10 dark:text-gray-300 dark:border-white/10' },
+    expert: { label: 'Admin Approved', class: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-white/10 dark:text-blue-300 dark:border-white/10' },
+    medium: { label: 'Community Approved', class: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-white/10 dark:text-emerald-300 dark:border-white/10' },
+    low:    { label: 'Community', class: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-white/10 dark:text-amber-300 dark:border-white/10' },
   };
   const cfg = map[level];
   if (!cfg) return null;
   return (
-    <span className={`${trustBadgeBase} ${cfg.class}`}>
+    <span className={`ml-1.5 text-[11px] px-2 py-0.5 rounded-md border font-medium ${cfg.class}`}>
       {cfg.label}
     </span>
   );
@@ -59,14 +47,14 @@ export function TrustBadge({ level }: { level?: string }) {
 export function SourceBadge({ sourceType }: { sourceType?: string }) {
   if (!sourceType || sourceType === 'manual') return null;
   const map: Record<string, { label: string; class: string }> = {
-    community_promotion: { label: 'From Community', class: sourceBadgeCommunity },
-    zoom_transcript:     { label: 'From Meetings',  class: sourceBadgeZoom },
-    expert_verified:     { label: 'Expert Verified', class: sourceBadgeExpert },
+    community_promotion: { label: 'From Community', class: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-white/10 dark:text-purple-300 dark:border-white/10' },
+    zoom_transcript:     { label: 'From Meetings',  class: 'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-white/10 dark:text-cyan-300 dark:border-white/10' },
+    expert_verified:     { label: 'Expert Verified', class: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-white/10 dark:text-blue-300 dark:border-white/10' },
   };
   const cfg = map[sourceType];
   if (!cfg) return null;
   return (
-    <span className={`${sourceBadgeBase} ${cfg.class}`}>
+    <span className={`ml-1.5 text-[11px] px-2 py-0.5 rounded-md border font-medium ${cfg.class}`}>
       {cfg.label}
     </span>
   );

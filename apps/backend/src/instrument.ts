@@ -94,15 +94,4 @@ if (sentryEnabled && sentryDsn) {
     beforeSend: sentryBeforeSend,
     beforeSendTransaction: sentryBeforeSendTransaction,
   });
-
-  // v1.82 — single boot-time "Sentry init OK" message so admins
-  // can confirm the pipeline is alive without waiting for a real
-  // error. Tagged with `boot` so the dashboard can filter to it.
-  // Rendered as a Sentry INFO-level message (low noise); safe to
-  // ship in every release.
-  Sentry.captureMessage('Sentry init OK', {
-    level: 'info',
-    tags: { boot: 'true', release: sentryRelease ?? 'unspecified' },
-    extra: { dsn_host: new URL(sentryDsn).host, env: sentryEnv },
-  });
 }

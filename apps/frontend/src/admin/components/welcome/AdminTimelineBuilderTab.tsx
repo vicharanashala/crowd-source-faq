@@ -18,7 +18,6 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import adminApi from '../../utils/adminApi';
-import { inputStandard } from '../../../styles/style_config';
 
 /* ────────────────────────────────────────
    Icon Palette (20 curated icons)
@@ -133,13 +132,13 @@ function SortableStepCard({
         <div className="flex items-center gap-2 mb-1">
           <h3 className="text-sm font-bold text-ink truncate">{step.title}</h3>
           {step.isMandatory && (
-            <span className="px-1.5 py-0.5 text-[8px] uppercase font-bold tracking-widest bg-danger/10 text-danger rounded">Required</span>
+            <span className="px-1.5 py-0.5 text-[8px] uppercase font-bold tracking-widest bg-red-500/10 text-red-500 rounded">Required</span>
           )}
           {step.isLocked && (
-            <span className="px-1.5 py-0.5 text-[8px] uppercase font-bold tracking-widest bg-warning/10 text-warning rounded">Locked</span>
+            <span className="px-1.5 py-0.5 text-[8px] uppercase font-bold tracking-widest bg-yellow-500/10 text-yellow-600 rounded">Locked</span>
           )}
           <span className={`px-1.5 py-0.5 text-[8px] uppercase font-bold tracking-widest rounded ${
-            step.status === 'active' ? 'bg-accent/10 text-accent' : 'bg-ink/10 text-ink-faint'
+            step.status === 'active' ? 'bg-green-500/10 text-green-500' : 'bg-ink/10 text-ink-faint'
           }`}>{step.status}</span>
         </div>
         <p className="text-xs text-ink-faint truncate">{step.description || 'No description'}</p>
@@ -162,7 +161,7 @@ function SortableStepCard({
         </button>
         <button
           onClick={() => onDelete(step._id)}
-          className="p-2 rounded-lg text-danger/60 hover:text-danger hover:bg-danger/10 transition-colors"
+          className="p-2 rounded-lg text-red-500/60 hover:text-red-500 hover:bg-red-500/10 transition-colors"
           title="Delete"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
@@ -371,7 +370,7 @@ export default function AdminTimelineBuilderTab() {
                         type="text" required
                         value={form.title}
                         onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-                        className={inputStandard}
+                        className="w-full bg-bg border border-border rounded-lg px-4 py-2.5 text-ink focus:outline-none focus:border-accent transition-all"
                         placeholder="e.g. MARK Attendance"
                       />
                     </div>
@@ -420,7 +419,7 @@ export default function AdminTimelineBuilderTab() {
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-ink mb-1.5">Completion Type</label>
-                      <select value={form.completionType} onChange={e => setForm(f => ({ ...f, completionType: e.target.value as any }))} className={inputStandard}>
+                      <select value={form.completionType} onChange={e => setForm(f => ({ ...f, completionType: e.target.value as any }))} className="w-full bg-bg border border-border rounded-lg px-4 py-2.5 text-ink focus:outline-none focus:border-accent transition-all">
                         <option value="manual">Manual</option>
                         <option value="checklist">Checklist</option>
                         <option value="automatic">Automatic</option>
@@ -428,14 +427,14 @@ export default function AdminTimelineBuilderTab() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-ink mb-1.5">Status</label>
-                      <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value as any }))} className={inputStandard}>
+                      <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value as any }))} className="w-full bg-bg border border-border rounded-lg px-4 py-2.5 text-ink focus:outline-none focus:border-accent transition-all">
                         <option value="active">Active</option>
                         <option value="inactive">Inactive</option>
                       </select>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-ink mb-1.5">Estimated Time</label>
-                      <input type="text" value={form.estimatedTime} onChange={e => setForm(f => ({ ...f, estimatedTime: e.target.value }))} className={inputStandard} placeholder="e.g. ~2 min daily" />
+                      <input type="text" value={form.estimatedTime} onChange={e => setForm(f => ({ ...f, estimatedTime: e.target.value }))} className="w-full bg-bg border border-border rounded-lg px-4 py-2.5 text-ink focus:outline-none focus:border-accent transition-all" placeholder="e.g. ~2 min daily" />
                     </div>
                   </div>
 
@@ -455,11 +454,11 @@ export default function AdminTimelineBuilderTab() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-ink mb-1.5">Rewards</label>
-                      <input type="text" value={form.rewards} onChange={e => setForm(f => ({ ...f, rewards: e.target.value }))} className={inputStandard} placeholder="e.g. Unlocks Spurti Points" />
+                      <input type="text" value={form.rewards} onChange={e => setForm(f => ({ ...f, rewards: e.target.value }))} className="w-full bg-bg border border-border rounded-lg px-4 py-2.5 text-ink focus:outline-none focus:border-accent transition-all" placeholder="e.g. Unlocks Spurti Points" />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-ink mb-1.5">Mentor Notes</label>
-                      <input type="text" value={form.mentorNotes} onChange={e => setForm(f => ({ ...f, mentorNotes: e.target.value }))} className={inputStandard} placeholder="Internal note for mentor" />
+                      <input type="text" value={form.mentorNotes} onChange={e => setForm(f => ({ ...f, mentorNotes: e.target.value }))} className="w-full bg-bg border border-border rounded-lg px-4 py-2.5 text-ink focus:outline-none focus:border-accent transition-all" placeholder="Internal note for mentor" />
                     </div>
                   </div>
 
@@ -485,7 +484,7 @@ export default function AdminTimelineBuilderTab() {
                                 <input type="checkbox" checked={item.isMandatory} onChange={e => updateChecklistItem(i, 'isMandatory', e.target.checked)} className="w-4 h-4 rounded border-border" />
                                 Required
                               </label>
-                              <button type="button" onClick={() => removeChecklistItem(i)} className="p-1.5 text-danger/60 hover:text-danger hover:bg-danger/10 rounded-md transition-colors" title="Remove item">
+                              <button type="button" onClick={() => removeChecklistItem(i)} className="p-1.5 text-red-500/60 hover:text-red-500 hover:bg-red-500/10 rounded-md transition-colors" title="Remove item">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                               </button>
                             </div>
@@ -520,7 +519,7 @@ export default function AdminTimelineBuilderTab() {
                                 <option value="doc">Document</option>
                                 <option value="discord">Discord</option>
                               </select>
-                              <button type="button" onClick={() => removeResource(i)} className="p-1.5 text-danger/60 hover:text-danger hover:bg-danger/10 rounded-md transition-colors" title="Remove resource">
+                              <button type="button" onClick={() => removeResource(i)} className="p-1.5 text-red-500/60 hover:text-red-500 hover:bg-red-500/10 rounded-md transition-colors" title="Remove resource">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                               </button>
                             </div>

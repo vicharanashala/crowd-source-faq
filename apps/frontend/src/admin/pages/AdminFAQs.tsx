@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { AnimatePresence, motion } from 'framer-motion'
-import { adminBtnGhost, adminBtnPrimary, adminInput, adminLabel, adminSearchInput, adminSelect, adminTextarea } from '../../styles/style_config';
+import { AnimatePresence, motion } from 'framer-motion';
 import FreshnessTierSelector from '../../components/faq/FreshnessTierSelector';
 import adminApi from '../utils/adminApi';
 import Badge from '../components/common/Badge';
@@ -127,6 +126,66 @@ function CategoryDropdown({
   );
 }
 
+function parseCSV(text: string): Array<Record<string, string>> {
+  const lines: string[] = [];
+  let currentLine = '';
+  let inQuotes = false;
+  
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    if (char === '"') {
+      inQuotes = !inQuotes;
+      currentLine += char;
+    } else if (char === '\n' && !inQuotes) {
+      lines.push(currentLine);
+      currentLine = '';
+    } else if (char === '\r') {
+      // ignore
+    } else {
+      currentLine += char;
+    }
+  }
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+
+  if (lines.length < 2) return [];
+
+  const splitLine = (line: string): string[] => {
+    const result: string[] = [];
+    let field = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        result.push(field.trim());
+        field = '';
+      } else {
+        field += char;
+      }
+    }
+    result.push(field.trim());
+    return result;
+  };
+
+  const headers = splitLine(lines[0]).map((h) => h.replace(/^["']|["']$/g, ''));
+  const results: Array<Record<string, string>> = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    const values = splitLine(line).map((v) => v.replace(/^["']|["']$/g, ''));
+    const row: Record<string, string> = {};
+    headers.forEach((header, index) => {
+      row[header] = values[index] || '';
+    });
+    results.push(row);
+  }
+  return results;
+}
+
 export default function AdminFAQs() {
   const [faqs, setFaqs] = useState<FAQ[]>([]);
   const [total, setTotal] = useState(0);
@@ -155,6 +214,10 @@ export default function AdminFAQs() {
   const [toast, setToast] = useState<Toast | null>(null);
   const [addCategoryOption, setAddCategoryOption] = useState<string>('');
   const [editCategoryOption, setEditCategoryOption] = useState<string>('');
+  const [importModal, setImportModal] = useState(false);
+  const [importBatchId, setImportBatchId] = useState('');
+  const [csvText, setCsvText] = useState('');
+  const [importing, setImporting] = useState(false);
   const debouncedSearch = useDebounce(search, 350);
 
   const { data: addCategoriesData } = useCategories(newFaq.batchId || null, null);
@@ -260,6 +323,61 @@ export default function AdminFAQs() {
     finally { setSaving(false); }
   };
 
+  const handleImport = async () => {
+    if (!importBatchId) {
+      showToast('Pick a program for the import.', 'error');
+      return;
+    }
+    setImporting(true);
+    try {
+      const parsed = parseCSV(csvText);
+      if (parsed.length === 0) {
+        showToast('No FAQs found in CSV. Check headers.', 'error');
+        setImporting(false);
+        return;
+      }
+
+      const mappedFaqs = parsed.map((row) => {
+        const qKey = Object.keys(row).find(k => k.toLowerCase() === 'question');
+        const aKey = Object.keys(row).find(k => k.toLowerCase() === 'answer');
+        const cKey = Object.keys(row).find(k => k.toLowerCase() === 'category');
+        const tKey = Object.keys(row).find(k => k.toLowerCase() === 'freshnesstier' || k.toLowerCase() === 'freshness_tier');
+
+        const question = qKey ? row[qKey] : '';
+        const answer = aKey ? row[aKey] : '';
+        const category = cKey ? row[cKey] : '';
+        const freshnessTier = tKey ? row[tKey] : 'evergreen';
+
+        return { question, answer, category, freshnessTier };
+      });
+
+      const invalid = mappedFaqs.some(f => !f.question || !f.answer || !f.category);
+      if (invalid) {
+        showToast('Some rows are missing Question, Answer, or Category.', 'error');
+        setImporting(false);
+        return;
+      }
+
+      const res = await adminApi.post<{ message: string; count: number }>('/faq/bulk-import', {
+        batchId: importBatchId,
+        faqs: mappedFaqs,
+      });
+
+      showToast(res.data.message || `Successfully imported ${res.data.count} FAQs.`);
+      setImportModal(false);
+      setCsvText('');
+      fetchFaqs();
+      void loadBatches();
+    } catch (err) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+        'Import failed';
+      showToast(msg, 'error');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   return (
     <div className="space-y-4 max-w-6xl">
       <AnimatePresence>{toast && <Toast toast={toast} />}</AnimatePresence>
@@ -271,35 +389,49 @@ export default function AdminFAQs() {
             <span className="ml-2 text-ink">· in {batches.find((b) => b._id === batchFilter)?.name}</span>
           )}
         </p>
-        <button
-          onClick={() => {
-            // Pre-fill with the current filter or the first available batch
-            setNewFaq((f) => ({ ...f, batchId: batchFilter || f.batchId || (batches[0]?._id ?? '') }));
-            setAddCategoryOption('');
-            setAddModal(true);
-          }}
-          className={`${adminBtnPrimary}`}
-          disabled={batchesLoading}
-          title={batchesLoading ? 'Loading programs…' : ''}
-        >
-          + Add FAQ
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => {
+              setImportBatchId(batchFilter || (batches[0]?._id ?? ''));
+              setCsvText('');
+              setImportModal(true);
+            }}
+            className="admin-btn-secondary"
+            disabled={batchesLoading}
+            title={batchesLoading ? 'Loading programs…' : ''}
+          >
+            Import CSV
+          </button>
+          <button
+            onClick={() => {
+              // Pre-fill with the current filter or the first available batch
+              setNewFaq((f) => ({ ...f, batchId: batchFilter || f.batchId || (batches[0]?._id ?? '') }));
+              setAddCategoryOption('');
+              setAddModal(true);
+            }}
+            className="admin-btn-primary"
+            disabled={batchesLoading}
+            title={batchesLoading ? 'Loading programs…' : ''}
+          >
+            + Add FAQ
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
       <div className="flex flex-wrap gap-2">
         <div className="relative flex-1 min-w-[160px]">
           <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-faint" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" placeholder="Search…" value={search} onChange={e => setSearch(e.target.value)} className={`${adminSearchInput}`} />
+          <input type="text" placeholder="Search…" value={search} onChange={e => setSearch(e.target.value)} className="admin-search-input" />
         </div>
-        <select value={batchFilter} onChange={e => setBatchFilter(e.target.value)} className={`${adminSelect}`} title="Filter by program">
+        <select value={batchFilter} onChange={e => setBatchFilter(e.target.value)} className="admin-select" title="Filter by program">
           <option value="">All Programs</option>
           {batches.map(b => <option key={b._id} value={b._id}>{b.name}</option>)}
         </select>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className={`${adminSelect}`}>
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="admin-select">
           <option value="">All Status</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option>
         </select>
-        <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} className={`${adminSelect}`}>
+        <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} className="admin-select">
           <option value="">All Categories</option>
           {categories.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
@@ -372,27 +504,27 @@ export default function AdminFAQs() {
         {editFaq && (
           <div className="space-y-3">
             <div>
-              <label className={`${adminLabel}`}>Question</label>
-              <input value={editFaq.question} onChange={e => setEditFaq(f => f ? { ...f, question: e.target.value } : null)} className={`${adminInput}`} />
+              <label className="admin-label">Question</label>
+              <input value={editFaq.question} onChange={e => setEditFaq(f => f ? { ...f, question: e.target.value } : null)} className="admin-input" />
             </div>
             <div>
-              <label className={`${adminLabel}`}>Answer</label>
-              <textarea rows={4} value={editFaq.answer} onChange={e => setEditFaq(f => f ? { ...f, answer: e.target.value } : null)} className={`${adminTextarea}`} />
+              <label className="admin-label">Answer</label>
+              <textarea rows={4} value={editFaq.answer} onChange={e => setEditFaq(f => f ? { ...f, answer: e.target.value } : null)} className="admin-textarea" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className={`${adminLabel}`}>Program</label>
+                <label className="admin-label">Program</label>
                 <select
                   value={editFaq.batchId ?? ''}
                   onChange={e => setEditFaq(f => f ? { ...f, batchId: e.target.value } : null)}
-                  className={`${adminSelect} w-full`}
+                  className="admin-select w-full"
                 >
                   <option value="">— unassigned —</option>
                   {batches.map(b => <option key={b._id} value={b._id}>{b.name}</option>)}
                 </select>
               </div>
               <div>
-                <label className={`${adminLabel}`}>Category</label>
+                <label className="admin-label">Category</label>
                 <CategoryDropdown
                   value={editCategoryOption}
                   categories={editCategories}
@@ -410,21 +542,21 @@ export default function AdminFAQs() {
                     value={editFaq.category}
                     onChange={e => setEditFaq(f => f ? { ...f, category: e.target.value } : null)}
                     placeholder="Enter custom category..."
-                    className={`${adminInput} mt-2`}
+                    className="admin-input mt-2"
                   />
                 )}
               </div>
             </div>
             <div>
-              <label className={`${adminLabel}`}>Status</label>
-              <select value={editFaq.status} onChange={e => setEditFaq(f => f ? { ...f, status: e.target.value as FAQ['status'] } : null)} className={`${adminSelect} w-full`}>
+              <label className="admin-label">Status</label>
+              <select value={editFaq.status} onChange={e => setEditFaq(f => f ? { ...f, status: e.target.value as FAQ['status'] } : null)} className="admin-select w-full">
                 <option value="approved">Approved</option>
                 <option value="pending">Pending</option>
                 <option value="rejected">Rejected</option>
               </select>
             </div>
             <div>
-              <label className={`${adminLabel}`}>Freshness Tier</label>
+              <label className="admin-label">Freshness Tier</label>
               <FreshnessTierSelector
                 value={editFaq.freshnessTier ?? 'evergreen'}
                 onChange={t => setEditFaq(f => f ? { ...f, freshnessTier: t, reviewIntervalDays: t === 'evergreen' ? 0 : f.reviewIntervalDays || (t === 'seasonal' ? 15 : 4) } : null)}
@@ -433,8 +565,8 @@ export default function AdminFAQs() {
               />
             </div>
             <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setEditModal(false)} className={`${adminBtnGhost}`}>Cancel</button>
-              <button onClick={handleEdit} disabled={saving} className={`${adminBtnPrimary}`}>{saving ? 'Saving…' : 'Save'}</button>
+              <button onClick={() => setEditModal(false)} className="admin-btn-ghost">Cancel</button>
+              <button onClick={handleEdit} disabled={saving} className="admin-btn-primary">{saving ? 'Saving…' : 'Save'}</button>
             </div>
           </div>
         )}
@@ -449,20 +581,20 @@ export default function AdminFAQs() {
             </div>
           )}
           <div>
-            <label className={`${adminLabel}`}>Question</label>
-            <input value={newFaq.question} onChange={e => setNewFaq(f => ({ ...f, question: e.target.value }))} placeholder="Enter the question…" className={`${adminInput}`} />
+            <label className="admin-label">Question</label>
+            <input value={newFaq.question} onChange={e => setNewFaq(f => ({ ...f, question: e.target.value }))} placeholder="Enter the question…" className="admin-input" />
           </div>
           <div>
-            <label className={`${adminLabel}`}>Answer</label>
-            <textarea rows={4} value={newFaq.answer} onChange={e => setNewFaq(f => ({ ...f, answer: e.target.value }))} placeholder="Enter the answer…" className={`${adminTextarea}`} />
+            <label className="admin-label">Answer</label>
+            <textarea rows={4} value={newFaq.answer} onChange={e => setNewFaq(f => ({ ...f, answer: e.target.value }))} placeholder="Enter the answer…" className="admin-textarea" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={`${adminLabel}`}>Program <span className="text-danger">*</span></label>
+              <label className="admin-label">Program <span className="text-danger">*</span></label>
               <select
                 value={newFaq.batchId}
                 onChange={e => setNewFaq(f => ({ ...f, batchId: e.target.value }))}
-                className={`${adminSelect} w-full`}
+                className="admin-select w-full"
                 required
               >
                 <option value="">— Select a program —</option>
@@ -470,7 +602,7 @@ export default function AdminFAQs() {
               </select>
             </div>
             <div>
-              <label className={`${adminLabel}`}>Category</label>
+              <label className="admin-label">Category</label>
               <CategoryDropdown
                 value={addCategoryOption}
                 categories={addCategories}
@@ -488,20 +620,20 @@ export default function AdminFAQs() {
                   value={newFaq.category}
                   onChange={e => setNewFaq(f => ({ ...f, category: e.target.value }))}
                   placeholder="Enter custom category..."
-                  className={`${adminInput} mt-2`}
+                  className="admin-input mt-2"
                 />
               )}
             </div>
           </div>
           <div>
-            <label className={`${adminLabel}`}>Status</label>
-            <select value={newFaq.status} onChange={e => setNewFaq(f => ({ ...f, status: e.target.value as typeof newFaq.status }))} className={`${adminSelect} w-full`}>
+            <label className="admin-label">Status</label>
+            <select value={newFaq.status} onChange={e => setNewFaq(f => ({ ...f, status: e.target.value as typeof newFaq.status }))} className="admin-select w-full">
               <option value="approved">Approved</option>
               <option value="pending">Pending</option>
             </select>
           </div>
           <div>
-            <label className={`${adminLabel}`}>Freshness Tier</label>
+            <label className="admin-label">Freshness Tier</label>
             <FreshnessTierSelector
               value={newFaq.freshnessTier}
               onChange={t => setNewFaq(f => ({ ...f, freshnessTier: t, reviewIntervalDays: t === 'evergreen' ? 0 : f.reviewIntervalDays || (t === 'seasonal' ? 15 : 4) }))}
@@ -510,8 +642,44 @@ export default function AdminFAQs() {
             />
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <button onClick={() => setAddModal(false)} className={`${adminBtnGhost}`}>Cancel</button>
-            <button onClick={handleAdd} disabled={saving || !newFaq.question || !newFaq.answer || !newFaq.category || !newFaq.batchId} className={`${adminBtnPrimary}`}>{saving ? 'Creating…' : 'Create FAQ'}</button>
+            <button onClick={() => setAddModal(false)} className="admin-btn-ghost">Cancel</button>
+            <button onClick={handleAdd} disabled={saving || !newFaq.question || !newFaq.answer || !newFaq.category || !newFaq.batchId} className="admin-btn-primary">{saving ? 'Creating…' : 'Create FAQ'}</button>
+          </div>
+        </div>
+      </Modal>
+      {/* Import Modal */}
+      <Modal open={importModal} onClose={() => setImportModal(false)} title="Bulk Import FAQs">
+        <div className="space-y-3">
+          <div>
+            <label className="admin-label">Program <span className="text-danger">*</span></label>
+            <select
+              value={importBatchId}
+              onChange={e => setImportBatchId(e.target.value)}
+              className="admin-select w-full"
+              required
+            >
+              <option value="">— Select a program —</option>
+              {batches.map(b => <option key={b._id} value={b._id}>{b.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="admin-label">CSV Data</label>
+            <p className="text-xs text-ink-faint mb-2">
+              Paste your CSV content below. Must include headers: <code className="font-mono">Question</code>, <code className="font-mono">Answer</code>, and <code className="font-mono">Category</code>.
+            </p>
+            <textarea
+              rows={8}
+              value={csvText}
+              onChange={e => setCsvText(e.target.value)}
+              placeholder="Question,Answer,Category&#10;&quot;What is React?&quot;,&quot;A JavaScript library for building user interfaces.&quot;,Tech&#10;&quot;How to run a dev server?&quot;,&quot;Use npm run dev.&quot;,Dev"
+              className="admin-textarea"
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <button onClick={() => setImportModal(false)} className="admin-btn-ghost" disabled={importing}>Cancel</button>
+            <button onClick={handleImport} disabled={importing || !importBatchId || !csvText.trim()} className="admin-btn-primary">
+              {importing ? 'Importing…' : 'Import FAQs'}
+            </button>
           </div>
         </div>
       </Modal>

@@ -78,11 +78,6 @@ vi.mock('../modules/support/support-core.controller.js', () => ({
     });
   },
   isGoldenTicket: (req: { isGolden?: boolean }): boolean => Boolean(req.isGolden),
-  // v1.74 — stub the new discussion-window helper. Existing tests
-  // assert the link + bell contract; they don't need real window
-  // math. A no-op stub is the most defensive default.
-  computeDiscussionClosesAt: (when: Date): Date => when,
-  isDiscussionOpen: (): boolean => true,
 }));
 
 // Mock the logger so test runs don't write to console. The
@@ -126,13 +121,6 @@ function makeReq(opts: { body?: unknown; status?: string }): Request {
     spCost: 4,
     userId: new Types.ObjectId('0000000000000000000000bb'),
     goldenResolutions: [],
-    // v1.74 — discussion thread + window. The real schema
-    // defaults to [] / null; mirror that so the controller's
-    // `.push` doesn't throw when the first admin answer opens
-    // the window.
-    goldenTicketDiscussion: [],
-    firstAdminAnswerAt: null,
-    discussionClosesAt: null,
     statusHistory: [],
     save: vi.fn(async function saveMock(this: unknown): Promise<unknown> {
       return this;

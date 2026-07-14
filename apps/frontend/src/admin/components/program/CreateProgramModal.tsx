@@ -1,8 +1,6 @@
-import { useState, type FormEvent } from 'react'
-import { adminBtnGhost, adminBtnPrimary, adminInput, inlineDangerBanner } from '../../../styles/style_config';
+import { useState, type FormEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import adminApi from '../../utils/adminApi';
-
 
 interface CreatedBatch {
   _id: string;
@@ -129,7 +127,7 @@ export default function CreateProgramModal({ open, onClose, onCreated }: CreateP
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. Winter Internship 2027"
                   maxLength={120}
-                  className={`${adminInput}`}
+                  className="admin-input"
                   required
                   autoFocus
                 />
@@ -146,7 +144,7 @@ export default function CreateProgramModal({ open, onClose, onCreated }: CreateP
                   placeholder="One sentence about the cohort (optional)"
                   maxLength={1000}
                   rows={2}
-                  className={`${adminInput}`}
+                  className="admin-input"
                 />
               </div>
 
@@ -160,7 +158,7 @@ export default function CreateProgramModal({ open, onClose, onCreated }: CreateP
                     type="date"
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
-                    className={`${adminInput}`}
+                    className="admin-input"
                     required
                   />
                 </div>
@@ -173,14 +171,14 @@ export default function CreateProgramModal({ open, onClose, onCreated }: CreateP
                     type="date"
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
-                    className={`${adminInput}`}
+                    className="admin-input"
                     required
                   />
                 </div>
               </div>
 
               {error && (
-                <div className={inlineDangerBanner}>
+                <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
                   {error}
                 </div>
               )}
@@ -190,14 +188,14 @@ export default function CreateProgramModal({ open, onClose, onCreated }: CreateP
                   type="button"
                   onClick={handleClose}
                   disabled={submitting}
-                  className={`${adminBtnGhost} text-xs`}
+                  className="admin-btn-ghost text-xs"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className={`${adminBtnPrimary} text-xs`}
+                  className="admin-btn-primary text-xs"
                 >
                   {submitting ? 'Provisioning…' : 'Create program'}
                 </button>

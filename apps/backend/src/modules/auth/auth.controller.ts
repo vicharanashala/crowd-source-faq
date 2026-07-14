@@ -11,6 +11,7 @@ import RefreshToken from './refresh-token.model.js';
 import { registerSchema, loginSchema, updateProfileSchema } from '../../utils/auth/validation.js';
 import { sanitizeHtml } from '../../utils/http/sanitize.js';
 import { authLog, securityLog } from '../../utils/http/logger.js';
+import { incrementUserMetric } from '../admin/dashboard-metric.service.js';
 
 const hashToken = (token: string): string => {
   return crypto.createHash('sha256').update(token).digest('hex');
@@ -91,6 +92,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     }
 
     const user = await User.create({ name, email, password });
+    incrementUserMetric().catch(() => {});
     const { token, jti } = generateToken(user._id.toString());
     const { token: refreshToken, jti: refreshJti, expiresAt: refreshExpiresAt } = generateRefreshToken(user._id.toString());
 
@@ -451,111 +453,6 @@ export const updateUserRole = async (req: Request, res: Response): Promise<void>
     res.json({ message: 'User role updated successfully.', user: targetUser });
   } catch (error) {
     res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
-  }
-};
-
-// PUT /api/auth/users/:id/password (Admin only)
-// v1.85 — admin-initiated password reset for any non-admin user.
-// Body: { newPassword: string } (validated by adminResetPasswordSchema
-// upstream). We:
-//   1. Look up the target user (404 if not found).
-//   2. Reject if target is an admin — admins can never have
-//      their password reset by another admin. This is a hard
-//      floor: the codebase has no super-admin role, so there is
-//      no path that lets an admin reset another admin. If you
-//      need a co-admin recovery flow, the only safe option is
-//      direct DB surgery — the operator runs a one-off script.
-//   3. Set the new password. The pre-save hook on the User
-//      schema re-hashes with bcryptjs (12 rounds). We do NOT
-//      call comparePassword — the admin doesn't know the old
-//      password by design.
-//   4. Revoke all active refresh tokens for the target user so
-//      any logged-in sessions stop working the next time they
-//      try to refresh. Access tokens self-expire in 15 min, so
-//      the user is forced to log in fresh within that window.
-//   5. Append an entry to the user's onboardingAuditLog so the
-//      change is visible in the user's own profile history (and
-//      visible to other admins if they ever audit).
-//   6. Emit authLog.audit?.() so the security alert log + Discord
-//      (when configured) record the action with adminId + targetId.
-export const adminResetUserPassword = async (req: Request, res: Response): Promise<void> => {
-  if (!req.user || (req.user as any).role !== 'admin') {
-    res.status(403).json({ message: 'Admin access required' });
-    return;
-  }
-  try {
-    const targetUser = await User.findById(req.params.id);
-    if (!targetUser) {
-      res.status(404).json({ message: 'User not found.' });
-      return;
-    }
-    // Hard floor: admins cannot be reset by other admins. The
-    // codebase has no super-admin role, so this is unconditional.
-    // See top-of-file comment.
-    if (targetUser.role === 'admin') {
-      authLog.audit?.('admin_password_reset_blocked', {
-        adminId: req.user._id.toString(),
-        targetId: req.params.id,
-        reason: 'target_is_admin',
-        requestId: (req as Request & { id: string }).id,
-      });
-      res.status(403).json({
-        message: 'Admin passwords cannot be reset by another admin. Use a direct DB update or a one-off script for co-admin recovery.',
-      });
-      return;
-    }
-    const { newPassword } = req.body as { newPassword?: string };
-    if (!newPassword) {
-      res.status(400).json({ message: 'newPassword is required.' });
-      return;
-    }
-    // Set + save. The pre-save hook re-hashes via bcryptjs.
-    targetUser.password = newPassword;
-    // Append to the same onboardingAuditLog array the other
-    // admin actions use (golden ban, project assign, etc.). Old
-    // + new value are redacted — the password itself is never
-    // written to the audit row. The schema doesn't carry a
-    // `field` discriminator, so we use the same shape as the
-    // other entries. Convention going forward (in this entry
-    // only — older rows predate it): the Mongoose Mixed types
-    // for oldValue/newValue let us store the field name as
-    // structured data; for v1.85 we keep the existing literal
-    // shape and leave a marker in newValue so the audit reader
-    // can disambiguate.
-    targetUser.onboardingAuditLog = [
-      ...(targetUser.onboardingAuditLog ?? []),
-      {
-        changedBy: req.user._id.toString(),
-        changedAt: new Date(),
-        oldValue: '[REDACTED:password]',
-        newValue: '[REDACTED:password]',
-      },
-    ];
-    await targetUser.save();
-    // Force the target to re-authenticate. Refresh tokens are
-    // the only persistent session artifact (access tokens are
-    // short-lived JWTs that self-expire). Revoking them is
-    // enough — any active tab that's still mid-15min window
-    // gets bounced on the next refresh.
-    await RefreshToken.deleteMany({ userId: targetUser._id });
-    authLog.audit?.('admin_password_reset', {
-      adminId: req.user._id.toString(),
-      targetId: req.params.id,
-      targetEmail: targetUser.email,
-      requestId: (req as Request & { id: string }).id,
-    });
-    res.json({
-      message: 'Password reset successfully. The user must log in again on their next request.',
-      userId: req.params.id,
-      mustReLogin: true,
-    });
-  } catch (error) {
-    authLog.error('admin password reset failed', {
-      error: (error as Error).message,
-      adminId: req.user._id.toString(),
-      targetId: req.params.id,
-    });
-    res.status(500).json({ message: 'Server error' });
   }
 };
 

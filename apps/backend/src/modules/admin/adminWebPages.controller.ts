@@ -39,90 +39,7 @@ function validateUrl(raw: unknown): string | null {
 }
 
 export const addWebPage = async (req: Request, res: Response): Promise<void> => {
-  // v1.82 — two paths: URL fetch (existing) and direct text paste
-  // (new). The text-paste path is the only way to get content out
-  // of a JS-rendered SPA or a login-walled page (e.g. samagama.in's
-  // Rules tab) without a headless browser — admin opens the page
-  // in their own browser, selects the text, pastes it. No
-  // Chromium, no extra RAM, no auth required.
-  const body = (req.body ?? {}) as { url?: string; text?: string; title?: string };
-  const pasteText = typeof body.text === 'string' ? body.text.trim() : '';
-  const pasteTitle = typeof body.title === 'string' ? body.title.trim() : '';
-
-  // ── Paste path: client supplied the text directly. Skip the
-  // HTTP fetch entirely. Use a synthetic URL derived from the
-  // title so the unique-index on `url` still works for re-pastes.
-  if (pasteText) {
-    if (pasteText.length < 50) {
-      res.status(422).json({
-        message: 'Pasted text must be at least 50 characters (was ' + pasteText.length + ').',
-        extractedChars: pasteText.length,
-      });
-      return;
-    }
-    if (pasteText.length > 200_000) {
-      res.status(413).json({ message: 'Pasted text exceeds 200k characters.' });
-      return;
-    }
-    // Sanitise: strip any HTML tags the admin might have copied
-    // along with the text. Real defence against XSS in the
-    // webTextSource (it embeds snippets in chat answers).
-    const cleanText = pasteText
-      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/&nbsp;/g, ' ')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"')
-      .replace(/[ \t]+/g, ' ')
-      .replace(/\n{3,}/g, '\n\n')
-      .trim();
-    if (cleanText.length < 50) {
-      res.status(422).json({
-        message: 'After stripping HTML the text is too short to index.',
-        extractedChars: cleanText.length,
-      });
-      return;
-    }
-    const title = pasteTitle || 'Pasted text ' + new Date().toISOString().slice(0, 10);
-    // Stable, collision-resistant synthetic URL keyed off the
-    // paste content (SHA-1 of the text). Allows the same content
-    // to be re-pasted without creating duplicate rows; allows the
-    // admin to re-paste to "update" the same chunk.
-    const crypto = await import('crypto');
-    const hash = crypto.createHash('sha1').update(cleanText).digest('hex').slice(0, 24);
-    const syntheticUrl = 'paste://local/' + hash;
-    const reviewerId = (() => {
-      const id = (req as Request & { user?: { _id?: string | Types.ObjectId } }).user?._id;
-      if (!id) return null;
-      try { return new Types.ObjectId(String(id)); } catch { return null; }
-    })();
-    const row = await WebPage.findOneAndUpdate(
-      { url: syntheticUrl },
-      {
-        $set: {
-          url: syntheticUrl,
-          domain: 'local.paste',
-          title: title.slice(0, 500),
-          text: cleanText,
-          statusCode: 0,
-          lastFetchError: null,
-          fetchedAt: new Date(),
-          approved: true,
-        },
-        $setOnInsert: { source: 'admin_pasted' as const, createdBy: reviewerId },
-      },
-      { upsert: true, new: true },
-    ).lean();
-    adminLog.info(`[webPages] admin pasted ${cleanText.length} chars (sha1=${hash})`);
-    res.json({ ok: true, page: row });
-    return;
-  }
-
-  // ── URL path (existing)
-  const url = validateUrl(body.url);
+  const url = validateUrl(req.body?.url);
   if (!url) { res.status(400).json({ message: 'valid http(s) url required' }); return; }
   let domain: string;
   try { domain = new URL(url).hostname; } catch { res.status(400).json({ message: 'invalid url' }); return; }
@@ -130,12 +47,7 @@ export const addWebPage = async (req: Request, res: Response): Promise<void> => 
   try {
     const { title, text, statusCode } = await fetchAndExtract(url);
     if (!text || text.length < 20) {
-      res.status(422).json({
-        message: 'No extractable text — the page is likely a JS-only SPA, a login wall, or returned mostly markup (no <p>/<article>/<h*> tags).',
-        url,
-        extractedChars: text?.length ?? 0,
-        statusCode,
-      });
+      res.status(422).json({ message: 'page has no extractable text content' });
       return;
     }
     const reviewerId = (() => {

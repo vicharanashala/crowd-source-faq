@@ -13,14 +13,6 @@ import type { GcsAsset } from '../../hooks/useGcsUpload';
 import { buildGcsTransformedUrl } from '../../utils/gcsTransform';
 import { useAuth } from '../../hooks/useAuth';
 import { useAuthGate } from '../../context/AuthModalContext';
-import {
-  communityDifficultyEasy,
-  communityDifficultyHard,
-  communityDifficultyModerate,
-  communityReportButton,
-  communityReportHover,
-  communityStatusReported,
-} from '../../styles/style_config';
 import { LIFECYCLE_CONFIG, formatDate, DEPTH_COLORS, DEPTH_BARS } from '../ui/threadUtils';
 
 export interface Comment {
@@ -105,6 +97,8 @@ export default function ThreadDetail({ postId, onClose }: ThreadDetailProps) {
   const [commentText, setCommentText] = useState('');
   const [commentLoading, setCommentLoading] = useState(false);
   const [upvoteLoading] = useState(false);
+  const [aiResult, setAiResult] = useState<{ enhancedAnswer: string; sources: any[] } | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
   const [showResolveForm, setShowResolveForm] = useState(false);
   const [resolveText, setResolveText] = useState('');
   const [resolveLoading, setResolveLoading] = useState(false);
@@ -230,6 +224,23 @@ export default function ThreadDetail({ postId, onClose }: ThreadDetailProps) {
   const handleCommentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     gate(doComment, 'Sign in to join the discussion.')();
+  };
+
+  const handleAiEnhance = async () => {
+    if (!post) return;
+    setAiLoading(true);
+    try {
+      const res = await api.post<{ enhancedAnswer: string; sources: any[] }>('/ai/co-pilot', {
+        query: `${post.title}\n\n${post.body || ''}`,
+        draftAnswer: commentText,
+      });
+      setAiResult(res.data);
+    } catch (e) {
+      setActionError(friendlyError(e, 'AI enhancement failed. Please make sure the AI provider is configured.'));
+      setTimeout(() => setActionError(null), 3000);
+    } finally {
+      setAiLoading(false);
+    }
   };
 
   const doResolve = async () => {
@@ -473,7 +484,7 @@ export default function ThreadDetail({ postId, onClose }: ThreadDetailProps) {
                       setTimeout(() => setActionError(null), 3000);
                     }
                   }}
-                  className={communityReportButton}
+                  className="w-8 h-8 rounded-xl bg-mist text-ink-soft hover:bg-red-50 hover:text-red-500 flex items-center justify-center transition-all"
                   title="Delete post"
                 >
                   <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.4">
@@ -509,12 +520,12 @@ export default function ThreadDetail({ postId, onClose }: ThreadDetailProps) {
                           <span className="text-xs text-ink-faint">·</span>
                           <span className="text-xs text-ink-faint">{formatDate(post.createdAt)}</span>
                           {isPrivileged && post.timeTrialStatus === 'pending' && (
-                            <span className={communityStatusReported}>
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 border border-red-200 text-red-600 text-[10px] font-semibold">
                               ⚡ Time-Trial · {post.timeTrialHoursRemaining}h left
                             </span>
                           )}
                           {isPrivileged && post.escalationStatus === 'escalated' && (
-                            <span className={communityStatusReported}>
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 border border-red-200 text-red-600 text-[10px] font-semibold">
                               ⚠ Escalated
                             </span>
                           )}
@@ -627,7 +638,7 @@ export default function ThreadDetail({ postId, onClose }: ThreadDetailProps) {
                       ) : (
                         <button
                           onClick={() => setShowReportForm(true)}
-                          className={communityReportHover}
+                          className="flex items-center gap-1 text-xs text-ink-faint hover:text-danger px-2 py-1.5 rounded-full hover:bg-red-50 transition-all"
                         >
                           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.4">
                             <path d="M6 2L10 10H2L6 2Z"/>
@@ -671,12 +682,10 @@ export default function ThreadDetail({ postId, onClose }: ThreadDetailProps) {
                     </span>
                   )}
                   {post.dna.difficulty && (
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
-                      post.dna.difficulty === 'Easy'
-                        ? communityDifficultyEasy
-                        : post.dna.difficulty === 'Moderate'
-                        ? communityDifficultyModerate
-                        : communityDifficultyHard
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
+                      post.dna.difficulty === 'Easy' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' :
+                      post.dna.difficulty === 'Moderate' ? 'bg-yellow-100 text-yellow-700 border border-yellow-200' :
+                      'bg-red-100 text-red-600 border border-red-200'
                     }`}>
                       {post.dna.difficulty}
                     </span>
@@ -808,12 +817,64 @@ export default function ThreadDetail({ postId, onClose }: ThreadDetailProps) {
                             )}
                           </div>
                         </div>
-
                         {/* Sticky footer — new comment */}
                         <form onSubmit={handleCommentSubmit} className="px-6 sm:px-8 pt-4 pb-6 border-t border-border bg-card flex-shrink-0">
                           <div className="flex gap-3 items-start">
                             <Avatar name={user?.name} size="sm" className="mt-1" />
                             <div className="flex-1 min-w-0">
+                              {aiResult && (
+                                 <div className="mb-3 p-3 rounded-xl border border-accent/20 bg-accent/5 space-y-2">
+                                   <div className="flex items-center justify-between">
+                                     <span className="text-xs font-semibold text-accent flex items-center gap-1">
+                                       <svg className="w-3.5 h-3.5 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                       </svg>
+                                       AI Co-pilot Suggestion
+                                     </span>
+                                     <div className="flex gap-1.5">
+                                       <button
+                                         type="button"
+                                         onClick={() => {
+                                           setCommentText(aiResult.enhancedAnswer);
+                                           setAiResult(null);
+                                         }}
+                                         className="px-2 py-0.5 rounded bg-accent text-white text-[11px] font-semibold hover:bg-accent/90 transition-colors"
+                                       >
+                                         Apply
+                                       </button>
+                                       <button
+                                         type="button"
+                                         onClick={() => setAiResult(null)}
+                                         className="px-2 py-0.5 rounded bg-mist text-ink text-[11px] font-medium hover:bg-mist/80 transition-colors"
+                                       >
+                                         Discard
+                                       </button>
+                                     </div>
+                                   </div>
+                                   <div className="text-xs text-ink bg-card rounded-lg p-2.5 border border-border/60 max-h-36 overflow-y-auto whitespace-pre-wrap">
+                                     {aiResult.enhancedAnswer}
+                                   </div>
+                                   {aiResult.sources && aiResult.sources.length > 0 && (
+                                     <div className="space-y-1">
+                                       <span className="text-[9px] font-semibold text-ink-faint uppercase tracking-wider">Sources referenced:</span>
+                                       <div className="flex flex-wrap gap-1">
+                                         {aiResult.sources.slice(0, 3).map((s: any) => (
+                                           <a
+                                             key={s.id}
+                                             href={s.url}
+                                             target="_blank"
+                                             rel="noopener noreferrer"
+                                             className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded bg-mist border border-border hover:border-accent/40 text-accent transition-colors font-medium max-w-[150px] truncate"
+                                             title={s.title}
+                                           >
+                                             {s.title}
+                                           </a>
+                                         ))}
+                                       </div>
+                                     </div>
+                                   )}
+                                 </div>
+                               )}
                               <textarea
                                 value={commentText}
                                 onChange={(e) => setCommentText(e.target.value)}
@@ -829,8 +890,32 @@ export default function ThreadDetail({ postId, onClose }: ThreadDetailProps) {
                                 placeholder="Add a comment…"
                                 className="w-full rounded-xl border border-border bg-mist px-4 py-3 text-sm text-ink placeholder-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/25 focus:bg-card resize-none transition-all"
                               />
-                              <div className="flex items-center justify-end mt-2">
-                                <Button type="submit" size="md" disabled={!commentText.trim() || commentLoading} loading={commentLoading}>
+                              <div className="flex items-center justify-end gap-2 mt-2">
+                                <button
+                                  type="button"
+                                  onClick={handleAiEnhance}
+                                  disabled={aiLoading || commentLoading}
+                                  className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold border border-accent/30 text-accent bg-accent/5 rounded-xl hover:bg-accent/10 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                                  title="Enhance your answer with AI retrieval context"
+                                >
+                                  {aiLoading ? (
+                                    <>
+                                      <svg className="animate-spin -ml-0.5 mr-1 h-3 w-3 text-accent" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                      </svg>
+                                      Refining…
+                                    </>
+                                  ) : (
+                                    <>
+                                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                      </svg>
+                                      AI Enhance
+                                    </>
+                                  )}
+                                </button>
+                                <Button type="submit" size="md" disabled={!commentText.trim() || commentLoading || aiLoading} loading={commentLoading}>
                                   Post
                                 </Button>
                               </div>

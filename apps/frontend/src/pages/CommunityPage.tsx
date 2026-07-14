@@ -9,22 +9,14 @@ import CommunityHealth from '../components/community/CommunityHealth';
 import api from '../utils/api';
 import { useAuth } from '../hooks/useAuth';
 import { useAuthGate } from '../context/AuthModalContext';
-import { useBatch } from '../context/BatchContext';
 import type { Post } from '../types/ui';
 
+// Modular dialog components
 import CreatePostDialog from '../components/community/CreatePostDialog';
-import { buttonCommunityAsk } from '../styles/style_config';
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function CommunityPage() {
   const { user } = useAuth();
-  // Active program from ProgramContext — used to scope the community feed
-  // to the chosen program so summership questions don't leak into
-  // winternship (and vice versa). Falls back to `undefined` when no
-  // program is selected yet, in which case we deliberately send NO
-  // batchId (matches previous behaviour while the picker takes over).
-  const { currentBatch } = useBatch();
-  const activeBatchId = currentBatch?._id ?? undefined;
   const gate = useAuthGate();
   const handleAskQuestion = gate(
     () => setShowCreate(true),
@@ -58,14 +50,6 @@ export default function CommunityPage() {
   // Backend uses cursor-based pagination. The previous version sent `?page=2`
   // which the backend silently ignored — so every "Load more" call returned
   // the FIRST batch and we got duplicates. Send the cursor instead.
-  //
-  // v1.69 — program scoping: always send the active program's batchId
-  // when the user is NOT on "All Programs Feed". Without it, the
-  // backend returns every post across every program because the
-  // community routes don't have the programScope middleware attached
-  // and the controllers fall back to "no batchId filter". The
-  // explicit-`undefined`-when-no-program-selected case preserves the
-  // legacy behaviour while the program picker takes over.
   const fetchPosts = useCallback((reset = false) => {
     if (reset) setLoading(true);
     else setLoadingMore(true);
@@ -74,7 +58,7 @@ export default function CommunityPage() {
         limit: 20,
         filter,
         sort,
-        batchId: showAllPrograms ? 'all' : activeBatchId,
+        batchId: showAllPrograms ? 'all' : undefined,
         ...(reset ? {} : nextCursor ? { cursor: nextCursor } : {}),
       },
     })
@@ -90,7 +74,7 @@ export default function CommunityPage() {
         setLoading(false);
         setLoadingMore(false);
       });
-  }, [filter, sort, nextCursor, showAllPrograms, activeBatchId]);
+  }, [filter, sort, nextCursor, showAllPrograms]);
 
   // Thread detail: when a post ID is set, show ThreadDetail instead of the list/dialog
   const handleOpenThread = useCallback((postId: string) => {
@@ -143,39 +127,16 @@ export default function CommunityPage() {
     }
   }, [posts, user, window.location.search]);
 
+  useEffect(() => {
+    fetchPosts(true);
+  }, [filter, sort, showAllPrograms]);
+
   // Reset cursor + posts when filter/sort changes so we paginate the
-  // newly-filtered set from the beginning. activeBatchId is also in this
-  // list — switching programs in the header must wipe the visible feed.
+  // newly-filtered set from the beginning.
   useEffect(() => {
     setNextCursor(null);
     setPosts([]);
-  }, [filter, sort, showAllPrograms, activeBatchId]);
-
-  // 2-D (MEDIUM) — previously this page had TWO effects both keyed on
-  // [filter, sort, ...] that each fired `fetchPosts(true)` in the same
-  // React commit, racing against each other. The earlier one (above)
-  // handled showAllPrograms, this one below handled the search-active
-  // branch. Merge them into one effect whose body is the union of
-  // both branches, removing the duplicate dispatch.
-  // When filter or sort changes — refresh posts (if no search active) or re-filter existing results
-  useEffect(() => {
-    if (search.trim()) {
-      // Search is active — re-apply filter/sort client-side to existing searchResults
-      setSearchResults(prev => {
-        if (!prev.length) return prev;
-        let filtered = [...prev];
-        if (filter === 'answered') filtered = filtered.filter(p => p.status === 'answered');
-        else if (filter === 'unanswered') filtered = filtered.filter(p => p.status === 'unanswered');
-        if (sort === 'newest') filtered.sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime());
-        else if (sort === 'oldest') filtered.sort((a, b) => new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime());
-        else if (sort === 'popular') filtered.sort((a, b) => ((b.upvotes?.length ?? 0)) - ((a.upvotes?.length ?? 0)));
-        else if (sort === 'discussed') filtered.sort((a, b) => ((b.comments?.length ?? 0)) - ((a.comments?.length ?? 0)));
-        return filtered;
-      });
-      return;
-    }
-    fetchPosts(true);
-  }, [filter, sort, showAllPrograms, activeBatchId]);
+  }, [filter, sort, showAllPrograms]);
 
   // ── Infinite scroll — fetch the next page when the sentinel enters view ────
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -193,13 +154,13 @@ export default function CommunityPage() {
     );
     observer.observe(sentinelRef.current);
     return () => observer.disconnect();
-  }, [hasMore, loading, loadingMore, nextCursor, filter, sort, showAllPrograms, activeBatchId]);
+  }, [hasMore, loading, loadingMore, nextCursor, filter, sort, showAllPrograms]);
 
   const runSemanticSearch = useCallback(async (q: string) => {
     setSearchLoading(true);
     try {
       const res = await api.get<{ results: Post[] }>('/community/search', {
-        params: { q, batchId: showAllPrograms ? 'all' : activeBatchId }
+        params: { q, batchId: showAllPrograms ? 'all' : undefined }
       });
       setSearchResults(res.data.results || []);
     } catch (err) {
@@ -208,7 +169,7 @@ export default function CommunityPage() {
     } finally {
       setSearchLoading(false);
     }
-  }, [showAllPrograms, activeBatchId]);
+  }, [showAllPrograms]);
 
   // v2 — search is now Enter-only. We still keep the trimmed query handy
   // for downstream effects (filter/sort re-apply on existing results).
@@ -229,6 +190,26 @@ export default function CommunityPage() {
       setTimeout(() => setToast(''), 2500);
     }
   }, [loading, syncing]);
+
+  // When filter or sort changes — refresh posts (if no search active) or re-filter existing results
+  useEffect(() => {
+    if (search.trim()) {
+      // Search is active — re-apply filter/sort client-side to existing searchResults
+      setSearchResults(prev => {
+        if (!prev.length) return prev;
+        let filtered = [...prev];
+        if (filter === 'answered') filtered = filtered.filter(p => p.status === 'answered');
+        else if (filter === 'unanswered') filtered = filtered.filter(p => p.status === 'unanswered');
+        if (sort === 'newest') filtered.sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime());
+        else if (sort === 'oldest') filtered.sort((a, b) => new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime());
+        else if (sort === 'popular') filtered.sort((a, b) => ((b.upvotes?.length ?? 0)) - ((a.upvotes?.length ?? 0)));
+        else if (sort === 'discussed') filtered.sort((a, b) => ((b.comments?.length ?? 0)) - ((a.comments?.length ?? 0)));
+        return filtered;
+      });
+      return;
+    }
+    fetchPosts(true);
+  }, [filter, sort]);
 
   const handlePostCreated = (newPost: Post) => {
     setPosts((prev) => [newPost, ...prev]);
@@ -277,7 +258,7 @@ export default function CommunityPage() {
     <div className="min-h-screen bg-bg grid-bg relative">
       <CommunityDoodles />
 
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 pt-20 sm:pt-24 pb-8 sm:pb-10 relative z-10">
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 pt-28 sm:pt-32 pb-8 sm:pb-10 relative z-10">
         {/* v1.69 — Phase 12: persistent "browsing program" pill
             so the user always knows which program's community
             feed they're scrolling. The pill reads from
@@ -305,7 +286,7 @@ export default function CommunityPage() {
             <button
               id="ask-question-btn"
               onClick={handleAskQuestion}
-              className={buttonCommunityAsk}
+              className="btn-community-ask"
               aria-label="Ask a question"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -469,7 +450,7 @@ export default function CommunityPage() {
                 key={post._id}
                 post={post}
                 onClick={(p) => handleOpenThread(p._id)}
-                currentUserId={user?._id}
+                currentUserId={user?._id || (user?.id as string | undefined)}
               />
             ))}
           </div>
@@ -500,13 +481,9 @@ export default function CommunityPage() {
 
       <Footer />
 
-      {/* Thread detail — full-page overlay replaces the list view.
-          z-30 (below the navbar's z-50) so the navbar floats on top of
-          the page-cover background. The inner modal at z-[60] escapes
-          this stacking context via its higher z-index and sits above
-          the navbar. */}
+      {/* Thread detail — full-page overlay replaces the list view */}
       {selectedPostId && (
-        <div className="fixed inset-0 z-30 bg-bg overflow-y-auto">
+        <div className="fixed inset-0 z-40 bg-bg overflow-y-auto">
           <ThreadDetail
             postId={selectedPostId}
             onClose={handleCloseDetail}

@@ -1,13 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import logoWide from '../../assets/logo-wide.png';
-import { topbarFooter } from '../../styles/style_config';
 
 export default function Footer({ branding }: { branding?: { logoText?: string; footerText?: string } } = {}) {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className={topbarFooter}>
+    <footer className="w-full border-t border-border bg-bg/50 backdrop-blur-[10px] mt-16">
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-10 text-center">
 
         {/* Brand */}

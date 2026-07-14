@@ -68,13 +68,7 @@ export function useReadingTracker(
   const [dwellMs, setDwellMs] = useState(0);
 
   // Refs let the unload handler read fresh values without re-binding.
-  const stateRef = useRef({ scrollPct: 0, dwellMs: 0 });
-  // 1.7 (LOW) — previously `stateRef.current.sent` lived on a useRef
-  // that React re-initialized on every remount, so opening the same
-  // FAQ twice in a session could re-arm the gate and fire a second
-  // trackPublicReading beacon. Track sent faqIds in a session-scoped
-  // Set so the gate survives PublicFaqDetail remounts.
-  const sentFaqIdsRef = useRef<Set<string>>(new Set());
+  const stateRef = useRef({ scrollPct: 0, dwellMs: 0, sent: false });
   const mountedAtRef = useRef<number>(Date.now());
 
   // Throttle scroll updates to rAF — avoids per-scroll-event re-renders.
@@ -124,17 +118,14 @@ export function useReadingTracker(
     };
   }, [faqId, contentRef]);
 
-  // Flush on unload / tab hide. We track only once per faqId (per session).
+  // Flush on unload / tab hide. We track only once per faqId.
   useEffect(() => {
     if (!faqId || !batchId) return;
     const flush = () => {
-      if (!faqId) return;
-      // 1.7 — gate is keyed by faqId so re-mounting the same FAQ does
-      // not re-arm it. Also skip the network call when dwell was < 2s
-      // AND scroll was < 5% (noise filter from before).
-      if (sentFaqIdsRef.current.has(faqId)) return;
+      if (stateRef.current.sent) return;
+      // Skip noise: < 2s reads with < 5% scroll
       if (stateRef.current.dwellMs < 2000 && stateRef.current.scrollPct < 0.05) return;
-      sentFaqIdsRef.current.add(faqId);
+      stateRef.current.sent = true;
       trackPublicReading(faqId, sessionId, batchId, {
         dwellMs: stateRef.current.dwellMs,
         scrollPct: stateRef.current.scrollPct,

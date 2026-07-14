@@ -131,12 +131,7 @@ export default function GuidedTour() {
     if (tourActive) {
       const stepRoute = steps[currentStep].route;
       if (stepRoute && location.pathname !== stepRoute) {
-        // 1.11 (LOW) — use replace:true so the tour doesn't bloat
-        // history.length by one entry per step. Same-pathname navigates
-        // are already short-circuited by the guard above, but if a
-        // future step ever points at a different route this also
-        // avoids polluting the back stack.
-        navigate(stepRoute, { replace: true });
+        navigate(stepRoute);
       }
     }
   }, [tourActive, currentStep, location.pathname, navigate]);

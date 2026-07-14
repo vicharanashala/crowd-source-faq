@@ -19,8 +19,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { motion } from 'framer-motion'
-import { adminBtnGhost, adminBtnPrimary } from '../../styles/style_config';
+import { motion } from 'framer-motion';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import adminApi from '../utils/adminApi';
 import { useBatch } from '../../context/BatchContext';
@@ -142,9 +141,9 @@ export default function AdminProgramDetail(): React.ReactElement {
   }
   if (error || !info) {
     return (
-      <div className="rounded-2xl border border-danger/30 bg-danger-light p-6 text-sm text-danger">
+      <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700">
         <p className="font-medium mb-1">{error ?? 'Program not found.'}</p>
-        <p className="text-xs text-danger/70 mb-2">
+        <p className="text-xs text-rose-600 mb-2">
           Tried id lookup, slug lookup, and the in-memory program list — none matched.
         </p>
         <Link to="/admin/programs" className="underline">Back to Programs Hub</Link>
@@ -175,10 +174,10 @@ export default function AdminProgramDetail(): React.ReactElement {
                 </span>
               )}
               <span className={`text-[10px] font-medium uppercase tracking-wider px-1.5 py-0.5 rounded ${
-                info.status === 'active'    ? 'bg-accent/15 text-accent' :
+                info.status === 'active'    ? 'bg-emerald-100 text-emerald-700' :
                 info.status === 'draft'     ? 'bg-mist text-ink-soft' :
-                info.status === 'completed' ? 'bg-warning/15 text-warning' :
-                                              'bg-danger/15 text-danger'
+                info.status === 'completed' ? 'bg-amber-100 text-amber-700' :
+                                              'bg-rose-100 text-rose-700'
               }`}>
                 {info.status}
               </span>
@@ -336,7 +335,7 @@ function SettingsTab({ programId }: { programId: string }) {
       </p>
       <Link
         to={`/admin/programs/${programId}/settings`}
-        className={`${adminBtnPrimary} text-sm`}
+        className="admin-btn-primary text-sm"
       >
         Open settings editor →
       </Link>
@@ -353,7 +352,7 @@ function CoursesTab({ programId: _programId }: { programId: string }) {
       </p>
       <Link
         to="/admin/courses"
-        className={`${adminBtnPrimary} text-sm`}
+        className="admin-btn-primary text-sm"
       >
         Open courses →
       </Link>
@@ -372,7 +371,7 @@ function MembersTab({ programId: _programId }: { programId: string }) {
       </p>
       <Link
         to="/admin/programs"
-        className={`${adminBtnGhost} text-sm`}
+        className="admin-btn-ghost text-sm"
       >
         View full roster
       </Link>
@@ -394,7 +393,7 @@ function AiTab({ programId: _programId }: { programId: string }) {
       </p>
       <a
         href={`/admin/ai-config?batchId=${_programId}`}
-        className={`${adminBtnPrimary} text-sm`}
+        className="admin-btn-primary text-sm"
       >
         Open AI config →
       </a>

@@ -4,19 +4,6 @@ import { useAuth } from '../../hooks/useAuth';
 import type { Post } from '../../types/ui';
 import { buildGcsTransformedUrl } from '../../utils/gcsTransform';
 import { idMatches } from '../../utils/idMatch';
-import {
-  communityAdminApproved,
-  communityAiValidated,
-  communityDifficultyEasy,
-  communityDifficultyHard,
-  communityDifficultyModerate,
-  communityFirstResponder,
-  communityPillBase,
-  communityStatusReported,
-  communityStatusOpen,
-  surfaceCardFlat,
-  surfaceMuted,
-} from '../../styles/style_config';
 
 const formatDate = (dateStr: string): string => {
   const d = new Date(dateStr);
@@ -25,12 +12,12 @@ const formatDate = (dateStr: string): string => {
 
 // ─── Lifecycle chip config ────────────────────────────────────────────────────
 const LIFECYCLE_CONFIG: Record<string, { label: string; cls: string }> = {
-  open:               { label: 'Open',              cls: 'bg-mist text-ink-soft border-border' },
-  answered:           { label: 'Solved',            cls: 'bg-accent/10 text-accent border-accent/30' },
-  community_accepted: { label: 'Community ✓',       cls: 'bg-accent/10 text-accent border-accent/30' },
-  ai_validated:       { label: 'AI Validated',      cls: communityAiValidated },
-  admin_accepted:     { label: 'Admin Approved',    cls: communityAdminApproved },
-  converted_to_faq:   { label: 'Official FAQ',      cls: 'bg-mist text-ink-soft border-border' },
+  open:               { label: 'Open',              cls: 'bg-gray-100 text-gray-600 border-gray-200' },
+  answered:           { label: 'Solved',            cls: 'bg-blue-50 text-blue-700 border-blue-200' },
+  community_accepted: { label: 'Community ✓',       cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  ai_validated:       { label: 'AI Validated',      cls: 'bg-purple-50 text-purple-700 border-purple-200' },
+  admin_accepted:     { label: 'Admin Approved',    cls: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+  converted_to_faq:   { label: 'Official FAQ',      cls: 'bg-stone-100 text-stone-700 border-stone-300' },
 };
 
 interface CommunityPostCardProps {
@@ -55,11 +42,11 @@ export default function CommunityPostCard({ post, onClick, currentUserId, onTogg
   const showAwardedTrial = isPrivileged && post.timeTrialStatus === 'awarded';
   const showEscalated = isPrivileged && post.escalationStatus === 'escalated';
 
-  // Card border color — accent for awarded, danger-striped for escalated
+  // Card border color — gold for awarded, red-striped for escalated
   const cardBorder = showAwardedTrial
-    ? 'border-l-4 border-l-warning'
+    ? 'border-l-4 border-l-yellow-400'
     : showEscalated
-    ? 'border-l-4 border-l-danger'
+    ? 'border-l-4 border-l-red-500'
     : '';
 
   return (
@@ -147,12 +134,12 @@ export default function CommunityPostCard({ post, onClick, currentUserId, onTogg
 
         <div className="mt-2 flex items-center gap-2 flex-wrap">
           {showAwardedTrial && (
-            <span className={communityFirstResponder + ' text-xs'}>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-50 border border-yellow-300 text-yellow-700 text-xs font-semibold">
               🏅 First Responder Won
             </span>
           )}
           {showEscalated && (
-            <span className={communityStatusReported}>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 border border-red-200 text-red-600 text-xs font-semibold">
               ⚠ Escalated
             </span>
           )}
@@ -210,12 +197,10 @@ export default function CommunityPostCard({ post, onClick, currentUserId, onTogg
               <span className="text-[10px] text-ink-faint">+{post.dna.tools.length - 3}</span>
             )}
             {post.dna.difficulty && (
-              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
-                post.dna.difficulty === 'Easy'
-                  ? communityDifficultyEasy
-                  : post.dna.difficulty === 'Moderate'
-                  ? communityDifficultyModerate
-                  : communityDifficultyHard
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                post.dna.difficulty === 'Easy' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' :
+                post.dna.difficulty === 'Moderate' ? 'bg-yellow-50 text-yellow-600 border border-yellow-200' :
+                'bg-red-50 text-red-500 border border-red-200'
               }`}>
                 {post.dna.difficulty}
               </span>

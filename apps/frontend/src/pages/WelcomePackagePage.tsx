@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import OrientationTab from '../components/welcome/OrientationTab';
@@ -14,7 +14,6 @@ import api from '../utils/api';
 import { useAuth } from '../hooks/useAuth';
 import { useProgram } from '../context/ProgramContext';
 import { HomeDoodles } from '../components/ui/PageDoodles';
-import { spatialNavPill } from '../styles/style_config';
 
 export default function WelcomePackagePage() {
   const { user } = useAuth();
@@ -60,26 +59,15 @@ export default function WelcomePackagePage() {
   // conditional layout. We pass the active program's batchId
   // explicitly so the backend scopes correctly even on first mount
   // before the localStorage interceptor has populated.
-  //
-  // 1.2 (MEDIUM) — Previously this effect listed `activeTab` in its
-  // dep array. Every tab switch re-fetched orientation + resources
-  // even though those APIs are program-scoped, not tab-scoped. Worse,
-  // a late-arriving orientation response could clobber the resources
-  // section's loaded flag via the stale closure. Fix:
-  //   (a) drop `activeTab` from deps (program is the only meaningful input)
-  //   (b) use a fetch-id ref so the response from a superseded (cancelled)
-  //       fetch can never overwrite the newer one
-  const lastFetchIdRef = useRef(0);
   useEffect(() => {
     let cancelled = false;
-    const fetchId = ++lastFetchIdRef.current;
     const params = currentProgram?._id ? { batchId: currentProgram._id } : {};
     Promise.all([
       api.get('/welcome/orientation', { params }).catch(() => ({ data: null })),
       api.get('/welcome/resources', { params }).catch(() => ({ data: [] })),
     ])
       .then(([orientationRes, resourcesRes]) => {
-        if (cancelled || fetchId !== lastFetchIdRef.current) return;
+        if (cancelled) return;
         const orientation = orientationRes?.data;
         const resources = resourcesRes?.data || [];
         setSections({
@@ -89,11 +77,11 @@ export default function WelcomePackagePage() {
         });
       })
       .catch(() => {
-        if (cancelled || fetchId !== lastFetchIdRef.current) return;
+        if (cancelled) return;
         setSections({ loaded: false, hasOrientation: false, hasResources: false });
       });
     return () => { cancelled = true; };
-  }, [currentProgram?._id]);
+  }, [currentProgram?._id, activeTab]);
 
   const tabs = (() => {
     if (!user?.orientationCompleted) {
@@ -135,7 +123,7 @@ export default function WelcomePackagePage() {
         <HomeDoodles />
       </div>
 
-      <div className="pt-20 sm:pt-24 pb-20 px-4 sm:px-6 max-w-[1200px] mx-auto relative z-10">
+      <div className="pt-28 sm:pt-32 pb-20 px-4 sm:px-6 max-w-[1200px] mx-auto relative z-10">
 
         <div className="mb-8">
           <Link to="/" className="inline-flex items-center gap-2 text-sm font-medium text-ink-soft hover:text-ink transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-lg px-3 py-1.5 -ml-3">
@@ -164,8 +152,9 @@ export default function WelcomePackagePage() {
           </motion.p>
         </div>
 
+        {/* Floating Command Palette Tab Navigation */}
         <div className="flex justify-center mb-12">
-          <div className={`${spatialNavPill} flex p-1.5 rounded-full relative bg-[rgb(var(--bg-primary-rgb))]/30 border border-[rgb(var(--border-rgb))]/10 shadow-[inset_0_2px_10px_rgba(0,0,0,0.05)]`}>
+          <div className="spatial-nav-pill flex p-1.5 rounded-full relative bg-[rgb(var(--bg-primary-rgb))]/30 border border-[rgb(var(--border-rgb))]/10 shadow-[inset_0_2px_10px_rgba(0,0,0,0.05)]">
             {tabs.map((tab) => (
               <button
                 key={tab.id}

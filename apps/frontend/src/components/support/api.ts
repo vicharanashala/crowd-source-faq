@@ -195,31 +195,9 @@ export async function fetchGoldenHistory(
  * someone else's ticket). The in-app bell deep-links here when an
  * admin resolves a Golden ticket — the dedicated page is the only
  * view that renders `goldenResolutions[]` for the user.
- *
- * v1.74 — also returns the discussion thread + the 7-day window
- * state so the UI can render the chat without a second round-trip.
  */
 export async function getMyGoldenTicket(id: string): Promise<GoldenTicket> {
   const res = await api.get<{ ticket: GoldenTicket }>(`/support/golden/${id}`);
-  return res.data.ticket;
-}
-
-/**
- * POST /api/support/golden/:id/discussion (v1.74)
- *
- * Both the ticket owner and any admin/moderator can post a reply
- * inside the 7-day discussion window. Caller's auth.role decides
- * the bubble style. No SP charged. Returns the updated ticket
- * (with the new entry appended) so the UI can refresh in place.
- */
-export async function postGoldenDiscussion(
-  id: string,
-  text: string,
-): Promise<GoldenTicket> {
-  const res = await api.post<{ ok: boolean; noSpCharged: boolean; ticket: GoldenTicket }>(
-    `/support/golden/${id}/discussion`,
-    { text },
-  );
   return res.data.ticket;
 }
 

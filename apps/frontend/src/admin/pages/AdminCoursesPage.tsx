@@ -12,8 +12,7 @@
  */
 
 import React, { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { motion, AnimatePresence } from 'framer-motion'
-import { adminBtnGhost, adminBtnPrimary, adminInput, adminSelect } from '../../styles/style_config';
+import { motion, AnimatePresence } from 'framer-motion';
 import adminApi from '../utils/adminApi';
 import { useBatch } from '../../context/BatchContext';
 import type { Course } from '../../types/course';
@@ -184,7 +183,7 @@ export default function AdminCoursesPage(): React.ReactElement {
           <button
             type="button"
             onClick={startCreate}
-            className={`${adminBtnPrimary}`}
+            className="admin-btn-primary"
           >
             + Create course
           </button>
@@ -230,7 +229,7 @@ export default function AdminCoursesPage(): React.ReactElement {
               <select
                 value={form.batchId}
                 onChange={(e) => setForm({ ...form, batchId: e.target.value })}
-                className={`${adminSelect} w-full`}
+                className="admin-select w-full"
                 required
                 disabled={!!editing}
               >
@@ -245,7 +244,7 @@ export default function AdminCoursesPage(): React.ReactElement {
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder="e.g. Web Development Foundations"
-                className={`${adminInput} w-full`}
+                className="admin-input w-full"
                 required
               />
             </div>
@@ -255,7 +254,7 @@ export default function AdminCoursesPage(): React.ReactElement {
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
                 rows={2}
-                className={`${adminInput} w-full resize-none`}
+                className="admin-input w-full resize-none"
                 placeholder="What this course covers, who it's for, prerequisites."
               />
             </div>
@@ -265,7 +264,7 @@ export default function AdminCoursesPage(): React.ReactElement {
                 type="number"
                 value={form.order}
                 onChange={(e) => setForm({ ...form, order: Number(e.target.value) || 0 })}
-                className={`${adminInput} w-full`}
+                className="admin-input w-full"
               />
             </div>
             <div>
@@ -276,13 +275,13 @@ export default function AdminCoursesPage(): React.ReactElement {
                 onChange={(e) => setForm({ ...form, icon: e.target.value })}
                 maxLength={16}
                 placeholder="📚"
-                className={`${adminInput} w-full`}
+                className="admin-input w-full"
               />
             </div>
           </div>
           <div className="flex items-center justify-end gap-2 pt-2">
-            <button type="button" onClick={cancel} className={`${adminBtnGhost}`}>Cancel</button>
-            <button type="submit" disabled={saving} className={`${adminBtnPrimary}`}>
+            <button type="button" onClick={cancel} className="admin-btn-ghost">Cancel</button>
+            <button type="submit" disabled={saving} className="admin-btn-primary">
               {saving ? 'Saving…' : editing ? 'Save changes' : 'Create course'}
             </button>
           </div>

@@ -5,8 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        For **security issues**, do NOT open a public issue — email the maintainers directly
-        (see `.github/ISSUE_TEMPLATE/config.yml` for the private advisory link).
+        For **security issues**, do NOT open a public issue — email the maintainers directly.
 
   - type: dropdown
     id: area
@@ -14,15 +13,14 @@ body:
       label: Area
       description: Which part of the system is affected?
       options:
-        - Backend (Express / Mongoose)
-        - Frontend (React / Vite)
-        - Admin / Train tab (`/admin/*`)
-        - Community (`/community` — posts, comments, auto-answer)
-        - Search (hybrid text retrieval, training stats)
-        - Auth / middleware / samagama.in bridge
-        - Crons / schedulers / embedding-warm
-        - Observability (Sentry / logging / Discord alerts)
-        - Infrastructure / Docker / CI workflows
+        - Backend (API / Express)
+        - Frontend (React / UI)
+        - Pipeline — auto-answer
+        - Pipeline — FAQ audit
+        - Pipeline — Zoom ingestion
+        - Search (hybrid vector + keyword)
+        - Auth / middleware
+        - Infrastructure / Docker
         - Other
     validations:
       required: true
@@ -31,8 +29,8 @@ body:
     id: environment
     attributes:
       label: Environment
-      description: "Node version, OS, branch name or commit SHA, deployed commit (if known)"
-      placeholder: "Node 22.x, Ubuntu 22.04, main @ 3458d58, deployed v1.71"
+      description: "Node version, OS, branch name or commit SHA"
+      placeholder: "Node 20.x, Ubuntu 22.04, main @ a2f1f7a"
     validations:
       required: true
 
@@ -42,7 +40,7 @@ body:
       label: Steps to reproduce
       description: Minimal steps that reliably trigger the bug
       placeholder: |
-        1. POST /api/community with body { "title": "...", "body": "...", "tags": ["..."] }
+        1. POST /api/search with body { "query": "..." }
         2. ...
         3. See error
     validations:
@@ -66,7 +64,7 @@ body:
     id: logs
     attributes:
       label: Relevant logs or error output
-      description: Paste backend logs (apps/backend/main_log.txt), browser console errors, or API responses
+      description: Paste backend logs, browser console errors, or API responses
       render: shell
 
   - type: textarea

@@ -407,21 +407,7 @@ export function friendlyError(err: unknown, fallback: string): string {
   // (e.g. "field X with value Y failed validation because Z"). Bumped to
   // 500 to match the backend's typical validation payload size.
   if (status && status >= 400 && status < 500) {
-    const data = (err as { response?: { data?: { message?: string; errors?: Array<{ field?: string; message?: string }> } } })?.response?.data;
-    // Zod validation errors come with a list of `errors: [{ field, message }]`
-    // — fold them into a single human-readable line so users see the actual
-    // field reason instead of a generic "Validation error".
-    const detailErrors = Array.isArray(data?.errors) ? data!.errors : [];
-    if (detailErrors.length > 0) {
-      const lines = detailErrors
-        .filter((e) => typeof e?.message === 'string' && e.message.length > 0)
-        .map((e) => {
-          const field = e?.field && e.field.length > 0 ? `${e.field}: ` : '';
-          return `${field}${e!.message}`;
-        });
-      if (lines.length > 0) return lines.join('; ');
-    }
-    const msg = data?.message;
+    const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
     if (typeof msg === 'string' && msg.length > 0 && msg.length < 500) {
       const lower = msg.toLowerCase();
       if (

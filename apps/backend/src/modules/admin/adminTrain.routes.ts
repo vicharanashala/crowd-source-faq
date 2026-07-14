@@ -20,14 +20,12 @@ import { promises as fs } from 'fs';
 import { Types } from 'mongoose';
 import { protect } from '../../middleware/auth.js';
 import { authorize } from '../../middleware/authShared.js';
-import { adminWriteLimiter } from '../../utils/auth/rateLimit.js';
 import { getBatchKnowledgeStats, type BatchKnowledgeStats } from '../../services/trainAggregator.js';
 import { fetchContext } from '../../services/contextRetriever.js';
 import { fetchAndExtract } from '../../services/webFetcher.js';
 import { addDocumentJob } from '../../utils/jobs/documentQueue.js';
 import { mimeToFileType } from '../../utils/documentExtractor.js';
 import ProgramKnowledge from '../../models/ProgramKnowledge.js';
-import Batch from '../../modules/program/batch.model.js';
 import WebPage from '../../models/WebPage.js';
 import { logger } from '../../utils/http/logger.js';
 
@@ -40,15 +38,6 @@ const UPLOAD_DIR = path.resolve(process.cwd(), 'apps/backend/uploads/documents')
 const router = Router();
 router.use(protect);
 router.use(authorize('admin', 'ai_moderator', 'moderator'));
-// S5-H2 (HIGH) fix: previously the train routes had no rate limiter.
-// A compromised admin JWT could fire `bulk-urls` repeatedly
-// (50 outbound HTTP calls per request, no rate limit) — SSRF
-// amplifier + disk fill + AI quota drain. Apply the project-wide
-// adminWriteLimiter (30/min per identity). Read-only train routes
-// (`/stats`, `/program-knowledge`, `/search`) skip the limiter.
-router.post('/train/bulk-urls', adminWriteLimiter);
-router.post('/train/bulk-documents', adminWriteLimiter);
-router.post('/train/promote-cross-program', adminWriteLimiter);
 
 // ─── A1 + A2: aggregator ────────────────────────────────────────────────────
 
@@ -64,60 +53,6 @@ router.get('/train/stats', async (req, res) => {
 });
 
 // ─── A4: search-test ────────────────────────────────────────────────────────
-
-// ─── List ProgramKnowledge rows (for the promote panel's search/pick) ─────
-// v1 — added when the promote panel needed a real source-row picker.
-// MongoDB $text search against the existing weighted index on
-// (question:10, keywords:5, answer:2). Empty search returns the most
-// recent rows (sort by createdAt desc) so the UI always shows something.
-const MAX_PROGRAM_KNOWLEDGE_LIMIT = 50;
-router.get('/train/program-knowledge', async (req, res) => {
-  try {
-    const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';
-    const requestedLimit = Number(req.query.limit);
-    const limit = Number.isFinite(requestedLimit) && requestedLimit > 0
-      ? Math.min(Math.trunc(requestedLimit), MAX_PROGRAM_KNOWLEDGE_LIMIT)
-      : 20;
-    const baseFilter: Record<string, unknown> = { deletedAt: null };
-    if (search.length > 0) {
-      // Escape user input for $text — Mongo's $text search treats query
-      // as space-separated AND terms, and supports quoted phrase matches.
-      // S5-M2 (MEDIUM) fix: previously this stripped only `-`, `!`, `"`,
-      // but `$text` also treats `*` (prefix wildcard), `(`/`)` (grouping),
-      // `\` (escape), `<`/`>` (less/greater than — not used by $text but
-      // cheap to filter), and `;` (URL boundary) as potential injection
-      // vectors. Strip them all to whitespace + collapse. Keeps the user
-      // query useful without surfacing any $text metacharacter.
-      const safe = search.replace(/[!\-\-*()\\<>;]/g, ' ').replace(/\s+/g, ' ').trim();
-      if (safe.length > 0) baseFilter.$text = { $search: safe };
-    }
-    const rows = await ProgramKnowledge.find(baseFilter)
-      .sort(search.length > 0 ? { score: { $meta: 'textScore' } } : { createdAt: -1 })
-      .limit(limit)
-      .select('_id question answer seedSource batchId confidenceBoost')
-      .lean();
-    // Look up batch names in one query for the UI label.
-    const batchIds = Array.from(new Set(rows.map((r) => String(r.batchId))));
-    const batches = batchIds.length > 0
-      ? await Batch.find({ _id: { $in: batchIds } }).select('_id name').lean()
-      : [];
-    const batchNameById = new Map(batches.map((b) => [String(b._id), b.name ?? '(unnamed)']));
-    res.json({
-      rows: rows.map((r) => ({
-        id: String(r._id),
-        question: r.question ?? '',
-        answer: r.answer ?? '',
-        seedSource: r.seedSource ?? 'admin_seeded',
-        batchId: String(r.batchId),
-        batchName: batchNameById.get(String(r.batchId)) ?? '(unnamed)',
-        confidenceBoost: r.confidenceBoost ?? 1.0,
-      })),
-    });
-  } catch (err) {
-    logger.error(`[adminTrain] program-knowledge list failed: ${(err as Error).message}`);
-    res.status(500).json({ message: 'Failed to list program knowledge' });
-  }
-});
 
 router.post('/train/search', async (req, res) => {
   const { question, batchId, topK } = (req.body ?? {}) as {
@@ -245,13 +180,7 @@ router.post('/train/bulk-documents', async (req, res) => {
     return;
   }
 
-  // S5-H1 (HIGH) fix: previously the response was typed as
-  // `{ title, documentId }` but the value was the BULL JOB id, not
-  // a Document document id. UI consumers that tracked uploaded docs
-  // by id would silently break. Now we return BOTH fields explicitly
-  // and keep the types tight. The placeholder documentId is
-  // overwritten by the worker when the actual doc record is created.
-  const accepted: Array<{ title: string; jobId: string; documentId: string | null }> = [];
+  const accepted: Array<{ title: string; documentId: string }> = [];
   const failed: Array<{ title: string; error: string }> = [];
 
   for (const doc of documents) {
@@ -291,12 +220,7 @@ router.post('/train/bulk-documents', async (req, res) => {
         uploaderUserId,
         batchId,
       });
-      // S5-H1: return both `jobId` (the BullMQ job id, used to poll
-      // status) and `documentId` (the placeholder; will be replaced
-      // by the worker with the real Document._id once OCR+AI completes).
-      // Until the worker writes back, documentId is null — UI must
-      // check both.
-      accepted.push({ title, jobId, documentId: null });
+      accepted.push({ title, documentId: jobId });
     } catch (err) {
       failed.push({ title: doc.title ?? '(untitled)', error: (err as Error).message });
     }
@@ -310,7 +234,7 @@ router.post('/train/bulk-documents', async (req, res) => {
 
 // ─── B3: cross-program knowledge promotion ────────────────────────────────
 
-router.post('/train/promote-cross-program', async (req, res): Promise<void> => {
+router.post('/train/promote-cross-program', async (req, res) => {
   const { programKnowledgeId, targetBatchIds } = (req.body ?? {}) as {
     programKnowledgeId?: string;
     targetBatchIds?: string[];
@@ -320,23 +244,9 @@ router.post('/train/promote-cross-program', async (req, res): Promise<void> => {
     return;
   }
 
-  // S5-C1 (CRITICAL) fix: source-row scope check. The previous code
-  // let any admin promote ANY ProgramKnowledge row (regardless of
-  // which program the source lives in) to ANY target batch. Now we
-  // require the source's batchId to be in the caller's adminPrograms
-  // — unless the caller is a global admin (no adminPrograms set).
-  // Same logic used by the other admin write paths in the file.
-  const userPrograms: string[] = ((req as any).user?.adminPrograms ?? []) as string[];
-  const isGlobalAdmin = userPrograms.length === 0 && (req as any).user?.role === 'admin';
-
   const source = await ProgramKnowledge.findById(programKnowledgeId).lean();
   if (!source) {
     res.status(404).json({ message: 'Source ProgramKnowledge row not found' });
-    return;
-  }
-  const sourceBatchId = source.batchId ? String(source.batchId) : null;
-  if (sourceBatchId && !isGlobalAdmin && !userPrograms.includes(sourceBatchId)) {
-    res.status(403).json({ message: 'source ProgramKnowledge is outside your admin programs' });
     return;
   }
 
@@ -345,35 +255,14 @@ router.post('/train/promote-cross-program', async (req, res): Promise<void> => {
   const validIds = targetBatchIds.filter((id) => Types.ObjectId.isValid(id));
   const skipped: string[] = targetBatchIds.filter((id) => !Types.ObjectId.isValid(id));
 
-  // S5-C2 (CRITICAL) fix: target-batch scope check. Previously the
-  // route used `validIds` (all well-formed ObjectIds) as-is. Now we
-  // additionally require each target to be an `isActive: true`
-  // batch — preventing resurrection of knowledge into soft-deleted
-  // programs and enforcing per-program scope.
-  const existingBatches = await Batch.find({
-    _id: { $in: validIds.map((id) => new Types.ObjectId(id)) },
-    isActive: true,
-  })
-    .select('_id')
-    .lean();
-  const activeBatchIds = new Set(existingBatches.map((b) => String(b._id)));
-  const eligibleIds = validIds.filter((id) => activeBatchIds.has(id));
-  const skippedInactive = validIds.filter((id) => !activeBatchIds.has(id));
-
   // Idempotent: findOneAndUpdate with upsert on (batchId, question).
   // Re-running promotes no duplicates — existing rows are matched and
   // left alone (no $set), only new batch+question combos are inserted.
   const promoted: Array<{ batchId: string; id: string }> = [];
   const skippedDup: string[] = [];
-  for (const batchId of eligibleIds) {
+  for (const batchId of validIds) {
     const batchObjectId = new Types.ObjectId(batchId);
-    // S5-C1: additionally check that each target is within the
-    // caller's adminPrograms (unless global admin).
-    if (!isGlobalAdmin && !userPrograms.includes(batchId)) {
-      skippedInactive.push(batchId);
-      continue;
-    }
-    const upsertResult = await ProgramKnowledge.findOneAndUpdate(
+    const result = await ProgramKnowledge.findOneAndUpdate(
       { batchId: batchObjectId, question: source.question },
       {
         $setOnInsert: {
@@ -391,33 +280,21 @@ router.post('/train/promote-cross-program', async (req, res): Promise<void> => {
           deletedAt: null,
         },
       },
-      { upsert: true, new: true, setDefaultsOnInsert: true, includeResultMetadata: true },
-    );
-    // S5-M3 (MEDIUM) fix: previously the dedup signal was
-    // `result._id !== source._id` — which is wrong (a separate
-    // pre-existing row could match (batchId, question) by coincidence
-    // and have a different _id, but it's still a duplicate). Now we
-    // check `lastErrorObject.upserted` (set iff the upsert was a fresh
-    // insert; absent iff it matched an existing row). UI gets a clear
-    // "wasDuplicate: true" so admins can tell apart "I just promoted
-    // 3 new rows" from "I tried to promote 5, 3 were duplicates".
-    const wasInsert = (upsertResult as any)?.lastErrorObject?.upserted != null;
-    if (upsertResult && wasInsert) {
-      promoted.push({ batchId, id: String((upsertResult as any)._id) });
+      { upsert: true, new: true, setDefaultsOnInsert: true },
+    ).lean();
+    // If the upsert matched an existing row, _id equals source._id —
+    // skip counting it as a "promoted" row.
+    if (result && String(result._id) !== String(source._id)) {
+      promoted.push({ batchId, id: String(result._id) });
     } else {
       skippedDup.push(batchId);
     }
   }
 
   logger.info(
-    `[adminTrain] promote-cross-program: source=${programKnowledgeId} promoted=${promoted.length} skippedDuplicates=${skippedDup.length} invalidIds=${skipped.length} skippedInactive=${skippedInactive.length}`,
+    `[adminTrain] promote-cross-program: source=${programKnowledgeId} promoted=${promoted.length} skippedDuplicates=${skippedDup.length} invalidIds=${skipped.length}`,
   );
-  res.json({
-    promoted,
-    skippedDuplicates: skippedDup,
-    invalidBatchIds: skipped,
-    skippedInactiveOrOutOfScope: skippedInactive,
-  });
+  res.json({ promoted, skippedDuplicates: skippedDup, invalidBatchIds: skipped });
 });
 
 export default router;

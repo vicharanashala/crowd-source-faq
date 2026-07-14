@@ -96,19 +96,7 @@ export const createMentor = async (req: Request, res: Response): Promise<void> =
 
     res.status(201).json(mentor);
   } catch (error) {
-    // S5-M11 (MEDIUM) fix: previously this returned the raw Mongoose
-    // error object — including E11000 duplicate-key paths, validation
-    // field-by-field messages, and connection strings. Sanitize the
-    // response: log full details server-side, return a generic
-    // message to the admin client. Detect duplicate-key specifically
-    // and return 409 with a clean message.
-    if ((error as any)?.code === 11000) {
-      console.warn('[admin-mentor] duplicate email on create:', { email: req.body?.email });
-      res.status(409).json({ message: 'A mentor with this email already exists.' });
-      return;
-    }
-    console.error('[admin-mentor] create failed:', (error as Error).message);
-    res.status(500).json({ message: 'Server error creating mentor' });
+    res.status(500).json({ message: 'Error creating mentor', error });
   }
 };
 

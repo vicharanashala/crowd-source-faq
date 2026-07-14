@@ -3,121 +3,120 @@
 @tailwind utilities;
 
 /* ═══════════════════════════════════════════════════════════════
-   THEME TOKENS — CSS custom properties (single source of truth)
+   THEME TOKENS — CSS custom properties
 
-   Yaksha FAQ theme palette held entirely in CSS variables. Change a
-   value in :root or [data-theme="dark"] and the entire site
-   re-skins — every Tailwind class (bg-accent, text-ink, border-
-   border, bg-bg/82, text-ink/70, etc.) resolves through these
-   tokens via the aliases in tailwind.config.js.
+   Light values use a warm sage-green design system (Notion / Medium
+   knowledge-platform feel): ivory base #F5F1EA, sage primary #6B8F71,
+   hover #4C6B52, tint #E6F0E8, warm borders #DDD6C8, warm shadows.
+   [data-theme="dark"] overrides the same variables with a premium
+   dark palette (Linear / Vercel / Notion dark mode feel):
+     - Deep charcoal base #0B0F0D
+     - Layered surfaces #0F1513 (card) / #121A18 (elevated)
+     - Accent green #22C55E (no neon, only on highlights)
+     - Soft white text #E6F1EC (never #FFFFFF)
+     - Subtle borders via rgba(255,255,255,0.05)
+     - Soft diffused shadows + green glow on hover/focus only
 
-   RGB triples are kept so Tailwind /<alpha-value> modifiers
-   (bg-bg/82, text-ink/70) still work.
+   Light mode is 100% unchanged.
    ═══════════════════════════════════════════════════════════════ */
 :root {
-  /* ── Backgrounds (RGB triples) ──────────────────────────────── */
-  --bg-primary-rgb: 251 237 224;      /* #FBEDE0 — Page bg (brand) */
-  --bg-secondary-rgb: 255 246 235;    /* cream + warm lift — surface (brand) */
-  --bg-card-rgb: 255 242 230;         /* cream + peach touch — card (brand) */
-  --bg-card-hover-rgb: 251 234 218;   /* slight peach shift on hover */
+  /* Core neutrals (RGB triples — supports bg-bg/82, text-ink/70 etc.) */
+  --bg-primary-rgb: 245 241 234;      /* #F5F1EA — warm ivory base */
+  --bg-secondary-rgb: 234 228 218;    /* #EAE4DA — secondary surface */
+  --bg-card-rgb: 255 255 255;         /* #FFFFFF — elevated cards only */
+  --bg-card-hover-rgb: 248 246 242;   /* #F8F6F2 — soft surface */
 
-  /* ── Text ────────────────────────────────────────────────────── */
-  --text-primary-rgb: 60 42 30;       /* #3C2A1E — Primary text (brand) */
-  --text-secondary-rgb: 106 84 69;    /* #6A5445 — Secondary text (brand) */
-  --text-muted-rgb: 172 159 124;      /* #AC9F7C — Placeholders/metadata (brand) */
+  --text-primary-rgb: 31 41 51;       /* #1F2933 */
+  --text-secondary-rgb: 75 85 99;     /* #4B5563 */
+  --text-muted-rgb: 156 163 175;      /* #9CA3AF */
 
-  /* ── Accent ──────────────────────────────────────────────────── */
-  --accent-rgb: 184 133 102;          /* #B88566 — Primary accent (brand) */
-  --accent-hover-rgb: 166 115 86;     /* #A67356 — Hover (brand) */
-  --accent-text-rgb: 251 237 224;     /* #FBEDE0 — Text on accent buttons (brand) */
+  --accent-rgb: 107 143 113;          /* #6B8F71 — warm sage primary */
+  --accent-hover-rgb: 76 107 82;      /* #4C6B52 — hover / active */
+  --accent-text-rgb: 255 255 255;
 
-  /* ── Borders ─────────────────────────────────────────────────── */
-  --border-rgb: 196 152 130;          /* #C49882 — Border (brand) */
-  --border-subtle-rgb: 232 215 202;    /* derived — soft border */
-  --border-medium-rgb: 175 130 108;
+  --border-rgb: 221 214 200;          /* #DDD6C8 — primary warm border */
+  --border-subtle-rgb: 234 228 218;   /* #EAE4DA — light border */
+  --border-medium-rgb: 201 192 174;
 
-  --icon-default-rgb: 140 125 112;
-  --icon-active-rgb: 184 133 102;
+  --icon-default-rgb: 156 163 175;
+  --icon-active-rgb: 107 143 113;
 
-  /* ── Status (Light) ──────────────────────────────────────────── */
-  --success-rgb: 126 156 114;         /* #7E9C72 — Sage Green */
-  --warning-rgb: 216 155 82;          /* #D89B52 — Amber */
-  --danger-rgb: 228 131 104;          /* #E48368 — Coral */
-  --info-rgb: 141 157 182;            /* #8D9DB6 — Slate Blue */
+  --success-rgb: 76 107 82;           /* #4C6B52 — deep sage */
+  --warning-rgb: 196 148 58;
+  --danger-rgb: 220 74 74;
 
-  --nav-bg-rgb: 251 237 224;
-  --nav-text-rgb: 106 84 69;
-  --nav-active-rgb: 60 42 30;
-  --nav-border-rgb: 196 152 130;
+  --nav-bg-rgb: 245 241 234;
+  --nav-text-rgb: 75 85 99;
+  --nav-active-rgb: 31 41 51;
+  --nav-border-rgb: 221 214 200;
 
-  --section-title-rgb: 60 42 30;
+  --section-title-rgb: 31 41 51;
 
-  /* ── Pre-tinted semantic colors (full rgba — no /<alpha-value>) ── */
-  --tag-high-bg: rgba(184, 133, 102, 0.14);      /* accent-soft */
-  --tag-high-text: #6B4A30;
-  --tag-medium-bg: rgba(216, 155, 82, 0.14);     /* warning-soft */
+  /* Pre-tinted semantic colors (full rgba — no /<alpha-value>) */
+  --tag-high-bg: rgba(107, 143, 113, 0.14);
+  --tag-high-text: #4C6B52;
+  --tag-medium-bg: rgba(212, 160, 23, 0.12);
   --tag-medium-text: #8A6914;
-  --badge-solved-bg: rgba(126, 156, 114, 0.18); /* success-soft */
-  --badge-solved-text: #4F6B47;
-  --badge-open-bg: rgba(232, 215, 202, 0.5);
-  --badge-open-text: #6B4A30;
-  --success-bg: rgba(126, 156, 114, 0.14);
-  --warning-bg: rgba(216, 155, 82, 0.14);
-  --info-bg: rgba(141, 157, 182, 0.14);
-  --danger-bg: rgba(228, 131, 104, 0.10);
+  --badge-solved-bg: rgba(107, 143, 113, 0.14);
+  --badge-solved-text: #4C6B52;
+  --badge-open-bg: #EAE4DA;
+  --badge-open-text: #4B5563;
+  --danger-bg: rgba(220, 74, 74, 0.08);
 
-  --pill-bg: #FFF2E6;                  /* matches Card (cream + peach touch) */
-  --pill-border: #E8D7CA;              /* matches Border soft */
-  --pill-text: #6B4A30;
-  --pill-active-bg: #B88566;            /* solid warm brown — accent on active */
-  --pill-active-border: #A67356;
-  --pill-active-text: #FBEDE0;
-  --pill-active-text-on-bg: #FBEDE0;
-  --pill-active-indicator: #B88566;
+  --pill-bg: #F8F6F2;
+  --pill-border: #DDD6C8;
+  --pill-text: #4B5563;
+  --pill-active-bg: #E6F0E8;          /* soft sage background tint */
+  --pill-active-border: rgba(107, 143, 113, 0.25);
+  --pill-active-text: #4C6B52;
+  --pill-active-indicator: #6B8F71;
 
-  --input-bg: #FFF2E6;                 /* matches Card */
-  --input-border: #E8D7CA;
-  --input-placeholder: #AC9F7C;
-  --input-focus-border: rgba(184, 133, 102, 0.55);
+  --input-bg: #ffffff;
+  --input-border: #DDD6C8;
+  --input-placeholder: #9CA3AF;
+  --input-focus-border: #6B8F71;
 
-  --nav-active-indicator: #B88566;
-  --section-icon: #B88566;
-  --deco-stroke: rgba(184, 133, 102, 0.60);
-  --deco-stroke-soft: #E8D7CA;
+  --nav-active-indicator: #6B8F71;
+  --section-icon: #6B8F71;
+  --deco-stroke: rgba(107, 143, 113, 0.60);  /* sage — visible, still calm */
+  --deco-stroke-soft: #C9BFAC;
 
-  --modal-bg: #FFFFFF;                 /* modal uses pure white for max lift above cream */
-  --modal-border: #E8D7CA;
-  --dropdown-bg: #FFF2E6;
-  --dropdown-border: #E8D7CA;
-  --dropdown-hover: #FBEADE;           /* matches Hover */
-  --overlay-bg: rgba(60, 42, 30, 0.4);
+  --modal-bg: #ffffff;
+  --modal-border: #DDD6C8;
+  --dropdown-bg: #ffffff;
+  --dropdown-border: #DDD6C8;
+  --dropdown-hover: #F8F6F2;
+  --overlay-bg: rgba(31, 41, 51, 0.4);
 
-  --scrollbar-thumb: #C49882;
+  --scrollbar-thumb: #CFC7B8;
   --scrollbar-track: transparent;
 
-  /* ── Theme-toggle (light defaults) ─────────────────────────────── */
-  --toggle-pill-bg: rgba(184, 133, 102, 0.14);
-  --toggle-pill-border: rgba(184, 133, 102, 0.30);
-  --toggle-knob-bg: #FFF2E6;
-  --toggle-icon-color: #B88566;
+  /* Theme-toggle specific (light defaults) */
+  --toggle-pill-bg: #E6F0E8;
+  --toggle-pill-border: rgba(107, 143, 113, 0.30);
+  --toggle-knob-bg: #ffffff;
+  --toggle-icon-color: #4C6B52;
   --toggle-knob-x: 3px;
   --toggle-sun-opacity: 1;
   --toggle-sun-transform: rotate(0deg) scale(1);
   --toggle-moon-opacity: 0;
   --toggle-moon-transform: rotate(90deg) scale(0.5);
 
-  /* ── Shadows (light) — warm, soft, layered ─────────────────────── */
-  --shadow-card: 0 4px 12px rgba(60, 42, 30, 0.04), 0 12px 32px rgba(60, 42, 30, 0.05);
-  --shadow-card-hover: 0 8px 20px rgba(60, 42, 30, 0.06), 0 20px 44px rgba(60, 42, 30, 0.08);
-  --shadow-float: 0 12px 32px rgba(60, 42, 30, 0.10);
-  --shadow-glow: 0 0 0 4px rgba(184, 133, 102, 0.14), 0 8px 32px rgba(60, 42, 30, 0.06);
-  --shadow-subtle: 0 2px 12px rgba(60, 42, 30, 0.04);
+  /* Shadows (light) — warm, soft, layered (rgba of #1F2933) */
+  --shadow-card: 0 4px 12px rgba(31, 41, 51, 0.04), 0 12px 32px rgba(31, 41, 51, 0.06);
+  --shadow-card-hover: 0 8px 20px rgba(31, 41, 51, 0.06), 0 20px 44px rgba(31, 41, 51, 0.09);
+  --shadow-float: 0 12px 32px rgba(31, 41, 51, 0.10);
+  --shadow-glow: 0 0 0 4px rgba(107, 143, 113, 0.12), 0 8px 32px rgba(31, 41, 51, 0.06);
+  --shadow-subtle: 0 2px 12px rgba(31, 41, 51, 0.04);
 
-  /* ── Body background — barely-there warm wash at the top ───────── */
+  /* Body background — barely-there sage wash at the top (editorial calm) */
   --body-bg-image:
-    radial-gradient(ellipse 80% 50% at 50% 0%, rgba(184, 133, 102, 0.06) 0%, transparent 60%);
+    radial-gradient(ellipse 80% 50% at 50% 0%, rgba(107, 143, 113, 0.05) 0%, transparent 60%);
 
-  /* ── ShadCN tokens (aliased to the brand palette) ──────────────── */
+  /* ── ShadCN tokens ────────────────────────────────────────────
+     Aliased to the existing warm-sage palette so ShadCN components
+     render in-house by default. Override per-component via className
+     when you want a literal ShadCN neutral look. */
   --background: var(--bg-primary-rgb);
   --foreground: var(--text-primary-rgb);
   --card: var(--bg-card-rgb);
@@ -133,19 +132,19 @@
   --accent: var(--bg-secondary-rgb);
   --accent-foreground: var(--text-primary-rgb);
   --destructive: var(--danger-rgb);
-  --destructive-foreground: 251 237 224;
+  --destructive-foreground: 255 255 255;
   --border: var(--border-rgb);
   --input: var(--border-rgb);
   --ring: var(--accent-rgb);
 
-  /* ── Chart palette — warm monochromatic ramp ──────────────────── */
+  /* Chart palette (ShadCN charts) — sage forward */
   --chart-1: var(--accent-rgb);
-  --chart-2: 166 115 86;       /* accent-hover */
-  --chart-3: 172 159 124;      /* muted */
-  --chart-4: 60 42 30;          /* text-primary */
-  --chart-5: 196 152 130;      /* border */
+  --chart-2: 156 188 150;
+  --chart-3: 196 148 58;
+  --chart-4: 220 74 74;
+  --chart-5: 107 125 116;
 
-  /* ── Sidebar (ShadCN sidebar blocks) ──────────────────────────── */
+  /* Sidebar (ShadCN sidebar blocks) */
   --sidebar: var(--bg-card-rgb);
   --sidebar-foreground: var(--text-primary-rgb);
   --sidebar-primary: var(--accent-rgb);
@@ -161,109 +160,105 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   DARK MODE — ultra-deep pitch + electric coral
+   DARK MODE — premium Linear / Vercel / Notion feel
    ═══════════════════════════════════════════════════════════════ */
 [data-theme="dark"] {
-  --bg-primary-rgb: 10 11 14;          /* #0A0B0E — Background (brand) */
-  --bg-secondary-rgb: 18 20 24;       /* #121418 — Surface (brand) */
-  --bg-card-rgb: 25 28 33;            /* #191C21 — Card (brand) */
-  --bg-card-hover-rgb: 35 38 44;      /* slight lift on hover */
+  --bg-primary-rgb: 11 15 13;        /* #0B0F0D — base */
+  --bg-secondary-rgb: 18 26 24;      /* #121A18 — elevated */
+  --bg-card-rgb: 15 21 19;           /* #0F1513 — card */
+  --bg-card-hover-rgb: 24 32 28;     /* #18201C — card hover */
 
-  --text-primary-rgb: 237 237 237;    /* #EDEDED — Text (brand) */
-  --text-secondary-rgb: 180 184 190;  /* derived — between text and muted */
-  --text-muted-rgb: 134 138 147;      /* #868A93 — Muted Text (brand) */
+  --text-primary-rgb: 230 241 236;   /* #E6F1EC — soft white, not #FFF */
+  --text-secondary-rgb: 159 179 168; /* #9FB3A8 */
+  --text-muted-rgb: 107 125 116;     /* #6B7D74 */
 
-  --accent-rgb: 255 107 74;           /* #FF6B4A — Electric Coral (brand) */
-  --accent-hover-rgb: 255 133 107;    /* #FF856B — Lighter Electric Coral (brand) */
-  --accent-text-rgb: 10 11 14;        /* #0A0B0E — Text on accent (brand) */
+  --accent-rgb: 34 197 94;           /* #22C55E — primary green, no neon */
+  --accent-hover-rgb: 46 209 112;    /* slightly brighter on hover */
+  --accent-text-rgb: 11 15 13;       /* dark text on green button */
 
-  --border-rgb: 42 45 53;             /* #2A2D35 — Border (brand) */
-  --border-subtle-rgb: 28 30 36;
-  --border-medium-rgb: 56 60 70;
+  --border-rgb: 31 42 38;            /* #1F2A26 — very subtle */
+  --border-subtle-rgb: 23 32 28;
+  --border-medium-rgb: 45 58 52;
 
-  --icon-default-rgb: 134 138 147;
-  --icon-active-rgb: 255 107 74;
+  --icon-default-rgb: 107 125 116;
+  --icon-active-rgb: 34 197 94;
 
-  /* Status (Dark) */
-  --success-rgb: 140 166 125;         /* #8CA67D — Sage Green */
-  --warning-rgb: 217 162 91;          /* #D9A25B — Amber */
-  --danger-rgb: 240 80 70;            /* derived — deeper electric coral-ish for destructive */
-  --info-rgb: 127 149 174;            /* #7F95AE — Steel Blue */
+  --success-rgb: 34 197 94;
+  --warning-rgb: 196 148 58;
+  --danger-rgb: 220 74 74;
 
-  --nav-bg-rgb: 10 11 14;
-  --nav-text-rgb: 180 184 190;
-  --nav-active-rgb: 237 237 237;
-  --nav-border-rgb: 42 45 53;
+  --nav-bg-rgb: 11 15 13;
+  --nav-text-rgb: 159 179 168;
+  --nav-active-rgb: 230 241 236;
+  --nav-border-rgb: 31 42 38;
 
-  --section-title-rgb: 237 237 237;
+  --section-title-rgb: 230 241 236;
 
-  /* Pre-tinted semantic colors (full rgba — no /<alpha-value>) */
-  --tag-high-bg: rgba(255, 107, 74, 0.18);       /* electric-coral-soft */
-  --tag-high-text: #FF6B4A;
-  --tag-medium-bg: rgba(217, 162, 91, 0.16);     /* warning-soft */
-  --tag-medium-text: #D9A25B;
-  --badge-solved-bg: rgba(140, 166, 125, 0.18); /* success-soft */
-  --badge-solved-text: #8CA67D;
-  --badge-open-bg: rgba(255, 255, 255, 0.06);
-  --badge-open-text: #868A93;
-  --success-bg: rgba(140, 166, 125, 0.14);
-  --warning-bg: rgba(217, 162, 91, 0.14);
-  --info-bg: rgba(127, 149, 174, 0.14);
-  --danger-bg: rgba(240, 80, 70, 0.16);
+  /* Pre-tinted semantic colors */
+  --tag-high-bg: rgba(34, 197, 94, 0.14);
+  --tag-high-text: #5fc585;
+  --tag-medium-bg: rgba(196, 148, 58, 0.16);
+  --tag-medium-text: #d4a558;
+  --badge-solved-bg: rgba(34, 197, 94, 0.14);
+  --badge-solved-text: #5fc585;
+  --badge-open-bg: rgba(255, 255, 255, 0.05);
+  --badge-open-text: #9FB3A8;
+  --danger-bg: rgba(220, 74, 74, 0.14);
 
-  --pill-bg: rgba(255, 255, 255, 0.05);
-  --pill-border: rgba(255, 255, 255, 0.10);
-  --pill-text: #868A93;
-  --pill-active-bg: #FF6B4A;                /* solid electric coral — accent on active */
-  --pill-active-border: #FF856B;
-  --pill-active-text: #0A0B0E;
-  --pill-active-text-on-bg: #0A0B0E;
-  --pill-active-indicator: #FF6B4A;
+  --pill-bg: rgba(255, 255, 255, 0.04);
+  --pill-border: rgba(255, 255, 255, 0.08);
+  --pill-text: #9FB3A8;
+  --pill-active-bg: #22C55E;
+  --pill-active-border: #22C55E;
+  --pill-active-text: #5fc585;
+  --pill-active-text-on-bg: #052E1A;
+  --pill-active-indicator: #22C55E;
 
-  --input-bg: #121418;                   /* matches Surface */
-  --input-border: rgba(255, 255, 255, 0.10);
-  --input-placeholder: #868A93;
-  --input-focus-border: rgba(255, 107, 74, 0.55);
+  --input-bg: #121A18;
+  --input-border: rgba(255, 255, 255, 0.08);
+  --input-placeholder: #6B7D74;
+  --input-focus-border: rgba(34, 197, 94, 0.45);
 
-  --nav-active-indicator: #FF6B4A;
-  --section-icon: #FF6B4A;
-  --deco-stroke: rgba(255, 107, 74, 0.45);
-  --deco-stroke-soft: rgba(255, 107, 74, 0.22);
+  --nav-active-indicator: #22C55E;
+  --section-icon: #22C55E;
+  --deco-stroke: rgba(34, 197, 94, 0.35);
+  --deco-stroke-soft: rgba(34, 197, 94, 0.18);
 
-  --modal-bg: #121418;
-  --modal-border: rgba(255, 255, 255, 0.10);
-  --dropdown-bg: #121418;
-  --dropdown-border: rgba(255, 255, 255, 0.10);
-  --dropdown-hover: rgba(255, 255, 255, 0.05);
+  --modal-bg: #121A18;
+  --modal-border: rgba(255, 255, 255, 0.08);
+  --dropdown-bg: #121A18;
+  --dropdown-border: rgba(255, 255, 255, 0.08);
+  --dropdown-hover: rgba(255, 255, 255, 0.04);
   --overlay-bg: rgba(0, 0, 0, 0.70);
 
-  --scrollbar-thumb: rgba(255, 255, 255, 0.10);
+  --scrollbar-thumb: rgba(255, 255, 255, 0.08);
   --scrollbar-track: transparent;
 
   /* Toggle (dark) */
-  --toggle-pill-bg: rgba(255, 107, 74, 0.14);
-  --toggle-pill-border: rgba(255, 107, 74, 0.30);
-  --toggle-knob-bg: #FF6B4A;
-  --toggle-icon-color: #0A0B0E;
+  --toggle-pill-bg: #1a2a22;
+  --toggle-pill-border: rgba(34, 197, 94, 0.30);
+  --toggle-knob-bg: #5fc585;
+  --toggle-icon-color: #0B0F0D;
   --toggle-knob-x: 27px;
   --toggle-sun-opacity: 0;
   --toggle-sun-transform: rotate(-90deg) scale(0.5);
   --toggle-moon-opacity: 1;
   --toggle-moon-transform: rotate(0deg) scale(1);
 
-  /* Shadows (dark) — soft, diffused, with subtle electric-coral glow on hover */
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.5);
-  --shadow-card-hover: 0 8px 32px rgba(0, 0, 0, 0.55),
-                        0 0 0 1px rgba(255, 107, 74, 0.20);
-  --shadow-float: 0 12px 40px rgba(0, 0, 0, 0.7);
-  --shadow-glow: 0 0 0 3px rgba(255, 107, 74, 0.25);
+  /* Shadows (dark) — soft, diffused, with optional green glow on hover */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-card-hover: 0 8px 32px rgba(0, 0, 0, 0.5),
+                        0 0 0 1px rgba(34, 197, 94, 0.12);
+  --shadow-float: 0 12px 40px rgba(0, 0, 0, 0.6);
+  --shadow-glow: 0 0 0 3px rgba(34, 197, 94, 0.20);
 
-  /* Body — subtle radial gradient with faint electric-coral tint on dark */
+  /* Body — subtle radial gradient with faint green tint */
   --body-bg-image:
-    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(255, 107, 74, 0.06) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 50% at 100% 100%, rgba(255, 107, 74, 0.04) 0%, transparent 60%);
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(34, 197, 94, 0.06) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 100% 100%, rgba(34, 197, 94, 0.04) 0%, transparent 60%);
 
-  /* ShadCN tokens (dark) */
+  /* ShadCN tokens (dark) — same aliases, dark values inherited from
+     the overridden palette above. Component renders adapt automatically. */
   --background: var(--bg-primary-rgb);
   --foreground: var(--text-primary-rgb);
   --card: var(--bg-card-rgb);
@@ -279,16 +274,16 @@
   --accent: var(--bg-secondary-rgb);
   --accent-foreground: var(--text-primary-rgb);
   --destructive: var(--danger-rgb);
-  --destructive-foreground: 10 11 14;
+  --destructive-foreground: 11 15 13;
   --border: var(--border-rgb);
   --input: var(--border-rgb);
   --ring: var(--accent-rgb);
 
   --chart-1: var(--accent-rgb);
-  --chart-2: 255 133 107;
-  --chart-3: 217 162 91;
-  --chart-4: 240 80 70;
-  --chart-5: 134 138 147;
+  --chart-2: 46 209 112;
+  --chart-3: 196 148 58;
+  --chart-4: 220 74 74;
+  --chart-5: 159 179 168;
 
   --sidebar: var(--bg-card-rgb);
   --sidebar-foreground: var(--text-primary-rgb);
@@ -359,6 +354,9 @@ select option {
 
 /* ═══════════════════════════════════════════════════════════════
    Global theme transition
+   Animates background, border, and color on theme switch.
+   Excluded from .theme-toggle and its children — they have their
+   own carefully tuned timings defined below.
    ═══════════════════════════════════════════════════════════════ */
 *,
 *::before,
@@ -379,19 +377,1274 @@ select option {
    Component Styles — Reusable visual patterns
    ═══════════════════════════════════════════════════════════════ */
 @layer components {
-  /* Subtle grid background — monochrome per theme */
+
+  /* Subtle grid background (from UI project) */
   .grid-bg {
     background-image:
-      linear-gradient(var(--grid-line, rgba(0, 0, 0, 0.045)) 1px, transparent 1px),
-      linear-gradient(90deg, var(--grid-line, rgba(0, 0, 0, 0.045)) 1px, transparent 1px);
+      linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
     background-size: 40px 40px;
   }
-  [data-theme="dark"] .grid-bg {
-    --grid-line: rgba(255, 255, 255, 0.035);
+
+  /* ═════════ Card hover lift effect (per-theme shadow) ═════════ */
+  .card-hover {
+    transition: transform 0.2s ease,
+                box-shadow 0.2s ease,
+                border-color 0.2s ease,
+                background-color 0.2s ease;
+  }
+  .card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-card-hover);
+    border-color: var(--border-medium-rgb);
   }
 
-  /* ═════════ NavPills — inline nav link inside the central glass pill ═════════
-   * v1.66.1: tighter padding so 6 nav items fit at 2xl. */
+  /* ═════════ Elevated card (the workhorse surface) ═════════
+     Background = card color, border = subtle, hover lifts and
+     reveals a soft green glow in dark mode. */
+  .card-elevated {
+    background-color: rgb(var(--bg-card-rgb));
+    border: 1px solid var(--border-rgb);
+    box-shadow: var(--shadow-card);
+    transition: transform 0.2s ease,
+                box-shadow 0.2s ease,
+                border-color 0.2s ease,
+                background-color 0.2s ease;
+  }
+  .card-elevated:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-card-hover);
+    border-color: var(--border-medium-rgb);
+    background-color: rgb(var(--bg-card-hover-rgb));
+  }
+
+  /* ═════════ Search bar glow on focus (subtle sage ring) ═════════
+     Light: soft sage halo per design system. Dark: unchanged ring. */
+  .search-glow:focus-within {
+    border-color: var(--input-focus-border);
+    box-shadow: 0 0 0 4px rgba(107, 143, 113, 0.12);
+  }
+  [data-theme="dark"] .search-glow:focus-within {
+    box-shadow: 0 0 0 3px rgb(var(--accent-rgb) / 0.20);
+  }
+
+  /* ═════════ Unified Button System ═════════ */
+  .btn-base {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 40px;
+    padding: 0 16px;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+  }
+  .btn-base svg {
+    width: 16px;
+    height: 16px;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+  }
+  .btn-base:hover svg {
+    opacity: 1;
+  }
+
+  /* Primary Button (Get Started / Ask Question)
+     Light: warm sage with a soft premium gradient. */
+  .btn-primary {
+    background-color: #6B8F71;
+    background-image: linear-gradient(180deg, #76997C 0%, #6B8F71 100%);
+    color: #ffffff;
+    box-shadow: 0 1px 2px rgba(76, 107, 82, 0.20), 0 4px 12px rgba(31, 41, 51, 0.06);
+    border: none;
+  }
+  .btn-primary:hover {
+    background-color: #4C6B52;
+    background-image: linear-gradient(180deg, #587A5E 0%, #4C6B52 100%);
+    transform: none;
+    box-shadow: 0 2px 4px rgba(76, 107, 82, 0.22), 0 6px 16px rgba(31, 41, 51, 0.08);
+  }
+  .btn-primary:active {
+    background-color: #435F49;
+    background-image: linear-gradient(180deg, #4C6B52 0%, #435F49 100%);
+    transform: none;
+  }
+  
+  [data-theme="dark"] .btn-primary {
+    background-color: #16a34a; /* keeping existing dark mode base */
+    color: #0B0F0D;
+    background-image: none; /* remove gradient */
+    box-shadow: none; /* remove glow */
+  }
+  [data-theme="dark"] .btn-primary:hover {
+    background-color: #15803d; /* darker hover */
+    box-shadow: none;
+  }
+  [data-theme="dark"] .btn-primary:active {
+    background-color: #166534;
+  }
+
+  /* Secondary Button (Search input)
+     Light: warm sage — calm, premium, not loud. */
+  .btn-secondary {
+    background-color: #6B8F71;
+    background-image: linear-gradient(180deg, #76997C 0%, #6B8F71 100%);
+    color: #ffffff;
+    box-shadow: 0 1px 2px rgba(76, 107, 82, 0.20), 0 4px 12px rgba(31, 41, 51, 0.06);
+    border: none;
+  }
+  .btn-secondary:hover {
+    background-color: #4C6B52;
+    background-image: linear-gradient(180deg, #587A5E 0%, #4C6B52 100%);
+    box-shadow: 0 2px 4px rgba(76, 107, 82, 0.22), 0 6px 16px rgba(31, 41, 51, 0.08);
+  }
+  [data-theme="dark"] .btn-secondary {
+    background-image: none;
+    background-color: rgb(var(--accent-rgb));
+    color: rgb(var(--accent-text-rgb));
+    box-shadow: none;
+  }
+  [data-theme="dark"] .btn-secondary:hover {
+    background-color: rgba(34, 197, 94, 0.85); /* slightly reduced contrast */
+    box-shadow: none;
+  }
+
+  /* Ghost Button (Ask in Community) */
+  .btn-ghost {
+    background-color: transparent;
+    border: 1px solid #DDD6C8;
+    color: #4C6B52;
+    box-shadow: none;
+  }
+  .btn-ghost:hover {
+    background-color: #E6F0E8;
+    border-color: rgba(107, 143, 113, 0.30);
+    color: #4C6B52;
+  }
+  [data-theme="dark"] .btn-ghost {
+    background-color: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.7);
+  }
+  [data-theme="dark"] .btn-ghost:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  /* Focus glow ring — soft green halo on focused interactive surfaces */
+  .focus-glow:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgb(var(--accent-rgb) / 0.35);
+  }
+
+  /* Active category chip — light: soft sage tint (calm, editorial);
+     dark: keeps the previous solid green treatment. */
+  .faq-chip-active {
+    background-color: #E6F0E8;
+    color: #4C6B52;
+    border-color: rgba(107, 143, 113, 0.25);
+    box-shadow: 0 4px 12px rgba(31, 41, 51, 0.05);
+  }
+  [data-theme="dark"] .faq-chip-active {
+    background-color: rgb(34 197 94);
+    color: #0B0F0D;
+    border-color: rgba(34, 197, 94, 0.60);
+    box-shadow: 0 10px 26px rgba(34, 197, 94, 0.28);
+  }
+
+  /* In dark mode, override the flat .bg-accent if needed.
+     Removing the .btn-primary-gradient related overrides. */
+  [data-theme="dark"] .bg-accent:not(.btn-primary, .btn-secondary) {
+    background-color: rgb(var(--accent-rgb));
+    background-image: none;
+  }
+
+  /* ═════════════════════════════════════════════════════════════
+     .btn-cta — "Ask the Community" style button
+     Light: solid primary (dark fill, light text) — unchanged.
+     Dark: dark elevated surface with green accent on hover/active.
+     ═════════════════════════════════════════════════════════════ */
+  .btn-cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 28px;
+    background-color: rgb(var(--text-primary-rgb));
+    color: rgb(var(--accent-text-rgb));
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1;
+    transition: background-color 0.2s ease,
+                border-color 0.2s ease,
+                color 0.2s ease,
+                box-shadow 0.2s ease,
+                transform 0.1s ease;
+    cursor: pointer;
+  }
+  .btn-cta:hover {
+    opacity: 0.88;
+  }
+
+  [data-theme="dark"] .btn-cta {
+    background-color: #121A18;
+    border-width: 1px;
+    border-style: solid;
+    border-color: #1F2A26;
+    color: #E6F1EC;
+  }
+  [data-theme="dark"] .btn-cta:hover {
+    background-color: #16201D;
+    border-color: #274233;
+    color: #22C55E;
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.15);
+    opacity: 1;
+  }
+  [data-theme="dark"] .btn-cta:hover .btn-cta-icon {
+    color: #22C55E;
+    transform: translateX(2px);
+  }
+  [data-theme="dark"] .btn-cta:active {
+    background-color: #1A241F;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
+  }
+
+  .btn-cta-icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    transition: transform 0.2s ease, color 0.2s ease;
+    color: rgb(var(--text-primary-rgb));
+  }
+
+  /* ═════════════════════════════════════════════════════════════
+     .toggle-segment — Weekly / Monthly / All segmented control
+     Light: subtle gray pill (uses border + ink-faint text).
+     Dark: dark surface, green text/bg only when active.
+     ═════════════════════════════════════════════════════════════ */
+  .toggle-segment {
+    padding: 6px 16px;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1;
+    border-radius: 8px;
+    border-width: 1px;
+    border-style: solid;
+    border-color: rgb(var(--border-rgb));
+    background-color: transparent;
+    color: rgb(var(--text-muted-rgb));
+    transition: background-color 0.2s ease,
+                border-color 0.2s ease,
+                color 0.2s ease,
+                box-shadow 0.2s ease;
+    cursor: pointer;
+  }
+  .toggle-segment:hover {
+    color: rgb(var(--text-primary-rgb));
+  }
+  .toggle-segment.active {
+    background-color: rgb(var(--text-primary-rgb));
+    color: rgb(var(--accent-text-rgb));
+    border-color: rgb(var(--text-primary-rgb));
+  }
+
+  [data-theme="dark"] .toggle-segment {
+    background-color: #121A18;
+    border-width: 1px;
+    border-style: solid;
+    border-color: #1F2A26;
+    color: #9FB3A8;
+  }
+  [data-theme="dark"] .toggle-segment:hover {
+    background-color: #16201D;
+    color: #E6F1EC;
+  }
+  [data-theme="dark"] .toggle-segment.active {
+    background-color: rgba(34, 197, 94, 0.12);
+    border-color: #274233;
+    color: #22C55E;
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.15);
+  }
+
+  /* ═════════════════════════════════════════════════════════════
+     .btn-community-ask — "Ask a Question" in Community Board header
+     Subtle green-tinted dark surface. Premium, not loud.
+     ═════════════════════════════════════════════════════════════ */
+  .btn-community-ask {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    height: 36px;
+    padding: 0 16px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1;
+    transition: background-color 0.2s ease,
+                border-color 0.2s ease,
+                color 0.2s ease,
+                box-shadow 0.2s ease,
+                transform 0.15s ease;
+    cursor: pointer;
+    background-color: rgba(107, 143, 113, 0.12);
+    border: 1px solid rgba(107, 143, 113, 0.25);
+    color: #4C6B52;
+  }
+  .btn-community-ask:hover {
+    background-color: rgba(107, 143, 113, 0.18);
+    border-color: rgba(107, 143, 113, 0.40);
+    color: #4C6B52;
+    box-shadow: 0 4px 12px rgba(107, 143, 113, 0.15);
+    transform: translateY(-2px);
+  }
+  .btn-community-ask:active {
+    background-color: rgba(107, 143, 113, 0.14);
+    transform: translateY(0);
+  }
+  [data-theme="dark"] .btn-community-ask {
+    background-color: rgba(34, 197, 94, 0.10);
+    border-width: 1px;
+    border-style: solid;
+    border-color: rgba(34, 197, 94, 0.25);
+    color: #D1FAE5;
+  }
+  [data-theme="dark"] .btn-community-ask:hover {
+    background-color: rgba(34, 197, 94, 0.15);
+    border-color: rgba(34, 197, 94, 0.40);
+    color: #ECFDF5;
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.15);
+    transform: translateY(-2px);
+  }
+  [data-theme="dark"] .btn-community-ask:active {
+    background-color: rgba(34, 197, 94, 0.12);
+    transform: translateY(0);
+    box-shadow: 0 0 8px rgba(34, 197, 94, 0.08);
+  }
+
+  /* ═════════════════════════════════════════════════════════════
+     .search-overlay — premium glassmorphism backdrop
+     Dark: strong blur + dark tint + faint green glow.
+     Light: soft dark overlay, blur(16px) — airy, not muddy.
+     ═════════════════════════════════════════════════════════════ */
+  .search-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    background-color: rgba(0, 0, 0, 0.25);
+    transition: opacity 0.3s ease;
+  }
+  [data-theme="dark"] .search-overlay {
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    background-color: rgba(0, 0, 0, 0.5);
+    box-shadow: inset 0 0 80px rgba(34, 197, 94, 0.04);
+  }
+
+  /* ═════════════════════════════════════════════════════════════
+     .search-panel — premium glassmorphism modal container
+     Light: clean white glass, no muddy tint.
+     Dark: dark charcoal glass with subtle green gradient.
+     ═════════════════════════════════════════════════════════════ */
+  .search-panel {
+    background-color: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid #DDD6C8;
+    border-radius: 16px;
+    box-shadow: 0 20px 50px rgba(31, 41, 51, 0.14);
+    background-image: linear-gradient(135deg, rgba(107, 143, 113, 0.06), rgba(255, 255, 255, 0.6));
+  }
+  [data-theme="dark"] .search-panel {
+    background-color: rgba(18, 26, 24, 0.6);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+    background-image: linear-gradient(135deg, rgba(34, 197, 94, 0.06), rgba(0, 0, 0, 0.2));
+  }
+
+  /* ═════════════════════════════════════════════════════════════
+     .search-bar-input — search bar inside the panel
+     Light: clean white with green focus.
+     Dark: semi-transparent dark glass with green focus.
+     ═════════════════════════════════════════════════════════════ */
+  .search-bar-input {
+    background-color: #ffffff;
+    border: 1px solid #DDD6C8;
+    color: #1F2933;
+  }
+  .search-bar-input::placeholder {
+    color: #9CA3AF;
+  }
+  .search-bar-input:focus {
+    border-color: #6B8F71;
+    box-shadow: 0 0 0 4px rgba(107, 143, 113, 0.12);
+    outline: none;
+  }
+  [data-theme="dark"] .search-bar-input {
+    background-color: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #E6F1EC;
+  }
+  [data-theme="dark"] .search-bar-input::placeholder {
+    color: #6B7D74;
+  }
+  [data-theme="dark"] .search-bar-input:focus {
+    border-color: rgba(34, 197, 94, 0.4);
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.15);
+  }
+
+  /* ═════════════════════════════════════════════════════════════
+     .search-list-item — dropdown list items
+     Light: clean white, dark text.
+     Dark: semi-transparent dark, soft text.
+     ═════════════════════════════════════════════════════════════ */
+  .search-list-item {
+    background: #ffffff;
+    color: #1F2933;
+    border: 1px solid transparent;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+  .search-list-item:hover {
+    background-color: #F8F6F2;
+    color: #1F2933;
+  }
+  .search-list-item.active {
+    background-color: #E6F0E8;
+    border: 1px solid rgba(107, 143, 113, 0.25);
+    color: #1F2933;
+  }
+  [data-theme="dark"] .search-list-item {
+    background: transparent;
+    color: #9FB3A8;
+    border: 1px solid transparent;
+  }
+  [data-theme="dark"] .search-list-item:hover {
+    background-color: rgba(255, 255, 255, 0.04);
+    color: #E6F1EC;
+  }
+  [data-theme="dark"] .search-list-item.active {
+    background-color: rgba(34, 197, 94, 0.08);
+    border: 1px solid rgba(34, 197, 94, 0.2);
+    color: #E6F1EC;
+  }
+
+  /* ═════════════════════════════════════════════════════════════
+     .search-pill — category/tag pills inside search dropdown
+     Light: clean soft gray tint, readable text.
+     Dark: semi-transparent dark, green on hover.
+     ═════════════════════════════════════════════════════════════ */
+  .search-pill {
+    background-color: #F8F6F2;
+    border: 1px solid #EAE4DA;
+    color: #4B5563;
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+  .search-pill:hover {
+    background-color: #E6F0E8;
+    color: #4C6B52;
+  }
+  [data-theme="dark"] .search-pill {
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #E6F1EC;
+  }
+  [data-theme="dark"] .search-pill:hover {
+    background-color: rgb(var(--accent-rgb));
+    border-color: rgb(var(--accent-rgb));
+    color: rgb(var(--accent-text-rgb));
+  }
+
+  /* ═════════════════════════════════════════════════════════════
+     .search-skeleton — loading placeholder for search results
+     Light: soft warm gray, no border — clean and unobtrusive.
+     Dark: dark glass with subtle border.
+     ═════════════════════════════════════════════════════════════ */
+  .search-skeleton {
+    background-color: rgba(255, 255, 255, 0.5);
+    border: 1px solid #EAE4DA;
+    border-radius: 16px;
+  }
+  [data-theme="dark"] .search-skeleton {
+    background-color: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  /* ═════════════════════════════════════════════════════════════
+     Ask in Community (No Results block)
+     ═════════════════════════════════════════════════════════════ */
+  .ask-community-container {
+    background-color: #F8F6F2;
+    border-color: #EAE4DA;
+  }
+  .ask-community-container:hover {
+    background-color: #E6F0E8;
+    border-color: rgba(107, 143, 113, 0.20);
+  }
+  .ask-community-title {
+    color: #1F2933;
+  }
+  .ask-community-icon {
+    color: #1F2933;
+  }
+  .ask-community-action {
+    color: #4C6B52;
+  }
+
+  [data-theme="dark"] .ask-community-container {
+    background-color: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+  [data-theme="dark"] .ask-community-container:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+  [data-theme="dark"] .ask-community-title {
+    color: rgba(255, 255, 255, 0.8);
+  }
+  [data-theme="dark"] .ask-community-icon {
+    color: #ffffff;
+  }
+  [data-theme="dark"] .ask-community-action {
+    color: #9fb8ad;
+  }
+  /* ═════════════════════════════════════════════════════════════
+     .search-popular-pill — enhanced popular search capsules
+     Top 3 are prominent; all use rounded-full pills.
+     Count badge inside: ml-auto styled separately.
+     DARK: dark glass bg, muted text, green on hover.
+     LIGHT: gray bg, dark text, green on hover.
+     ═════════════════════════════════════════════════════════════ */
+  .search-popular-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 9999px;
+    border: 1px solid #EAE4DA;
+    background-color: #F8F6F2;
+    color: #4B5563;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color 0.2s ease,
+                border-color 0.2s ease,
+                color 0.2s ease;
+  }
+  .search-popular-pill:hover {
+    background-color: #E6F0E8;
+    border-color: rgba(107, 143, 113, 0.30);
+    color: #4C6B52;
+  }
+  .search-popular-pill:active {
+    background-color: rgba(107, 143, 113, 0.18);
+  }
+  .search-popular-pill .search-popular-icon {
+    opacity: 0.5;
+    transition: opacity 0.2s ease, color 0.2s ease;
+    color: inherit;
+  }
+  .search-popular-pill:hover .search-popular-icon {
+    opacity: 1;
+  }
+  /* Count badge — ml-auto pushes it to the right */
+  .search-popular-badge {
+    margin-left: auto;
+    padding: 1px 6px;
+    border-radius: 9999px;
+    background-color: #EAE4DA;
+    color: #4B5563;
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.4;
+  }
+  [data-theme="dark"] .search-popular-pill {
+    background-color: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #D1D5DB;
+  }
+  [data-theme="dark"] .search-popular-pill:hover {
+    background-color: rgba(34, 197, 94, 0.08);
+    border-color: rgba(34, 197, 94, 0.3);
+    color: #22C55E;
+  }
+  [data-theme="dark"] .search-popular-pill:active {
+    background-color: rgba(34, 197, 94, 0.15);
+  }
+  [data-theme="dark"] .search-popular-pill .search-popular-icon {
+    opacity: 0.4;
+  }
+  [data-theme="dark"] .search-popular-pill:hover .search-popular-icon {
+    opacity: 1;
+  }
+  [data-theme="dark"] .search-popular-badge {
+    background-color: rgba(255, 255, 255, 0.08);
+    color: #9CA3AF;
+  }
+
+  /* ═════════════════════════════════════════════════════════════
+     .faq-card-clay — Premium FAQ category cards
+     Calm, neutral cards with very subtle tinted backgrounds.
+     Category color on badge + CTA only. SVG as aligned
+     background accent with consistent placement rhythm.
+     ═════════════════════════════════════════════════════════════ */
+  .faq-card-clay {
+    position: relative;
+    min-height: 300px;
+    border-radius: 16px;
+    padding: 26px;
+    border: 1px solid #DDD6C8;
+    background-color: #ffffff;
+    box-shadow: 0 4px 12px rgba(31, 41, 51, 0.04), 0 12px 32px rgba(31, 41, 51, 0.06);
+    overflow: hidden;
+    cursor: pointer;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Subtle radial highlight — top right glow */
+  .faq-card-clay::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(circle at top right, rgba(255,255,255,0.12), transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .faq-card-clay:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 20px rgba(31, 41, 51, 0.06),
+                0 24px 48px rgba(31, 41, 51, 0.09),
+                0 0 0 1px rgba(107, 143, 113, 0.10);
+    border-color: rgba(107, 143, 113, 0.30);
+  }
+  .faq-card-clay:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgb(var(--accent-rgb) / 0.20),
+                0 8px 24px rgba(0, 0, 0, 0.04);
+  }
+
+  /* Badge — small icon container top-left */
+  .faq-card-clay__badge {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Floating illustration — controlled container, top-right */
+  .faq-card-clay__illustration {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 56px;
+    height: 56px;
+    object-fit: contain;
+    opacity: 0.80;
+    transform: rotate(-6deg) translateY(-2px);
+    pointer-events: none;
+    /* Light: per-category recolor (--illu-hue shifts the purple source
+       artwork), softened saturation, warm depth shadow, minimal glow */
+    filter: drop-shadow(0 5px 10px rgba(31, 41, 51, 0.10))
+            saturate(0.80)
+            hue-rotate(var(--illu-hue, 0deg))
+            drop-shadow(0 0 8px var(--illu-glow, rgba(107, 143, 113, 0.14)));
+    transition: opacity 0.25s ease,
+                filter 0.25s ease;
+    z-index: 0;
+  }
+  .faq-card-clay:hover .faq-card-clay__illustration {
+    opacity: 0.92;
+    filter: drop-shadow(0 6px 12px rgba(31, 41, 51, 0.12))
+            saturate(0.88)
+            hue-rotate(var(--illu-hue, 0deg))
+            drop-shadow(0 0 10px var(--illu-glow, rgba(107, 143, 113, 0.18)));
+  }
+
+  /* Question count pill */
+  .faq-card-clay__count {
+    font-size: 11px;
+    font-weight: 500;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    background-color: #F8F6F2;
+    color: #4B5563;
+    letter-spacing: 0.01em;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Title */
+  .faq-card-clay__title {
+    margin-top: 20px;
+    font-size: 16px;
+    font-weight: 650;
+    color: #1F2933;
+    line-height: 1.35;
+    letter-spacing: -0.01em;
+    position: relative;
+    z-index: 1;
+    transition: color 0.2s ease;
+  }
+
+  /* Description */
+  .faq-card-clay__desc {
+    margin-top: 8px;
+    font-size: 13px;
+    line-height: 1.55;
+    color: #4B5563;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Top questions section */
+  .faq-card-clay__questions-divider {
+    margin-top: 16px;
+    border: none;
+    border-top: 1px solid #EAE4DA;
+    position: relative;
+    z-index: 1;
+  }
+  .faq-card-clay__questions-label {
+    margin-top: 12px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #9CA3AF;
+    position: relative;
+    z-index: 1;
+  }
+  .faq-card-clay__questions-list {
+    margin-top: 8px;
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    position: relative;
+    z-index: 1;
+  }
+  .faq-card-clay__questions-list li {
+    font-size: 12.5px;
+    color: #4B5563;
+    line-height: 1.45;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    opacity: 0.65;
+    transition: color 0.25s ease, opacity 0.25s ease;
+  }
+
+  /* CTA — "Explore all →" */
+  .faq-card-clay__cta {
+    margin-top: auto;
+    padding-top: 16px;
+    font-size: 13px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    position: relative;
+    z-index: 1;
+    transition: gap 0.25s ease, color 0.25s ease;
+  }
+  .faq-card-clay__cta svg {
+    transition: transform 0.25s ease;
+  }
+  .faq-card-clay:hover .faq-card-clay__cta svg {
+    transform: translateX(2px);
+  }
+
+  /* ── Hover contrast boost (light mode) ── */
+  .faq-card-clay:hover .faq-card-clay__title {
+    color: #111827;
+  }
+  .faq-card-clay:hover .faq-card-clay__questions-list li {
+    color: #374151;
+    opacity: 0.9;
+  }
+
+  /* ── Dark mode overrides — glassmorphism ── */
+  [data-theme="dark"] .faq-card-clay {
+    background: rgba(255, 255, 255, 0.055);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(34, 197, 94, 0.25);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  }
+  [data-theme="dark"] .faq-card-clay::before {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, transparent 40%);
+  }
+  [data-theme="dark"] .faq-card-clay:hover {
+    background: rgba(255, 255, 255, 0.075);
+    border-color: rgba(34, 197, 94, 0.35);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45),
+                0 0 1px rgba(34, 197, 94, 0.15);
+  }
+
+  /* SVG — environment-blended, consistent size.
+     Per-category recolor: --illu-hue shifts the purple source artwork
+     into the theme palette (emerald/gold/cyan); --illu-glow adds a
+     soft neon halo. Opacity lowered ~12% to reduce icon dominance. */
+  [data-theme="dark"] .faq-card-clay__illustration {
+    opacity: 0.70;
+    filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.40))
+            brightness(0.9)
+            saturate(0.85)
+            hue-rotate(var(--illu-hue, -8deg))
+            drop-shadow(0 0 9px var(--illu-glow, rgba(34, 197, 94, 0.14)));
+  }
+  [data-theme="dark"] .faq-card-clay:hover .faq-card-clay__illustration {
+    opacity: 0.82;
+    filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.45))
+            brightness(0.95)
+            saturate(0.88)
+            hue-rotate(var(--illu-hue, -8deg))
+            drop-shadow(0 0 12px var(--illu-glow, rgba(34, 197, 94, 0.18)));
+  }
+
+  /* Text contrast — green-adapted tones */
+  [data-theme="dark"] .faq-card-clay__count {
+    background-color: rgba(255, 255, 255, 0.04);
+    color: rgba(255, 255, 255, 0.38);
+  }
+  [data-theme="dark"] .faq-card-clay__title {
+    color: #E6F1EC;
+  }
+  [data-theme="dark"] .faq-card-clay__desc {
+    color: #9FB3A8;
+  }
+  [data-theme="dark"] .faq-card-clay__questions-divider {
+    border-top-color: rgba(255, 255, 255, 0.035);
+  }
+  [data-theme="dark"] .faq-card-clay__questions-label {
+    color: rgba(255, 255, 255, 0.20);
+  }
+  [data-theme="dark"] .faq-card-clay__questions-list li {
+    color: #6B7D74;
+    opacity: 0.65;
+  }
+
+  /* Hover text — increase contrast */
+  [data-theme="dark"] .faq-card-clay:hover .faq-card-clay__title {
+    color: #F1F5F0;
+  }
+  [data-theme="dark"] .faq-card-clay:hover .faq-card-clay__questions-list li {
+    color: #9FB3A8;
+    opacity: 0.9;
+  }
+
+  /* ═════════════════════════════════════════════════════════════
+     .faq-item — Accordion FAQ card (category detail view)
+     Interactive content blocks with depth, hover feedback,
+     expanded left-accent state, and calm dark mode. Each FAQ
+     feels like a clear, clickable unit.
+     ═════════════════════════════════════════════════════════════ */
+
+  /* Sort header bar */
+  .faq-sort-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding: 0 4px;
+  }
+  .faq-sort-bar__count {
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba(0, 0, 0, 0.40);
+    letter-spacing: 0.01em;
+  }
+  .faq-sort-bar__select {
+    border-radius: 9999px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    background: #ffffff;
+    padding: 5px 14px;
+    font-size: 12px;
+    color: rgba(0, 0, 0, 0.55);
+    cursor: pointer;
+    transition: border-color 0.2s ease;
+  }
+  .faq-sort-bar__select:focus {
+    outline: none;
+    border-color: rgb(var(--accent-rgb) / 0.35);
+  }
+  [data-theme="dark"] .faq-sort-bar__count {
+    color: rgba(255, 255, 255, 0.35);
+  }
+  [data-theme="dark"] .faq-sort-bar__select {
+    background: #0c1a16;
+    border-color: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.45);
+  }
+
+  /* ── Individual FAQ card ── */
+  .faq-item {
+    position: relative;
+    background: #ffffff;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    border-left: 2px solid transparent;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04),
+                0 1px 2px rgba(0, 0, 0, 0.02);
+    transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+  }
+
+  /* Hover — lift + deeper shadow + subtle bg tint (#4) */
+  .faq-item:hover {
+    transform: translateY(-1px);
+    background: #f9fafb;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.07),
+                0 2px 4px rgba(0, 0, 0, 0.03);
+    border-color: rgba(0, 0, 0, 0.08);
+  }
+
+  /* Expanded — left accent + bg shift (#5) */
+  .faq-item--expanded {
+    background: #f9fafb;
+    border-left-color: rgba(16, 185, 129, 0.55);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06),
+                0 2px 6px rgba(0, 0, 0, 0.03);
+    border-color: rgba(0, 0, 0, 0.07);
+  }
+  .faq-item--expanded:hover {
+    transform: none;
+  }
+
+  /* ── Question row — always visible (#2) ── */
+  .faq-item__question {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    cursor: pointer;
+    position: relative;
+    z-index: 1;
+    -webkit-user-select: none;
+    user-select: none;
+    padding: 16px 20px;
+  }
+
+  /* Typography: 15px medium (#9) */
+  .faq-item__question-text {
+    font-size: 15px;
+    font-weight: 500;
+    color: #1a1a1a;
+    line-height: 1.5;
+    letter-spacing: -0.005em;
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* ── Chevron — opacity + rotation (#6) ── */
+  .faq-item__chevron {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    color: rgba(0, 0, 0, 0.20);
+    opacity: 0.6;
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+                color 0.2s ease,
+                opacity 0.2s ease;
+  }
+  .faq-item:hover .faq-item__chevron {
+    color: rgba(0, 0, 0, 0.40);
+    opacity: 1;
+  }
+  .faq-item--expanded .faq-item__chevron {
+    transform: rotate(180deg);
+    color: rgb(var(--accent-rgb));
+    opacity: 1;
+  }
+
+  /* ── Expandable body — smooth reveal (#7) ── */
+  .faq-item__body {
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.2s ease 0.05s;
+    position: relative;
+    z-index: 1;
+  }
+  .faq-item--expanded .faq-item__body {
+    max-height: 1200px;
+    opacity: 1;
+    transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.25s ease 0.08s;
+  }
+
+  .faq-item__body-content {
+    padding: 0 20px 20px 20px;
+  }
+
+  /* Answer text — divider only when visible (#10), typography (#9) */
+  .faq-item__answer {
+    margin-top: 0;
+    padding-top: 16px;
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+    font-size: 14px;
+    line-height: 1.7;
+    color: #4b5563;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  /* Meta row */
+  .faq-item__meta {
+    margin-top: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: rgba(0, 0, 0, 0.35);
+  }
+
+  /* Meta pill — consistent with design system (#8) */
+  .faq-item__meta-pill {
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: #f3f4f6;
+    color: #4b5563;
+    font-size: 11px;
+    font-weight: 500;
+  }
+
+  /* ══════════════════════════════════════════════════
+     Dark mode — deep green environment
+     ══════════════════════════════════════════════════ */
+  [data-theme="dark"] .faq-item {
+    background: #081512;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-left: 2px solid transparent;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+  }
+
+  /* Dark hover (#4) */
+  [data-theme="dark"] .faq-item:hover {
+    background: rgba(16, 185, 129, 0.04);
+    border-color: rgba(255, 255, 255, 0.07);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+  }
+
+  /* Dark expanded (#5) */
+  [data-theme="dark"] .faq-item--expanded {
+    background: #0b1f1a;
+    border-left-color: rgba(16, 185, 129, 0.45);
+    border-color: rgba(255, 255, 255, 0.06);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55),
+                inset 0 0 20px rgba(16, 185, 129, 0.03);
+  }
+  [data-theme="dark"] .faq-item--expanded:hover {
+    transform: none;
+    background: #0b1f1a;
+  }
+
+  /* Dark question text */
+  [data-theme="dark"] .faq-item__question-text {
+    color: #E6F1EC;
+  }
+
+  /* Dark chevron */
+  [data-theme="dark"] .faq-item__chevron {
+    color: rgba(255, 255, 255, 0.18);
+  }
+  [data-theme="dark"] .faq-item:hover .faq-item__chevron {
+    color: rgba(255, 255, 255, 0.40);
+  }
+  [data-theme="dark"] .faq-item--expanded .faq-item__chevron {
+    color: #22C55E;
+  }
+
+  /* Dark answer (#9) */
+  [data-theme="dark"] .faq-item__answer {
+    color: #9ca3af;
+    border-top-color: rgba(255, 255, 255, 0.05);
+  }
+
+  /* Dark meta */
+  [data-theme="dark"] .faq-item__meta {
+    color: rgba(255, 255, 255, 0.28);
+  }
+  [data-theme="dark"] .faq-item__meta-pill {
+    background: rgba(255, 255, 255, 0.07);
+    color: #d1d5db;
+  }
+
+
+
+  /* Doodle underline decoration (for hero headings) */
+  .doodle-underline {
+    position: relative;
+    display: inline-block;
+  }
+
+  /* ═════════════════════════════════════════════════════════════
+     .dialog-shell — responsive dialog container
+     Centers the dialog in the viewport across all screen sizes.
+     max-width scales down on smaller viewports; max-height uses
+     dvh for mobile (handles dynamic browser chrome) and vh for
+     desktop. No overflow clipping here — that's handled by the
+     inner scroll container.
+     ═════════════════════════════════════════════════════════════ */
+  .dialog-shell {
+    /* Center both axes */
+    place-items: center;
+    align-items: center;
+    /* Full viewport base */
+    width: 100%;
+    height: 100%;
+    /* Spacing from screen edges on small viewports */
+    padding: 8px;
+  }
+
+  /* Mobile: dialog fills almost the entire screen, top-safe-aware */
+  @media (max-height: 700px), (max-width: 640px) {
+    .dialog-shell {
+      padding: 0;
+      height: 100dvh;
+    }
+  }
+
+  /* ═════════════════════════════════════════════════════════════
+     .dialog-panel — the actual dialog surface
+     Replaces inline maxHeight/style on the <dialog> element.
+     flex-col so header/footer are fixed and content scrolls.
+     ═════════════════════════════════════════════════════════════ */
+  .dialog-panel {
+    /* Base: fills shell (which is viewport-sized) with max caps */
+    width: 100%;
+    max-height: 100%;
+    /* Size cap + horizontal centering — shell's place-items handles vertical */
+    max-width: 42rem;         /* ~672px — same as max-w-2xl */
+    /* Internal flex layout */
+    display: flex;
+    flex-direction: column;
+    /* Card styling (no conflicting maxHeight inline needed) */
+    m-auto: unset;
+    /* Override any UA dialog centering — we handle it ourselves */
+    position: static;
+    margin: 0;
+  }
+
+  /* Responsive max-width — narrower dialog on smaller screens */
+  @media (max-width: 640px) {
+    .dialog-panel {
+      max-width: 100%;
+    }
+  }
+
+  @media (min-width: 641px) and (max-width: 900px) {
+    .dialog-panel {
+      max-width: 36rem; /* max-w-3xl */
+    }
+  }
+
+  /* Mobile/laptop: cap height at dvh so browser chrome doesn't clip */
+  @media (max-height: 700px), (max-width: 640px) {
+    .dialog-panel {
+      max-height: 100dvh;
+      border-radius: 0;
+    }
+  }
+
+  /* Desktop: cap at 90vh and round corners */
+  @media (min-width: 641px) and (min-height: 701px) {
+    .dialog-panel {
+      max-height: 90vh;
+      border-radius: 1rem; /* rounded-2xl */
+    }
+  }
+
+  /* ═════════════════════════════════════════════════════════════
+     .dialog-scroll — scrollable content area
+     Stays in the DOM flow; flex-grow fills available space.
+     Overflows independently without clipping the header.
+     ═════════════════════════════════════════════════════════════ */
+  .dialog-scroll {
+    overflow-y: auto;
+    flex: 1 1 0;
+    min-height: 0; /* required for flex children to shrink below content size */
+  }
+
+  /* ═════════════════════════════════════════════════════════════
+     .dialog-header — fixed-height header area
+     Does NOT shrink, stays visible at all scroll positions.
+     ═════════════════════════════════════════════════════════════ */
+  .dialog-header {
+    flex: 0 0 auto;
+  }
+
+  /* ═════════════════════════════════════════════════════════════
+     .dialog-footer — sticky footer area (comment input)
+     ═════════════════════════════════════════════════════════════ */
+  .dialog-footer {
+    flex: 0 0 auto;
+  }
+
+  /* Doodle underline decoration (for hero headings) */
+  .doodle-underline {
+    position: relative;
+    display: inline-block;
+  }
+  .doodle-underline::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 0;
+    width: 100%;
+    height: 8px;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='8'%3E%3Cpath d='M0 6 Q30 0 60 6 Q90 12 120 6' stroke='%235fc585' stroke-width='2' fill='none' opacity='0.55'/%3E%3C/svg%3E") repeat-x;
+    background-size: 120px 8px;
+  }
+
+  /* Doodle elements */
+  .doodle-arrow,
+  .doodle-scribble,
+  .doodle-star {
+    opacity: 0.06;
+    pointer-events: none;
+  }
+
+  /* Glass morphism for navbar — light mode only (dark uses plain
+     translucent dark instead, per the new spec) */
+  .glass {
+    background-color: rgba(245, 241, 234, 0.82);
+    backdrop-filter: blur(20px) saturate(1.8);
+    -webkit-backdrop-filter: blur(20px) saturate(1.8);
+  }
+
+  /* ═════════ Pill navigation link ═════════ */
+  /* Modernized for v1.66: solid sage pill on active (was just an
+     outline), smooth hover lift + tint, spring-y scale transition.
+     Active uses the same accent color as the rest of the design
+     system so the highlighted tab reads as a primary CTA.
+     v1.66.1: tighter padding so 6 nav items fit at 2xl. */
   .nav-pill {
     padding: 5px 14px;
     font-size: 0.82rem;
@@ -401,6 +1654,9 @@ select option {
     border: 1.2px solid transparent;
     background-color: transparent;
     transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+    white-space: nowrap;
+    letter-spacing: 0.01em;
+    line-height: 1;
   }
   .nav-pill:hover {
     color: rgb(var(--text-primary-rgb));
@@ -473,900 +1729,9 @@ select option {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   Legacy component classes — restored from pre-refactor index.css.
-   These were removed in commit abe1c73 (refactor(frontend/styles):
-   split style_config.ts) but 380+ JSX sites still reference them
-   as plain className= strings. Pending a future migration to
-   style_config.ts constants; for now, keep the CSS in sync with
-   those consumers. All rules below are reproduced verbatim from
-   abe1c73~1:apps/frontend/src/styles/index.css (lines 591-1760,
-   2038-2304) unless otherwise noted.
-   ═══════════════════════════════════════════════════════════════ */
-@layer components {
-  /* ── Stub: custom-scrollbar (used by admin sidebar / timeline tab) ── */
-  .custom-scrollbar {
-    scrollbar-width: thin;
-    scrollbar-color: rgb(var(--border-rgb)) transparent;
-  }
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgb(var(--border-rgb));
-    border-radius: 3px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgb(var(--accent-rgb) / 0.40);
-  }
-
-  /* ── Stub: admin-form (single usage in AdminCoursesPage; card chrome handled by other utilities) ── */
-  .admin-form {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  /* ═════════════════════════════════════════════════════════════
-     .btn-cta — "Ask the Community" style button
-     ═════════════════════════════════════════════════════════════ */
-  .btn-cta {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 12px 28px;
-    background-color: rgb(var(--text-primary-rgb));
-    color: rgb(var(--accent-text-rgb));
-    border-radius: 12px;
-    font-size: 14px;
-    font-weight: 600;
-    line-height: 1;
-    transition: background-color 0.2s ease,
-                border-color 0.2s ease,
-                color 0.2s ease,
-                box-shadow 0.2s ease,
-                transform 0.1s ease;
-    cursor: pointer;
-  }
-  .btn-cta:hover {
-    opacity: 0.88;
-  }
-  [data-theme="dark"] .btn-cta {
-    background-color: #191919;
-    border-width: 1px;
-    border-style: solid;
-    border-color: #2A2A2A;
-    color: #F2F2F2;
-  }
-  [data-theme="dark"] .btn-cta:hover {
-    background-color: #202020;
-    border-color: rgb(var(--accent-rgb) / 0.40);
-    color: rgb(var(--accent-rgb));
-    box-shadow: 0 0 20px rgb(var(--accent-rgb) / 0.15);
-    opacity: 1;
-  }
-  [data-theme="dark"] .btn-cta:hover .btn-cta-icon {
-    color: rgb(var(--accent-rgb));
-    transform: translateX(2px);
-  }
-  [data-theme="dark"] .btn-cta:active {
-    background-color: #262626;
-    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
-  }
-  .btn-cta-icon {
-    width: 16px;
-    height: 16px;
-    flex-shrink: 0;
-    transition: transform 0.2s ease, color 0.2s ease;
-    color: rgb(var(--text-primary-rgb));
-  }
-
-  /* ═════════════════════════════════════════════════════════════
-     .search-overlay — premium glassmorphism backdrop
-     ═════════════════════════════════════════════════════════════ */
-  .search-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 30;
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    background-color: rgba(var(--text-primary-rgb) / 0.25);
-    transition: opacity 0.3s ease;
-  }
-  [data-theme="dark"] .search-overlay {
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    background-color: rgba(0, 0, 0, 0.5);
-    box-shadow: inset 0 0 80px rgb(var(--accent-rgb) / 0.04);
-  }
-
-  /* ═════════════════════════════════════════════════════════════
-     Ask in Community (No Results block)
-     ═════════════════════════════════════════════════════════════ */
-  .ask-community-container {
-    background-color: rgb(var(--bg-card-rgb));
-    border-color: rgb(var(--border-rgb));
-  }
-  .ask-community-container:hover {
-    background-color: rgb(var(--accent-rgb) / 0.10);
-    border-color: rgb(var(--accent-rgb) / 0.25);
-  }
-  .ask-community-title {
-    color: rgb(var(--text-primary-rgb));
-  }
-  .ask-community-icon {
-    color: rgb(var(--text-primary-rgb));
-  }
-  .ask-community-action {
-    color: rgb(var(--accent-rgb));
-  }
-  [data-theme="dark"] .ask-community-container {
-    background-color: rgba(255, 255, 255, 0.03);
-    border-color: rgba(255, 255, 255, 0.10);
-  }
-  [data-theme="dark"] .ask-community-container:hover {
-    background-color: rgba(255, 255, 255, 0.05);
-  }
-  [data-theme="dark"] .ask-community-title {
-    color: rgb(var(--text-primary-rgb));
-  }
-  [data-theme="dark"] .ask-community-icon {
-    color: rgb(var(--text-primary-rgb));
-  }
-  [data-theme="dark"] .ask-community-action {
-    color: rgb(var(--accent-rgb));
-  }
-
-  /* ═════════════════════════════════════════════════════════════
-     .search-popular-pill — enhanced popular search capsules
-     ═════════════════════════════════════════════════════════════ */
-  .search-popular-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    border-radius: 9999px;
-    border: 1px solid rgb(var(--border-rgb));
-    background-color: rgb(var(--bg-card-rgb));
-    color: rgb(var(--text-secondary-rgb));
-    font-size: 13px;
-    font-weight: 500;
-    line-height: 1;
-    cursor: pointer;
-    transition: background-color 0.2s ease,
-                border-color 0.2s ease,
-                color 0.2s ease;
-  }
-  .search-popular-pill:hover {
-    background-color: rgb(var(--accent-rgb) / 0.14);
-    border-color: rgb(var(--accent-rgb) / 0.30);
-    color: rgb(var(--accent-rgb));
-  }
-  .search-popular-pill:active {
-    background-color: rgb(var(--accent-rgb) / 0.18);
-  }
-  .search-popular-pill .search-popular-icon {
-    opacity: 0.5;
-    transition: opacity 0.2s ease, color 0.2s ease;
-    color: inherit;
-  }
-  .search-popular-pill:hover .search-popular-icon {
-    opacity: 1;
-  }
-  .search-popular-badge {
-    margin-left: auto;
-    padding: 1px 6px;
-    border-radius: 9999px;
-    background-color: rgb(var(--border-rgb) / 0.6);
-    color: rgb(var(--text-secondary-rgb));
-    font-size: 11px;
-    font-weight: 500;
-    line-height: 1.4;
-  }
-  [data-theme="dark"] .search-popular-pill {
-    background-color: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.10);
-    color: rgb(var(--text-secondary-rgb));
-  }
-  [data-theme="dark"] .search-popular-pill:hover {
-    background-color: rgb(var(--accent-rgb) / 0.10);
-    border-color: rgb(var(--accent-rgb) / 0.30);
-    color: rgb(var(--accent-rgb));
-  }
-  [data-theme="dark"] .search-popular-pill:active {
-    background-color: rgb(var(--accent-rgb) / 0.18);
-  }
-  [data-theme="dark"] .search-popular-pill .search-popular-icon {
-    opacity: 0.4;
-  }
-  [data-theme="dark"] .search-popular-pill:hover .search-popular-icon {
-    opacity: 1;
-  }
-  [data-theme="dark"] .search-popular-badge {
-    background-color: rgba(255, 255, 255, 0.08);
-    color: #7A7A7A;
-  }
-
-  /* ═════════════════════════════════════════════════════════════
-     .faq-card-clay — Premium FAQ category cards
-     ═════════════════════════════════════════════════════════════ */
-  .faq-card-clay {
-    position: relative;
-    min-height: 300px;
-    border-radius: 16px;
-    padding: 26px;
-    border: 1px solid #E4DDD3;
-    background-color: #ffffff;
-    box-shadow: 0 4px 12px rgba(34, 34, 34, 0.04), 0 12px 32px rgba(34, 34, 34, 0.05);
-    overflow: hidden;
-    cursor: pointer;
-    text-align: left;
-    display: flex;
-    flex-direction: column;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  .faq-card-clay::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    background: radial-gradient(circle at top right, rgba(255,255,255,0.12), transparent 60%);
-    pointer-events: none;
-    z-index: 0;
-  }
-  .faq-card-clay:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 20px rgba(34, 34, 34, 0.06),
-                0 24px 48px rgba(34, 34, 34, 0.08),
-                0 0 0 1px rgb(var(--accent-rgb) / 0.14);
-    border-color: rgb(var(--accent-rgb) / 0.35);
-  }
-  .faq-card-clay:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 3px rgb(var(--accent-rgb) / 0.20),
-                0 8px 24px rgba(0, 0, 0, 0.04);
-  }
-  .faq-card-clay__badge {
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    position: relative;
-    z-index: 1;
-  }
-  .faq-card-clay__illustration {
-    position: absolute;
-    top: 14px;
-    right: 14px;
-    width: 56px;
-    height: 56px;
-    object-fit: contain;
-    opacity: 0.80;
-    transform: rotate(-6deg) translateY(-2px);
-    pointer-events: none;
-    filter: drop-shadow(0 5px 10px rgba(34, 34, 34, 0.10))
-            saturate(0.80)
-            hue-rotate(var(--illu-hue, 0deg))
-            drop-shadow(0 0 8px var(--illu-glow, rgb(var(--accent-rgb) / 0.18)));
-    transition: opacity 0.25s ease,
-                filter 0.25s ease;
-    z-index: 0;
-  }
-  .faq-card-clay:hover .faq-card-clay__illustration {
-    opacity: 0.92;
-    filter: drop-shadow(0 6px 12px rgba(34, 34, 34, 0.12))
-            saturate(0.88)
-            hue-rotate(var(--illu-hue, 0deg))
-            drop-shadow(0 0 10px var(--illu-glow, rgb(var(--accent-rgb) / 0.22)));
-  }
-  .faq-card-clay__count {
-    font-size: 11px;
-    font-weight: 500;
-    padding: 3px 10px;
-    border-radius: 9999px;
-    background-color: #FCFAF8;
-    color: #555555;
-    letter-spacing: 0.01em;
-    position: relative;
-    z-index: 1;
-  }
-  .faq-card-clay__title {
-    margin-top: 20px;
-    font-size: 16px;
-    font-weight: 650;
-    color: #222222;
-    line-height: 1.35;
-    letter-spacing: -0.01em;
-    position: relative;
-    z-index: 1;
-    transition: color 0.2s ease;
-  }
-  .faq-card-clay__desc {
-    margin-top: 8px;
-    font-size: 13px;
-    line-height: 1.55;
-    color: #555555;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    position: relative;
-    z-index: 1;
-  }
-  .faq-card-clay__questions-divider {
-    margin-top: 16px;
-    border: none;
-    border-top: 1px solid #E4DDD3;
-    position: relative;
-    z-index: 1;
-  }
-  .faq-card-clay__questions-label {
-    margin-top: 12px;
-    font-size: 10px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: #8B8B8B;
-    position: relative;
-    z-index: 1;
-  }
-  .faq-card-clay__questions-list {
-    margin-top: 8px;
-    list-style: none;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    position: relative;
-    z-index: 1;
-  }
-  .faq-card-clay__questions-list li {
-    font-size: 12.5px;
-    color: #555555;
-    line-height: 1.45;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    opacity: 0.65;
-    transition: color 0.25s ease, opacity 0.25s ease;
-  }
-  .faq-card-clay__cta {
-    margin-top: auto;
-    padding-top: 16px;
-    font-size: 13px;
-    font-weight: 600;
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    position: relative;
-    z-index: 1;
-    transition: gap 0.25s ease, color 0.25s ease;
-  }
-  .faq-card-clay__cta svg {
-    transition: transform 0.25s ease;
-  }
-  .faq-card-clay:hover .faq-card-clay__cta svg {
-    transform: translateX(2px);
-  }
-  .faq-card-clay:hover .faq-card-clay__title {
-    color: #111111;
-  }
-  .faq-card-clay:hover .faq-card-clay__questions-list li {
-    color: #333333;
-    opacity: 0.9;
-  }
-  [data-theme="dark"] .faq-card-clay {
-    background: rgba(255, 255, 255, 0.055);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgb(var(--accent-rgb) / 0.25);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
-  }
-  [data-theme="dark"] .faq-card-clay__count {
-    background-color: rgba(255, 255, 255, 0.04);
-    color: rgba(255, 255, 255, 0.38);
-  }
-  [data-theme="dark"] .faq-card-clay__title {
-    color: #F2F2F2;
-  }
-  [data-theme="dark"] .faq-card-clay__desc {
-    color: #B8B8B8;
-  }
-  [data-theme="dark"] .faq-card-clay__questions-divider {
-    border-top-color: rgba(255, 255, 255, 0.035);
-  }
-  [data-theme="dark"] .faq-card-clay__questions-label {
-    color: rgba(255, 255, 255, 0.20);
-  }
-  [data-theme="dark"] .faq-card-clay__questions-list li {
-    color: #7A7A7A;
-    opacity: 0.65;
-  }
-
-  /* ═════════════════════════════════════════════════════════════
-     .faq-sort-bar + .faq-item — Accordion FAQ category detail
-     ═════════════════════════════════════════════════════════════ */
-  .faq-sort-bar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 20px;
-    padding: 0 4px;
-  }
-  .faq-sort-bar__count {
-    font-size: 13px;
-    font-weight: 500;
-    color: rgba(0, 0, 0, 0.40);
-    letter-spacing: 0.01em;
-  }
-  .faq-sort-bar__select {
-    border-radius: 9999px;
-    border: 1px solid rgba(0, 0, 0, 0.08);
-    background: #ffffff;
-    padding: 5px 14px;
-    font-size: 12px;
-    color: rgba(0, 0, 0, 0.55);
-    cursor: pointer;
-    transition: border-color 0.2s ease;
-  }
-  .faq-sort-bar__select:focus {
-    outline: none;
-    border-color: rgb(var(--accent-rgb) / 0.45);
-  }
-  [data-theme="dark"] .faq-sort-bar__count {
-    color: rgba(255, 255, 255, 0.35);
-  }
-  [data-theme="dark"] .faq-sort-bar__select {
-    background: #131313;
-    border-color: rgba(255, 255, 255, 0.06);
-    color: rgba(255, 255, 255, 0.45);
-  }
-
-  .faq-item {
-    position: relative;
-    background: #ffffff;
-    border: 1px solid rgba(0, 0, 0, 0.05);
-    border-left: 2px solid transparent;
-    border-radius: 12px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04),
-                0 1px 2px rgba(0, 0, 0, 0.02);
-    transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
-    overflow: hidden;
-  }
-  .faq-item:hover {
-    transform: translateY(-1px);
-    background: #f9fafb;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.07),
-                0 2px 4px rgba(0, 0, 0, 0.03);
-    border-color: rgba(0, 0, 0, 0.08);
-  }
-  .faq-item--expanded {
-    background: #f9fafb;
-    border-left-color: rgb(var(--accent-rgb) / 0.55);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06),
-                0 2px 6px rgba(0, 0, 0, 0.03);
-    border-color: rgba(0, 0, 0, 0.07);
-  }
-  .faq-item--expanded:hover {
-    transform: none;
-  }
-  .faq-item__question {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    cursor: pointer;
-    position: relative;
-    z-index: 1;
-    -webkit-user-select: none;
-    user-select: none;
-    padding: 16px 20px;
-  }
-  .faq-item__question-text {
-    font-size: 15px;
-    font-weight: 500;
-    color: #1a1a1a;
-    line-height: 1.5;
-    letter-spacing: -0.005em;
-    flex: 1;
-    min-width: 0;
-  }
-  .faq-item__chevron {
-    flex-shrink: 0;
-    width: 18px;
-    height: 18px;
-    color: rgba(0, 0, 0, 0.20);
-    opacity: 0.6;
-    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-                color 0.2s ease,
-                opacity 0.2s ease;
-  }
-  .faq-item:hover .faq-item__chevron {
-    color: rgba(0, 0, 0, 0.40);
-    opacity: 1;
-  }
-  .faq-item--expanded .faq-item__chevron {
-    transform: rotate(180deg);
-    color: rgb(var(--accent-rgb));
-    opacity: 1;
-  }
-  .faq-item__body {
-    max-height: 0;
-    opacity: 0;
-    overflow: hidden;
-    transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-                opacity 0.2s ease 0.05s;
-    position: relative;
-    z-index: 1;
-  }
-  .faq-item--expanded .faq-item__body {
-    max-height: 1200px;
-    opacity: 1;
-    transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
-                opacity 0.25s ease 0.08s;
-  }
-  .faq-item__body-content {
-    padding: 0 20px 20px 20px;
-  }
-  .faq-item__answer {
-    margin-top: 0;
-    padding-top: 16px;
-    border-top: 1px solid rgba(0, 0, 0, 0.05);
-    font-size: 14px;
-    line-height: 1.7;
-    color: #4b5563;
-    white-space: pre-wrap;
-    word-break: break-word;
-  }
-  .faq-item__meta {
-    margin-top: 12px;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
-    font-size: 11px;
-    color: rgba(0, 0, 0, 0.35);
-  }
-  .faq-item__meta-pill {
-    padding: 2px 8px;
-    border-radius: 6px;
-    background: #f3f4f6;
-    color: #4b5563;
-    font-size: 11px;
-    font-weight: 500;
-  }
-  [data-theme="dark"] .faq-item {
-    background: #202020;
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-left: 2px solid transparent;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
-  }
-  [data-theme="dark"] .faq-item:hover {
-    background: rgb(var(--accent-rgb) / 0.04);
-    border-color: rgba(255, 255, 255, 0.07);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
-  }
-  [data-theme="dark"] .faq-item--expanded {
-    background: #262626;
-    border-left-color: rgb(var(--accent-rgb) / 0.50);
-    border-color: rgba(255, 255, 255, 0.06);
-    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55),
-                inset 0 0 20px rgb(var(--accent-rgb) / 0.04);
-  }
-  [data-theme="dark"] .faq-item--expanded:hover {
-    transform: none;
-    background: #262626;
-  }
-  [data-theme="dark"] .faq-item__question-text {
-    color: #F2F2F2;
-  }
-  [data-theme="dark"] .faq-item__chevron {
-    color: rgba(255, 255, 255, 0.18);
-  }
-  [data-theme="dark"] .faq-item:hover .faq-item__chevron {
-    color: rgba(255, 255, 255, 0.40);
-  }
-  [data-theme="dark"] .faq-item--expanded .faq-item__chevron {
-    color: rgb(var(--accent-rgb));
-  }
-  [data-theme="dark"] .faq-item__answer {
-    color: #9ca3af;
-    border-top-color: rgba(255, 255, 255, 0.05);
-  }
-  [data-theme="dark"] .faq-item__meta {
-    color: rgba(255, 255, 255, 0.28);
-  }
-  [data-theme="dark"] .faq-item__meta-pill {
-    background: rgba(255, 255, 255, 0.07);
-    color: #d1d5db;
-  }
-
-  /* ═════════════════════════════════════════════════════════════
-     .dialog-shell / .dialog-panel / .dialog-scroll
-     Responsive dialog container, surface, and content scroller.
-     ═════════════════════════════════════════════════════════════ */
-  .dialog-shell {
-    /* Center both axes */
-    place-items: center;
-    align-items: center;
-    /* Full viewport base */
-    width: 100%;
-    height: 100%;
-    /* Spacing from screen edges on small viewports.
-       padding-top reserves space for the floating navbar (fixed top-4,
-       h-16 ≈ 80px) so a centered dialog never sits underneath it. */
-    padding: 8px;
-    padding-top: calc(8px + 5rem);          /* ≈80px desktop */
-  }
-  @media (max-height: 700px), (max-width: 640px) {
-    .dialog-shell {
-      padding: 0;
-      padding-top: 4rem;                    /* ≈64px mobile */
-      height: 100dvh;
-    }
-  }
-  .dialog-panel {
-    /* Base: fills shell (which is viewport-sized) with max caps */
-    width: 100%;
-    max-height: 100%;
-    /* Size cap + horizontal centering — shell's place-items handles vertical */
-    max-width: 42rem;         /* ~672px — same as max-w-2xl */
-    /* Internal flex layout */
-    display: flex;
-    flex-direction: column;
-    /* Card styling (no conflicting maxHeight inline needed) */
-    m-auto: unset;
-    /* Override any UA dialog centering — we handle it ourselves */
-    position: static;
-    margin: 0;
-  }
-  @media (max-width: 640px) {
-    .dialog-panel {
-      max-width: 100%;
-    }
-  }
-  @media (min-width: 641px) and (max-width: 900px) {
-    .dialog-panel {
-      max-width: 36rem; /* max-w-3xl */
-    }
-  }
-  @media (max-height: 700px), (max-width: 640px) {
-    .dialog-panel {
-      max-height: 100dvh;
-      border-radius: 0;
-    }
-  }
-  @media (min-width: 641px) and (min-height: 701px) {
-    .dialog-panel {
-      max-height: 85vh;
-      border-radius: 1rem; /* rounded-2xl */
-    }
-  }
-  .dialog-scroll {
-    overflow-y: auto;
-    flex: 1 1 0;
-    min-height: 0; /* required for flex children to shrink below content size */
-  }
-
-  /* ═════════════════════════════════════════════════════════════
-     .doodle-underline — hero heading decoration
-     ═════════════════════════════════════════════════════════════ */
-  .doodle-underline {
-    position: relative;
-    display: inline-block;
-  }
-  .doodle-underline::after {
-    content: '';
-    position: absolute;
-    bottom: -4px;
-    left: 0;
-    width: 100%;
-    height: 8px;
-    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='8'%3E%3Cpath d='M0 6 Q30 0 60 6 Q90 12 120 6' stroke='%23D6B78F' stroke-width='2' fill='none' opacity='0.55'/%3E%3C/svg%3E") repeat-x;
-    background-size: 120px 8px;
-  }
-}
-
-/* ══════════════════════════════════════════════════════════════════
-   ADMIN PANEL — Reusable dark-mode-ready component classes
-   All classes use theme CSS variables so they auto-adapt to
-   both light and dark modes without any dark: prefix juggling.
-   Reproduced verbatim from abe1c73~1 — please see commit if you
-   intend to migrate these to Tailwind utilities / style_config.
-   ══════════════════════════════════════════════════════════════════ */
-@layer components {
-  /* ── Table structures ─────────────────────────────────────────── */
-  .admin-table-wrap {
-    @apply bg-card border border-border rounded-xl overflow-hidden;
-  }
-  .admin-thead-row {
-    @apply bg-mist border-b border-border;
-  }
-  .admin-th {
-    @apply px-3 py-2.5 text-left text-[10px] font-semibold text-ink-faint uppercase tracking-widest whitespace-nowrap;
-  }
-  .admin-td {
-    @apply px-3 py-3 text-sm text-ink;
-  }
-  .admin-tr {
-    @apply border-b border-border/50 last:border-0 hover:bg-mist transition-colors;
-  }
-
-  /* ── Card surfaces ────────────────────────────────────────────── */
-  .admin-card-surface {
-    @apply bg-card border border-border rounded-xl overflow-hidden;
-  }
-  .admin-card-header {
-    @apply px-4 py-3 border-b border-border;
-  }
-  .admin-stat-mini {
-    @apply bg-bg-secondary border border-border rounded-lg;
-  }
-
-  /* ── Form controls ────────────────────────────────────────────── */
-  .admin-input {
-    @apply w-full px-3 py-2 rounded-md text-sm text-ink bg-bg-secondary border border-border outline-none focus:border-accent transition-colors;
-    &::placeholder { color: rgb(var(--text-muted-rgb)); }
-  }
-  .admin-textarea {
-    @apply w-full px-3 py-2 rounded-md text-sm text-ink bg-bg-secondary border border-border outline-none focus:border-accent transition-colors resize-none;
-    &::placeholder { color: rgb(var(--text-muted-rgb)); }
-  }
-  .admin-select {
-    @apply px-2.5 py-1.5 rounded-md text-sm text-ink bg-bg-secondary border border-border outline-none focus:border-accent transition-colors;
-  }
-  .admin-search-input {
-    @apply w-full pl-8 pr-3 py-1.5 rounded-md text-sm text-ink bg-bg-secondary border border-border outline-none focus:border-accent transition-colors;
-    &::placeholder { color: rgb(var(--text-muted-rgb)); }
-  }
-  .admin-label {
-    @apply block text-xs font-medium text-ink-soft mb-1;
-  }
-
-  /* ── Modal structures ─────────────────────────────────────────── */
-  .admin-modal-panel {
-    background: var(--modal-bg);
-    border: 1px solid var(--modal-border);
-    @apply rounded-xl shadow-float;
-  }
-  .admin-modal-header {
-    border-bottom: 1px solid var(--modal-border);
-    @apply px-5 py-4 flex items-center justify-between;
-  }
-  .admin-modal-body {
-    @apply px-5 py-4;
-  }
-  .admin-modal-footer {
-    border-top: 1px solid var(--modal-border);
-    @apply px-5 py-4 flex flex-wrap gap-2;
-  }
-
-  /* ── Pagination ───────────────────────────────────────────────── */
-  .admin-pagination {
-    @apply flex items-center justify-between px-4 py-3 border-t border-border text-sm text-ink-faint;
-  }
-  .admin-pagination-btn {
-    @apply px-3 py-1 rounded-md text-sm text-ink-soft hover:bg-mist disabled:opacity-30 transition-colors;
-  }
-
-  /* ── Empty state ──────────────────────────────────────────────── */
-  .admin-empty {
-    @apply py-12 text-center text-sm text-ink-faint;
-  }
-
-  /* ── Buttons ──────────────────────────────────────────────────── */
-  .admin-btn-primary {
-    @apply px-4 py-2 rounded-md text-sm font-medium disabled:opacity-40 transition-colors;
-    background: rgb(var(--accent-rgb));
-    color: rgb(var(--accent-text-rgb));
-  }
-  .admin-btn-primary:hover:not(:disabled) {
-    background: rgb(var(--accent-hover-rgb));
-  }
-  .admin-btn-ghost {
-    @apply px-4 py-2 rounded-md text-sm text-ink-faint hover:text-ink hover:bg-mist transition-colors;
-  }
-  .admin-btn-outline {
-    @apply px-4 py-2 rounded-md text-sm border border-border text-ink-soft hover:bg-mist disabled:opacity-40 transition-colors;
-  }
-  .admin-btn-danger {
-    @apply px-4 py-2 rounded-md text-sm font-medium text-white bg-danger hover:bg-danger/80 disabled:opacity-40 transition-colors;
-  }
-  .admin-btn-warn {
-    @apply px-4 py-2 rounded-md text-sm font-medium text-white bg-warning hover:bg-warning/80 disabled:opacity-40 transition-colors;
-  }
-  .admin-btn-success {
-    @apply px-4 py-2 rounded-md text-sm font-medium text-white bg-success hover:bg-success/80 disabled:opacity-50 transition-colors;
-  }
-  .admin-btn-sm-outline {
-    @apply px-2.5 py-1 rounded-md text-[10px] border border-border text-ink-soft hover:border-border-medium hover:text-ink transition-colors;
-  }
-
-  /* ── Toast notifications ──────────────────────────────────────── */
-  .admin-toast-success {
-    @apply bg-success/10 border border-success/20 text-success;
-  }
-  .admin-toast-warn {
-    @apply bg-warning/10 border border-warning/20 text-warning;
-  }
-  .admin-toast-error {
-    @apply bg-danger/10 border border-danger/20 text-danger;
-  }
-
-  /* ── Tab bar ──────────────────────────────────────────────────── */
-  .admin-tab-bar {
-    @apply flex rounded-lg border border-border overflow-hidden text-xs font-medium shrink-0;
-  }
-  .admin-tab {
-    @apply px-4 py-2 transition-colors text-ink-soft hover:bg-mist;
-  }
-  .admin-tab-active {
-    background: rgb(var(--accent-rgb));
-    color: rgb(var(--accent-text-rgb));
-  }
-
-  /* ── Status badge base ────────────────────────────────────────── */
-  .admin-badge {
-    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium border;
-  }
-  .admin-badge-approved {
-    background: var(--tag-high-bg);
-    color: var(--tag-high-text);
-    border-color: var(--tag-high-bg);
-  }
-  .admin-badge-pending {
-    background: var(--tag-medium-bg);
-    color: var(--tag-medium-text);
-    border-color: var(--tag-medium-bg);
-  }
-  .admin-badge-rejected {
-    background: var(--danger-bg);
-    color: rgb(var(--danger-rgb));
-    border-color: var(--danger-bg);
-  }
-  .admin-badge-admin {
-    background: rgb(var(--accent-rgb) / 0.20);
-    color: rgb(var(--accent-rgb));
-    border-color: rgb(var(--accent-rgb) / 0.45);
-  }
-  .admin-badge-moderator {
-    background: rgb(var(--accent-rgb) / 0.12);
-    color: rgb(var(--accent-hover-rgb));
-    border-color: rgb(var(--accent-rgb) / 0.30);
-  }
-  .admin-badge-user {
-    background: rgb(var(--accent-rgb) / 0.08);
-    color: rgb(var(--accent-hover-rgb));
-    border-color: rgb(var(--accent-rgb) / 0.20);
-  }
-  .admin-badge-default {
-    background: rgba(var(--border-rgb) / 0.4);
-    color: rgb(var(--text-muted-rgb));
-    border-color: rgba(var(--border-rgb) / 0.6);
-  }
-
-  /* Light-mode badge overrides — richer tints on white backgrounds */
-  :root .admin-badge-approved { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
-  :root .admin-badge-pending  { background: #fffbeb; color: #92400e; border-color: #fde68a; }
-  :root .admin-badge-rejected { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
-  :root .admin-badge-admin    { background: rgb(var(--accent-rgb) / 0.20); color: #6B5436; border-color: rgb(var(--accent-rgb) / 0.45); }
-  :root .admin-badge-moderator{ background: rgb(var(--accent-rgb) / 0.12); color: #8A6B43; border-color: rgb(var(--accent-rgb) / 0.30); }
-  :root .admin-badge-user     { background: rgb(var(--accent-rgb) / 0.08); color: rgb(var(--accent-rgb)); border-color: rgb(var(--accent-rgb) / 0.20); }
-  :root .admin-badge-default  { background: #f9fafb; color: #374151; border-color: #e5e7eb; }
-}
-
-/* ═══════════════════════════════════════════════════════════════
    Responsive Utilities
    ═══════════════════════════════════════════════════════════════ */
+
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
@@ -1632,4 +1997,277 @@ select option {
 
 .animate-slide-up {
   animation: slide-up 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   ADMIN PANEL — Reusable dark-mode-ready component classes
+   All classes use theme CSS variables so they auto-adapt to
+   both light and dark modes without any dark: prefix juggling.
+   ══════════════════════════════════════════════════════════════════ */
+@layer components {
+  /* ── Table structures ─────────────────────────────────────────── */
+  .admin-table-wrap {
+    @apply bg-card border border-border rounded-xl overflow-hidden;
+  }
+  .admin-thead-row {
+    @apply bg-mist border-b border-border;
+  }
+  .admin-th {
+    @apply px-3 py-2.5 text-left text-[10px] font-semibold text-ink-faint uppercase tracking-widest whitespace-nowrap;
+  }
+  .admin-td {
+    @apply px-3 py-3 text-sm text-ink;
+  }
+  .admin-tr {
+    @apply border-b border-border/50 last:border-0 hover:bg-mist transition-colors;
+  }
+
+  /* ── Card surfaces ────────────────────────────────────────────── */
+  .admin-card-surface {
+    @apply bg-card border border-border rounded-xl overflow-hidden;
+  }
+  .admin-card-header {
+    @apply px-4 py-3 border-b border-border;
+  }
+  .admin-stat-mini {
+    @apply bg-bg-secondary border border-border rounded-lg;
+  }
+
+  /* ── Form controls ────────────────────────────────────────────── */
+  .admin-input {
+    @apply w-full px-3 py-2 rounded-md text-sm text-ink bg-bg-secondary border border-border outline-none focus:border-accent transition-colors;
+    &::placeholder { color: rgb(var(--text-muted-rgb)); }
+  }
+  .admin-textarea {
+    @apply w-full px-3 py-2 rounded-md text-sm text-ink bg-bg-secondary border border-border outline-none focus:border-accent transition-colors resize-none;
+    &::placeholder { color: rgb(var(--text-muted-rgb)); }
+  }
+  .admin-select {
+    @apply px-2.5 py-1.5 rounded-md text-sm text-ink bg-bg-secondary border border-border outline-none focus:border-accent transition-colors;
+  }
+  .admin-search-input {
+    @apply w-full pl-8 pr-3 py-1.5 rounded-md text-sm text-ink bg-bg-secondary border border-border outline-none focus:border-accent transition-colors;
+    &::placeholder { color: rgb(var(--text-muted-rgb)); }
+  }
+  .admin-label {
+    @apply block text-xs font-medium text-ink-soft mb-1;
+  }
+
+  /* ── Modal structures ─────────────────────────────────────────── */
+  .admin-modal-panel {
+    background: var(--modal-bg);
+    border: 1px solid var(--modal-border);
+    @apply rounded-xl shadow-float;
+  }
+  .admin-modal-header {
+    border-bottom: 1px solid var(--modal-border);
+    @apply px-5 py-4 flex items-center justify-between;
+  }
+  .admin-modal-body {
+    @apply px-5 py-4;
+  }
+  .admin-modal-footer {
+    border-top: 1px solid var(--modal-border);
+    @apply px-5 py-4 flex flex-wrap gap-2;
+  }
+
+  /* ── Pagination ───────────────────────────────────────────────── */
+  .admin-pagination {
+    @apply flex items-center justify-between px-4 py-3 border-t border-border text-sm text-ink-faint;
+  }
+  .admin-pagination-btn {
+    @apply px-3 py-1 rounded-md text-sm text-ink-soft hover:bg-mist disabled:opacity-30 transition-colors;
+  }
+
+  /* ── Empty state ──────────────────────────────────────────────── */
+  .admin-empty {
+    @apply py-12 text-center text-sm text-ink-faint;
+  }
+
+  /* ── Buttons ──────────────────────────────────────────────────── */
+  .admin-btn-primary {
+    @apply px-4 py-2 rounded-md text-sm font-medium disabled:opacity-40 transition-colors;
+    background: rgb(var(--accent-rgb));
+    color: rgb(var(--accent-text-rgb));
+  }
+  .admin-btn-primary:hover:not(:disabled) {
+    background: rgb(var(--accent-hover-rgb));
+  }
+  .admin-btn-ghost {
+    @apply px-4 py-2 rounded-md text-sm text-ink-faint hover:text-ink hover:bg-mist transition-colors;
+  }
+  .admin-btn-outline {
+    @apply px-4 py-2 rounded-md text-sm border border-border text-ink-soft hover:bg-mist disabled:opacity-40 transition-colors;
+  }
+  .admin-btn-danger {
+    @apply px-4 py-2 rounded-md text-sm font-medium text-white bg-danger hover:bg-danger/80 disabled:opacity-40 transition-colors;
+  }
+  .admin-btn-warn {
+    @apply px-4 py-2 rounded-md text-sm font-medium text-white bg-warning hover:bg-warning/80 disabled:opacity-40 transition-colors;
+  }
+  .admin-btn-success {
+    @apply px-4 py-2 rounded-md text-sm font-medium text-white bg-success hover:bg-success/80 disabled:opacity-50 transition-colors;
+  }
+  .admin-btn-sm-outline {
+    @apply px-2.5 py-1 rounded-md text-[10px] border border-border text-ink-soft hover:border-border-medium hover:text-ink transition-colors;
+  }
+
+  /* ── Toast notifications ──────────────────────────────────────── */
+  .admin-toast-success {
+    @apply bg-success/10 border border-success/20 text-success;
+  }
+  .admin-toast-warn {
+    @apply bg-warning/10 border border-warning/20 text-warning;
+  }
+  .admin-toast-error {
+    @apply bg-danger/10 border border-danger/20 text-danger;
+  }
+
+  /* ── Tab bar ──────────────────────────────────────────────────── */
+  .admin-tab-bar {
+    @apply flex rounded-lg border border-border overflow-hidden text-xs font-medium shrink-0;
+  }
+  .admin-tab {
+    @apply px-4 py-2 transition-colors text-ink-soft hover:bg-mist;
+  }
+  .admin-tab-active {
+    background: rgb(var(--accent-rgb));
+    color: rgb(var(--accent-text-rgb));
+  }
+
+  /* ── Status badge base ────────────────────────────────────────── */
+  .admin-badge {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium border;
+  }
+  .admin-badge-approved {
+    background: var(--tag-high-bg);
+    color: var(--tag-high-text);
+    border-color: var(--tag-high-bg);
+  }
+  .admin-badge-pending {
+    background: var(--tag-medium-bg);
+    color: var(--tag-medium-text);
+    border-color: var(--tag-medium-bg);
+  }
+  .admin-badge-rejected {
+    background: var(--danger-bg);
+    color: rgb(var(--danger-rgb));
+    border-color: var(--danger-bg);
+  }
+  .admin-badge-admin {
+    background: rgba(139, 92, 246, 0.14);
+    color: #c4b5fd;
+    border-color: rgba(139, 92, 246, 0.25);
+  }
+  .admin-badge-moderator {
+    background: rgba(34, 211, 238, 0.12);
+    color: #67e8f9;
+    border-color: rgba(34, 211, 238, 0.20);
+  }
+  .admin-badge-user {
+    background: rgba(59, 130, 246, 0.12);
+    color: #93c5fd;
+    border-color: rgba(59, 130, 246, 0.20);
+  }
+  .admin-badge-default {
+    background: rgba(var(--border-rgb) / 0.4);
+    color: rgb(var(--text-muted-rgb));
+    border-color: rgba(var(--border-rgb) / 0.6);
+  }
+
+  /* Light-mode badge overrides — richer tints on white backgrounds */
+  :root .admin-badge-approved { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
+  :root .admin-badge-pending  { background: #fffbeb; color: #92400e; border-color: #fde68a; }
+  :root .admin-badge-rejected { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
+  :root .admin-badge-admin    { background: #f5f3ff; color: #5b21b6; border-color: #ddd6fe; }
+  :root .admin-badge-moderator{ background: #ecfeff; color: #155e75; border-color: #a5f3fc; }
+  :root .admin-badge-user     { background: #eff6ff; color: #1e40af; border-color: #bfdbfe; }
+  :root .admin-badge-default  { background: #f9fafb; color: #374151; border-color: #e5e7eb; }
+
+  /* ═══════════════════════════════════════════════════════════════
+     WELCOME PACKAGE REDESIGN — TRUE SPATIAL OS
+     ═══════════════════════════════════════════════════════════════ */
+  .spatial-glass {
+    background: rgb(var(--bg-card-rgb) / 0.15);
+    backdrop-filter: blur(40px);
+    -webkit-backdrop-filter: blur(40px);
+    border: 1px solid rgb(var(--border-rgb) / 0.15);
+    box-shadow: inset 0 1px 0 rgb(var(--bg-card-rgb) / 0.2), 0 20px 40px rgb(var(--text-primary-rgb) / 0.1);
+  }
+  
+  .spatial-glass-subtle {
+    background: rgb(var(--bg-card-rgb) / 0.05);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgb(var(--border-rgb) / 0.1);
+    box-shadow: inset 0 1px 0 rgb(var(--bg-card-rgb) / 0.1), 0 10px 30px rgb(var(--text-primary-rgb) / 0.05);
+  }
+
+  .spatial-nav-pill {
+    background: rgb(var(--bg-card-rgb) / 0.4);
+    backdrop-filter: blur(40px);
+    -webkit-backdrop-filter: blur(40px);
+    border: 1px solid rgb(var(--border-rgb) / 0.1);
+    box-shadow: inset 0 1px 0 rgb(var(--bg-card-rgb) / 0.1), 0 10px 30px rgb(var(--text-primary-rgb) / 0.1);
+  }
+
+  .spatial-chat-ai {
+    background: linear-gradient(135deg, rgb(var(--accent-rgb) / 0.15) 0%, rgb(var(--bg-card-rgb) / 0.4) 100%);
+    backdrop-filter: blur(30px);
+    border: 1px solid rgb(var(--accent-rgb) / 0.3);
+    box-shadow: 0 10px 25px rgb(var(--text-primary-rgb) / 0.1), inset 0 1px 0 rgb(var(--bg-card-rgb) / 0.1);
+  }
+
+  .spatial-chat-user {
+    background: linear-gradient(135deg, rgb(var(--bg-card-rgb) / 0.12) 0%, rgb(var(--bg-card-rgb) / 0.02) 100%);
+    backdrop-filter: blur(30px);
+    border: 1px solid rgb(var(--border-rgb) / 0.15);
+    box-shadow: 0 10px 25px rgb(var(--text-primary-rgb) / 0.1), inset 0 1px 0 rgb(var(--bg-card-rgb) / 0.1);
+  }
+
+  /* Keyframes for glowing orbs / floating background */
+  @keyframes spatialOrb1 {
+    0% { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 0.2; }
+    33% { transform: translate(10vw, 10vh) scale(1.2) rotate(120deg); opacity: 0.3; }
+    66% { transform: translate(-5vw, 15vh) scale(0.9) rotate(240deg); opacity: 0.25; }
+    100% { transform: translate(0, 0) scale(1) rotate(360deg); opacity: 0.2; }
+  }
+  @keyframes spatialOrb2 {
+    0% { transform: translate(0, 0) scale(1) rotate(0deg); opacity: 0.25; }
+    33% { transform: translate(-10vw, -8vh) scale(1.3) rotate(-120deg); opacity: 0.15; }
+    66% { transform: translate(5vw, -12vh) scale(0.8) rotate(-240deg); opacity: 0.3; }
+    100% { transform: translate(0, 0) scale(1) rotate(-360deg); opacity: 0.25; }
+  }
+  @keyframes spatialOrb3 {
+    0% { transform: translate(0, 0) scale(1); opacity: 0.15; }
+    50% { transform: translate(5vw, -5vh) scale(1.4); opacity: 0.25; }
+    100% { transform: translate(0, 0) scale(1); opacity: 0.15; }
+  }
+
+  .ambient-spatial-1 {
+    animation: spatialOrb1 25s infinite ease-in-out alternate;
+  }
+  .ambient-spatial-2 {
+    animation: spatialOrb2 30s infinite ease-in-out alternate;
+  }
+  .ambient-spatial-3 {
+    animation: spatialOrb3 20s infinite ease-in-out alternate;
+  }
+
+  /* Glow effects */
+  .text-glow-spatial {
+    text-shadow: 0 0 15px rgb(var(--text-primary-rgb) / 0.3), 0 0 30px rgb(var(--text-primary-rgb) / 0.1);
+  }
+  .text-glow-accent-spatial {
+    text-shadow: 0 0 15px rgb(var(--accent-rgb) / 0.6), 0 0 30px rgb(var(--accent-rgb) / 0.3);
+  }
+  
+  /* Timeline specific */
+  .spatial-timeline-line {
+    background: linear-gradient(to bottom, rgb(var(--accent-rgb) / 0.8), rgb(var(--accent-rgb) / 0.1));
+    box-shadow: 0 0 25px rgb(var(--accent-rgb) / 0.4);
+  }
+  .spatial-timeline-node {
+    box-shadow: 0 0 0 6px rgb(var(--bg-primary-rgb)), 0 0 25px rgb(var(--accent-rgb) / 0.8);
+  }
 }

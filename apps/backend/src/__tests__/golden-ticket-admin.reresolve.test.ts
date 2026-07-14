@@ -92,12 +92,6 @@ vi.mock('../modules/support/support-core.controller.js', () => ({
     });
   },
   isGoldenTicket: (req: { isGolden?: boolean }): boolean => Boolean(req.isGolden),
-  // v1.74 — re-resolve opens the discussion window on the very
-  // first admin text reply. The existing tests don't assert the
-  // window math; stub it to identity so any timestamp passthrough
-  // works without surprise.
-  computeDiscussionClosesAt: (when: Date): Date => when,
-  isDiscussionOpen: (): boolean => true,
 }));
 
 // ─── Imports under test ──────────────────────────────────────────────────
@@ -147,13 +141,6 @@ function makeReq(opts: {
     spCost: 4,
     userId: new Types.ObjectId('0000000000000000000000bb'),
     goldenResolutions: Array.isArray(opts.existingResolutions) ? opts.existingResolutions : [],
-    // v1.74 — discussion thread defaults. The controller appends
-    // to `goldenTicketDiscussion` on every re-resolve, so the
-    // mock doc has to start with an array. The window timestamps
-    // are null until the very first admin answer lands.
-    goldenTicketDiscussion: [],
-    firstAdminAnswerAt: null,
-    discussionClosesAt: null,
     save: vi.fn(async function saveMock(this: unknown): Promise<unknown> {
       return this;
     }),

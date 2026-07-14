@@ -13,19 +13,6 @@ import React, { useState } from 'react';
 import api from '../../utils/api';
 import Input from '../ui/Input';
 import Button from '../ui/Button';
-import {
-  accountActionLink,
-  accountCancelLink,
-  accountCard,
-  accountCardHeader,
-  accountCardStack,
-  accountLastUpdated,
-  accountSectionTitle,
-  flexRowSm,
-  inlineDangerBanner,
-  inlineSuccessBanner,
-  stackMd,
-} from '../../styles/style_config';
 
 export default function PasswordCard() {
   const [showPassword, setShowPassword] = useState(false);
@@ -74,41 +61,41 @@ export default function PasswordCard() {
 
   if (!showPassword) {
     return (
-      <div className={accountCard}>
-        <div className={accountCardHeader}>
-          <h2 className={accountSectionTitle}>Password</h2>
+      <div className="bg-card rounded-2xl border border-border p-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-ink uppercase tracking-wide">Password</h2>
           <button
             onClick={() => {
               setShowPassword(true);
               setPwSuccess('');
               setPwError('');
             }}
-            className={accountActionLink}
+            className="text-xs font-semibold text-accent hover:text-accent-hover transition-colors"
           >
             Change
           </button>
         </div>
-        <p className={accountLastUpdated}>Last changed: unknown — update regularly for security.</p>
+        <p className="text-sm text-ink-faint mt-2">Last changed: unknown — update regularly for security.</p>
       </div>
     );
   }
 
   return (
-    <div className={accountCardStack}>
-      <div className={accountCardHeader}>
-        <h2 className={accountSectionTitle}>Change Password</h2>
+    <div className="bg-card rounded-2xl border border-border p-6 space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-ink uppercase tracking-wide">Change Password</h2>
         <button
           onClick={() => {
             setShowPassword(false);
             setPwError('');
             setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
           }}
-          className={accountCancelLink}
+          className="text-xs font-semibold text-ink-faint hover:text-ink transition-colors"
         >
           Cancel
         </button>
       </div>
-      <form onSubmit={handlePasswordSubmit} className={stackMd}>
+      <form onSubmit={handlePasswordSubmit} className="space-y-3">
         <Input
           id="current-password"
           type="password"
@@ -137,16 +124,16 @@ export default function PasswordCard() {
           disabled={pwLoading}
         />
         {pwError && (
-          <p className={inlineDangerBanner}>
+          <p className="text-xs text-danger bg-danger-light border border-danger/15 rounded-xl px-3 py-2">
             {pwError}
           </p>
         )}
         {pwSuccess && (
-          <p className={inlineSuccessBanner}>
+          <p className="text-xs text-success bg-success-light border border-success/15 rounded-xl px-3 py-2">
             {pwSuccess}
           </p>
         )}
-        <div className={`${flexRowSm} pt-1`}>
+        <div className="flex items-center gap-2 pt-1">
           <Button type="submit" loading={pwLoading} size="sm">
             Update Password
           </Button>

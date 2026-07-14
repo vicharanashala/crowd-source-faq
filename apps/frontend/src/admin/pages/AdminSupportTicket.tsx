@@ -3,20 +3,7 @@
 // Admin/moderator only.
 
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom'
-import {
-  STATUS_STYLES,
-  adminBtnGhost,
-  adminBtnPrimary,
-  adminBtnSecondary,
-  adminCardSurface,
-  adminInput,
-  adminLabel,
-  adminSelect,
-  adminTextarea,
-  adminToastError,
-  adminToastSuccess,
-} from '../../styles/style_config';
+import { useNavigate, useParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   getSupportRequest,
@@ -30,7 +17,6 @@ import { ContextFieldsDisplay } from '../../components/support/ContextFieldsDisp
 import type { SupportRequest, SupportStatus, SupportCategory } from '../../components/support/types';
 import Spinner from '../../components/ui/Spinner';
 import { friendlyError } from '../../utils/api';
-
 
 const STATUS_OPTIONS: SupportStatus[] = ['Pending', 'In Review', 'Resolved', 'Rejected'];
 
@@ -142,14 +128,7 @@ function AdminTicketInner(): React.ReactElement {
     if (!request || spCost === null) return;
     setConvertSending(true);
     try {
-      // S3-02 (HIGH) fix: previously this URL was hardcoded to
-      // `/csfaq/api/...`, which bypasses the `adminApi.baseURL` config
-      // and breaks any deploy where the API isn't at `/csfaq/api`.
-      // Match the pattern used by every other admin file that hits
-      // support routes (e.g. ProgramSupportCategoriesTab): relative
-      // path `/support/...`; the adminApi instance prepends the
-      // baseURL.
-      await adminApi.post(`/support/requests/${request._id}/convert-to-golden`, { spCost, note: note.trim() });
+      await adminApi.post(`/csfaq/api/support/requests/${request._id}/convert-to-golden`, { spCost, note: note.trim() });
       setSpCost(null);
       setNote('');
       await load();
@@ -213,7 +192,7 @@ function AdminTicketInner(): React.ReactElement {
               <button
                 onClick={() => setSpCost(0)}
                 disabled={convertSending}
-                className={`${adminBtnSecondary} inline-flex items-center gap-1.5`}
+                className="admin-btn-secondary inline-flex items-center gap-1.5"
                 title="Promote this ticket to Golden priority"
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -245,14 +224,14 @@ function AdminTicketInner(): React.ReactElement {
                 <div className="flex gap-2 justify-end">
                   <button
                     type="button"
-                    className={`${adminBtnGhost} text-xs`}
+                    className="admin-btn admin-btn-ghost text-xs"
                     onClick={() => { setSpCost(null); setNote(''); }}
                   >
                     Cancel
                   </button>
                   <button
                     type="button"
-                    className={`${adminBtnPrimary} text-xs`}
+                    className="admin-btn admin-btn-primary text-xs"
                     onClick={() => void doConvert()}
                     disabled={convertSending}
                   >
@@ -272,7 +251,7 @@ function AdminTicketInner(): React.ReactElement {
                 const ta = document.getElementById('admin-quick-reply-textarea') as HTMLTextAreaElement | null;
                 if (ta) setTimeout(() => ta.focus(), 250);
               }}
-              className={adminBtnPrimary}
+              className="admin-btn-primary"
             >
               Quick reply
             </button>
@@ -288,65 +267,65 @@ function AdminTicketInner(): React.ReactElement {
         <div className="px-5 py-4 space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className={`${adminLabel}`}>New status</label>
+              <label className="admin-label">New status</label>
               <select
                 value={nextStatus}
                 onChange={(e) => setNextStatus(e.target.value as SupportStatus | '')}
-                className={`${adminSelect} w-full`}
+                className="admin-select w-full"
               >
                 <option value="">— select —</option>
                 {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
             <div>
-              <label className={`${adminLabel}`}>Session recording URL (resolved only)</label>
+              <label className="admin-label">Session recording URL (resolved only)</label>
               <input
                 value={sessionAccessUrl}
                 onChange={(e) => setSessionAccessUrl(e.target.value)}
                 placeholder="https://… (optional)"
-                className={`${adminInput}`}
+                className="admin-input"
               />
             </div>
           </div>
 
           <div>
-            <label className={`${adminLabel}`}>Public admin note (visible to student)</label>
+            <label className="admin-label">Public admin note (visible to student)</label>
             <textarea
               value={adminNote}
               onChange={(e) => setAdminNote(e.target.value)}
               rows={2}
               placeholder="Required when rejecting. Optional otherwise."
-              className={`${adminTextarea}`}
+              className="admin-textarea"
             />
           </div>
           <div>
-            <label className={`${adminLabel}`}>Internal note (admin-only)</label>
+            <label className="admin-label">Internal note (admin-only)</label>
             <textarea
               value={internalNote}
               onChange={(e) => setInternalNote(e.target.value)}
               rows={2}
               placeholder="Not sent to the student."
-              className={`${adminTextarea}`}
+              className="admin-textarea"
             />
           </div>
           <div>
-            <label className={`${adminLabel}`}>Resolution summary</label>
+            <label className="admin-label">Resolution summary</label>
             <textarea
               value={resolutionSummary}
               onChange={(e) => setResolutionSummary(e.target.value)}
               rows={2}
               placeholder="How was this resolved? (one-line summary)"
-              className={`${adminTextarea}`}
+              className="admin-textarea"
             />
           </div>
           <div>
-            <label className={`${adminLabel}`}>Send a reply with this update (optional)</label>
+            <label className="admin-label">Send a reply with this update (optional)</label>
             <textarea
               value={followUpMessage}
               onChange={(e) => setFollowUpMessage(e.target.value)}
               rows={2}
               placeholder="Shown to the student in the follow-up thread."
-              className={`${adminTextarea}`}
+              className="admin-textarea"
             />
             {followUpMessage.trim() && (
               <label className="mt-2 flex items-center gap-2 text-xs text-ink-soft">
@@ -366,7 +345,7 @@ function AdminTicketInner(): React.ReactElement {
               type="button"
               onClick={handleSaveStatus}
               disabled={saving || !nextStatus}
-              className={`${adminBtnPrimary}`}
+              className="admin-btn-primary"
             >
               {saving ? 'Saving…' : 'Update status'}
             </button>
@@ -466,7 +445,7 @@ function AdminTicketInner(): React.ReactElement {
           thread so the admin can drop a follow-up without scrolling
           around. The header's "Quick reply" button scrolls + focuses
           this textarea; the Send button is the actual submit. */}
-      <div id="admin-quick-reply" className={`${adminCardSurface} p-5`}>
+      <div id="admin-quick-reply" className="admin-card-surface p-5">
         <p className="text-[10px] uppercase tracking-wider font-semibold text-ink-faint mb-2">
           Send a reply
         </p>
@@ -477,7 +456,7 @@ function AdminTicketInner(): React.ReactElement {
           rows={3}
           maxLength={2000}
           placeholder="Type your reply to the student. Doesn't change the ticket status."
-          className={`${adminTextarea} w-full`}
+          className="admin-textarea w-full"
         />
         <div className="flex items-center justify-between mt-2">
           <p className="text-[11px] text-ink-faint tabular-nums">
@@ -487,14 +466,14 @@ function AdminTicketInner(): React.ReactElement {
             type="button"
             onClick={handleSendQuickReply}
             disabled={!quickReply.trim() || quickSending}
-            className={adminBtnPrimary}
+            className="admin-btn-primary"
           >
             {quickSending ? 'Sending…' : 'Send reply'}
           </button>
         </div>
       </div>
       {request.statusHistory.length > 0 && (
-        <div className={`${adminCardSurface} p-5`}>
+        <div className="admin-card-surface p-5">
           <p className="text-[10px] uppercase tracking-wider font-semibold text-ink-faint mb-3">Status history</p>
           <ol className="space-y-2 text-xs">
             {request.statusHistory.map((h) => (
@@ -516,7 +495,7 @@ function AdminTicketInner(): React.ReactElement {
 }
 
 function Toast({ toast }: { toast: { msg: string; type: 'success' | 'error' } }): React.ReactElement {
-  const colour = toast.type === 'error' ? adminToastError : adminToastSuccess;
+  const colour = toast.type === 'error' ? 'admin-toast-error' : 'admin-toast-success';
   return (
     <motion.div
       initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
@@ -526,7 +505,12 @@ function Toast({ toast }: { toast: { msg: string; type: 'success' | 'error' } })
 }
 
 function statusStyle(s: SupportStatus): string {
-  return STATUS_STYLES[s] || '';
+  switch (s) {
+    case 'Pending':   return 'bg-warning/15 text-warning border-warning/30';
+    case 'In Review': return 'bg-admin-blue/15 text-admin-blue border-admin-blue/30';
+    case 'Resolved':  return 'bg-success/15 text-success border-success/30';
+    case 'Rejected':  return 'bg-danger/15 text-danger border-danger/30';
+  }
 }
 
 export default function AdminSupportTicket(): React.ReactElement {

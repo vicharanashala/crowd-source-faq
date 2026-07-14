@@ -368,7 +368,7 @@ export async function processTranscriptPayloadInternal(
 ): Promise<void> {
   // Resolve AI provider once so we can record it on the meeting doc
   const providerCfg = await import('../../utils/ai/aiProvider.js').then(m => m.resolveProviderAsync());
-  const processedBy = `${providerCfg.provider}:${providerCfg.modelName}`;
+  const processedBy = `${providerCfg.provider}:${providerCfg.model}`;
 
   // Update status + progress stage
   await ZoomMeeting.findByIdAndUpdate(meeting._id, {

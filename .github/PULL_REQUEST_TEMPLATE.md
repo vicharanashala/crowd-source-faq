@@ -21,24 +21,18 @@ Refs #ISSUE-NUMBER (if partial)
 
 - [ ] Backend (Express / Mongoose)
 - [ ] Frontend (React / Vite)
-- [ ] Admin / Train tab (`/admin/*`)
-- [ ] Community (`/community` — posts, comments, auto-answer)
-- [ ] Search (hybrid text retrieval, training stats)
-- [ ] Auth / middleware / samagama.in bridge
-- [ ] Crons / schedulers / embedding-warm
-- [ ] Observability (Sentry / logging / Discord alerts)
+- [ ] Pipeline (auto-answer / FAQ audit / Zoom ingestion)
+- [ ] Search (hybrid vector + keyword)
+- [ ] Auth / middleware
 - [ ] Docs
 
 ## CI verification
 
-- [ ] `cd apps/backend && npx tsc --noEmit` exits 0
-- [ ] `cd apps/backend && npx vitest run` — all tests pass
-- [ ] `cd apps/frontend && npx tsc --noEmit` exits 0
-- [ ] `cd apps/frontend && npx vitest run` — all tests pass
-- [ ] `pnpm run lint` — 0 errors (152 warnings is the baseline)
-- [ ] GitHub Actions green on the merge commit (CI, CodeQL, Build & Deploy)
-- [ ] Tested with a real API hit or browser interaction if behaviour changed
-- [ ] Tests added or updated for the change
+- [ ] `pnpm typecheck` — 5/5 packages pass
+- [ ] `pnpm test:run` — all tests pass
+- [ ] GitHub Actions green on the merge commit (CI, CodeQL, Build & Deploy, Pages)
+- [ ] Tested with a real cURL (or browser) hit if API behavior changed
+- [ ] Tests pass (`npm test` in affected package)
 - [ ] Single logical change — unrelated fixes noted in description, not fixed here
 - [ ] Docs updated if route / API / env var / pipeline behaviour changed
 - [ ] Rebased onto `main`, no merge commits

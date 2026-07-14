@@ -181,12 +181,6 @@ The 9 audits surfaced these patterns. Fix them as part of Phase 0 before buildin
 
 Goal: green CI, no regression risk on Phase 1 work.
 
-The 2026-07-07 full-delegation audit
-([findings](./audit/2026-07-07-full-delegation-findings.md) ·
-[fixes applied](./audit/2026-07-07-fixes-applied.md)) shipped a large
-chunk of these across PRs #141, #142, #143, #145, #146, #147. The
-remaining items below are the open tail.
-
 - [ ] Apply all 16 cross-cutting quick wins (§2.3)
 - [ ] Add OnboardingAuditLog to cascade-delete
 - [ ] Fix env var typos in escalation + faq-audit controllers

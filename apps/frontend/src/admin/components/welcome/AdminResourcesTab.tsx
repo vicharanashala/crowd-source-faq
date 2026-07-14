@@ -25,7 +25,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import adminApi from '../../utils/adminApi';
 import { useCloudinarySvgUpload } from '../../../hooks/useCloudinarySvgUpload';
-import { inlineDangerBanner } from '../../../styles/style_config';
 
 type ResourceKind = 'video' | 'pdf' | 'pptx' | 'svg' | 'markdown' | 'txt' | 'link';
 
@@ -40,7 +39,6 @@ interface Resource {
   order: number;
   visible: boolean;
   tags: string[];
-  pageCount?: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -102,8 +100,8 @@ export default function AdminResourcesTab({ programId, refreshKey }: Props): Rea
   const [knowledge, setKnowledge] = useState<KnowledgeSource[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Cloudinary resource upload hook (used for SVG and PDF)
-  const { upload: uploadResource, uploading: cloudinaryUploading, error: cloudinaryError } = useCloudinarySvgUpload(['image/svg+xml', 'application/pdf']);
+  // Cloudinary SVG upload hook (only used when kind === 'svg')
+  const { upload: uploadSvg, uploading: svgUploading, error: svgError } = useCloudinarySvgUpload();
 
   // Create form state
   const [kind, setKind] = useState<ResourceKind>('pdf');
@@ -175,9 +173,9 @@ export default function AdminResourcesTab({ programId, refreshKey }: Props): Rea
         setError('External link must start with http:// or https://');
         return;
       }
-    } else if (kind === 'svg' || kind === 'pdf') {
+    } else if (kind === 'svg') {
       if (!file) {
-        setError(`Pick a ${kind.toUpperCase()} file to upload.`);
+        setError('Pick an SVG file to upload.');
         return;
       }
     } else if (!file) {
@@ -187,8 +185,8 @@ export default function AdminResourcesTab({ programId, refreshKey }: Props): Rea
     setBusy(true);
     setError(null);
     try {
-      if (kind === 'svg' || kind === 'pdf') {
-        // v1.70: SVG flowcharts and Cloudinary-hosted PDFs upload directly to Cloudinary via the
+      if (kind === 'svg') {
+        // v1.70: SVG flowcharts upload directly to Cloudinary via the
         // signed-URL flow. We get back { url, publicId } and POST those
         // as plain JSON fields (not multipart).
         //
@@ -200,7 +198,7 @@ export default function AdminResourcesTab({ programId, refreshKey }: Props): Rea
         // browser error onto the page.
         let uploaded;
         try {
-          uploaded = await uploadResource(file!);
+          uploaded = await uploadSvg(file!);
         } catch (uploadErr) {
           const msg = (uploadErr as Error).message;
           if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
@@ -211,20 +209,19 @@ export default function AdminResourcesTab({ programId, refreshKey }: Props): Rea
           }
           throw uploadErr;
         }
-        const { url, publicId, pageCount } = uploaded;
+        const { url, publicId } = uploaded;
         await adminApi.post('/admin/welcome/resources', {
-          kind,
+          kind: 'svg',
           title: title.trim(),
           description,
           completionThreshold,
           visible,
           url,
           publicId,
-          pageCount: pageCount || null,
           ...(tags.trim() ? { tags } : {}),
         });
       } else {
-        // All other kinds (video/pptx/markdown/txt): multipart upload.
+        // All other kinds (video/pdf/pptx/markdown/txt): multipart upload.
         const formData = new FormData();
         formData.append('kind', kind);
         formData.append('title', title.trim());
@@ -406,9 +403,9 @@ export default function AdminResourcesTab({ programId, refreshKey }: Props): Rea
 
   return (
     <div className="space-y-8">
-      {(error || cloudinaryError) && (
-        <div className={`${inlineDangerBanner} text-sm rounded-lg px-4 py-2`}>
-          {error || cloudinaryError}
+      {(error || svgError) && (
+        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-2">
+          {error || svgError}
         </div>
       )}
 
@@ -537,12 +534,12 @@ export default function AdminResourcesTab({ programId, refreshKey }: Props): Rea
 
           <button
             type="submit"
-            disabled={busy || ((kind === 'svg' || kind === 'pdf') && cloudinaryUploading)}
+            disabled={busy || (kind === 'svg' && svgUploading)}
             className="px-4 py-2 rounded-lg bg-accent text-white text-sm font-semibold disabled:opacity-50"
           >
             {busy
               ? 'Adding…'
-              : (kind === 'svg' || kind === 'pdf') && cloudinaryUploading
+              : kind === 'svg' && svgUploading
                 ? 'Uploading to Cloudinary…'
                 : 'Add resource'}
           </button>
@@ -597,7 +594,7 @@ export default function AdminResourcesTab({ programId, refreshKey }: Props): Rea
                 onClick={() => {
                   void handleDelete(r._id);
                 }}
-                className="px-2 py-1 text-xs rounded-md border border-border text-danger hover:bg-danger-light"
+                className="px-2 py-1 text-xs rounded-md border border-border text-red-600 hover:bg-red-50"
               >
                 Delete
               </button>
@@ -725,7 +722,7 @@ export default function AdminResourcesTab({ programId, refreshKey }: Props): Rea
                     onClick={() => {
                       void handleDeleteKnowledge(k._id);
                     }}
-                    className="px-2 py-1 text-xs rounded-md border border-border text-danger hover:bg-danger-light"
+                    className="px-2 py-1 text-xs rounded-md border border-border text-red-600 hover:bg-red-50"
                   >
                     Delete
                   </button>
@@ -817,7 +814,7 @@ export default function AdminResourcesTab({ programId, refreshKey }: Props): Rea
         </div>
 
         {genError && (
-          <div className={`${inlineDangerBanner} text-xs rounded-lg px-3 py-2 mt-3`}>
+          <div className="mt-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg px-3 py-2">
             {genError}
           </div>
         )}

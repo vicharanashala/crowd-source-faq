@@ -7,6 +7,13 @@ import CommunityPost from '../community/community-post.model.js';
 import { askAIController } from '../knowledge/knowledge.controller.js';
 import { fetchContext } from '../../services/contextRetriever.js';
 import { adminLog } from '../../utils/http/logger.js';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+import { resolveProviderAsync, chatWithConfig } from '../../utils/ai/aiProvider.js';
+import { runRag } from './rag.service.js';
+import OpenAI from 'openai';
+
 
 const router = Router();
 
@@ -118,20 +125,8 @@ router.get(
   authorize('admin', 'ai_moderator'),
   async (req: Request, res: Response) => {
     try {
-      // S5-M1 (MEDIUM) fix: previously any admin from any program
-      // could preview any post — exposing raw post content + persisted
-      // aiContext across programs. Now: if the post has a batchId
-      // AND the calling admin's `adminPrograms` includes it, allow;
-      // otherwise 404 (do not leak existence).
       const post = await CommunityPost.findById(req.params.postId).lean();
       if (!post) {
-        return res.status(404).json({ message: 'Post not found' });
-      }
-      const postBatchId = (post.batchId as { toString(): string } | undefined)?.toString() ?? null;
-      const userPrograms: string[] = ((req as any).user?.adminPrograms ?? []) as string[];
-      const isGlobalAdmin = userPrograms.length === 0 && (req as any).user?.role === 'admin';
-      if (postBatchId && !isGlobalAdmin && !userPrograms.includes(postBatchId)) {
-        adminLog.warn(`[previewContext] post=${req.params.postId} outside admin's programs — denied`);
         return res.status(404).json({ message: 'Post not found' });
       }
       const queryText = `${post.title ?? ''} ${post.body ?? ''}`.trim();
@@ -141,7 +136,8 @@ router.get(
         req.query.includeComments === undefined
           ? true
           : req.query.includeComments !== 'false';
-      const batchId = postBatchId;
+      const batchId =
+        (post.batchId as { toString(): string } | undefined)?.toString() ?? null;
 
       adminLog.info(
         `[previewContext] post=${req.params.postId} batch=${batchId} queryLen=${queryText.length}`,
@@ -162,6 +158,117 @@ router.get(
         .json({ message: 'preview-context failed', error: (err as Error).message });
     }
   },
+);
+
+// Multer configuration for single audio file upload (max 15MB)
+const audioUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 15 * 1024 * 1024 }
+});
+
+router.post(
+  '/transcribe',
+  protect,
+  audioUpload.single('file'),
+  async (req: Request, res: Response) => {
+    try {
+      if (!req.file) {
+        res.status(400).json({ message: 'No audio file uploaded.' });
+        return;
+      }
+
+      const config = await resolveProviderAsync('openai');
+      if (!config.apiKey) {
+        res.status(502).json({ message: 'AI transcription (OpenAI Whisper) is not configured.' });
+        return;
+      }
+
+      // Write memory buffer to a temp file
+      const tempDir = os.tmpdir();
+      const tempFilePath = path.join(tempDir, `voice-${Date.now()}-${req.file.originalname || 'audio.webm'}`);
+      fs.writeFileSync(tempFilePath, req.file.buffer);
+
+      const client = new OpenAI({
+        apiKey: config.apiKey,
+        baseURL: config.baseURL,
+      });
+
+      const response = await client.audio.transcriptions.create({
+        file: fs.createReadStream(tempFilePath),
+        model: 'whisper-1',
+      });
+
+      // Clean up the temp file
+      try {
+        fs.unlinkSync(tempFilePath);
+      } catch {
+        // ignore
+      }
+
+      res.status(200).json({ text: response.text });
+    } catch (err) {
+      res.status(500).json({ message: 'Transcription failed.', error: (err as Error).message });
+    }
+  }
+);
+
+// POST /api/ai/co-pilot — AI Answer Co-pilot / Refinement Assistant
+router.post(
+  '/co-pilot',
+  protect,
+  async (req: Request, res: Response) => {
+    try {
+      const { query, draftAnswer } = req.body as { query?: string; draftAnswer?: string };
+      if (!query || !query.trim()) {
+        res.status(400).json({ message: 'Query/Question text is required.' });
+        return;
+      }
+
+      const ragResult = await runRag(query);
+
+      const aiConfig = await resolveProviderAsync();
+      if (!aiConfig || !aiConfig.apiKey) {
+        res.status(502).json({
+          message: 'AI Co-pilot is not configured. Please check AI API keys in settings.',
+        });
+        return;
+      }
+
+      const contextText = ragResult.sources
+        .map((s, idx) => `[Source ${idx + 1}]: Title: ${s.title}\nContent: ${s.snippet}`)
+        .join('\n\n');
+
+      const systemPrompt = `You are an expert technical assistant co-pilot for a student Q&A forum.
+Your task is to refine and enhance a user's DRAFT ANSWER using the provided RETRIEVED KNOWLEDGE CONTEXT.
+
+Retrieved Knowledge Context:
+${contextText || 'No relevant knowledge found.'}
+
+User's Original Question:
+"${query}"
+
+User's current Draft Answer:
+"${draftAnswer || '(User has not typed a draft yet - write a fresh start based on retrieved context)'}"
+
+Instructions:
+1. Improve the technical accuracy, structure, grammar, and professionalism of the draft answer.
+2. Incorporate correct facts and details from the Retrieved Knowledge Context where appropriate.
+3. If the retrieved context doesn't contain useful information, refine the user's draft to be grammatically correct and helpful based on general knowledge, but do not make up specific system facts or log details.
+4. Keep the response concise, clear, and structured in Markdown.
+5. Do not include introductory text like "Here is your refined answer:" - return ONLY the final refined markdown answer ready to be inserted.`;
+
+      const refinedText = await chatWithConfig(aiConfig, [
+        { role: 'user', content: systemPrompt }
+      ]);
+
+      res.json({
+        enhancedAnswer: refinedText.trim(),
+        sources: ragResult.sources,
+      });
+    } catch (err) {
+      res.status(500).json({ message: 'AI Co-pilot refinement failed.', error: (err as Error).message });
+    }
+  }
 );
 
 export default router;

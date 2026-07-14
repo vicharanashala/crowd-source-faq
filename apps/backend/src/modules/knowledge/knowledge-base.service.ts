@@ -39,7 +39,7 @@ export async function aiChat(
   const cfg = await resolveProviderAsync();
 
   const body: Record<string, unknown> = {
-    model: cfg.modelName,
+    model: cfg.model,
     messages,
     max_tokens: maxTokens,
   };

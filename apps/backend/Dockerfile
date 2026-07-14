@@ -18,6 +18,7 @@ COPY packages/config/package.json ./packages/config/
 COPY packages/types/package.json ./packages/types/
 COPY packages/utils/package.json ./packages/utils/
 COPY packages/validation/package.json ./packages/validation/
+COPY apps/backend/package.json ./apps/backend/
 COPY apps/frontend/package.json ./apps/frontend/
 
 # Install dependencies
@@ -54,6 +55,7 @@ COPY packages/types/package.json ./packages/types/
 COPY packages/utils/package.json ./packages/utils/
 COPY packages/validation/package.json ./packages/validation/
 COPY apps/backend/package.json ./apps/backend/
+COPY apps/frontend/package.json ./apps/frontend/
 
 # Install dependencies (only configs copied so far for caching)
 RUN pnpm install --frozen-lockfile
@@ -92,6 +94,7 @@ COPY apps/backend/ ./apps/backend/
 
 # Copy built frontend static assets from frontend-build stage
 COPY --from=frontend-build /app/apps/frontend/dist ./apps/frontend/dist
+COPY apps/frontend/package.json ./apps/frontend/package.json
 
 # Re-run install to make sure all symlinks (workspaces) are properly linked
 RUN pnpm install --frozen-lockfile --offline

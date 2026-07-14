@@ -98,6 +98,48 @@ export async function getTroubleshootSteps(req: Request, res: Response): Promise
   }
 }
 
+/**
+ * GET /api/support/diagnostics/check-vpn
+ * Runs simple server-side checks for proxy and VPN headers.
+ */
+export async function checkVpnStatus(req: Request, res: Response): Promise<void> {
+  try {
+    const clientIp = (req.headers['x-forwarded-for'] as string) || req.ip || '';
+    const proxyHeaders = [
+      'via',
+      'forwarded',
+      'x-proxy-id',
+      'proxy-client-ip',
+      'wl-proxy-client-ip',
+    ];
+    
+    let isVpn = false;
+    let reason = '';
+    
+    for (const h of proxyHeaders) {
+      if (req.headers[h]) {
+        isVpn = true;
+        reason = `Header '${h}' is present.`;
+        break;
+      }
+    }
+
+    if (!isVpn && typeof req.headers['x-forwarded-for'] === 'string' && req.headers['x-forwarded-for'].includes(',')) {
+      isVpn = true;
+      reason = 'Multiple IP hops detected in x-forwarded-for.';
+    }
+
+    res.json({
+      isVpn,
+      clientIp: clientIp.split(',')[0].trim(),
+      reason,
+    });
+  } catch (err) {
+    supportLog.error(`[support] checkVpnStatus failed: ${(err as Error).message}`);
+    res.status(500).json({ message: 'Failed to run VPN checks' });
+  }
+}
+
 // ─── Create request ───────────────────────────────────────────────────────
 
 /**

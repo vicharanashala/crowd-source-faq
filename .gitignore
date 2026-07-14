@@ -169,6 +169,7 @@ scraper.js
 # Shamagama Custom Ignores
 # =============================================================================
 *.png
+!apps/frontend/src/assets/logo-wide.png
 .playwright-mcp/
 session_*.txt
 main_log.txt

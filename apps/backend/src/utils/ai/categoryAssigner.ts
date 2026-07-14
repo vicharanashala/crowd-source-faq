@@ -321,7 +321,7 @@ export async function recategorizeAllActiveBatches(): Promise<void> {
 // './aiProvider' is the canonical type if you need it elsewhere.
 interface ProviderConfigShape {
   provider: string;
-  modelName: string;
+  model: string;
   baseURL: string;
   // The API key field exists on the real config but is omitted here
   // since it's never read inside askLLMForCategories. Marked as
@@ -375,7 +375,7 @@ Rules:
   const reply = await chatWithProvider(
     providerConfig.provider as 'anthropic' | 'openai' | 'xai' | 'minimax' | 'gemini' | 'custom',
     messages,
-    providerConfig.modelName,
+    providerConfig.model,
   );
 
   const cleaned = reply

@@ -17,23 +17,6 @@ import api from '../../utils/api';
 import Avatar from '../ui/Avatar';
 import Input from '../ui/Input';
 import Button from '../ui/Button';
-import {
-  accountActionLink,
-  accountActionLinkDisabled,
-  accountCardStack,
-  accountCardHeader,
-  accountSectionTitle,
-  accountCancelLink,
-  flexRowSm,
-  flexRowLg,
-  flexGrow,
-  inlineDangerBanner,
-  inlineSuccessBanner,
-  stackMd,
-  textBodyFaint,
-  textLabel,
-  textXsFaint,
-} from '../../styles/style_config';
 
 export default function ProfileCard() {
   const { user } = useAuth();
@@ -62,7 +45,7 @@ export default function ProfileCard() {
     setAvatarSuccess('');
     try {
       const asset = await uploadAvatar(file);
-      const res = await api.patch<{ user: { _id: string; name: string; email: string; role: string; avatar: { url: string; gcsUri: string; objectPath: string } } }>('/auth/profile', {
+      const res = await api.patch<{ user: { id: string; name: string; email: string; role: string; avatar: { url: string; gcsUri: string; objectPath: string } } }>('/auth/profile', {
         avatar: { url: asset.url, gcsUri: asset.gcsUri, objectPath: asset.objectPath },
       });
       const stored = localStorage.getItem('yaksha_user');
@@ -84,7 +67,7 @@ export default function ProfileCard() {
     setAvatarError('');
     setAvatarSuccess('');
     try {
-      const res = await api.patch<{ user: { _id: string; name: string; email: string; role: string; avatar: { url: string; publicId: string } | null } }>('/auth/profile', {
+      const res = await api.patch<{ user: { id: string; name: string; email: string; role: string; avatar: { url: string; publicId: string } | null } }>('/auth/profile', {
         avatar: null,
       });
       const stored = localStorage.getItem('yaksha_user');
@@ -108,7 +91,7 @@ export default function ProfileCard() {
     setError('');
     setSuccess('');
     try {
-      const res = await api.patch<{ user: { _id: string; name: string; email: string; role: string; avatar?: { url: string; publicId: string } } }>('/auth/profile', {
+      const res = await api.patch<{ user: { id: string; name: string; email: string; role: string; avatar?: { url: string; publicId: string } } }>('/auth/profile', {
         name: form.name.trim(),
         email: form.email.trim(),
       });
@@ -130,9 +113,9 @@ export default function ProfileCard() {
   };
 
   return (
-    <div className={accountCardStack}>
-      <div className={accountCardHeader}>
-        <h2 className={accountSectionTitle}>Profile</h2>
+    <div className="bg-card rounded-2xl border border-border p-6 space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-ink uppercase tracking-wide">Profile</h2>
         {!editing && (
           <button
             onClick={() => {
@@ -140,7 +123,7 @@ export default function ProfileCard() {
               setSuccess('');
               setError('');
             }}
-            className={accountActionLink}
+            className="text-xs font-semibold text-accent hover:text-accent-hover transition-colors"
           >
             Edit
           </button>
@@ -149,12 +132,12 @@ export default function ProfileCard() {
 
       {!editing ? (
         <>
-          <div className={flexRowLg}>
+          <div className="flex items-center gap-4">
             <Avatar name={user?.name} src={user?.avatar?.url} size="lg" />
-            <div className={flexGrow}>
-              <p className={`${textLabel} truncate`}>{user?.name ?? 'Unknown'}</p>
-              <p className={`${textBodyFaint} truncate`}>{user?.email ?? ''}</p>
-              <p className={`${textXsFaint} mt-0.5 capitalize`}>{user?.role ?? 'user'}</p>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-ink truncate">{user?.name ?? 'Unknown'}</p>
+              <p className="text-sm text-ink-faint truncate">{user?.email ?? ''}</p>
+              <p className="text-xs text-ink-faint mt-0.5 capitalize">{user?.role ?? 'user'}</p>
             </div>
             <div className="flex flex-col items-end gap-1.5">
               <input
@@ -167,7 +150,7 @@ export default function ProfileCard() {
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={avatarUploading}
-                className={accountActionLinkDisabled}
+                className="text-xs font-semibold text-accent hover:text-accent-hover transition-colors disabled:opacity-50"
               >
                 {avatarUploading ? 'Uploading…' : user?.avatar?.url ? 'Change photo' : 'Add photo'}
               </button>
@@ -194,7 +177,7 @@ export default function ProfileCard() {
           )}
         </>
       ) : (
-        <form onSubmit={handleSubmit} className={stackMd}>
+        <form onSubmit={handleSubmit} className="space-y-3">
           <Input
             id="edit-name"
             label="Full Name"
@@ -213,16 +196,16 @@ export default function ProfileCard() {
             disabled={saving}
           />
           {error && (
-            <p className={inlineDangerBanner}>
+            <p className="text-xs text-danger bg-danger-light border border-danger/15 rounded-xl px-3 py-2">
               {error}
             </p>
           )}
           {success && (
-            <p className={inlineSuccessBanner}>
+            <p className="text-xs text-success bg-success-light border border-success/15 rounded-xl px-3 py-2">
               {success}
             </p>
           )}
-          <div className={`${flexRowSm} pt-1`}>
+          <div className="flex items-center gap-2 pt-1">
             <Button type="submit" loading={saving} size="sm">Save changes</Button>
             <Button
               type="button"

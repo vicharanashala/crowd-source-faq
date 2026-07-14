@@ -51,18 +51,6 @@ export interface IDocumentAsset extends Document {
   sizeBytes: number;
   text: string;
   pageCount: number;
-  // ── Indexing fields (populated by services/documentIngestion.service.ts) ──
-  embedding: number[] | null;
-  embeddingDim: number | null;
-  embeddedAt: Date | null;
-  metadata: {
-    category: string;
-    audience: string;
-    tags: string[];
-    summary: string;
-  } | null;
-  metadataExtractedAt: Date | null;
-  embeddingSkippedReason: string | null;
   batchId?: Types.ObjectId | null;
   lastFetchError: string | null;
   uploadedAt: Date;
@@ -115,25 +103,6 @@ const documentAssetSchema = new MongooseSchema<IDocumentAsset>(
       default: 0,
       min: 0,
     },
-    // ── Indexing fields — populated by services/documentIngestion.service.ts ──
-    // Vector embedding (only present when EMBEDDING_MODEL is configured).
-    embedding: { type: [Number], default: null },
-    embeddingDim: { type: Number, default: null },
-    embeddedAt: { type: Date, default: null },
-    // LLM-extracted metadata (always populated when ingestion runs).
-    // category/audience use the closed taxonomy from
-    // utils/ai/documentAiPipeline.ts; tags are normalized [a-z0-9-].
-    metadata: {
-      category: { type: String, default: 'General', index: true },
-      audience: { type: String, default: 'All', index: true },
-      tags: { type: [String], default: [], index: true },
-      summary: { type: String, default: '' },
-    },
-    metadataExtractedAt: { type: Date, default: null },
-    // Diagnostic — set by ingestion when the embedding step was skipped
-    // (no EMBEDDING_MODEL, or the call failed). Surfaced in admin logs
-    // and on the row so operators can see why a doc is $text-only.
-    embeddingSkippedReason: { type: String, default: null },
     batchId: {
       type: MongooseSchema.Types.ObjectId,
       ref: 'Batch',
@@ -163,13 +132,6 @@ const documentAssetSchema = new MongooseSchema<IDocumentAsset>(
 documentAssetSchema.index(
   { title: 'text', text: 'text' },
   { weights: { title: 10, text: 2 }, name: 'document_asset_text' },
-);
-
-// Helps the reindex trigger find rows that need re-embedding
-// (e.g. after EMBEDDING_MODEL change or vector-index --drop).
-documentAssetSchema.index(
-  { embeddedAt: 1 },
-  { name: 'document_asset_embeddedAt', sparse: true },
 );
 
 // Program-scoped view: by-batch, newest-first.

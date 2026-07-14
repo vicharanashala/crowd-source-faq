@@ -44,7 +44,6 @@ import {
   logAdminAction,
   notifyUser,
   isGoldenTicket,
-  computeDiscussionClosesAt,
 } from './support-core.controller.js';
 import { spendSpurtiPoints } from '../program/promotion.service.js';
 import { adminLog } from '../../utils/http/logger.js';
@@ -374,13 +373,6 @@ export async function resolveGoldenTicket(req: Request, res: Response): Promise<
     // flip status. This is the "answer + resolve in one click" flow
     // the admin UI expects. SP is not debited — the user paid once
     // at raise-time.
-    //
-    // v1.74 — same answer also opens the Golden Ticket discussion
-    // thread. It is pushed to `goldenTicketDiscussion` with
-    // `isProminent: true` and stamps `firstAdminAnswerAt` +
-    // `discussionClosesAt` (now + 7d) so both sides can reply for
-    // a week. The legacy `goldenResolutions[]` keeps growing on
-    // every re-resolve; only the first answer opens the discussion.
     if (answerText) {
       request.goldenResolutions.push({
         text: answerText,
@@ -389,22 +381,6 @@ export async function resolveGoldenTicket(req: Request, res: Response): Promise<
         createdAt: now,
         notificationSent: false,
       });
-      // Discussion is opened by the FIRST admin answer, ever.
-      // Guard: if a previous resolve-with-text already opened the
-      // window, leave `firstAdminAnswerAt` and `discussionClosesAt`
-      // untouched so the 7-day window isn't reset.
-      if (!request.firstAdminAnswerAt) {
-        request.firstAdminAnswerAt = now;
-        request.discussionClosesAt = computeDiscussionClosesAt(now);
-        request.goldenTicketDiscussion.push({
-          text: answerText,
-          senderRole: 'admin',
-          senderId: auth.userId,
-          senderName: auth.name,
-          createdAt: now,
-          isProminent: true,
-        });
-      }
     }
 
     request.status = 'Resolved';
@@ -790,25 +766,6 @@ export async function reResolveGoldenTicket(req: Request, res: Response): Promis
       notificationSent: false,
     };
     request.goldenResolutions.push(entry);
-    // v1.74 — also push to the discussion thread. If the ticket
-    // was resolved without text originally, this is the FIRST
-    // admin answer and opens the 7-day window. Otherwise it's a
-    // regular follow-up inside an already-open window.
-    if (!request.firstAdminAnswerAt) {
-      request.firstAdminAnswerAt = now;
-      request.discussionClosesAt = computeDiscussionClosesAt(now);
-    }
-    request.goldenTicketDiscussion.push({
-      text,
-      senderRole: 'admin',
-      senderId: auth.userId,
-      senderName: auth.name,
-      createdAt: now,
-      // Only the first admin answer of all time is prominent.
-      // `firstAdminAnswerAt` was just set above, so we check the
-      // array length: if it's the very first entry, mark it.
-      isProminent: request.goldenTicketDiscussion.length === 0,
-    });
     request.updatedAt = now;
 
     await request.save();

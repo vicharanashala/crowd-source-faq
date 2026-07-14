@@ -1,6 +1,5 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { spatialGlassSubtle } from '../../styles/style_config';
 
 interface TimelineCardHeaderProps {
   status: 'completed' | 'current' | 'upcoming';
@@ -14,9 +13,9 @@ export function TimelineCardHeader({ status, isExpanded, isLeft, extraBadge }: T
     <motion.div layout="position" className={`flex items-center gap-3 mb-3 ${isLeft ? 'sm:justify-end' : 'sm:justify-start'}`}>
       <div className="flex items-center gap-2.5">
         <span className={`px-3 py-1 text-[9px] uppercase font-bold tracking-widest rounded-full shadow-inner ${
-          status === 'completed' ? `${spatialGlassSubtle} text-ink-soft` :
+          status === 'completed' ? 'spatial-glass-subtle text-ink-soft' :
           status === 'current' ? 'bg-accent/20 text-accent border border-accent/50 shadow-[0_0_10px_rgb(var(--accent-rgb)_/_0.2)]' :
-          `${spatialGlassSubtle} text-ink-soft border-dashed border-[rgb(var(--border-rgb))]/20`
+          'spatial-glass-subtle text-ink-soft border-dashed border-[rgb(var(--border-rgb))]/20'
         }`}>
           {status}
         </span>

@@ -263,31 +263,4 @@ export interface GoldenTicket {
   goldenResolutions: GoldenResolutionPublic[];
   userName: string;
   userEmail: string;
-  // v1.74 — Golden Ticket discussion thread. After the first
-  // admin answer is posted, both the user and any admin can reply
-  // in `goldenTicketDiscussion` for 7 days. The first admin answer
-  // is flagged `isProminent: true` so the UI can pin it to the top.
-  // `discussionOpen` is computed at response time, so the UI
-  // doesn't have to know the 7-day constant.
-  goldenTicketDiscussion: GoldenDiscussionEntry[];
-  firstAdminAnswerAt: string | null;
-  discussionClosesAt: string | null;
-  discussionOpen: boolean;
-}
-
-/**
- * v1.74 — One row of the Golden Ticket discussion thread. Either
- * the ticket owner (`senderRole: 'user'`) or an admin/moderator
- * (`senderRole: 'admin'`). The first admin answer of all time
- * carries `isProminent: true`; every other entry is just a
- * chronological message.
- */
-export interface GoldenDiscussionEntry {
-  _id?: string;
-  text: string;
-  senderRole: 'admin' | 'user';
-  senderId: string;
-  senderName: string;
-  createdAt: string;
-  isProminent: boolean;
 }

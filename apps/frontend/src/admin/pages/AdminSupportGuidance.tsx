@@ -2,8 +2,7 @@
 // each issue type. Admin/moderator only.
 
 import React, { useEffect, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion'
-import { adminBtnGhost, adminBtnPrimary, adminInput } from '../../styles/style_config';
+import { AnimatePresence, motion } from 'framer-motion';
 import { listGuidance, updateGuidance } from '../../components/support/api';
 import { getIssueIcon } from '../../components/support/icons';
 import type { SupportGuidance, SupportIssueType } from '../../components/support/types';
@@ -92,7 +91,7 @@ function GuidanceInner(): React.ReactElement {
                           <input
                             value={step}
                             onChange={(e) => setDraft((d) => d.map((s, idx) => idx === i ? e.target.value : s))}
-                            className={`${adminInput} flex-1`}
+                            className="admin-input flex-1"
                             placeholder={`Step ${i + 1}`}
                             maxLength={300}
                           />
@@ -114,12 +113,12 @@ function GuidanceInner(): React.ReactElement {
                           type="button"
                           onClick={save}
                           disabled={saving}
-                          className={`${adminBtnPrimary}`}
+                          className="admin-btn-primary"
                         >{saving ? 'Saving…' : 'Save'}</button>
                         <button
                           type="button"
                           onClick={() => { setEditing(null); setDraft([]); }}
-                          className={`${adminBtnGhost}`}
+                          className="admin-btn-ghost"
                         >Cancel</button>
                       </div>
                     </div>

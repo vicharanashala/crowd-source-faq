@@ -4,7 +4,6 @@ import api from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
 import { useProgram } from '../../context/ProgramContext';
 import { resolveAssetUrl } from '../../utils/publicUrl';
-import { spatialGlass, spatialGlassSubtle, spatialChatAi, spatialChatUser } from '../../styles/style_config';
 
 interface Orientation {
   _id: string;
@@ -252,7 +251,7 @@ export default function OrientationTab() {
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5, ease: "easeOut" }}
-          className={`${spatialGlass} p-2 rounded-[32px]`}
+          className="spatial-glass p-2 rounded-[32px]"
         >
           <div className="relative rounded-[28px] overflow-hidden bg-[rgb(var(--bg-primary-rgb))]/60 aspect-video group shadow-[inset_0_2px_10px_rgba(0,0,0,0.8)] border border-[rgb(var(--border-rgb))]/5">
             <video 
@@ -268,10 +267,10 @@ export default function OrientationTab() {
             <h2 className="text-2xl font-serif font-bold text-ink mb-2 text-glow-spatial">{orientation.title}</h2>
             <p className="text-ink-soft text-sm mb-4 leading-relaxed ">{orientation.description}</p>
             <div className="flex flex-wrap gap-2">
-              <span className={`${spatialGlassSubtle} px-3 py-1 text-xs text-ink-soft rounded-full`}>
+              <span className="spatial-glass-subtle px-3 py-1 text-xs text-ink-soft rounded-full">
                 {new Date(orientation.createdAt).toLocaleDateString()}
               </span>
-              <span className={`${spatialGlassSubtle} px-3 py-1 text-xs text-accent rounded-full border border-accent/30 shadow-[0_0_10px_rgb(var(--accent-rgb)_/_0.2)]`}>
+              <span className="spatial-glass-subtle px-3 py-1 text-xs text-accent rounded-full border border-accent/30 shadow-[0_0_10px_rgb(var(--accent-rgb)_/_0.2)]">
                 Official Onboarding
               </span>
             </div>
@@ -283,7 +282,7 @@ export default function OrientationTab() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
-          className={`${spatialGlass} rounded-[32px] p-6 flex flex-col h-[350px]`}
+          className="spatial-glass rounded-[32px] p-6 flex flex-col h-[350px]"
         >
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-sm font-semibold text-ink-soft uppercase tracking-widest flex items-center gap-3">
@@ -304,7 +303,7 @@ export default function OrientationTab() {
                   key={idx} 
                   onClick={() => jumpToTime(line.timeSeconds)}
                   className={`group w-full flex items-start gap-4 p-4 rounded-2xl cursor-pointer transition-all duration-300 ${
-                    isActive ? `${spatialGlassSubtle} bg-[rgb(var(--text-primary-rgb))]/5 border border-[rgb(var(--border-rgb))]/20 shadow-[0_10px_30px_rgba(0,0,0,0.3)]` : 'hover:bg-[rgb(var(--text-primary-rgb))]/5 border border-transparent'
+                    isActive ? 'spatial-glass-subtle bg-[rgb(var(--text-primary-rgb))]/5 border border-[rgb(var(--border-rgb))]/20 shadow-[0_10px_30px_rgba(0,0,0,0.3)]' : 'hover:bg-[rgb(var(--text-primary-rgb))]/5 border border-transparent'
                   }`}
                 >
                   <span className={`text-xs font-mono mt-0.5 ${isActive ? 'text-accent font-bold text-glow-accent-spatial' : 'text-ink-soft'}`}>
@@ -331,7 +330,7 @@ export default function OrientationTab() {
         transition={{ duration: 0.5, delay: 0.3 }}
         className="w-full lg:w-[420px] flex flex-col"
       >
-        <div className={`${spatialGlass} rounded-[32px] flex flex-col h-[650px] lg:h-full overflow-hidden relative shadow-[0_20px_60px_rgba(0,0,0,0.5)]`}>
+        <div className="spatial-glass rounded-[32px] flex flex-col h-[650px] lg:h-full overflow-hidden relative shadow-[0_20px_60px_rgba(0,0,0,0.5)]">
           
           <div className="p-6 border-b border-[rgb(var(--border-rgb))]/10 bg-[rgb(var(--text-primary-rgb))]/5 backdrop-blur-md">
             <div className="flex items-center gap-4">
@@ -365,8 +364,8 @@ export default function OrientationTab() {
                 >
                   <div className={`max-w-[85%] rounded-[24px] px-5 py-4 text-[14px] leading-relaxed  ${
                     chat.role === 'user' 
-                      ? `${spatialChatUser} text-ink rounded-tr-sm` 
-                      : `${spatialChatAi} text-ink rounded-tl-sm shadow-[0_10px_20px_rgb(var(--accent-rgb)_/_0.1)]`
+                      ? 'spatial-chat-user text-ink rounded-tr-sm' 
+                      : 'spatial-chat-ai text-ink rounded-tl-sm shadow-[0_10px_20px_rgb(var(--accent-rgb)_/_0.1)]'
                   }`}>
                     {chat.text}
                   </div>
@@ -380,7 +379,7 @@ export default function OrientationTab() {
                 animate={{ opacity: 1 }}
                 className="flex justify-start"
               >
-                <div className={`${spatialChatAi} rounded-[24px] rounded-tl-sm px-6 py-5 flex items-center gap-2`}>
+                <div className="spatial-chat-ai rounded-[24px] rounded-tl-sm px-6 py-5 flex items-center gap-2">
                   <div className="w-2 h-2 bg-accent rounded-full animate-bounce shadow-[0_0_8px_rgb(var(--accent-rgb)_/_0.8)]" />
                   <div className="w-2 h-2 bg-accent rounded-full animate-bounce delay-75 shadow-[0_0_8px_rgb(var(--accent-rgb)_/_0.8)]" />
                   <div className="w-2 h-2 bg-accent rounded-full animate-bounce delay-150 shadow-[0_0_8px_rgb(var(--accent-rgb)_/_0.8)]" />
@@ -396,7 +395,7 @@ export default function OrientationTab() {
                     <button
                       key={i}
                       onClick={() => handleAskQuestion(sug)}
-                      className={`${spatialGlassSubtle} py-3 px-5 text-[13px] text-ink text-left rounded-2xl hover:bg-[rgb(var(--text-primary-rgb))]/10 transition-all border border-[rgb(var(--border-rgb))]/10 hover:border-[rgb(var(--border-rgb))]/30 hover:shadow-[0_10px_20px_rgba(0,0,0,0.2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent`}
+                      className="spatial-glass-subtle py-3 px-5 text-[13px] text-ink text-left rounded-2xl hover:bg-[rgb(var(--text-primary-rgb))]/10 transition-all border border-[rgb(var(--border-rgb))]/10 hover:border-[rgb(var(--border-rgb))]/30 hover:shadow-[0_10px_20px_rgba(0,0,0,0.2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                     >
                       {sug}
                     </button>
@@ -414,7 +413,7 @@ export default function OrientationTab() {
                   value={question}
                   onChange={e => setQuestion(e.target.value)}
                   placeholder="Ask a question..."
-                  className={`w-full ${spatialGlassSubtle} bg-[rgb(var(--text-primary-rgb))]/5 border border-[rgb(var(--border-rgb))]/20 rounded-full pl-6 pr-14 py-4 text-sm text-ink placeholder-[rgb(var(--text-primary-rgb))]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus:bg-[rgb(var(--text-primary-rgb))]/10 transition-all shadow-[inset_0_2px_10px_rgba(0,0,0,0.3)]`}
+                  className="w-full spatial-glass-subtle bg-[rgb(var(--text-primary-rgb))]/5 border border-[rgb(var(--border-rgb))]/20 rounded-full pl-6 pr-14 py-4 text-sm text-ink placeholder-[rgb(var(--text-primary-rgb))]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus:bg-[rgb(var(--text-primary-rgb))]/10 transition-all shadow-[inset_0_2px_10px_rgba(0,0,0,0.3)]"
                   disabled={asking}
                 />
                 <button

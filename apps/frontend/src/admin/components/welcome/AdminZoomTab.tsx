@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { btnBase, btnPrimary } from '../../../styles/style_config';
 import adminApi from '../../utils/adminApi';
 
 interface Stats {
@@ -492,7 +491,7 @@ export default function AdminZoomTab({ mode = 'assessments' }: AdminZoomTabProps
               {s.title}
             </h4>
             {s.isActive && (
-              <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-accent/10 text-accent border border-accent/30 absolute right-4 top-4">
+              <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200 absolute right-4 top-4">
                 Active
               </span>
             )}
@@ -566,9 +565,9 @@ export default function AdminZoomTab({ mode = 'assessments' }: AdminZoomTabProps
                                   correctOptionIndex: oIdx,
                                 }))
                               }
-                              className="w-3 h-3 accent-accent"
+                              className="w-3 h-3 accent-green-600"
                             />
-                            <span className="text-[8px] font-semibold text-accent">
+                            <span className="text-[8px] font-semibold text-green-700">
                               Correct Answer
                             </span>
                           </span>
@@ -634,7 +633,7 @@ export default function AdminZoomTab({ mode = 'assessments' }: AdminZoomTabProps
                     <button
                       type="button"
                       onClick={() => handleSaveEditQuestion(q._id)}
-                      className="px-3 py-1.5 bg-accent text-white rounded-lg text-xs font-bold"
+                      className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-bold"
                     >
                       Save Changes
                     </button>
@@ -666,14 +665,14 @@ export default function AdminZoomTab({ mode = 'assessments' }: AdminZoomTabProps
                           key={oIdx}
                           className={`px-3 py-2 rounded-lg border text-xs flex items-center gap-2 ${
                             isCorrect
-                              ? 'border-accent/30 bg-accent/10 text-accent font-medium'
+                              ? 'border-green-200 bg-green-50/50 text-green-700 font-medium'
                               : 'border-border/40 text-ink-soft'
                           }`}
                         >
                           <div
                             className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center flex-shrink-0 text-[8px] ${
                               isCorrect
-                                ? 'border-accent bg-accent text-[#131313]'
+                                ? 'border-green-600 bg-green-600 text-white'
                                 : 'border-border'
                             }`}
                           >
@@ -695,7 +694,7 @@ export default function AdminZoomTab({ mode = 'assessments' }: AdminZoomTabProps
                     <span className="text-[10px] text-ink-faint">•</span>
                     <button
                       onClick={() => handleDeleteQuestion(q._id)}
-                      className="text-[10px] font-bold text-danger hover:text-danger cursor-pointer"
+                      className="text-[10px] font-bold text-red-500 hover:text-red-700 cursor-pointer"
                     >
                       Delete
                     </button>
@@ -732,7 +731,7 @@ export default function AdminZoomTab({ mode = 'assessments' }: AdminZoomTabProps
             <h2 className="text-base font-bold text-ink flex items-center gap-2">
               Zoom Onboarding Assessment Gateway
               <span
-                className={`w-2.5 h-2.5 rounded-full inline-block ${isGlobalActive ? 'bg-accent animate-pulse' : 'bg-danger'}`}
+                className={`w-2.5 h-2.5 rounded-full inline-block ${isGlobalActive ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}
               />
             </h2>
             <p className="text-xs text-ink-soft mt-0.5">
@@ -741,10 +740,10 @@ export default function AdminZoomTab({ mode = 'assessments' }: AdminZoomTabProps
           </div>
           <button
             onClick={handleGlobalActiveToggle}
-            className={`${btnBase} px-5 py-2.5 font-semibold text-xs rounded-full border transition-all duration-300 cursor-pointer ${
+            className={`btn-base px-5 py-2.5 font-semibold text-xs rounded-full border transition-all duration-300 cursor-pointer ${
               isGlobalActive
-                ? 'bg-danger-light text-danger border-danger/30 hover:bg-danger/15'
-                : 'bg-accent/10 text-accent border-accent/30 hover:bg-accent/20'
+                ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100/50'
+                : 'bg-green-50 text-green-600 border-green-200 hover:bg-green-100/50'
             }`}
           >
             {isGlobalActive ? 'Disable Gateway' : 'Enable Gateway'}
@@ -882,7 +881,7 @@ export default function AdminZoomTab({ mode = 'assessments' }: AdminZoomTabProps
                 <button
                   type="submit"
                   disabled={saving}
-                  className={`${btnBase} ${btnPrimary} px-5 py-2 text-xs font-semibold cursor-pointer`}
+                  className="btn-base btn-primary px-5 py-2 text-xs font-semibold cursor-pointer"
                 >
                   {saving ? 'Creating...' : 'Create Session'}
                 </button>
@@ -906,7 +905,7 @@ export default function AdminZoomTab({ mode = 'assessments' }: AdminZoomTabProps
                         {!selectedSession.isActive && (
                           <button
                             onClick={() => handleActivateSession(selectedSession._id)}
-                            className={`${btnBase} bg-accent/10 text-accent border border-accent/30 hover:bg-accent/20 px-3.5 py-1.5 rounded-xl text-[11px] font-bold cursor-pointer`}
+                            className="btn-base bg-green-50 text-green-600 border border-green-200 hover:bg-green-100/50 px-3.5 py-1.5 rounded-xl text-[11px] font-bold cursor-pointer"
                           >
                             Activate Session
                           </button>
@@ -914,7 +913,7 @@ export default function AdminZoomTab({ mode = 'assessments' }: AdminZoomTabProps
                         {!selectedSession.isActive && (
                           <button
                             onClick={() => handleDeleteSession(selectedSession._id)}
-                            className={`${btnBase} bg-danger-light text-danger border border-danger/30 hover:bg-danger/15 px-3.5 py-1.5 rounded-xl text-[11px] font-bold cursor-pointer`}
+                            className="btn-base bg-red-50 text-red-600 border border-red-100 hover:bg-red-100/50 px-3.5 py-1.5 rounded-xl text-[11px] font-bold cursor-pointer"
                           >
                             Delete
                           </button>
@@ -943,7 +942,7 @@ export default function AdminZoomTab({ mode = 'assessments' }: AdminZoomTabProps
                         <span className="block text-[9px] font-bold text-ink-faint uppercase mb-0.5">
                           Passed Today
                         </span>
-                        <span className="text-lg font-black text-accent">
+                        <span className="text-lg font-black text-green-600">
                           {selectedSession.stats?.passedToday || 0}
                         </span>
                       </div>
@@ -951,7 +950,7 @@ export default function AdminZoomTab({ mode = 'assessments' }: AdminZoomTabProps
                         <span className="block text-[9px] font-bold text-ink-faint uppercase mb-0.5">
                           Failed Today
                         </span>
-                        <span className="text-lg font-black text-danger">
+                        <span className="text-lg font-black text-red-500">
                           {selectedSession.stats?.failedToday || 0}
                         </span>
                       </div>
@@ -982,7 +981,7 @@ export default function AdminZoomTab({ mode = 'assessments' }: AdminZoomTabProps
                           upload a transcript later.
                         </p>
                         <div className="flex items-center gap-3">
-                          <label className={`${btnBase} bg-[rgb(var(--bg-card-rgb))] border border-border text-ink hover:bg-mist cursor-pointer px-4 py-2 text-[10px] font-bold rounded-lg`}>
+                          <label className="btn-base bg-[rgb(var(--bg-card-rgb))] border border-border text-ink hover:bg-mist cursor-pointer px-4 py-2 text-[10px] font-bold rounded-lg">
                             {uploading ? 'Processing...' : 'Upload Transcript'}
                             <input
                               type="file"
@@ -993,7 +992,7 @@ export default function AdminZoomTab({ mode = 'assessments' }: AdminZoomTabProps
                             />
                           </label>
                           {selectedSession.transcript && (
-                            <span className="text-[9px] font-bold text-accent bg-accent/10 px-2.5 py-1 rounded-full border border-accent/30">
+                            <span className="text-[9px] font-bold text-green-700 bg-green-50 px-2.5 py-1 rounded-full border border-green-200">
                               ✓ Loaded
                             </span>
                           )}
@@ -1020,7 +1019,7 @@ export default function AdminZoomTab({ mode = 'assessments' }: AdminZoomTabProps
                         <button
                           onClick={handleRegeneratePool}
                           disabled={regenerating}
-                          className={`${btnBase} bg-accent text-white hover:bg-accent/90 disabled:opacity-40 px-4 py-2 text-[10px] font-bold rounded-lg cursor-pointer`}
+                          className="btn-base bg-accent text-white hover:bg-accent/90 disabled:opacity-40 px-4 py-2 text-[10px] font-bold rounded-lg cursor-pointer"
                         >
                           {regenerating
                             ? 'Generating…'
@@ -1164,7 +1163,7 @@ export default function AdminZoomTab({ mode = 'assessments' }: AdminZoomTabProps
                       <button
                         type="submit"
                         disabled={saving}
-                        className={`${btnBase} ${btnPrimary} px-5 py-2 text-xs font-semibold cursor-pointer`}
+                        className="btn-base btn-primary px-5 py-2 text-xs font-semibold cursor-pointer"
                       >
                         Save Parameters
                       </button>
@@ -1226,9 +1225,9 @@ export default function AdminZoomTab({ mode = 'assessments' }: AdminZoomTabProps
                                       correctOptionIndex: idx,
                                     }))
                                   }
-                                  className="w-3 h-3 accent-accent"
+                                  className="w-3 h-3 accent-green-600"
                                 />
-                                <span className="text-[8px] font-semibold text-accent">
+                                <span className="text-[8px] font-semibold text-green-700">
                                   Correct Answer
                                 </span>
                               </span>

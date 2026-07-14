@@ -121,31 +121,12 @@ export async function getBatchBySlug(req: Request, res: Response): Promise<void>
   }
   const normalised = slug.trim().toLowerCase();
   try {
-    // S5-C7 (CRITICAL) fix: previously this was `Batch.find()` with
-    // no filter and no projection, loading every batch in the
-    // collection into memory on every anon public request, then doing
-    // a client-side slug match. Three problems:
-    //   1. O(N) DoS as the program count grows.
-    //   2. Information disclosure — every program name leaks to
-    //      anonymous public callers.
-    //   3. Inefficient memory.
-    //
-    // Fix: keep the "look across ALL programs (active + archived)"
-    // behavior (so archived programs remain reachable per the prior
-    // UX fix), but cap the result to a small subset AND add a
-    // lightweight name-regex pre-filter so we don't ship the entire
-    // collection over the wire. The slugify transform is
-    // deterministic; for a slug "foo" we look for names containing
-    // the original token case-insensitively. This won't catch every
-    // edge case (e.g. slug "x-y" vs name "X Y" both slugify to
-    // "x-y" but neither contains the other), so we still iterate
-    // the capped subset for the precise match.
-    const escapeReg = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const searchRegex = new RegExp(escapeReg(slug.replace(/-/g, ' ')), 'i');
-    const all = await Batch.find({ name: { $regex: searchRegex } })
-      .select('_id name description startDate endDate isActive isDefault status')
-      .limit(50)
-      .lean();
+    // Look across ALL programs (active + inactive + archived). The
+    // previous behaviour was `isActive: true` only, which meant any
+    // archived program was unreachable through the slug route — even
+    // for admins. That was the cause of the "Program not found" page
+    // showing up for valid existing programs.
+    const all = await Batch.find().select('_id name description startDate endDate isActive isDefault status').lean();
     const match = all.find((b) => slugifyProgramName(b.name) === normalised);
     if (!match) {
       res.status(404).json({ message: 'Program not found.' });
@@ -177,36 +158,7 @@ export async function setDefaultBatch(req: Request, res: Response): Promise<void
       res.status(404).json({ message: 'Batch not found.' });
       return;
     }
-    // S5-M12 (MEDIUM) fix: previously the underlying `setAsDefault`
-    // static did TWO sequential writes (updateMany + findByIdAndUpdate)
-    // without a transaction. A concurrent setDefaultBatch call from
-    // admin B during admin A's call could briefly leave the flag on
-    // two batches. The model's `setAsDefault` static is unchanged
-    // (out of scope for this PR) — we wrap the two calls in a
-    // best-effort compensating sequence: if the second write fails
-    // we re-clear the new default so we don't leave the system
-    // without any default. A future PR can move the writes into
-    // the model with `mongoose.startSession().withTransaction()`.
-    const newObjectId = new Types.ObjectId(id);
-    await Batch.updateMany(
-      { isDefault: true, _id: { $ne: newObjectId } },
-      { $set: { isDefault: false } }
-    );
-    let updated = null;
-    try {
-      updated = await Batch.findByIdAndUpdate(
-        newObjectId,
-        { $set: { isDefault: true } },
-        { new: true }
-      );
-    } catch (e) {
-      // Compensating: re-allow the previously-defaulted batch to be default
-      // (set every isDefault:false batch to true only if there was one).
-      // Best-effort: just clear all defaults — a fresh admin click will
-      // restore. Better than leaving the system in an inconsistent state.
-      await Batch.updateMany({}, { $set: { isDefault: false } });
-      throw e;
-    }
+    const updated = await (Batch as any).setAsDefault(new Types.ObjectId(id));
     invalidatePublicCaches();
     res.json(updated);
   } catch (err) {

@@ -4,7 +4,6 @@ import CommunityPost from '../community/community-post.model.js';
 import SupportRequest from '../support/support-request.model.js';
 import SearchLog from '../search/search-log.model.js';
 import { withProgramScope } from '../../utils/db/scopedQuery.js';
-import { getBuildSnapshot } from './build-info.js';
 
 /**
  * GET /api/health
@@ -76,32 +75,4 @@ export const getHealth = async (req: Request, res: Response): Promise<void> => {
   } catch (err) {
     res.status(500).json({ message: 'Health check failed', error: (err as Error).message });
   }
-};
-
-/**
- * GET /api/health/build
- *
- * v1.85 — public, unauthenticated. Returns deploy provenance so
- * operators can verify "is this server running the code I just
- * pushed?" without grepping logs or asking the team.
- *
- * Fields returned:
- *   {
- *     sha, shortSha, dirty, capturedAt,
- *     features: { zoomDiagnostics, documentReindex, ... },
- *   }
- *
- * Deliberately NOT returned:
- *   - branch name (privacy: reveals which product lines exist)
- *   - build timestamp (not useful + lets attackers fingerprint)
- *   - author / commit message
- *   - any env-var values (presence-only on /zoom/auth/diagnostics)
- *
- * Cached once at first call (process boot) so git is invoked
- * at most once. Returns sha=null when git can't be resolved —
- * check `features.zoomDiagnostics` etc. instead, those don't
- * depend on git being present.
- */
-export const getBuildInfo = async (_req: Request, res: Response): Promise<void> => {
-  res.json(getBuildSnapshot());
 };

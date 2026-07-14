@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
 import ProjectSelectionModal, { type Project } from './ProjectSelectionModal';
-import { dangerBorder } from '../../styles/style_config';
 
 export default function ProjectDiscoveryTab() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -74,8 +73,8 @@ export default function ProjectDiscoveryTab() {
               key={p.projectName}
               whileHover={isFull ? {} : { y: -4 }}
               className={`bg-card border rounded-2xl shadow-sm flex flex-col transition-all group overflow-hidden ${
-                isFull
-                  ? `${dangerBorder}/30 opacity-90 cursor-not-allowed`
+                isFull 
+                  ? 'border-red-500/30 opacity-90 cursor-not-allowed' 
                   : 'border-[rgb(var(--border-rgb))]/30 hover:shadow-lg hover:border-accent/50 cursor-pointer'
               }`}
               onClick={() => {
@@ -84,7 +83,7 @@ export default function ProjectDiscoveryTab() {
             >
               {/* Card Header (Project Name & Mentor) */}
               <div className={`p-6 pb-5 border-b relative ${
-                isFull ? 'bg-danger/5 backdrop-blur-sm border-danger/10' : 'border-[rgb(var(--border-rgb))]/10 bg-bg/30'
+                isFull ? 'bg-red-500/5 backdrop-blur-sm border-red-500/10' : 'border-[rgb(var(--border-rgb))]/10 bg-bg/30'
               }`}>
                 {!isFull && (
                   <div className="absolute top-6 right-6 p-2 bg-accent/10 text-accent rounded-full opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">
@@ -94,11 +93,11 @@ export default function ProjectDiscoveryTab() {
                 
                 {p.capacity !== undefined && (
                   <div className={`absolute top-6 right-6 p-1.5 rounded-lg border text-[10px] font-bold uppercase tracking-wider shadow-sm flex items-center gap-1.5 backdrop-blur-md transition-all duration-300 ${
-                    isFull
-                      ? 'bg-danger/10 text-danger border-danger/20'
+                    isFull 
+                      ? 'bg-red-500/10 text-red-500 border-red-500/20' 
                       : 'bg-accent/10 text-accent border-accent/20 group-hover:-translate-x-12'
                   }`}>
-                    <div className={`w-1.5 h-1.5 rounded-full ${isFull ? 'bg-danger animate-pulse' : 'bg-accent'}`}></div>
+                    <div className={`w-1.5 h-1.5 rounded-full ${isFull ? 'bg-red-500 animate-pulse' : 'bg-accent'}`}></div>
                     {p.selectedCount || 0} / {p.capacity} Seats
                   </div>
                 )}
@@ -184,7 +183,7 @@ export default function ProjectDiscoveryTab() {
                       <div className="flex flex-wrap gap-1.5">
                         {p.skills?.map((skill, i) => (
                           <div key={`skill-${i}`} className="flex items-center gap-1.5 text-xs text-ink-soft">
-                            <svg className="text-accent w-3 h-3 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                            <svg className="text-green-500 w-3 h-3 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
                             {skill}
                           </div>
                         ))}

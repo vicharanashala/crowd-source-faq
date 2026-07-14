@@ -209,7 +209,7 @@ export default function AdminOrientationTab() {
                   </button>
                   <button
                     onClick={() => handleDelete(o._id)}
-                    className="px-3 py-1.5 text-sm text-danger hover:bg-danger/10 rounded-md transition-colors"
+                    className="px-3 py-1.5 text-sm text-red-500 hover:bg-red-500/10 rounded-md transition-colors"
                   >
                     Delete
                   </button>
@@ -253,7 +253,7 @@ export default function AdminOrientationTab() {
           <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setPreviewUrl(null)}></div>
           <div className="relative w-full max-w-4xl bg-black rounded-2xl overflow-hidden shadow-2xl">
             <div className="flex justify-end p-4 absolute top-0 right-0 z-10 bg-gradient-to-b from-black/50 to-transparent w-full pointer-events-none">
-              <button onClick={() => setPreviewUrl(null)} className="text-white hover:text-danger pointer-events-auto">
+              <button onClick={() => setPreviewUrl(null)} className="text-white hover:text-red-400 pointer-events-auto">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>

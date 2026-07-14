@@ -146,21 +146,6 @@ export const adminWriteLimiter = createIdentityLimiter({
 });
 
 /**
- * H4-1 (HIGH) fix: refresh token rate limiter. The previous refresh
- * endpoint had no rate limit at all — an attacker who obtained an
- * old refresh token could fire it repeatedly. Cap at 5 attempts
- * per identity per minute. Refresh should be a rare event
- * (once per ~15min when the access token expires), so 5/min is
- * generous while still blocking brute force.
- */
-export const refreshLimiter = createIdentityLimiter({
-  windowMs: 60 * 1000,
-  max: 5,
-  keyPrefix: 'rl_refresh',
-  message: 'Too many refresh attempts. Please log in again.',
-});
-
-/**
  * 2FA action limiter (very strict):
  * - 10 attempts per user per minute
  * - Prevents brute-forcing TOTP codes

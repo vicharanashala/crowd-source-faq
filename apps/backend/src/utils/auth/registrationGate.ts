@@ -25,7 +25,7 @@ import { authLog } from '../http/logger.js';
 
 export type RegistrationDecision =
   | { ok: true }
-  | { ok: false; reason: 'disabled' | 'missing_token' | 'invalid_token' };
+  | { ok: false; reason: 'disabled' | 'missing_token' | 'invalid_token' | 'unauthorized_domain' };
 
 /**
  * Constant-time string comparison. Returns false if lengths differ
@@ -53,11 +53,12 @@ function safeStringEqual(a: string, b: string): boolean {
  */
 export async function checkRegistrationAllowed(
   providedToken: string | undefined,
+  email: string | undefined,
 ): Promise<RegistrationDecision> {
   // Defensive: if the singleton was never created (e.g. seed skipped),
   // deny rather than allow by default.
   const config = await RegistrationConfig.findById('singleton')
-    .select('registrationEnabled openForAll inviteToken')
+    .select('registrationEnabled openForAll inviteToken allowedDomains')
     .lean();
   if (!config) {
     return { ok: false, reason: 'disabled' };
@@ -65,6 +66,18 @@ export async function checkRegistrationAllowed(
   if (!config.registrationEnabled) {
     return { ok: false, reason: 'disabled' };
   }
+
+  // Check email domain restriction if configured
+  if (config.allowedDomains && config.allowedDomains.length > 0) {
+    if (!email) {
+      return { ok: false, reason: 'unauthorized_domain' };
+    }
+    const domain = email.split('@').pop()?.trim().toLowerCase();
+    if (!domain || !config.allowedDomains.includes(domain)) {
+      return { ok: false, reason: 'unauthorized_domain' };
+    }
+  }
+
   // v1.7x — "Open for all" mode. When the admin has flipped this on,
   // anyone with a valid email + password may register without an
   // `?token=...` invite link. The stored inviteToken is left alone so
@@ -103,12 +116,14 @@ export async function registrationGate(
 ): Promise<void> {
   try {
     const token = typeof req.query.token === 'string' ? req.query.token : undefined;
-    const decision = await checkRegistrationAllowed(token);
+    const email = typeof req.body.email === 'string' ? req.body.email : undefined;
+    const decision = await checkRegistrationAllowed(token, email);
     if (!decision.ok) {
       const messages: Record<typeof decision.reason, string> = {
         disabled: 'New user registration is currently disabled.',
         missing_token: 'Registration requires a valid invite link.',
         invalid_token: 'This invite link is invalid or has been revoked.',
+        unauthorized_domain: 'Registration is restricted to authorized email domains.',
       };
       authLog.warn('register blocked', {
         reason: decision.reason,

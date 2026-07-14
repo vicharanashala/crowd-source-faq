@@ -25,7 +25,6 @@ import {
   notifyUser,
   logAdminAction,
   requireFeatureOn,
-  supportTicketLink,
 } from './support-core.controller.js';
 
 function asStringParam(v: string | string[] | undefined): string | undefined {
@@ -115,7 +114,7 @@ export async function addSupportFollowUp(req: Request, res: Response): Promise<v
       await notifyUser(request.userId, {
         title: 'New reply on your support request',
         message: message.slice(0, 200),
-        link: supportTicketLink(request),
+        link: '/support/' + request._id.toString(),
         metadata: {
           supportRequestId: request._id.toString(),
           issueType: request.issueType,
@@ -291,7 +290,7 @@ export async function updateSupportStatus(req: Request, res: Response): Promise<
     await notifyUser(request.userId, {
       title: titleByStatus[nextStatus],
       message: baseMsg,
-      link: supportTicketLink(request),
+      link: '/support/' + request._id.toString(),
       metadata: {
         supportRequestId: request._id.toString(),
         issueType: request.issueType,

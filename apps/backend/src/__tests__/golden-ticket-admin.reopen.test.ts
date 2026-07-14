@@ -56,11 +56,6 @@ vi.mock('../modules/support/support-core.controller.js', () => ({
     (mocks.notifySpy as (...a: unknown[]) => void)(...args);
   },
   isGoldenTicket: (req: { isGolden?: boolean }): boolean => Boolean(req.isGolden),
-  // v1.74 — reopen doesn't touch the discussion window, but
-  // adding the export keeps the mock in sync with the controller
-  // import surface.
-  computeDiscussionClosesAt: (when: Date): Date => when,
-  isDiscussionOpen: (): boolean => true,
 }));
 
 vi.mock('../utils/http/logger.js', () => ({
@@ -113,12 +108,6 @@ function makeReq(opts: {
     userId: new Types.ObjectId('0000000000000000000000bb'),
     resolvedAt: opts.status === 'Resolved' ? new Date('2026-06-01T00:00:00Z') : null,
     goldenResolutions: Array.isArray(opts.goldenResolutions) ? opts.goldenResolutions : [],
-    // v1.74 — discussion thread defaults. Reopen doesn't touch
-    // these, but the controller surface references them, so the
-    // mock has to have the shape.
-    goldenTicketDiscussion: [],
-    firstAdminAnswerAt: null,
-    discussionClosesAt: null,
     statusHistory: [
       {
         status: 'Resolved',

@@ -1,20 +1,10 @@
 /**
- * documentTextSource — Phase 6 + Phase 9 metadata boosting.
+ * documentTextSource — Phase 6.
  *
  * 7th `RetrievalSource` for admin-uploaded documents (`DocumentAsset`
  * collection). Returns hits ranked by Mongo `$text` score, with
  * per-document confidence decaying from 0.85 → 0.5 once the document
  * is older than 30 days.
- *
- * Phase 9 (metadata boost)
- * ------------------------
- * When documentIngestion.service has extracted `metadata.tags` for a
- * row, we count how many of those tags appear in the query and bump
- * the confidence by `tagOverlap * 0.02` (capped at 0.95). This is
- * the fallback path when EMBEDDING_MODEL is not configured — the LLM
- * did the semantic work at write time, the keyword index carries it
- * at read time. Without this, docs uploaded without an embedding
- * model would only ever match on exact words in the title/text.
  *
  * Confidence rationale
  * --------------------
@@ -49,8 +39,6 @@ const STALE_DAYS = 30; // documents age slower than web pages
 // original (uncapped) length is preserved in `meta.textLength` so the
 // consumer can detect truncation.
 const ANSWER_TEXT_MAX_CHARS = 4000;
-const MAX_CONFIDENCE = 0.95;
-const TAG_BOOST_PER_HIT = 0.02;
 
 export const documentTextSource: RetrievalSource = {
   name: 'document',
@@ -68,31 +56,17 @@ export const documentTextSource: RetrievalSource = {
         { ...filter, $text: { $search: query } },
         { score: { $meta: 'textScore' } },
       )
-        .select('title text filename mimeType sizeBytes pageCount uploadedAt batchId _id metadata embeddedAt')
+        .select('title text filename mimeType sizeBytes pageCount uploadedAt batchId _id')
         .sort({ score: { $meta: 'textScore' } })
         .limit(topK)
         .lean();
 
       const now = Date.now();
       const staleCutoffMs = STALE_DAYS * 24 * 60 * 60 * 1000;
-      const queryLower = query.toLowerCase();
       return docs.map((d) => {
         const uploadedAt: Date | null = (d as { uploadedAt?: Date }).uploadedAt ?? null;
         const ageMs = uploadedAt ? now - uploadedAt.getTime() : staleCutoffMs;
-        const baseConfidence = ageMs < staleCutoffMs ? 0.85 : 0.5;
-
-        // Phase 9: metadata-driven boost. Count how many of the
-        // document's LLM-extracted tags appear in the query string.
-        // Each overlap adds TAG_BOOST_PER_HIT to the confidence, capped
-        // at MAX_CONFIDENCE so we don't exceed ProgramKnowledge's
-        // 0.95 tier.
-        const tags = (d as { metadata?: { tags?: string[] } }).metadata?.tags ?? [];
-        const tagOverlap = tags.reduce(
-          (n, t) => (typeof t === 'string' && queryLower.includes(t) ? n + 1 : n),
-          0,
-        );
-        const confidence = Math.min(MAX_CONFIDENCE, baseConfidence + tagOverlap * TAG_BOOST_PER_HIT);
-
+        const confidence = ageMs < staleCutoffMs ? 0.85 : 0.5;
         const fullText = (d as { text?: string }).text ?? '';
         const truncated =
           fullText.length > ANSWER_TEXT_MAX_CHARS
@@ -105,7 +79,7 @@ export const documentTextSource: RetrievalSource = {
           answer: truncated,
           score: Number((d as { score?: number }).score ?? 0),
           confidence,
-          matchedOn: 'DocumentAsset.title+text+metadata',
+          matchedOn: 'DocumentAsset.title+text',
           batchId: (d as { batchId?: { toString(): string } }).batchId?.toString() ?? null,
           meta: {
             filename: (d as { filename?: string }).filename,
@@ -113,11 +87,8 @@ export const documentTextSource: RetrievalSource = {
             pageCount: (d as { pageCount?: number }).pageCount,
             sizeBytes: (d as { sizeBytes?: number }).sizeBytes,
             uploadedAt,
-            embeddedAt: (d as { embeddedAt?: Date | null }).embeddedAt ?? null,
             ageDays: ageMs / (24 * 60 * 60 * 1000),
             textLength: fullText.length,
-            tags,
-            tagOverlap,
           },
         };
       });

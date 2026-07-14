@@ -6,6 +6,7 @@ import {
   listSupportRequests,
   getSupportRequest,
   selfDeleteSupportRequest,
+  checkVpnStatus,
 } from './support-requests.controller.js';
 import { addSupportFollowUp, updateSupportStatus } from './support-follow-up.controller.js';
 import { listGuidance, updateGuidance } from './support-guidance.controller.js';
@@ -28,7 +29,6 @@ import {
   getGoldenQueue,
   getMyGoldenHistory,
   getMyGoldenTicket,
-  postGoldenDiscussion,
 } from './support-golden.controller.js';
 import { createIdentityLimiter } from '../../utils/auth/rateLimit.js';
 
@@ -67,6 +67,7 @@ router.get('/analytics', authorize('admin', 'moderator'), getSupportAnalytics);
 
 // Troubleshoot checklist (gated by flag).
 router.get('/troubleshoot/:issueType', getTroubleshootSteps);
+router.get('/diagnostics/check-vpn', checkVpnStatus);
 
 // Requests (gated by flag).
 router.post('/requests',                    submitLimiter, createSupportRequest);
@@ -99,15 +100,10 @@ router.get('/golden/history',                     getMyGoldenHistory);
 // v1.73 — User Golden Ticket thread (single ticket owned by the
 // caller). The in-app bell notification deep-links here when an
 // admin resolves a Golden ticket so the user can actually see the
-// admin answer — the generic /support/:id page does NOT render
+// admin answer — the generic /support/:id page does not render
 // goldenResolutions[]. MUST come AFTER /golden/queue + /golden/history
-// so those don't get swallowed by the `:id` param.
+// in this file so Express doesn't match 'queue' / 'history' as :id.
 router.get('/golden/:id',                         getMyGoldenTicket);
-// v1.74 — Discussion reply. Both the ticket owner and any admin
-// can post inside the 7-day window that opens with the first
-// admin answer. Role decides bubble style. Rate-limited at the
-// same 20/min as the generic follow-up so users can't spam.
-router.post('/golden/:id/discussion', replyLimiter, postGoldenDiscussion);
 
 // ─── Golden Ticket (v1.65, additive) ─────────────────────────────────────
 // Admin actions: convert existing ticket to Golden (debits SP if a

@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { btnBase, btnPrimary, btnSecondary } from '../styles/style_config';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import Footer from '../components/layout/Footer';
@@ -164,13 +163,13 @@ export default function Yaksha2026_27ProgramPage() {
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-16">
           <Link
             to="/explore/select"
-            className={`${btnBase} ${btnPrimary} text-sm`}
+            className="btn-base btn-primary text-sm"
           >
             Apply for Yaksha 2026-27
           </Link>
           <a
             href="#faqs"
-            className={`${btnBase} ${btnSecondary} text-sm`}
+            className="btn-base btn-secondary text-sm"
           >
             Read the FAQs
           </a>
