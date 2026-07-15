@@ -10,10 +10,10 @@ export default function CTA() {
         <div className="flex items-center gap-5">
           {/* Avatar stack — overlapping circles suggesting community */}
           <div className="hidden sm:flex avatar-stack flex-shrink-0">
-            <div className="avatar-stack__item bg-[#E8DCC4] text-[#00635D] text-[10px]">AK</div>
+            <div className="avatar-stack__item bg-[#9A7B2E] text-white text-[10px]">AK</div>
             <div className="avatar-stack__item bg-[#00635D] text-white text-[10px]">RJ</div>
             <div className="avatar-stack__item bg-[#2C3E50] text-white text-[10px]">SP</div>
-            <div className="avatar-stack__item bg-[#E8DCC4] text-[#00635D] text-[10px]">+</div>
+            <div className="avatar-stack__item bg-[#9A7B2E] text-white text-[10px]">+</div>
           </div>
 
           <div>

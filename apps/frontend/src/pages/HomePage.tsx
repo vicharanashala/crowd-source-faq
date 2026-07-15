@@ -15,7 +15,7 @@
 //   /api/public/recent-faqs?limit=5          → Recent FAQs
 //   /api/faq/recent?source=zoom_transcript   → From Zoom Meetings
 
-import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Tags } from 'lucide-react';
@@ -122,14 +122,23 @@ export default function HomePage() {
 
   const searchBarRef = useRef<HTMLInputElement>(null);
   const popularScrollRef = useRef<HTMLDivElement>(null);
+  const detailRef = useRef<HTMLDivElement>(null);
 
   const [resultFaqId, setResultFaqId] = useState<string | undefined>(undefined);
   const { id: urlFaqId } = useParams<string>();
   const navigate = useNavigate();
 
-  const scrollToTop = useCallback(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, []);
+  // ── Scroll to QuestionDetail after it renders ─────────────────────────────
+  // When activeQuestion becomes non-null, the detail view mounts asynchronously.
+  // We use requestAnimationFrame to wait for the browser to paint, then scroll
+  // the detail container into view with a small offset for the sticky nav.
+  useEffect(() => {
+    if (!activeQuestion) return;
+    const raf = requestAnimationFrame(() => {
+      detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [activeQuestion]);
 
 
 
@@ -337,7 +346,6 @@ export default function HomePage() {
     setActiveQuestion(item);
     setSearchQuery('');
     setSearchResults(null);
-    scrollToTop();
   };
 
   const handleBackToCategories = () => {
@@ -493,6 +501,7 @@ export default function HomePage() {
 
         {/* ─── DETAIL VIEW (when a question is opened) ──────────────── */}
         {!loading && !error && activeQuestion && !sidebarEnabled && (
+          <div ref={detailRef}>
           <QuestionDetail
             item={activeQuestion}
             relatedItems={relatedItems}
@@ -506,6 +515,7 @@ export default function HomePage() {
                 : 'Back to Categories'
             }
           />
+          </div>
         )}
 
         {/* Search results render inline in the dropdown under the search bar
@@ -517,7 +527,7 @@ export default function HomePage() {
             <div className="mb-6">
               <button
                 onClick={handleBackToCategories}
-                className="inline-flex items-center gap-2 text-xs font-semibold text-ink-soft hover:text-ink transition-colors"
+                className="inline-flex items-center gap-2 text-xs font-semibold text-accent hover:text-ink transition-colors"
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="15 18 9 12 15 6" />
@@ -561,7 +571,7 @@ export default function HomePage() {
             {/* Mobile: Categories opener button */}
             <button
               onClick={() => setSidebarMobileOpen(true)}
-              className="lg:hidden mb-4 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-ink bg-card border border-border rounded-xl hover:bg-mist transition-colors"
+              className="lg:hidden mb-4 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-accent bg-accent/10 border border-accent/25 rounded-xl hover:bg-accent/18 transition-colors"
             >
               <Tags size={16} />
               Categories
@@ -630,14 +640,15 @@ export default function HomePage() {
                 {/* Most Popular */}
                 <section className="mt-12" aria-labelledby="most-popular-heading">
                   <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2 text-accent">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1 h-5 rounded-full bg-accent" />
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-accent" aria-hidden="true">
                         <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
                         <polyline points="16 7 22 7 22 13" />
                       </svg>
                       <h2 id="most-popular-heading" className="font-serif text-xl text-ink leading-none">Most Popular</h2>
                     </div>
-                    <span className="text-[10px] text-ink-faint uppercase tracking-wider font-semibold">Last 7 days</span>
+                    <span className="text-[10px] text-ink-soft uppercase tracking-wider font-semibold">Last 7 days</span>
                   </div>
                   <div
                     ref={popularScrollRef}
@@ -670,7 +681,7 @@ export default function HomePage() {
                                   {item.answer}
                                 </p>
                               )}
-                              <div className="mt-3 flex items-center gap-2 text-[10px] text-ink-faint">
+                              <div className="mt-3 flex items-center gap-2 text-[10px] text-ink-soft">
                                 <span>{formatViews(item.guestViewCount)}</span>
                                 {item.expectedReadMs && <><span>{'\u00B7'}</span><span>{formatReadTime(item.expectedReadMs)}</span></>}
                               </div>
@@ -684,13 +695,14 @@ export default function HomePage() {
                 <section className="mt-12" aria-labelledby="recent-faqs-heading">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <div className="w-1 h-5 rounded-full bg-accent" />
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-accent" aria-hidden="true">
                         <circle cx="12" cy="12" r="9" />
                         <polyline points="12 7 12 12 15.5 14" />
                       </svg>
                       <h2 id="recent-faqs-heading" className="font-serif text-xl text-ink leading-none">Recent FAQs</h2>
                     </div>
-                    <span className="text-[10px] text-ink-faint uppercase tracking-wider font-semibold">Newest</span>
+                    <span className="text-[10px] text-ink-soft uppercase tracking-wider font-semibold">Newest</span>
                   </div>
                   <div className="bg-card rounded-2xl border border-border p-5 sm:p-6">
                     {recentLoading ? (
@@ -738,7 +750,7 @@ export default function HomePage() {
 
                 {/* Merged FAQs or Detail */}
                 {activeQuestion ? (
-                  <section className="mt-12">
+                  <section ref={detailRef} className="mt-12">
                     <QuestionDetail
                       item={activeQuestion}
                       relatedItems={relatedItems}
@@ -877,14 +889,15 @@ export default function HomePage() {
             {/* ─── MOST POPULAR (horizontal scroll) ─── */}
             <section className="mt-12" aria-labelledby="most-popular-heading">
               <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2 text-accent">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-5 rounded-full bg-accent" />
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-accent" aria-hidden="true">
                     <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
                     <polyline points="16 7 22 7 22 13" />
                   </svg>
                   <h2 id="most-popular-heading" className="font-serif text-xl text-ink leading-none">Most Popular</h2>
                 </div>
-                <span className="text-[10px] text-ink-faint uppercase tracking-wider font-semibold">Last 7 days</span>
+                <span className="text-[10px] text-ink-soft uppercase tracking-wider font-semibold">Last 7 days</span>
               </div>
               <div
                 ref={popularScrollRef}
@@ -931,13 +944,14 @@ export default function HomePage() {
             <section className="mt-12" aria-labelledby="recent-faqs-heading">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <div className="w-1 h-5 rounded-full bg-accent" />
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-accent" aria-hidden="true">
                     <circle cx="12" cy="12" r="9" />
                     <polyline points="12 7 12 12 15.5 14" />
                   </svg>
                   <h2 id="recent-faqs-heading" className="font-serif text-xl text-ink leading-none">Recent FAQs</h2>
                 </div>
-                <span className="text-[10px] text-ink-faint uppercase tracking-wider font-semibold">Newest</span>
+                <span className="text-[10px] text-ink-soft uppercase tracking-wider font-semibold">Newest</span>
               </div>
               <div className="bg-card rounded-2xl border border-border p-5 sm:p-6">
                 {recentLoading ? (
@@ -966,11 +980,11 @@ export default function HomePage() {
                         >
                           <div className="flex items-center gap-2 mb-0.5">
                             {item.category && (
-                              <span className="text-[10px] font-semibold text-ink-faint bg-mist px-1.5 py-0.5 rounded">
+                              <span className="text-[10px] font-semibold text-accent bg-accent/10 px-1.5 py-0.5 rounded">
                                 {formatCategoryName(item.category).replace(/^\d+\.\s*/, '')}
                               </span>
                             )}
-                            <span className="text-[10px] text-ink-faint">{formatRelativeTime(item.createdAt)}</span>
+                            <span className="text-[10px] text-ink-soft">{formatRelativeTime(item.createdAt)}</span>
                           </div>
                           <p className="text-sm text-ink leading-snug group-hover:text-accent transition-colors line-clamp-1">
                             {getQuestionTitle(item)}
@@ -987,13 +1001,14 @@ export default function HomePage() {
             <section className="mt-12" aria-labelledby="browse-categories-heading">
               <div className="flex items-center justify-between mb-5">
                 <div className="flex items-center gap-2">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <div className="w-1 h-5 rounded-full bg-accent" />
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-accent" aria-hidden="true">
                     <path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
                     <line x1="7" y1="7" x2="7.01" y2="7" />
                   </svg>
                   <h2 id="browse-categories-heading" className="font-serif text-xl text-ink leading-none">Browse by Category</h2>
                 </div>
-                <span className="text-[10px] text-ink-faint uppercase tracking-wider font-semibold">{categories.length} topics</span>
+                <span className="text-[10px] text-ink-soft uppercase tracking-wider font-semibold">{categories.length} topics</span>
               </div>
               <CategoryCardGrid
                 grouped={grouped}

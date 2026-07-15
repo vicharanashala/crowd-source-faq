@@ -51,7 +51,7 @@ export default function CategorySidebarContent({
         <p className="text-xs font-semibold text-ink uppercase tracking-wide">
           Categories
         </p>
-        <p className="text-[10px] text-ink-faint mt-0.5">
+        <p className="text-[10px] text-ink-soft mt-0.5">
           {selectedCategories.length > 0
             ? `${selectedCategories.length} selected · ${totalFaqCount} FAQs`
             : `${Object.keys(grouped).length} categories`}
@@ -63,14 +63,14 @@ export default function CategorySidebarContent({
         <div className="relative">
           <Search
             size={14}
-            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-faint pointer-events-none"
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-soft pointer-events-none"
           />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search categories..."
-            className="w-full pl-7 pr-3 py-1.5 text-[11px] bg-mist/60 border border-border/50 rounded-lg text-ink placeholder:text-ink-faint focus:outline-none focus:ring-1 focus:ring-accent/30 focus:border-accent/40 transition-colors"
+            className="w-full pl-7 pr-3 py-1.5 text-[11px] bg-mist/60 border border-border/50 rounded-lg text-ink placeholder:text-ink-soft focus:outline-none focus:ring-1 focus:ring-accent/30 focus:border-accent/40 transition-colors"
           />
         </div>
       </div>
@@ -88,9 +88,9 @@ export default function CategorySidebarContent({
               key={name}
               type="button"
               onClick={() => toggleCategory(name)}
-              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left text-sm transition-all duration-150"
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left text-sm transition-all duration-150 hover:bg-accent/8"
               style={{
-                backgroundColor: isSelected ? bgColor : 'transparent',
+                backgroundColor: isSelected ? bgColor : undefined,
                 color: isSelected ? fgColor : undefined,
               }}
             >
@@ -109,7 +109,7 @@ export default function CategorySidebarContent({
         })}
 
         {sortedCategories.length === 0 && (
-          <p className="text-[11px] text-ink-faint text-center py-4">
+          <p className="text-[11px] text-ink-soft text-center py-4">
             No categories match your search.
           </p>
         )}
@@ -121,7 +121,7 @@ export default function CategorySidebarContent({
           <button
             type="button"
             onClick={() => onSelectionChange([])}
-            className="w-full py-1.5 text-[11px] font-medium text-ink-soft hover:text-ink bg-mist/60 hover:bg-mist rounded-lg transition-colors"
+            className="w-full py-1.5 text-[11px] font-medium text-accent bg-accent/8 hover:bg-accent/15 rounded-lg transition-colors"
           >
             Clear selection
           </button>

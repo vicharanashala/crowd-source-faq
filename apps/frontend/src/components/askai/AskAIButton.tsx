@@ -67,7 +67,7 @@ function SourceRow({ s, i, onNav }: { s: Source; i: number; onNav: (href: string
   return (
     <button
       onClick={() => onNav(s.href)}
-      className="w-full text-left flex items-start gap-2 px-2.5 py-1.5 rounded-lg bg-card hover:bg-mist border border-border hover:border-accent/40 transition-all group"
+      className="w-full text-left flex items-start gap-2 px-2.5 py-1.5 rounded-lg bg-card hover:bg-mist border border-border hover:border-[#00635D]/30 transition-all group"
     >
       <span className="text-sm shrink-0 mt-0.5">{icon}</span>
       <div className="flex-1 min-w-0">
@@ -77,23 +77,23 @@ function SourceRow({ s, i, onNav }: { s: Source; i: number; onNav: (href: string
         </div>
         <p className="text-xs text-ink line-clamp-1">{s.title}</p>
       </div>
-      <svg className="w-3 h-3 text-ink-faint group-hover:text-accent group-hover:translate-x-0.5 transition-all shrink-0 mt-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+      <svg className="w-3 h-3 text-ink-faint group-hover:text-[#00635D] group-hover:translate-x-0.5 transition-all shrink-0 mt-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
     </button>
   );
 }
 
 function MessageBubble({ m, onNav }: { m: ChatMessage; onNav: (href: string) => void }) {
   if (m.role === 'user') {
-    return (<div className="flex justify-end"><div className="max-w-[80%] px-3.5 py-2 rounded-2xl rounded-br-md bg-accent text-accent-text text-sm shadow-sm shadow-accent/20">{m.content}</div></div>);
+    return (<div className="flex justify-end"><div className="max-w-[80%] px-3.5 py-2 rounded-2xl rounded-br-md bg-gradient-to-br from-[#00635D] to-[#0D7D74] text-white text-sm shadow-sm shadow-[#00635D]/20">{m.content}</div></div>);
   }
   if (m.loading) {
     return (
       <div className="flex justify-start">
         <div className="max-w-[80%] px-4 py-3 rounded-2xl rounded-bl-md bg-card border border-border flex items-center gap-2 text-ink-soft text-sm">
           <span className="flex gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-accent animate-bounce" style={{ animationDelay: '0ms' }} />
-            <span className="w-1.5 h-1.5 rounded-full bg-accent animate-bounce" style={{ animationDelay: '150ms' }} />
-            <span className="w-1.5 h-1.5 rounded-full bg-accent animate-bounce" style={{ animationDelay: '300ms' }} />
+            <span className="w-1.5 h-1.5 rounded-full bg-[#00635D] animate-bounce" style={{ animationDelay: '0ms' }} />
+            <span className="w-1.5 h-1.5 rounded-full bg-[#0D7D74] animate-bounce" style={{ animationDelay: '150ms' }} />
+            <span className="w-1.5 h-1.5 rounded-full bg-[#1A9E93] animate-bounce" style={{ animationDelay: '300ms' }} />
           </span>
           Searching knowledge base...
         </div>
@@ -302,8 +302,8 @@ export default function AskAIButton() {
   if (panel === 'collapsed') {
     return (
       <button data-tour="ask-ai-button" onClick={() => setPanel('minimized')} className="fixed z-50 right-6 bottom-6 group" aria-label="Open FAQ Assistant" title="Ask the FAQ Assistant">
-        <div className="absolute inset-0 rounded-full bg-accent/20 animate-ping opacity-30 pointer-events-none" style={{ animationDuration: '3s' }} />
-        <div className="relative w-14 h-14 rounded-full bg-gradient-to-br from-accent to-accent-dark shadow-lg shadow-accent/30 flex items-center justify-center transition-transform duration-200 group-hover:scale-110 group-active:scale-95">
+        <div className="absolute inset-0 rounded-full bg-[#00635D]/25 animate-ping opacity-30 pointer-events-none" style={{ animationDuration: '3s' }} />
+        <div className="relative w-14 h-14 rounded-full bg-gradient-to-br from-[#00635D] via-[#0D7D74] to-[#1A9E93] shadow-lg shadow-[#00635D]/35 flex items-center justify-center transition-transform duration-200 group-hover:scale-110 group-active:scale-95 ring-2 ring-white/20">
           <SparkleIcon size={24} />
         </div>
         {unreadCount > 0 && (
@@ -323,12 +323,12 @@ export default function AskAIButton() {
     <>
       {isExpanded && (<div className="search-overlay z-[59] transition-opacity duration-300" onClick={() => setPanel('minimized')} aria-hidden="true" />)}
       <div ref={panelRef} role="dialog" aria-label="FAQ Assistant" aria-modal={isExpanded} className={`z-[60] flex flex-col rounded-2xl overflow-hidden border border-border shadow-2xl shadow-ink/15 transition-all duration-300 ease-out bg-card ${panelClasses}`} style={{ maxHeight: isExpanded ? undefined : 'min(600px, calc(100vh - 100px))' }}>
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card select-none flex-shrink-0">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border select-none flex-shrink-0 bg-gradient-to-r from-[#00635D]/[0.06] via-[#0D7D74]/[0.04] to-transparent">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-accent to-accent-dark flex items-center justify-center shadow-md shadow-accent/25"><SparkleIcon size={14} /></div>
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#00635D] via-[#0D7D74] to-[#1A9E93] flex items-center justify-center shadow-md shadow-[#00635D]/25"><SparkleIcon size={14} /></div>
             <div>
               <h3 className="text-sm font-semibold text-ink leading-tight">FAQ Assistant</h3>
-              <p className="text-[10px] text-ink-faint">Powered by RAG &#183; Search FAQ, Wiki, and Community knowledge</p>
+              <p className="text-[10px] text-[#00635D]/60">Powered by RAG &#183; Search FAQ, Wiki, and Community knowledge</p>
             </div>
           </div>
           <div className="flex items-center gap-0.5">
@@ -344,22 +344,22 @@ export default function AskAIButton() {
             <button onClick={() => setPanel('collapsed')} title="Close (Esc)" className="w-7 h-7 rounded-md text-ink-faint hover:text-danger hover:bg-danger/10 transition-colors flex items-center justify-center" aria-label="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
           </div>
         </div>
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-bg/40 min-h-0">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3 min-h-0" style={{ background: 'linear-gradient(180deg, rgba(0,99,93,0.02) 0%, transparent 40%)' }}>
           {messages.length === 0 && quotaExhausted && (
             <div className="text-center py-8 space-y-3">
-              <div className="w-12 h-12 mx-auto rounded-2xl bg-accent/10 border border-accent/20 flex items-center justify-center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-accent"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+              <div className="w-12 h-12 mx-auto rounded-2xl bg-[#00635D]/10 border border-[#00635D]/20 flex items-center justify-center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[#00635D]"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
               <p className="text-sm font-semibold text-ink">Sign in to continue</p>
               <p className="text-[11px] text-ink-soft max-w-xs mx-auto">You have used your {ANON_AI_LIMIT} free AI searches. Sign in for unlimited access.</p>
-              <button onClick={() => openModal('signin')} className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-accent text-accent-text text-xs font-semibold hover:bg-accent-hover transition-colors">Sign in</button>
+              <button onClick={() => openModal('signin')} className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-[#00635D] text-white text-xs font-semibold hover:bg-[#004D47] transition-colors shadow-md shadow-[#00635D]/25">Sign in</button>
             </div>
           )}
           {messages.length === 0 && !quotaExhausted && (
             <div className="text-center py-6 space-y-2.5">
-              <div className="w-12 h-12 mx-auto rounded-2xl bg-accent/10 border border-accent/20 flex items-center justify-center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-accent"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
+              <div className="w-12 h-12 mx-auto rounded-2xl bg-gradient-to-br from-[#00635D]/10 to-[#1A9E93]/10 border border-[#00635D]/15 flex items-center justify-center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[#00635D]"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
               <p className="text-sm font-medium text-ink">How can I help?</p>
               <p className="text-[11px] text-ink-faint">I will search FAQs, Zoom transcripts, and community posts.</p>
               <div className="flex flex-wrap gap-1.5 justify-center pt-1">
-                {['How to get NOC?', 'When is the deadline?', 'Team formation rules'].map(ex => (<button key={ex} onClick={() => setQuery(ex)} className="text-[11px] text-ink-soft hover:text-ink px-2.5 py-1 rounded-full border border-border hover:border-accent/40 hover:bg-accent/5 transition-all">{ex}</button>))}
+                {['How to get NOC?', 'When is the deadline?', 'Team formation rules'].map(ex => (<button key={ex} onClick={() => setQuery(ex)} className="text-[11px] text-ink-soft hover:text-[#00635D] px-2.5 py-1 rounded-full border border-border hover:border-[#00635D]/30 hover:bg-[#00635D]/5 transition-all">{ex}</button>))}
               </div>
             </div>
           )}
@@ -385,7 +385,7 @@ export default function AskAIButton() {
                       {a.kind === 'image' && a.previewUrl ? (
                         <img src={a.previewUrl} alt={a.filename} className="w-7 h-7 rounded object-cover flex-shrink-0" />
                       ) : (
-                        <div className="w-7 h-7 rounded bg-accent/10 border border-accent/20 flex items-center justify-center text-accent flex-shrink-0">
+                        <div className="w-7 h-7 rounded bg-[#00635D]/10 border border-[#00635D]/20 flex items-center justify-center text-[#00635D] flex-shrink-0">
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
                         </div>
                       )}
@@ -413,14 +413,14 @@ export default function AskAIButton() {
               disabled={isLoading || attachments.length >= MAX_ATTACHMENTS || quotaExhausted}
               title="Attach an image or text file"
               aria-label="Attach a file"
-              className="shrink-0 w-9 h-9 rounded-full bg-accent/10 border border-accent/20 text-accent hover:bg-accent/15 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center"
+              className="shrink-0 w-9 h-9 rounded-full bg-[#00635D]/10 border border-[#00635D]/20 text-[#00635D] hover:bg-[#00635D]/15 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
             </button>
             <div className="flex-1">
-              <textarea ref={inputRef} value={query} onChange={e => setQuery(e.target.value)} onKeyDown={handleKeyDown} placeholder={quotaExhausted ? 'Sign in to continue...' : 'Ask the FAQ Assistant...'} rows={1} disabled={quotaExhausted} className="w-full bg-bg rounded-2xl border border-border px-4 py-2.5 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:border-accent/50 focus:ring-2 focus:ring-accent/15 resize-none leading-6 max-h-[120px] disabled:opacity-50 disabled:cursor-not-allowed transition-all" />
+              <textarea ref={inputRef} value={query} onChange={e => setQuery(e.target.value)} onKeyDown={handleKeyDown} placeholder={quotaExhausted ? 'Sign in to continue...' : 'Ask the FAQ Assistant...'} rows={1} disabled={quotaExhausted} className="w-full bg-bg rounded-2xl border border-border px-4 py-2.5 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:border-[#00635D]/40 focus:ring-2 focus:ring-[#00635D]/10 resize-none leading-6 max-h-[120px] disabled:opacity-50 disabled:cursor-not-allowed transition-all" />
             </div>
-            <button onClick={send} disabled={(query.trim().length < 3 && attachments.length === 0) || isLoading || quotaExhausted} title="Send (Enter)" className="shrink-0 w-9 h-9 rounded-full bg-accent hover:bg-accent-hover active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-md shadow-accent/25 flex items-center justify-center" aria-label="Send message"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg></button>
+            <button onClick={send} disabled={(query.trim().length < 3 && attachments.length === 0) || isLoading || quotaExhausted} title="Send (Enter)" className="shrink-0 w-9 h-9 rounded-full bg-gradient-to-br from-[#00635D] to-[#0D7D74] hover:from-[#004D47] hover:to-[#00635D] active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-md shadow-[#00635D]/30 flex items-center justify-center" aria-label="Send message"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg></button>
           </div>
           <p className="text-[10px] text-ink-faint text-center mt-2">Powered by RAG &#183; Search FAQ, Wiki, and Community knowledge</p>
         </div>
