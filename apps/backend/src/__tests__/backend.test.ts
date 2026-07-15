@@ -5,7 +5,7 @@ import crypto from 'crypto';
 import type { NextFunction, Request, Response } from 'express';
 
 // Imports from backend components
-import { signUploadParams, isOurCloudinaryAsset, type CloudinaryConfig } from '../integrations/cloudinary/cloudinary.js';
+import { signUploadParams, isOurCloudinaryAsset, uploadSignatureToCloudinary, type CloudinaryConfig } from '../integrations/cloudinary/cloudinary.js';
 import { computeRRF, applySearchThreshold } from '../utils/http/search.js';
 import { authorize, type AuthedRequest } from '../middleware/authShared.js';
 import { matcher, moderateText } from '../config/moderationEngine.js';
@@ -115,6 +115,45 @@ describe('Cloudinary signature', () => {
     expect(isOurCloudinaryAsset('https://res.cloudinary.com/testcloud/image/upload/v1/x.jpg', 'testcloud')).toBe(true);
     expect(isOurCloudinaryAsset('https://res.cloudinary.com/evilcloud/image/upload/v1/x.jpg', 'testcloud')).toBe(false);
     expect(isOurCloudinaryAsset('https://example.com/foo.jpg', 'testcloud')).toBe(false);
+  });
+
+  it('uploadSignatureToCloudinary posts to Cloudinary API and returns secureUrl', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        secure_url: 'https://res.cloudinary.com/testcloud/image/upload/v1234/sig.webp',
+        public_id: 'yaksha/tee-signatures/owner123/sig123',
+      }),
+    });
+    const originalFetch = global.fetch;
+    global.fetch = mockFetch;
+
+    try {
+      const res = await uploadSignatureToCloudinary(
+        'owner123',
+        'sig123',
+        'data:image/png;base64,iVBORw0KGgo=',
+      );
+      expect(res.secure_url).toBe('https://res.cloudinary.com/testcloud/image/upload/v1234/sig.webp');
+      expect(res.public_id).toBe('yaksha/tee-signatures/owner123/sig123');
+
+      // Verify fetch arguments
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      const [url, init] = mockFetch.mock.calls[0];
+      expect(url).toBe('https://api.cloudinary.com/v1_1/testcloud/image/upload');
+      expect(init.method).toBe('POST');
+      expect(init.headers['Content-Type']).toBe('application/x-www-form-urlencoded');
+
+      const body = init.body as URLSearchParams;
+      expect(body.get('file')).toBe('data:image/png;base64,iVBORw0KGgo=');
+      expect(body.get('folder')).toBe('yaksha/tee-signatures/owner123');
+      expect(body.get('public_id')).toBe('sig123');
+      expect(body.get('api_key')).toBe('fakekey');
+      expect(body.get('timestamp')).toBeTruthy();
+      expect(body.get('signature')).toBeTruthy();
+    } finally {
+      global.fetch = originalFetch;
+    }
   });
 });
 
