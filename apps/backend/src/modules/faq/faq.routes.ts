@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getAllFAQs, getFAQById, getRecentFAQs, createFAQ, updateFAQ, deleteFAQ, checkFAQMatch, getPaginatedFAQs, submitFeedback, reportFAQ, getFAQHistory, createFAQSuggestion, getFAQCategories } from './faq.controller.js';
+import { getAllFAQs, getFAQById, getRecentFAQs, createFAQ, updateFAQ, deleteFAQ, checkFAQMatch, getPaginatedFAQs, submitFeedback, reportFAQ, getFAQHistory, createFAQSuggestion, getFAQCategories, toggleHelpedByMe, escalateFAQPriority, getEscalationStatus } from './faq.controller.js';
 import { flagFAQ, voteReview } from './freshness.controller.js';
 import { protect, authorize } from '../../middleware/auth.js';
 import { validateObjectId } from '../../middleware/validateObjectId.js';
@@ -24,6 +24,10 @@ router.get('/categories', getFAQCategories);
 // POST /api/faq/check-match — Check if a question already exists in the FAQ (before posting on community)
 router.post('/check-match', protect, checkFAQMatch);
 
+// GET /api/faq/escalation-status — current user's SP balance + escalation cooldown.
+// MUST be registered before /:id so Express doesn't treat it as an id.
+router.get('/escalation-status', protect, getEscalationStatus);
+
 // M4-3 (cross-cutting Pattern A) fix: validate `:id` on every route
 // that takes an FAQ id. The previous controllers used `FAQ.findById`
 // raw — malformed ids threw CastError → 500. With
@@ -40,5 +44,7 @@ router.post('/:id/report', protect, validateObjectId('id'), reportFAQ);
 router.patch('/:id/flag', protect, validateObjectId('id'), validateBody(flagFAQSchema), flagFAQ);
 router.post('/:id/vote-review', protect, validateObjectId('id'), validateBody(voteReviewSchema), voteReview);
 router.post('/:id/suggest', protect, validateObjectId('id'), createFAQSuggestion);
+router.patch('/:id/helped', protect, validateObjectId('id'), toggleHelpedByMe);
+router.post('/:id/escalate', protect, validateObjectId('id'), escalateFAQPriority);
 
 export default router;

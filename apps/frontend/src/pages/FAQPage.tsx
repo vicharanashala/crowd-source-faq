@@ -38,7 +38,7 @@ import { searchPanel } from '../styles/style_config';
 //  Main page
 // ═══════════════════════════════════════════════════════════════════════════
 export default function FAQPage() {
-  const { currentBatch } = useBatch();
+  const { currentBatch, loading: programLoading } = useBatch();
   const batchId = currentBatch?._id ?? null;
 
   // ── Core data ────────────────────────────────────────────────────────────
@@ -106,6 +106,19 @@ export default function FAQPage() {
   useEffect(() => {
     void load();
   }, [batchId, load]);
+
+  // Bug fix: `load()` no-ops while `batchId` is null (see guard above), so
+  // `loading` — which starts `true` and is otherwise only ever cleared
+  // inside `load()`'s `finally` — was getting stuck forever whenever no
+  // program was selected. That rendered the skeleton grid indefinitely
+  // instead of falling through to the "No program selected" message.
+  // Once ProgramContext has finished resolving (`!programLoading`) and
+  // there's still no batchId, explicitly drop out of the loading state.
+  useEffect(() => {
+    if (!programLoading && !batchId) {
+      setLoading(false);
+    }
+  }, [programLoading, batchId]);
 
   // ── Derived data ─────────────────────────────────────────────────────────
   const categories = useMemo(() => Object.keys(grouped).sort((a, b) => {

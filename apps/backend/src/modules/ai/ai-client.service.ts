@@ -17,6 +17,7 @@ import AiConfig, { type IProviderKey } from './ai-config.model.js';
 import { generateQueryEmbedding } from '../../utils/ai/embeddings.js';
 import { logAiApiSuccess, logAiApiFailure } from '../../utils/ai/apiUsageLog.js';
 import { logger } from '../../utils/http/logger.js';
+import { stripAllWrappers, extractJsonSubstring } from '../../utils/ai/aiResponseParsers.js';
 import { decrypt } from '../../utils/auth/crypto.js';
 
 // v1.83 — in-memory unhealthy key tracker. Mirrors the same
@@ -170,7 +171,9 @@ export type AIFeature =
   | 'duplicateDetection'
   | 'knowledgeExtraction'
   | 'searchSummarization'
-  | 'faqGeneration';
+  | 'faqGeneration'
+  | 'firstResponder'
+  | 'queryRewrite';
 
 export interface AIResult {
   content: string;
@@ -203,6 +206,12 @@ export interface DuplicateMatch {
   _id: string;
   score: number;
   reason: string;
+}
+
+export interface RewriteQueryResult {
+  original: string;
+  rewritten: string;
+  changed: boolean;
 }
 
 // ─── Cost constants (approximate per-provider pricing per 1M tokens) ──────────
@@ -238,12 +247,14 @@ export class AiClient {
     if (process.env.ANTHROPIC_API_KEY) return process.env.ANTHROPIC_API_KEY;
     if (process.env.OPENAI_API_KEY) return process.env.OPENAI_API_KEY;
     if (process.env.XAI_API_KEY) return process.env.XAI_API_KEY;
+    if (process.env.GEMINI_API_KEY) return process.env.GEMINI_API_KEY;
     if (process.env.MINIMAX_API_KEY) return process.env.MINIMAX_API_KEY;
     throw new Error(
       'No AI API key configured. Set one of:\n' +
       '  ANTHROPIC_API_KEY — https://console.anthropic.com/settings/keys\n' +
       '  OPENAI_API_KEY   — https://platform.openai.com/api-keys\n' +
       '  XAI_API_KEY      — https://console.x.ai/\n' +
+      '  GEMINI_API_KEY   — https://aistudio.google.com/app/apikey\n' +
       '  MINIMAX_API_KEY  — https://platform.minimax.io'
     );
   }
@@ -252,6 +263,7 @@ export class AiClient {
     if (process.env.ANTHROPIC_API_KEY) return 'anthropic';
     if (process.env.OPENAI_API_KEY) return 'openai';
     if (process.env.XAI_API_KEY) return 'xai';
+    if (process.env.GEMINI_API_KEY) return 'gemini';
     return 'minimax';
   }
 
@@ -273,7 +285,7 @@ export class AiClient {
       openai: 'gpt-4o-mini',
       xai: 'grok-3',
       minimax: 'MiniMax-Text-01',
-      gemini: 'gemini-1.5-flash',
+      gemini: 'gemini-3.5-flash',
       custom: '',
     };
     return defaults[this.provider];
@@ -323,6 +335,15 @@ export class AiClient {
           provider: 'openai',
           modelName: 'gpt-4o',
           tokensUsed: 50,
+          estimatedCost: 0,
+        };
+      }
+      if (feature === 'firstResponder') {
+        return {
+          content: JSON.stringify({ answer: 'This is a mock peer-tutor answer for testing.', confident: true }),
+          provider: 'openai',
+          modelName: 'gpt-4o',
+          tokensUsed: 60,
           estimatedCost: 0,
         };
       }
@@ -855,6 +876,38 @@ Summaries should be no longer than ${maxLen} words.`;
     return result.content;
   }
 
+  async rewriteQuery(query: string): Promise<RewriteQueryResult> {
+    const trimmed = query.trim();
+    if (!trimmed) {
+      return { original: query, rewritten: query, changed: false };
+    }
+
+    const systemPrompt = `You rewrite unclear or poorly-worded search queries for an internal FAQ/Q&A portal into a single, clear, well-formed question that is easier to match against a knowledge base.
+Rules:
+- Preserve the original meaning and intent. Never invent new topics or add information that wasn't implied.
+- Fix typos, grammar, and vague phrasing. Expand obvious abbreviations.
+- If the query is already clear, return it unchanged and set "changed" to false.
+- Answer ONLY with a valid JSON object. No preamble, no markdown fences.
+Output shape: {"rewritten": "...", "changed": true|false}`;
+
+    const userContent = `Query: "${trimmed.replace(/"/g, "'")}"`;
+
+    try {
+      const result = await this.chat(
+        [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userContent },
+        ],
+        'queryRewrite',
+        { temperature: 0.2, maxTokens: 1024 }
+      );
+      return parseRewriteResponse(result.content, trimmed);
+    } catch (err) {
+      logger.warn(`[aiClient] rewriteQuery failed, falling back to original query: ${(err as Error).message}`);
+      return { original: trimmed, rewritten: `ERROR: ${(err as Error).message}`, changed: false };
+    }
+  }
+
   // ─── Feature: Knowledge extraction ───────────────────────────────────────
 
   /**
@@ -920,6 +973,38 @@ The answer should be direct and actionable. Do not add disclaimers.`;
     );
 
     return parseFAQResponse(result.content);
+  }
+
+  // ─── Feature: AI First Responder (peer-tutor Q&A) ─────────────────────────
+
+  /**
+   * Answer a student's question as a friendly peer tutor. Returns a
+   * structured {answer, confident} result — `confident: false` is the
+   * model's own signal that it doesn't actually know, which the caller
+   * (first-responder.controller.ts) uses to decide whether to escalate
+   * to a human admin instead of showing a made-up answer.
+   */
+  async answerAsPeerTutor(question: string): Promise<{ answer: string; confident: boolean }> {
+    const systemPrompt = `You are a friendly, knowledgeable peer tutor helping a fellow student on a Q&A learning platform.
+Explain things clearly and simply, the way a helpful senior student would — encouraging, not robotic or corporate.
+You must be honest about the limits of your knowledge: this is critical, because a wrong or made-up answer is worse than no answer.
+
+Rules:
+- If you are confident you know the correct answer, answer it directly and concisely (2-4 sentences, plain language, no unnecessary preamble).
+- If the question is ambiguous, outside your knowledge, specific to this organization's internal policy/process you have no context on, or you are not genuinely sure, do NOT guess or make something up.
+- Respond ONLY with a valid JSON object, no markdown, no code fences: {"answer": "...", "confident": true or false}
+- When unsure, set "confident": false and "answer" can be a short one-line acknowledgement (it will not be shown to the user).`;
+
+    const result = await this.chat(
+      [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: question.slice(0, 2000) },
+      ],
+      'firstResponder',
+      { temperature: 0.3, maxTokens: 400 }
+    );
+
+    return parsePeerTutorResponse(result.content);
   }
 
   // ─── Vector pre-filter ─────────────────────────────────────────────────────
@@ -1000,6 +1085,23 @@ function parseDuplicateResponse(
   }
 }
 
+function parseRewriteResponse(raw: string, original: string): RewriteQueryResult {
+  try {
+    const clean = stripAllWrappers(raw);
+    const jsonStr = extractJsonSubstring(clean) ?? clean;
+    const parsed = JSON.parse(jsonStr) as { rewritten?: unknown; changed?: unknown };
+    const rewritten =
+      typeof parsed.rewritten === 'string' && parsed.rewritten.trim()
+        ? parsed.rewritten.trim()
+        : original;
+    const changed = rewritten.toLowerCase() !== original.toLowerCase();
+    return { original, rewritten, changed };
+  } catch (err) {
+    logger.warn(`[aiClient] Failed to parse rewrite response JSON: ${(err as Error).message}. Raw response: ${raw.slice(0, 300)}`);
+    return { original, rewritten: original, changed: false };
+  }
+}
+
 function parseKnowledgeResponse(
   raw: string
 ): Array<{ question: string; answer: string; confidence: number; source: string }> {
@@ -1046,6 +1148,26 @@ function parseFAQResponse(
   } catch (err) {
     logger.warn(`[aiClient] Failed to parse FAQ generation response JSON: ${(err as Error).message}. Raw response: ${raw.slice(0, 300)}`);
     return { question: '', answer: '', category: 'General', confidence: 0 };
+  }
+}
+
+function parsePeerTutorResponse(raw: string): { answer: string; confident: boolean } {
+  const clean = raw.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+  const match = clean.match(/\{[\s\S]*\}/);
+  if (!match) {
+    // Malformed / non-JSON output — treat as "not confident" rather than
+    // guessing at intent. The caller escalates on confident === false.
+    logger.warn(`[aiClient] answerAsPeerTutor: no JSON object found in response. Raw: ${raw.slice(0, 200)}`);
+    return { answer: '', confident: false };
+  }
+  try {
+    const parsed = JSON.parse(match[0]) as Record<string, unknown>;
+    const answer = String(parsed.answer ?? '').trim();
+    const confident = parsed.confident === true && answer.length > 0;
+    return { answer, confident };
+  } catch (err) {
+    logger.warn(`[aiClient] answerAsPeerTutor: JSON parse failed: ${(err as Error).message}. Raw: ${raw.slice(0, 200)}`);
+    return { answer: '', confident: false };
   }
 }
 

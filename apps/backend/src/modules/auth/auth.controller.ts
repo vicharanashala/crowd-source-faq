@@ -65,6 +65,8 @@ interface UserResponse {
   projectAssignedAt?: Date;
   projectSelectionLocked?: boolean;
   guidedTourCompleted?: boolean;
+  currentStreak?: number;
+  longestStreak?: number;
   // v1.87 — Sign My Tee: mandatory internship end date.
   // Sent on /auth/me and /auth/profile responses so the FE
   // gate provider can re-evaluate without an extra round-trip.
@@ -247,6 +249,8 @@ export const getMe = async (req: Request, res: Response): Promise<void> => {
     projectAssignedAt: (req.user as any).projectAssignedAt,
     projectSelectionLocked: (req.user as any).projectSelectionLocked,
     guidedTourCompleted: (req.user as any).guidedTourCompleted,
+    currentStreak: (req.user as any).currentStreak,
+    longestStreak: (req.user as any).longestStreak,
     // v1.87 — Sign My Tee: surface on every /auth/me response so
     // the FE gate provider can pick it up.
     internshipEndDate: (req.user as any).internshipEndDate ?? null,
