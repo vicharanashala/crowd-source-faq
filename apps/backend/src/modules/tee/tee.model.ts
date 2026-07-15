@@ -110,8 +110,8 @@ const teeSignatureSchema = new MongooseSchema<ITeeSignature>(
       required: true,
       maxlength: 4_000_000,
       validate: {
-        validator: (v: string) => /^data:image\/(png|jpeg|webp);base64,/.test(v),
-        message: 'signerDataUrl must be a data: URL with image payload',
+        validator: (v: string) => /^data:image\/(png|jpeg|webp);base64,/.test(v) || /^https?:\/\//.test(v),
+        message: 'signerDataUrl must be a data: URL or a valid Cloudinary/HTTP URL',
       },
     },
     /** Which face the signature was placed on — defaults to 'back'. */

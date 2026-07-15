@@ -28,6 +28,7 @@ import {
 } from './tee.validation.js';
 import { isEligibleForTee } from './eligibility.js';
 import { publicBasePath, publicAssetUrl } from '../../utils/publicBasePath.js';
+import { uploadSignatureToCloudinary } from '../../integrations/cloudinary/cloudinary.js';
 
 // ─── View counter dedupe ───────────────────────────────────────────────────
 //
@@ -347,22 +348,33 @@ export const addSignatureToTee = async (req: Request, res: Response): Promise<vo
     const sigId = new Types.ObjectId();
     const ownerId = String(tee.ownerId);
 
+    let secureUrl: string = parsed.data.signerDataUrl;
     let diskUrl: string | null = null;
     try {
-      const filename = await writeSignatureToDisk(ownerId, String(sigId), parsed.data.signerDataUrl);
-      diskUrl = publicAssetUrl(`/uploads/tee-signatures/${ownerId}/${filename}`);
+      const uploadRes = await uploadSignatureToCloudinary(ownerId, String(sigId), parsed.data.signerDataUrl);
+      secureUrl = uploadRes.secure_url;
+      diskUrl = uploadRes.secure_url;
     } catch (err) {
-      logger.warn('[tee] signature disk write failed (keeping inline dataUrl)', {
+      logger.error('[tee] Cloudinary signature upload failed, falling back to disk', {
         error: (err as Error).message,
         ownerId,
       });
+      try {
+        const filename = await writeSignatureToDisk(ownerId, String(sigId), parsed.data.signerDataUrl);
+        diskUrl = publicAssetUrl(`/uploads/tee-signatures/${ownerId}/${filename}`);
+      } catch (diskErr) {
+        logger.warn('[tee] signature disk write fallback failed (keeping inline dataUrl)', {
+          error: (diskErr as Error).message,
+          ownerId,
+        });
+      }
     }
 
     tee.signatures.push({
       _id: sigId,
       signerUserId: req.user ? req.user._id : null,
       signerName: parsed.data.signerName,
-      signerDataUrl: parsed.data.signerDataUrl,
+      signerDataUrl: secureUrl,
       face: parsed.data.face as 'front' | 'back',
       x: parsed.data.x,
       y: parsed.data.y,
@@ -376,7 +388,7 @@ export const addSignatureToTee = async (req: Request, res: Response): Promise<vo
         id: String(sigId),
         signerName: parsed.data.signerName,
         signerUserId: req.user ? String(req.user._id) : null,
-        signerDataUrl: parsed.data.signerDataUrl,
+        signerDataUrl: secureUrl,
         face: parsed.data.face,
         diskUrl,
         x: parsed.data.x,
