@@ -12,11 +12,19 @@
  * The 5 existing call sites are NOT refactored here — that is a
  * follow-up PR (mechanical, but wide scope). This commit ships the
  * resolver so future call-site migrations are easy.
+ *
+ * v1.83 — Multi-API-key rotation. The resolver now also returns
+ *   candidates: Array<{ key, baseURL, authHeader, label }>
+ * with each candidate representing one healthy (non-unhealthy)
+ * configured key. Callers that only read `apiKey` keep working
+ * (the first healthy candidate is exposed as `apiKey`). The
+ * ai-client uses the array to rotate on 429 rate-limit failures.
  */
 import { Types } from 'mongoose';
-import AiConfig from '../../modules/ai/ai-config.model.js';
+import AiConfig, { type IProviderKey } from '../../modules/ai/ai-config.model.js';
 import { resolveProviderAsync, getModelForProvider } from '../../utils/ai/aiProvider.js';
 import { adminLog } from '../../utils/http/logger.js';
+import { decrypt } from '../../utils/auth/crypto.js';
 
 export type AIFeature =
   | 'duplicateDetection'
@@ -27,6 +35,23 @@ export type AIFeature =
 export type AIProvider =
   | 'anthropic' | 'openai' | 'xai' | 'minimax' | 'gemini' | 'custom';
 
+export interface ProviderCandidate {
+  /** Plaintext API key value for the candidate slot. */
+  key: string;
+  /** Per-candidate baseURL override; falls back to provider default. */
+  baseURL: string;
+  authHeader: 'x-api-key' | 'Authorization';
+  label: string;
+}
+
+/**
+ * Resolved provider config — backward compatible.
+ *
+ * `apiKey` is now the first candidate's key (was the single
+ * resolved value before v1.83). Callers reading `apiKey` only get
+ * the same single value they did before. New callers should read
+ * `candidates` and rotate on demand.
+ */
 export interface ResolvedProviderConfig {
   provider: AIProvider;
   modelName: string;
@@ -39,6 +64,15 @@ export interface ResolvedProviderConfig {
   enabled: boolean;
   source: 'db:program' | 'db:global' | 'env';
   dbConfig: Awaited<ReturnType<typeof AiConfig.findOne>> | null;
+  /** Convenience alias for `apiKeyField`. Matches the v1.83+ AI result shape. */
+  apiKey: string;
+  /**
+   * v1.83 — ordered list of healthy (non-unhealthy) key candidates.
+   * Always at least one entry when `apiKey` is non-empty. Unhealthy
+   * keys (unhealthyUntil > now) are filtered out so ai-client can
+   * skip straight to a working key without retrying on the same one.
+   */
+  candidates: ProviderCandidate[];
 }
 
 const FEATURE_ENABLED_DEFAULTS: Record<AIFeature, boolean> = {
@@ -95,10 +129,24 @@ class AIProviderResolverService {
     const maxTokens = featureConfig?.maxTokens ?? 1024;
     const enabled = featureConfig?.enabled ?? FEATURE_ENABLED_DEFAULTS[feature];
 
+    // v1.83 — build candidates[] from the per-provider keys[].
+    // We read the live mongoose doc (not the .lean() version above) so the
+    // helper getApiKeys() handles the legacy apiKeyCipher lazy promotion.
+    const authHeader = (config.authHeader === 'x-api-key' ? 'x-api-key' : 'Authorization') as 'x-api-key' | 'Authorization';
+    const candidates = await this.buildCandidates(config.provider, config.baseURL, authHeader);
+
+    // Back-compat: existing callers that only read apiKeyField / apiKey
+    // get the first healthy candidate (or the resolved value when no
+    // multi-key config exists).
+    const apiKey = candidates.length > 0
+      ? candidates[0].key
+      : config.apiKey;
+
     return {
       provider: config.provider,
       modelName: model,
-      apiKeyField: config.apiKey,
+      apiKeyField: apiKey,
+      apiKey,
       baseURL: config.baseURL,
       authHeader: config.authHeader,
       needsAnthropicVersion: config.needsAnthropicVersion,
@@ -107,7 +155,70 @@ class AIProviderResolverService {
       enabled,
       source,
       dbConfig: dbConfig ?? null,
+      candidates,
     };
+  }
+
+  /**
+   * v1.83 — Build the candidates[] list for a provider. Reads the
+   * current global AiConfig doc (the same one that backs
+   * resolveProviderAsync), iterates `providers.<p>.keys`, drops
+   * entries with `unhealthyUntil > now`, decrypts each value,
+   * and emits an ordered array. When the doc has no `keys[]`
+   * but a legacy `apiKeyCipher`, that legacy value is surfaced
+   * as a single Primary candidate.
+   */
+  private async buildCandidates(
+    provider: AIProvider,
+    fallbackBaseURL: string,
+    authHeader: 'x-api-key' | 'Authorization'
+  ): Promise<ProviderCandidate[]> {
+    const out: ProviderCandidate[] = [];
+    try {
+      const cfg = await AiConfig.findOne({ isActive: true, batchId: null });
+      const slot = cfg?.providers?.[provider];
+      if (!slot) return out;
+
+      const now = Date.now();
+      // Live mongoose doc so getApiKeys() does the legacy promotion.
+      let rawKeys: IProviderKey[] = [];
+      if (cfg) {
+        try {
+          rawKeys = (cfg as any).getApiKeys(provider);
+        } catch {
+          rawKeys = Array.isArray((slot as any).keys) ? ((slot as any).keys as IProviderKey[]) : [];
+        }
+      }
+
+      const defaultBaseURL = (slot as any).baseURL || fallbackBaseURL;
+
+      for (const k of rawKeys) {
+        if (!k || !k.valueEnc) continue;
+        const until = k.unhealthyUntil ? new Date(k.unhealthyUntil).getTime() : 0;
+        if (until > now) continue; // Skip keys marked unhealthy.
+        let plain = '';
+        try {
+          plain = decrypt(k.valueEnc);
+        } catch (err) {
+          adminLog.warn(
+            `[aiProviderResolver] Failed to decrypt candidate key "${k.label}" for ${provider}: ${(err as Error).message}. Skipping.`
+          );
+          continue;
+        }
+        if (!plain) continue;
+        out.push({
+          key: plain,
+          baseURL: (k.baseURL && k.baseURL.length > 0) ? k.baseURL : defaultBaseURL,
+          authHeader,
+          label: k.label || 'Key',
+        });
+      }
+    } catch (err) {
+      adminLog.warn(
+        `[aiProviderResolver] buildCandidates failed for ${provider}: ${(err as Error).message}. Falling back to resolved single key.`
+      );
+    }
+    return out;
   }
 }
 

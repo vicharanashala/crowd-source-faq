@@ -13,10 +13,83 @@
  *   const answer  = await client.answerQuestion(question);
  */
 
-import AiConfig from './ai-config.model.js';
+import AiConfig, { type IProviderKey } from './ai-config.model.js';
 import { generateQueryEmbedding } from '../../utils/ai/embeddings.js';
 import { logAiApiSuccess, logAiApiFailure } from '../../utils/ai/apiUsageLog.js';
 import { logger } from '../../utils/http/logger.js';
+import { decrypt } from '../../utils/auth/crypto.js';
+
+// v1.83 — in-memory unhealthy key tracker. Mirrors the same
+// information that AiConfig.provider.keys[i].unhealthyUntil would
+// carry, but skips the DB round-trip on every 429. Reset on server
+// restart (acceptable — the DB field is still authoritative, this
+// is the hot-path cache). Keyed by `${provider}:${label}`.
+const UNHEALTHY_UNTIL = new Map<string, number>();
+const UNHEALTHY_DURATION_MS = 5 * 60 * 1000; // 5 minutes
+
+function unhealthyKey(provider: string, label: string): string {
+  return `${provider}:${label}`;
+}
+
+function markUnhealthy(provider: string, label: string) {
+  const key = unhealthyKey(provider, label);
+  UNHEALTHY_UNTIL.set(key, Date.now() + UNHEALTHY_DURATION_MS);
+  // Best-effort persistence so a fresh resolver sees the same hint.
+  AiConfig.findOne({ isActive: true, batchId: null }).then((cfg) => {
+    if (!cfg) return;
+    const arr = (cfg as any).getApiKeys?.(provider);
+    if (!Array.isArray(arr)) return;
+    const until = new Date(Date.now() + UNHEALTHY_DURATION_MS);
+    let mutated = false;
+    const next = arr.map((k: any) => {
+      if (k?.label === label && (!k.unhealthyUntil || new Date(k.unhealthyUntil).getTime() < until.getTime())) {
+        mutated = true;
+        return { ...k, unhealthyUntil: until };
+      }
+      return k;
+    });
+    if (mutated) {
+      AiConfig.updateOne(
+        { _id: cfg._id },
+        { $set: { [`providers.${provider}.keys`]: next } },
+      ).catch((err) => {
+        logger.warn(`[aiClient] Failed to persist unhealthyUntil for ${provider}:${label}: ${(err as Error).message}`);
+      });
+    }
+  }).catch((err) => {
+    logger.warn(`[aiClient] Failed to load config while marking unhealthy: ${(err as Error).message}`);
+  });
+}
+
+function clearUnhealthy(provider: string, label: string) {
+  const key = unhealthyKey(provider, label);
+  UNHEALTHY_UNTIL.delete(key);
+  // Best-effort persistence — wipe any persisted unhealthyUntil for
+  // this label so future reads see the key as healthy.
+  AiConfig.findOne({ isActive: true, batchId: null }).then((cfg) => {
+    if (!cfg) return;
+    const arr = (cfg as any).getApiKeys?.(provider);
+    if (!Array.isArray(arr)) return;
+    let mutated = false;
+    const next = arr.map((k: any) => {
+      if (k?.label === label && k.unhealthyUntil) {
+        mutated = true;
+        return { ...k, unhealthyUntil: null };
+      }
+      return k;
+    });
+    if (mutated) {
+      AiConfig.updateOne(
+        { _id: cfg._id },
+        { $set: { [`providers.${provider}.keys`]: next } },
+      ).catch((err) => {
+        logger.warn(`[aiClient] Failed to clear unhealthyUntil for ${provider}:${label}: ${(err as Error).message}`);
+      });
+    }
+  }).catch((err) => {
+    logger.warn(`[aiClient] Failed to load config while clearing unhealthy: ${(err as Error).message}`);
+  });
+}
 
 // ─── Provider definitions ───────────────────────────────────────────────────
 
@@ -308,14 +381,87 @@ export class AiClient {
     const temperature = overrides?.temperature ?? featureConfig?.temperature ?? 0.3;
     const maxTokens = overrides?.maxTokens ?? featureConfig?.maxTokens ?? 1024;
 
-    const authValue = config.provider === 'anthropic' ? config.apiKey : `Bearer ${config.apiKey}`;
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      [config.authHeader]: authValue,
-    };
-    if (config.needsAnthropicVersion) {
-      headers['anthropic-version'] = '2023-06-01';
+    // v1.83 — multi-key rotation. Build the ordered candidates[]
+    // list for the active provider by decrypting every keys[] slot
+    // that isn't currently marked unhealthy. When the legacy
+    // single-key field is the only source, a single "Primary"
+    // candidate is synthesised (matching the resolver's behaviour
+    // for legacy docs). The first candidate is used for the
+    // initial request; 429s rotate to the next healthy one.
+    const candidates: Array<{
+      label: string;
+      key: string;
+      baseURL: string;
+      authHeader: 'x-api-key' | 'Authorization';
+      needsAnthropicVersion: boolean;
+    }> = (() => {
+      try {
+        const raw: IProviderKey[] = dbConfig && typeof (dbConfig as any).getApiKeys === 'function'
+          ? ((dbConfig as any).getApiKeys(config.provider) as IProviderKey[])
+          : [];
+        const defaultBaseURL = (dbConfig?.providers as any)?.[config.provider]?.baseURL
+          || config.baseURL;
+        const out: typeof candidates = [];
+        for (const k of raw) {
+          if (!k || !k.valueEnc) continue;
+          const memUntil = UNHEALTHY_UNTIL.get(unhealthyKey(config.provider, k.label || ''));
+          const dbUntil = k.unhealthyUntil ? new Date(k.unhealthyUntil).getTime() : 0;
+          const until = Math.max(memUntil ?? 0, dbUntil);
+          if (until > Date.now()) continue; // skip unhealthy
+          let plain = '';
+          try { plain = decrypt(k.valueEnc); } catch { continue; }
+          if (!plain) continue;
+          out.push({
+            label: k.label || 'Primary',
+            key: plain,
+            baseURL: (k.baseURL && k.baseURL.length > 0) ? k.baseURL : defaultBaseURL,
+            authHeader: config.authHeader === 'x-api-key' ? 'x-api-key' : 'Authorization',
+            needsAnthropicVersion: !!config.needsAnthropicVersion,
+          });
+        }
+        // Always at least one candidate — fall back to the resolved
+        // env/legacy single-key so callers that haven't yet adopted
+        // multi-key still get a working request.
+        if (out.length === 0 && config.apiKey) {
+          out.push({
+            label: 'Primary',
+            key: config.apiKey,
+            baseURL: config.baseURL,
+            authHeader: config.authHeader === 'x-api-key' ? 'x-api-key' : 'Authorization',
+            needsAnthropicVersion: !!config.needsAnthropicVersion,
+          });
+        }
+        return out;
+      } catch {
+        return [{
+          label: 'Primary',
+          key: config.apiKey,
+          baseURL: config.baseURL,
+          authHeader: config.authHeader === 'x-api-key' ? 'x-api-key' : 'Authorization',
+          needsAnthropicVersion: !!config.needsAnthropicVersion,
+        }];
+      }
+    })();
+
+    if (candidates.length === 0) {
+      throw new Error(`No AI API key configured for provider '${config.provider}'.`);
     }
+
+    // The currently-selected candidate's authHeader / baseURL /
+    // needsAnthropicVersion may differ from the resolved provider
+    // defaults (per-key baseURL), so we rebuild headers per
+    // rotation. `currentCandidate` is mutated by the retry loop.
+    let currentCandidateIdx = 0;
+    const buildHeadersFor = (cand: typeof candidates[number]): Record<string, string> => {
+      const authValue = cand.authHeader === 'x-api-key' ? cand.key : `Bearer ${cand.key}`;
+      const h: Record<string, string> = {
+        'Content-Type': 'application/json',
+        [cand.authHeader]: authValue,
+      };
+      if (cand.needsAnthropicVersion) h['anthropic-version'] = '2023-06-01';
+      return h;
+    };
+    let headers: Record<string, string> = buildHeadersFor(candidates[currentCandidateIdx]);
 
     // v1.79 — replaced the previous ad-hoc `console.log('--- AI
     // Request Configuration ---')` block (and its companion
@@ -423,62 +569,132 @@ export class AiClient {
       };
     }
 
-    let url: string;
-    if (config.provider === 'anthropic') {
-      url = `${config.baseURL}/messages`;
-    } else {
-      url = `${config.baseURL}/chat/completions`;
-    }
-
-    // v1.80 — custom-provider baseURL normalisation. Admins
-    // often paste a host root like `http://localhost:11434`
-    // (Ollama) without the trailing `/v1`, which would make the
-    // chat call hit `http://localhost:11434/chat/completions`
-    // and 404. If the segment immediately before `/chat/completions`
-    // is not literally `v1`, auto-insert. Existing `/v1` is left
-    // alone; deeper paths (e.g. `/api/v1/chat/completions`) are
-    // also left alone because the segment before `chat` would
-    // already be `v1`.
-    if (config.provider === 'custom') {
-      try {
-        const u = new URL(url);
-        // For `/chat/completions`, parts is ['chat','completions']
-        // and idx === 0. For `/v1/chat/completions`, parts is
-        // ['v1','chat','completions'] and idx === 1 with
-        // parts[0] === 'v1' (skip). For `/foo/chat/completions`,
-        // idx === 1 and parts[0] !== 'v1' (insert).
-        const parts = u.pathname.split('/').filter(Boolean);
-        const idx = parts.indexOf('chat');
-        if (idx >= 0) {
-          if (idx === 0) {
-            // No segment before `chat` — prepend `v1`.
-            parts.unshift('v1');
-            u.pathname = '/' + parts.join('/');
-            url = u.toString();
-          } else if (parts[idx - 1] !== 'v1') {
-            // Segment before `chat` exists but isn't `v1` —
-            // splice `v1` in front of `chat`.
-            parts.splice(idx, 0, 'v1');
-            u.pathname = '/' + parts.join('/');
-            url = u.toString();
-          }
-          // else: segment before `chat` IS `v1` — leave it alone.
-        }
-      } catch {
-        // Malformed URL — let the fetch fail naturally with a
-        // clear network error rather than masking it.
+    // v1.83 — URL is now built PER CANDIDATE because each key slot
+    // may carry its own baseURL override. We define a helper and
+    // also wrap the v1.80 custom-baseURL normalisation so each
+    // rotation still benefits from the leading-/v1 fix-up.
+    const buildUrlFor = (cand: typeof candidates[number]): string => {
+      let u: string;
+      if (config.provider === 'anthropic') {
+        u = `${cand.baseURL}/messages`;
+      } else {
+        u = `${cand.baseURL}/chat/completions`;
       }
+      if (config.provider === 'custom') {
+        try {
+          const parsed = new URL(u);
+          const parts = parsed.pathname.split('/').filter(Boolean);
+          const idx = parts.indexOf('chat');
+          if (idx >= 0) {
+            if (idx === 0) {
+              parts.unshift('v1');
+              parsed.pathname = '/' + parts.join('/');
+              u = parsed.toString();
+            } else if (parts[idx - 1] !== 'v1') {
+              parts.splice(idx, 0, 'v1');
+              parsed.pathname = '/' + parts.join('/');
+              u = parsed.toString();
+            }
+          }
+        } catch {
+          // Malformed URL — let the fetch fail naturally with a
+          // clear network error rather than masking it.
+        }
+      }
+      return u;
+    };
+    let url: string = buildUrlFor(candidates[currentCandidateIdx]);
+
+    // ── 429 retry with multi-key rotation (v1.83) ────────────────────────────
+    // v1.83 — extended from "same key, fixed backoff" to "rotate to
+    // the next healthy candidate on 429". On a 429:
+    //   1. Mark the current key unhealthy (in-memory + persisted).
+    //   2. Step to the next candidate. If none remain, surface the
+    //      last error to the caller.
+    // The pre-v1.83 fixed-backoff loop is preserved for the LEGACY
+    // single-key path (candidates.length === 1 with the resolved
+    // env/legacy key) so a single admin-managed key still gets the
+    // advertised-backoff retry that admins rely on.
+    const MAX_429_ATTEMPTS = candidates.length > 1 ? candidates.length : 3;
+    let attempt = 0;
+    let lastError: Error | null = null;
+    let res: Response;
+    let rotatedThisLoop = false;
+    while (true) {
+      try {
+        res = await fetch(url, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(body),
+        });
+      } catch (err) {
+        // Network-level failure (DNS, TLS, abort, etc.) — no HTTP status.
+        logAiApiFailure({
+          kind: 'inference',
+          provider: config.provider,
+          modelName: model,
+          feature,
+          durationMs: Date.now() - requestStartedAt,
+          batchId,
+          error: (err as Error).message,
+        });
+        throw err;
+      }
+      if (res.status !== 429) {
+        // Success or non-retriable failure — clear this candidate's
+        // unhealthy hint (in case it was previously set) and exit.
+        clearUnhealthy(config.provider, candidates[currentCandidateIdx].label);
+        break;
+      }
+      // Mark current key unhealthy — admins expect this candidate to
+      // be skipped on subsequent requests until the cooldown expires.
+      const failedLabel = candidates[currentCandidateIdx].label;
+      markUnhealthy(config.provider, failedLabel);
+      // Drain the body so the connection is freed before we sleep.
+      await res.text().catch(() => undefined);
+
+      // Try to rotate to the next candidate.
+      if (currentCandidateIdx + 1 < candidates.length) {
+        currentCandidateIdx++;
+        url = buildUrlFor(candidates[currentCandidateIdx]);
+        headers = buildHeadersFor(candidates[currentCandidateIdx]);
+        attempt++;
+        rotatedThisLoop = true;
+        logger.warn(
+          `[aiClient] 429 from ${config.provider}/${model} (key="${failedLabel}"); rotating to next candidate "${candidates[currentCandidateIdx].label}" (attempt ${attempt}/${MAX_429_ATTEMPTS - 1}).`,
+        );
+        continue;
+      }
+
+      // No more candidates. Single-key path: respect the Retry-After
+      // header (or exponential backoff) and retry the same key.
+      if (candidates.length === 1 && attempt + 1 < MAX_429_ATTEMPTS) {
+        attempt++;
+        const retryAfterHeader = res.headers.get('retry-after');
+        const headerSec = retryAfterHeader ? Number(retryAfterHeader) : NaN;
+        const backoffMs =
+          Number.isFinite(headerSec) && headerSec > 0
+            ? Math.min(headerSec * 1000, 8000)
+            : Math.min(1000 * 2 ** (attempt - 1), 8000);
+        logger.warn(
+          `[aiClient] 429 from ${config.provider}/${model}; retrying in ${backoffMs}ms (attempt ${attempt}/${MAX_429_ATTEMPTS - 1}).`,
+        );
+        await new Promise((r) => setTimeout(r, backoffMs));
+        continue;
+      }
+
+      // All candidates exhausted AND no further single-key retries
+      // — surface the last response as the error.
+      lastError = new Error(
+        `${config.provider} API rate-limited across ${candidates.length} key(s); last response ${res.status}.`,
+      );
+      break;
     }
 
-    let res: Response;
-    try {
-      res = await fetch(url, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(body),
-      });
-    } catch (err) {
-      // Network-level failure (DNS, TLS, abort, etc.) — no HTTP status.
+    if (rotatedThisLoop && lastError) {
+      // Reuse the post-loop error path so callers see the same
+      // shape regardless of whether the failure was on the first
+      // candidate or after rotating through all of them.
       logAiApiFailure({
         kind: 'inference',
         provider: config.provider,
@@ -486,9 +702,11 @@ export class AiClient {
         feature,
         durationMs: Date.now() - requestStartedAt,
         batchId,
-        error: (err as Error).message,
+        error: lastError.message,
+        status: 429,
+        requestBody: body,
       });
-      throw err;
+      throw lastError;
     }
 
     if (!res.ok) {

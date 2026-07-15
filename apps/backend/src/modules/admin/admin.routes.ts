@@ -67,6 +67,9 @@ import {
   testFeature,
   revealApiKey,
   listProviderModels,
+  getProviderKeys,
+  putProviderKeys,
+  deleteProviderKeys,
 } from '../ai/ai-config.controller.js';
 import {
   listAiApiLogs,
@@ -156,6 +159,13 @@ router.get('/ai/api-logs/export', exportAiApiLogs);
 router.post('/ai/api-logs/cleanup/preview', previewAiApiLogCleanup);
 router.post('/ai/api-logs/cleanup', cleanupAiApiLogs);
 router.get('/ai/config/api-key/:provider', revealApiKey);
+
+// v1.83 — Multi-API-key rotation endpoints. Scoped per-provider so the
+// frontend can refetch / replace / clear without re-sending the full
+// provider config alongside.
+router.get('/ai/provider-keys/:provider', getProviderKeys);
+router.put('/ai/provider-keys/:provider', putProviderKeys);
+router.delete('/ai/provider-keys/:provider', deleteProviderKeys);
 
 router.post('/faq', createFAQ);
 router.post('/faq/approve', approveFAQ);

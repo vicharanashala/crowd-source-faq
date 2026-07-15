@@ -6,6 +6,7 @@ import {
   adminBtnSmOutline,
   adminBtnSuccess,
   adminBtnWarn,
+  adminInput,
   adminLabel,
   adminSearchInput,
   adminTextarea,
@@ -303,6 +304,130 @@ function DeleteModal({ user, onClose, onDeleted }: { user: AdminUser; onClose: (
   );
 }
 
+// v1.85 — admin-initiated password reset. The backend (PUT
+// /api/auth/users/:id/password) returns 403 when the target user
+// is an admin — we hide the button for admins in the table row, so
+// the UI matches the server's hard floor. Visible feedback on
+// success: toast + the modal closes; on 4xx/5xx the error
+// message is shown inline. Min 8 chars + at least one letter + at
+// least one number (matches the backend's passwordPolicy). Live
+// strength hint guides the admin; "Show" toggle handles the
+// shoulder-surfing case.
+function ResetPasswordModal({ user, onClose, onReset }: { user: AdminUser; onClose: () => void; onReset: (u: AdminUser) => void }) {
+  useBodyScrollLock(true);
+  const [password, setPassword] = useState('');
+  const [show, setShow] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
+
+  // Live strength hint — same rules the backend enforces.
+  // Returns 0..4. Rendered as a 4-segment bar + a word.
+  const score = (() => {
+    let s = 0;
+    if (password.length >= 8) s++;
+    if (password.length >= 12) s++;
+    if (/[A-Za-z]/.test(password) && /[0-9]/.test(password)) s++;
+    if (/[^A-Za-z0-9]/.test(password)) s++;
+    return s;
+  })();
+  const meets = score >= 3 && password.length >= 8 && /[A-Za-z]/.test(password) && /[0-9]/.test(password);
+  const strengthLabel = ['too short', 'weak', 'ok', 'strong', 'excellent'][score] ?? '—';
+  const strengthColor = ['bg-danger', 'bg-danger', 'bg-warning', 'bg-accent', 'bg-success'][score] ?? 'bg-border';
+
+  const handleReset = async () => {
+    if (!meets) return;
+    setLoading(true);
+    setError('');
+    try {
+      const r = await adminApi.put<{ userId: string; mustReLogin: boolean }>(`/auth/users/${user._id}/password`, { newPassword: password });
+      void r;
+      setSuccess(true);
+      // Brief pause so the admin sees the success state, then close.
+      setTimeout(() => onReset({ ...user }), 800);
+    } catch (err) {
+      const body = (err as { response?: { data?: { message?: string; errorCode?: string } } })?.response?.data;
+      setError(body?.message ?? 'Failed to reset password.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className={modalBackdrop} onClick={e => e.target === e.currentTarget && !loading && onClose()}>
+      <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm admin-modal-panel" onClick={e => e.stopPropagation()}>
+        <div className="admin-modal-header">
+          <p className="text-sm font-semibold text-ink">Reset password for {user.name}</p>
+          <p className="text-xs text-ink-faint mt-0.5">{user.email}</p>
+        </div>
+        <div className="admin-modal-body space-y-3">
+          <div>
+            <label className={adminLabel} htmlFor="reset-pw">New password</label>
+            <div className="relative">
+              <input
+                id="reset-pw"
+                type={show ? 'text' : 'password'}
+                value={password}
+                onChange={e => { setPassword(e.target.value); setSuccess(false); }}
+                placeholder="Min 8 chars, 1 letter, 1 number"
+                autoFocus
+                disabled={loading || success}
+                data-testid="reset-password-input"
+                className={`${adminInput} pr-16`}
+              />
+              <button
+                type="button"
+                onClick={() => setShow(s => !s)}
+                data-testid="reset-password-toggle"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-ink-faint hover:text-ink px-2 py-0.5 rounded"
+                tabIndex={-1}
+              >
+                {show ? 'Hide' : 'Show'}
+              </button>
+            </div>
+            {/* Strength bar — 4 segments, fills based on score. */}
+            <div className="flex gap-1 mt-2" aria-label="Password strength">
+              {[0, 1, 2, 3].map(i => (
+                <div key={i} className={`h-1 flex-1 rounded ${i < score ? strengthColor : 'bg-border/40'}`} />
+              ))}
+            </div>
+            <p className={`text-[10px] mt-1 ${meets ? 'text-success' : 'text-ink-faint'}`}>
+              {password.length === 0 ? ' ' : `Strength: ${strengthLabel}`}
+            </p>
+          </div>
+          {error && (
+            <div
+              data-testid="reset-password-error"
+              className="text-xs text-danger bg-danger/10 border border-danger/20 rounded-md px-3 py-2"
+            >
+              {error}
+            </div>
+          )}
+          {success && (
+            <div
+              data-testid="reset-password-success"
+              className="text-xs text-success bg-success/10 border border-success/20 rounded-md px-3 py-2"
+            >
+              Password reset. The user will be signed out on their next request.
+            </div>
+          )}
+        </div>
+        <div className="admin-modal-footer">
+          <button onClick={onClose} disabled={loading} className={`flex-1 py-2 rounded-lg text-sm ${adminBtnOutline}`}>Cancel</button>
+          <button
+            onClick={handleReset}
+            disabled={!meets || loading || success}
+            data-testid="reset-password-submit"
+            className={`flex-1 py-2 rounded-lg text-sm font-medium ${adminBtnPrimary} disabled:opacity-50`}
+          >
+            {loading ? 'Resetting…' : success ? 'Done' : 'Reset password'}
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 export default function AdminUsers() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [total, setTotal] = useState(0);
@@ -313,6 +438,11 @@ export default function AdminUsers() {
   const [editUser, setEditUser] = useState<AdminUser | null>(null);
   const [deleteUser, setDeleteUser] = useState<AdminUser | null>(null);
   const [detailUser, setDetailUser] = useState<AdminUser | null>(null);
+  // v1.85 — admin password reset modal target. Set when the admin
+  // clicks "Reset password" in a row; the modal closes itself via
+  // onReset. Hidden for admin users in the table row to match
+  // the server's hard floor.
+  const [resetUser, setResetUser] = useState<AdminUser | null>(null);
   const dSearch = useDebounce(search, 350);
 
   const fetchUsers = useCallback(() => {
@@ -326,10 +456,15 @@ export default function AdminUsers() {
   useEffect(() => { setPage(1); }, [dSearch]);
   const handleRoleUpdated = (updated: AdminUser) => setUsers(prev => prev.map(u => u._id === updated._id ? updated : u));
   const handleDeleted = (id: string) => { setUsers(prev => prev.filter(u => u._id !== id)); setTotal(p => p - 1); };
+  // v1.85 — after a reset, close the modal but keep the user in
+  // the list (their `role` and other fields haven't changed). The
+  // table refresh is implicit; if we ever want to invalidate the
+  // cached user doc on the client, this is the hook.
+  const handleReset = (_updated: AdminUser) => { setResetUser(null); };
 
   return (
     <div className="space-y-4 max-w-6xl">
-      <AnimatePresence>{editUser && <RoleModal user={editUser} onClose={() => setEditUser(null)} onUpdated={handleRoleUpdated} />}{deleteUser && <DeleteModal user={deleteUser} onClose={() => setDeleteUser(null)} onDeleted={handleDeleted} />}{detailUser && <UserDetailModal user={detailUser} onClose={() => setDetailUser(null)} onRefresh={fetchUsers} />}</AnimatePresence>
+      <AnimatePresence>{editUser && <RoleModal user={editUser} onClose={() => setEditUser(null)} onUpdated={handleRoleUpdated} />}{deleteUser && <DeleteModal user={deleteUser} onClose={() => setDeleteUser(null)} onDeleted={handleDeleted} />}{detailUser && <UserDetailModal user={detailUser} onClose={() => setDetailUser(null)} onRefresh={fetchUsers} />}{resetUser && <ResetPasswordModal user={resetUser} onClose={() => setResetUser(null)} onReset={handleReset} />}</AnimatePresence>
       <p className="text-sm text-ink-faint -mt-2">{total} registered</p>
 
       <div className="grid grid-cols-3 gap-3">
@@ -364,6 +499,20 @@ export default function AdminUsers() {
                   <td className="admin-td text-right">
                     <button onClick={() => setDetailUser(u)} className={`${adminBtnSmOutline} mr-1`}>Detail</button>
                     <button onClick={() => setEditUser(u)} className={`${adminBtnSmOutline} mr-1`}>Edit</button>
+                    {/* v1.85 — admin password reset. Hidden for admin
+                        users so the UI matches the server's hard
+                        floor (which also returns 403 if an admin
+                        tries to call the endpoint). One less way
+                        to accidentally trip the security check. */}
+                    {u.role !== 'admin' && (
+                      <button
+                        onClick={() => setResetUser(u)}
+                        data-testid={`reset-password-btn-${u._id}`}
+                        className="px-2.5 py-1 rounded-md text-[10px] text-ink-soft hover:text-accent hover:bg-accent/10 transition-colors mr-1"
+                      >
+                        Reset pw
+                      </button>
+                    )}
                     <button onClick={() => setDeleteUser(u)} className="px-2.5 py-1 rounded-md text-[10px] text-ink-faint hover:text-danger hover:bg-danger/10 transition-colors">Delete</button>
                   </td>
                 </tr>

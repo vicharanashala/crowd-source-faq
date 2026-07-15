@@ -18,6 +18,8 @@ import { Types } from 'mongoose';
 import AiConfig, { type IAiConfig, type AIProviderType } from './ai-config.model.js';
 import { logAction } from '../admin/admin.controller.js';
 import { invalidateProviderCache } from '../../utils/ai/aiProvider.js';
+import { encrypt, decrypt } from '../../utils/auth/crypto.js';
+import { logger } from '../../utils/http/logger.js';
 
 // ─── GET /api/admin/ai/config ───────────────────────────────────────────────
 
@@ -128,6 +130,86 @@ interface ProviderOverrideUpdate {
    * write time (only '' | 'model' | 'modelName').
    */
   customModelField?: '' | 'model' | 'modelName';
+  /**
+   * v1.83 — multi-key rotation list. When present, REPLACES the
+   * entire keys[] on the provider (and clears the legacy
+   * `apiKeyCipher` field after migration). Each entry must have
+   * a non-empty `label` and an optional non-empty `value` (the
+   * plaintext secret — empty `value` keeps the existing slot's
+   * ciphertext so the admin can re-order / re-label without
+   * re-typing secrets). At most 10 entries per provider.
+   */
+  keys?: Array<{ label?: unknown; value?: unknown; baseURL?: unknown }>;
+}
+
+const MAX_KEYS_PER_PROVIDER = 10;
+
+function isValidProviderList(value: unknown): value is AIProviderType {
+  return typeof value === 'string'
+    && ['anthropic', 'openai', 'xai', 'minimax', 'gemini', 'custom'].includes(value);
+}
+
+function normaliseKeyInput(raw: unknown): { label: string; value: string; baseURL: string } {
+  const obj = (raw && typeof raw === 'object') ? raw as Record<string, unknown> : {};
+  const label = typeof obj.label === 'string' ? obj.label.trim() : '';
+  const value = typeof obj.value === 'string' ? obj.value : '';
+  const baseURL = typeof obj.baseURL === 'string' ? obj.baseURL : '';
+  return { label, value, baseURL };
+}
+
+/**
+ * Apply a PATCH-shaped `keys[]` payload to a provider slot on an
+ * AiConfig doc. Mutates `config` in place. Returns `{ error?: string }`
+ * for validation failures; on success returns `{ keysApplied: number }`
+ * and clears the legacy `apiKeyCipher` since the new shape supersedes
+ * it. Empty value preserves the existing ciphertext for that index
+ * (so admins can reorder/rename slots without re-typing secrets).
+ */
+function applyProviderKeysPatch(
+  config: IAiConfig,
+  provider: AIProviderType,
+  keysInput: unknown
+): { error?: string; keysApplied?: number } {
+  if (!Array.isArray(keysInput)) {
+    return { error: `keys must be an array for provider ${provider}` };
+  }
+  if (keysInput.length > MAX_KEYS_PER_PROVIDER) {
+    return { error: `Provider ${provider} supports at most ${MAX_KEYS_PER_PROVIDER} keys (got ${keysInput.length}).` };
+  }
+  const normalised = keysInput.map(normaliseKeyInput);
+  // Validate: unique labels, non-empty labels.
+  const seen = new Set<string>();
+  for (let i = 0; i < normalised.length; i++) {
+    const k = normalised[i];
+    if (!k.label) {
+      return { error: `Key #${i + 1} for provider ${provider} has an empty label.` };
+    }
+    if (seen.has(k.label)) {
+      return { error: `Provider ${provider} has duplicate key label "${k.label}".` };
+    }
+    seen.add(k.label);
+  }
+
+  const slot = (config as any).providers[provider];
+  if (!slot) return { error: `Unknown provider ${provider}` };
+
+  // Merge with existing ciphertexts when value is omitted — admins
+  // use this flow to reorder/rename without re-typing secrets.
+  const existingArr = Array.isArray(slot.keys) ? slot.keys : [];
+  const newKeys = normalised.map((k, idx) => {
+    const prev = existingArr[idx];
+    return {
+      label: k.label,
+      valueEnc: k.value ? encrypt(k.value) : (prev?.valueEnc ?? ''),
+      baseURL: k.baseURL || (prev?.baseURL ?? slot.baseURL ?? ''),
+      unhealthyUntil: prev?.unhealthyUntil ?? null,
+    };
+  }).filter((k) => k.label && k.valueEnc);
+
+  slot.keys = newKeys;
+  // Multi-key shape supersedes the legacy single-key field.
+  if (slot.apiKeyCipher) slot.apiKeyCipher = '';
+  return { keysApplied: newKeys.length };
 }
 
 export const updateAiConfig = async (req: Request, res: Response): Promise<void> => {
@@ -229,12 +311,16 @@ export const updateAiConfig = async (req: Request, res: Response): Promise<void>
     // paths so the whole update is a single atomic write
     // instead of in-memory mutate + save().
     const setOps: Record<string, unknown> = {};
+    const unsetOps: Record<string, string> = {};
     if (providers && typeof providers === 'object') {
       for (const prov of ['anthropic', 'openai', 'xai', 'minimax', 'gemini', 'custom'] as AIProviderType[]) {
         const update = providers[prov];
         if (!update) continue;
         // apiKey uses the model's encrypt path (config.setApiKey)
-        if (update.apiKey !== undefined) {
+        // v1.83 — when keys[] is also being set, the apiKey is
+        // handled as keys[0].value further down. We still honour
+        // a bare apiKey as the legacy single-key write path.
+        if (update.apiKey !== undefined && (update.keys === undefined || !Array.isArray(update.keys))) {
           // Use the model's setter so the cipher is applied
           // server-side, then read back the cipher to write.
           config.setApiKey(prov, update.apiKey);
@@ -257,6 +343,20 @@ export const updateAiConfig = async (req: Request, res: Response): Promise<void>
           }
           setOps[`providers.${prov}.customModelField`] = update.customModelField;
         }
+        // v1.83 — multi-key rotation list. Validate, merge with
+        // existing ciphertexts (so reorders don't force retyping),
+        // and replace the slot's keys[] in a single $set. The
+        // legacy apiKeyCipher is dropped via $unset so subsequent
+        // reads use the new shape exclusively.
+        if (update.keys !== undefined) {
+          const result = applyProviderKeysPatch(config, prov, update.keys);
+          if (result.error) {
+            res.status(400).json({ message: result.error });
+            return;
+          }
+          setOps[`providers.${prov}.keys`] = (config.providers as any)[prov]?.keys;
+          unsetOps[`providers.${prov}.apiKeyCipher`] = '';
+        }
       }
     }
     for (const [k, v] of Object.entries(features ?? {})) {
@@ -275,10 +375,13 @@ export const updateAiConfig = async (req: Request, res: Response): Promise<void>
       }
     }
 
-    if (Object.keys(setOps).length > 0) {
+    if (Object.keys(setOps).length > 0 || Object.keys(unsetOps).length > 0) {
+      const update: Record<string, unknown> = {};
+      if (Object.keys(setOps).length > 0) update.$set = setOps;
+      if (Object.keys(unsetOps).length > 0) update.$unset = unsetOps;
       await AiConfig.findOneAndUpdate(
         { _id: config._id },
-        { $set: setOps },
+        update,
         { new: true },
       );
     }
@@ -782,3 +885,292 @@ export async function detectActiveProvider(): Promise<AIProviderType | null> {
   // No DB row AND no env-var key for any provider → nothing to talk to.
   return null;
 }
+
+// ─── v1.83 — Multi-key rotation admin endpoints ─────────────────────────────
+//
+// Three new endpoints under /admin/ai/provider-keys/:provider:
+//   GET    /admin/ai/provider-keys/:provider  → list keys with PLAINTEXT
+//   PUT    /admin/ai/provider-keys/:provider  → replace full key list
+//   DELETE /admin/ai/provider-keys/:provider  → clear all keys
+//
+// The existing PATCH /admin/ai/config endpoint already accepts
+// `providers.<p>.keys` (see `applyProviderKeysPatch` above) — this
+// trio is the same surface, scoped per-provider, with an explicit
+// semantic that ITS singular job is the key list (so the frontend
+// can refetch/replace/clear without re-sending model/baseURL).
+//
+// All three are admin-only (the router they live behind is mounted
+// inside admin.routes.ts which gates every route through adminOnly).
+// The GET plaintext response is logged via logAction so admins can't
+// peek at secrets without leaving a paper trail.
+
+const PROVIDER_KEYS_ALLOWED: AIProviderType[] = ['anthropic', 'openai', 'xai', 'minimax', 'gemini', 'custom'];
+
+function isProviderKeyName(s: string): s is AIProviderType {
+  return (PROVIDER_KEYS_ALLOWED as string[]).includes(s);
+}
+
+/**
+ * GET /admin/ai/provider-keys/:provider
+ *
+ * Admin-only. Returns the ordered key list WITH plaintext `value`
+ * fields decrypted (admins need this so they can copy an existing
+ * key into a new slot, or paste it into a different provider). The
+ * ciphertext `valueEnc` is NOT included — it's an internal detail.
+ *
+ * Lazily promotes the legacy `apiKeyCipher` into a single "Primary"
+ * row on first read so legacy docs surface the existing secret
+ * without forcing an admin write. The plaintext values shown here
+ * represent the truth stored in the DB (encrypted at rest).
+ */
+export const getProviderKeys = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const raw = String(req.params.provider ?? '');
+    if (!isProviderKeyName(raw)) {
+      res.status(400).json({ message: `Invalid provider "${raw}".` });
+      return;
+    }
+    const provider = raw as AIProviderType;
+
+    // S5-C6 (CRITICAL) fix: scope to global config so the admin
+    // sees the same key list the rest of the runtime uses.
+    const config = await AiConfig.findOne({ isActive: true, batchId: null });
+    if (!config) {
+      res.json({ provider, keys: [] });
+      return;
+    }
+
+    const arr = config.getApiKeys(provider);
+    const keys = arr
+      .filter((k) => !!k?.valueEnc)
+      .map((k) => {
+        let value = '';
+        try {
+          value = decrypt(k.valueEnc);
+        } catch (err) {
+          logger.warn(`[aiConfigController] Failed to decrypt provider key "${k.label}" for ${provider}: ${(err as Error).message}`);
+        }
+        const baseURL = (k.baseURL && k.baseURL.length > 0)
+          ? k.baseURL
+          : ((config.providers?.[provider]?.baseURL ?? ''));
+        return {
+          label: k.label,
+          value, // PLAINTEXT — admin-only
+          baseURL,
+          unhealthyUntil: k.unhealthyUntil ?? null,
+        };
+      });
+
+    await logAction(
+      (req as any).user?.id ?? 'system',
+      'reveal_provider_keys',
+      String(provider),
+      'ai_config',
+      `Reveal ${keys.length} key(s) for ${provider}`
+    );
+
+    res.json({
+      provider,
+      keys,
+      // For convenience — admins editing in the UI can prefill these
+      // without an extra GET.
+      defaultBaseURL: config.providers?.[provider]?.baseURL ?? '',
+      model:          config.providers?.[provider]?.model ?? '',
+      customModelField: config.providers?.[provider]?.customModelField ?? '',
+      maxKeys: MAX_KEYS_PER_PROVIDER,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+/**
+ * PUT /admin/ai/provider-keys/:provider
+ *
+ * Body:
+ *   {
+ *     keys: [{ label, value?, baseURL? }],
+ *     defaultBaseURL?: string,
+ *     model?: string,
+ *     customModelField?: '' | 'model' | 'modelName'
+ *   }
+ *
+ * Replaces the full key list for the provider. Defaults applied on
+ * the baseURL field (per-key baseURL falls back to the provider's
+ * defaultBaseURL when omitted). ≤ 10 keys, unique labels, non-empty
+ * values. The legacy `apiKeyCipher` field is cleared after the
+ * write so subsequent reads use the new shape exclusively.
+ */
+export const putProviderKeys = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const raw = String(req.params.provider ?? '');
+    if (!isProviderKeyName(raw)) {
+      res.status(400).json({ message: `Invalid provider "${raw}".` });
+      return;
+    }
+    const provider = raw as AIProviderType;
+
+    const body = (req.body ?? {}) as {
+      keys?: unknown;
+      defaultBaseURL?: unknown;
+      model?: unknown;
+      customModelField?: unknown;
+    };
+
+    if (!Array.isArray(body.keys)) {
+      res.status(400).json({ message: 'Request body must include a keys array.' });
+      return;
+    }
+    if (body.keys.length > MAX_KEYS_PER_PROVIDER) {
+      res.status(400).json({ message: `At most ${MAX_KEYS_PER_PROVIDER} keys allowed per provider (got ${body.keys.length}).` });
+      return;
+    }
+
+    const normalised = body.keys.map(normaliseKeyInput);
+
+    // Enforce: ≤ MAX, unique labels, non-empty labels.
+    const seen = new Set<string>();
+    for (let i = 0; i < normalised.length; i++) {
+      const k = normalised[i];
+      if (!k.label) {
+        res.status(400).json({ message: `Key #${i + 1} has an empty label.` });
+        return;
+      }
+      if (seen.has(k.label)) {
+        res.status(400).json({ message: `Duplicate key label "${k.label}".` });
+        return;
+      }
+      seen.add(k.label);
+    }
+
+    // Validate customModelField if present.
+    if (body.customModelField !== undefined
+        && body.customModelField !== ''
+        && body.customModelField !== 'model'
+        && body.customModelField !== 'modelName') {
+      res.status(400).json({ message: 'customModelField must be "", "model", or "modelName".' });
+      return;
+    }
+
+    const config = await AiConfig.findOne({ isActive: true, batchId: null });
+    if (!config) {
+      res.status(404).json({ message: 'No active AI config found.' });
+      return;
+    }
+
+    const slot = (config as any).providers[provider];
+    const existingArr = Array.isArray(slot?.keys) ? slot.keys : [];
+    const defaultBaseURL = typeof body.defaultBaseURL === 'string'
+      ? body.defaultBaseURL
+      : (slot?.baseURL ?? '');
+
+    const newKeys = normalised
+      .map((k, idx) => {
+        const prev = existingArr[idx];
+        return {
+          label: k.label,
+          valueEnc: k.value ? encrypt(k.value) : (prev?.valueEnc ?? ''),
+          baseURL: k.baseURL || defaultBaseURL || (prev?.baseURL ?? ''),
+          unhealthyUntil: prev?.unhealthyUntil ?? null,
+        };
+      })
+      .filter((k) => k.valueEnc); // drop rows without a secret
+
+    // Build the atomic $set / $unset. Always replace the entire
+    // keys[] — never partially merge — so the UI's "save" button
+    // matches the admin's mental model of "this is what's persisted".
+    const setOps: Record<string, unknown> = {
+      [`providers.${provider}.keys`]: newKeys,
+    };
+    const unsetOps: Record<string, string> = {
+      [`providers.${provider}.apiKeyCipher`]: '',
+    };
+    if (typeof body.defaultBaseURL === 'string') {
+      setOps[`providers.${provider}.baseURL`] = body.defaultBaseURL;
+    }
+    if (typeof body.model === 'string') {
+      const modelTrim = body.model.trim();
+      const v = validateModelForProvider(modelTrim, provider);
+      if (!v.isValid) {
+        res.status(400).json({ message: `Invalid model for provider ${provider}: ${v.error}` });
+        return;
+      }
+      setOps[`providers.${provider}.model`] = modelTrim;
+    }
+    if (body.customModelField !== undefined) {
+      setOps[`providers.${provider}.customModelField`] = body.customModelField;
+    }
+
+    await AiConfig.findOneAndUpdate(
+      { _id: config._id },
+      { $set: setOps, $unset: unsetOps },
+      { new: true },
+    );
+    invalidateProviderCache();
+
+    await logAction(
+      (req as any).user?.id ?? 'system',
+      'put_provider_keys',
+      String(provider),
+      'ai_config',
+      `Replace key list for ${provider}: ${newKeys.length} key(s) with labels [${newKeys.map((k) => k.label).join(', ')}]`
+    );
+
+    res.json({
+      message: `Updated ${newKeys.length} key(s) for ${provider}.`,
+      provider,
+      keysApplied: newKeys.length,
+      publicView: config.publicView(),
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+/**
+ * DELETE /admin/ai/provider-keys/:provider
+ *
+ * Clears all keys for the provider. The persisted doc has both
+ * keys[] emptied and the legacy apiKeyCipher cleared (so subsequent
+ * publicView()/getAiProviders() returns `hasKey: false` and the
+ * env-var fallback path takes over).
+ */
+export const deleteProviderKeys = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const raw = String(req.params.provider ?? '');
+    if (!isProviderKeyName(raw)) {
+      res.status(400).json({ message: `Invalid provider "${raw}".` });
+      return;
+    }
+    const provider = raw as AIProviderType;
+
+    const config = await AiConfig.findOne({ isActive: true, batchId: null });
+    if (!config) {
+      res.status(404).json({ message: 'No active AI config found.' });
+      return;
+    }
+
+    await AiConfig.findOneAndUpdate(
+      { _id: config._id },
+      { $set: { [`providers.${provider}.keys`]: [] }, $unset: { [`providers.${provider}.apiKeyCipher`]: '' } },
+      { new: true },
+    );
+    invalidateProviderCache();
+
+    await logAction(
+      (req as any).user?.id ?? 'system',
+      'delete_provider_keys',
+      String(provider),
+      'ai_config',
+      `Cleared all keys for ${provider}`
+    );
+
+    res.json({
+      message: `Cleared all keys for ${provider}.`,
+      provider,
+      publicView: config.publicView(),
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+};

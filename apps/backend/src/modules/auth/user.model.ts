@@ -131,7 +131,12 @@ export interface IUser extends Document {
     oldValue: any;
     newValue: any;
   }[];
-  
+
+  // v1.87 — Sign My Tee: mandatory internship end date.
+  // Drives the 3-day eligibility window. Nullable so users who
+  // have not yet entered the date still authenticate cleanly.
+  internshipEndDate?: Date | null;
+
   // Methods
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
@@ -215,6 +220,12 @@ const userSchema = new MongooseSchema<IUser>(
     zoomRefreshToken: { type: String },
     zoomTokenExpiry:  { type: Date },
     zoomConnectedAt:  { type: Date },
+    // v1.87 — Sign My Tee: mandatory internship end date.
+    // Every Summership-era user must enter this before using the
+    // "Sign My Tee" feature. A rolling 3-day window around this
+    // date controls navbar eligibility. NOT a joining date (per
+    // spec). Nullable so users who don't enter yet still auth fine.
+    internshipEndDate: { type: Date, default: null },
 
     // Admin 2FA / TOTP
     totpEnabled:   { type: Boolean, default: false },

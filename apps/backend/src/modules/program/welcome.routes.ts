@@ -1,7 +1,7 @@
 import express from 'express';
-import { 
-  getActiveOrientation, 
-  getTimelineProjects, 
+import {
+  getActiveOrientation,
+  getTimelineProjects,
   askOrientationQuestion,
   trackWelcomeOnboarding,
   completeOrientation,
@@ -18,6 +18,17 @@ import {
   getMyCompletions,
   askKnowledgeQuestion,
 } from './onboarding-resources.controller.js';
+
+// v1.76 — Welcome Package: Journey Tracks (user-facing).
+// Re-exported from a dedicated file (./journey.controller.ts) so
+// the new module is self-contained.
+import {
+  listMyJourneys,
+  getMyJourney,
+  completeJourneyItem,
+  uncompleteJourneyItem,
+  askJourneyQuestion,
+} from './journey.controller.js';
 
 const router = express.Router();
 
@@ -72,5 +83,28 @@ router.get('/resources', protect, listPublicResources);
 router.post('/resources/:id/complete', protect, completeResource);
 router.get('/resources/completions', protect, getMyCompletions);
 router.post('/resources/ask', protect, askKnowledgeQuestion);
+
+// v1.76 — Welcome Package: Journey Tracks (user-facing).
+// Addtive. Mounted under /welcome/journeys so it doesn't shadow
+// any existing route. Every endpoint requires auth — Journey
+// progress is per-user and is never exposed anonymously.
+router.get('/journeys', protect, listMyJourneys);
+router.get('/journeys/:trackId', protect, getMyJourney);
+// Ask the AI about my journey tracks (treks/checkpoints/items).
+// Separate from /welcome/resources/ask because the data source is
+// different (journey tracks vs. onboarding knowledge chunks). The
+// UI for this lives inside the Journey tab in the Welcome Package,
+// not on the Orientation tab where the resources-Ask AI sits.
+router.post('/journeys/ask', protect, askJourneyQuestion);
+router.post(
+  '/journeys/:trackId/items/:itemId/complete',
+  protect,
+  completeJourneyItem
+);
+router.delete(
+  '/journeys/:trackId/items/:itemId/complete',
+  protect,
+  uncompleteJourneyItem
+);
 
 export default router;

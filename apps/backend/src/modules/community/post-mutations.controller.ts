@@ -97,6 +97,42 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
+    // ── Same-author duplicate guard ──────────────────────────────────────────
+    // The AI / FAQ blocker catches "this has been asked before, see answer"
+    // but doesn't catch "you just posted this ten minutes ago, stop spamming".
+    // Compare on normalised title (case-folded, whitespace collapsed) so
+    // trivial re-submissions ("Hi" vs "hi.") still match. Block creation
+    // with the SAME 409 shape the UI already knows how to surface.
+    if (req.user?._id) {
+      const normalisedTitle = title.toLowerCase().replace(/\s+/g, ' ').trim();
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const recent = await CommunityPost.findOne({
+        author: req.user._id,
+        status: { $ne: 'spam_confirmed' },
+        createdAt: { $gte: since },
+      })
+        .select('_id title createdAt status')
+        .lean();
+      if (recent) {
+        const recentNorm = (recent.title ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
+        if (recentNorm === normalisedTitle) {
+          res.status(409).json({
+            message: 'You posted the same question in the last 24 hours. Check your earlier post and add a comment instead of creating a duplicate.',
+            isDuplicate: true,
+            matches: [{
+              _id: recent._id.toString(),
+              title: recent.title,
+              score: 1.0,
+              source: 'community' as const,
+              matchType: 'text' as const,
+              reason: 'Same author posted this title within 24 hours.',
+            }],
+          });
+          return;
+        }
+      }
+    }
+
     // Skip live embedding on create. The weekly batch cron (startup.ts
     // embedding-warm) and Atlas vector index handle embeddings offline;
     // live calls here would just produce zero-vectors (since no embedding

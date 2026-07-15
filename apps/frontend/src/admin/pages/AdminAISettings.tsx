@@ -11,6 +11,11 @@ import { useBatch } from '../../context/BatchContext';
 
 interface ProviderOverride {
   hasKey: boolean;
+  // v1.83 — multi-key rotation. The public /admin/ai/providers view
+  // never returns per-key plaintext values; it only reports whether
+  // ANY keys are configured (`hasKey`) and how many (`keyCount`).
+  // The detailed key list lives behind /admin/ai/provider-keys/:provider.
+  keyCount: number;
   baseURL: string;
   model: string;
   /**
@@ -21,6 +26,20 @@ interface ProviderOverride {
    * `ai-config.controller.ts → publicView()`.
    */
   customModelField?: string;
+}
+
+// Per-key slot for the multi-key admin UI. Ordered. The backend
+// resolves fallbacks in array order (first healthy key wins).
+// `value` is a one-shot draft that the user types; on Save it's
+// POSTed to /admin/ai/provider-keys/:provider and then cleared
+// from the draft (the server only returns plaintext via the
+// dedicated reveal endpoint).
+interface ProviderKeyRow {
+  id: string;
+  label: string;
+  value: string;
+  baseURL?: string;
+  showValue?: boolean;
 }
 interface AiFeatureConfig {
   enabled: boolean;
@@ -35,6 +54,14 @@ interface AiFeatureConfig {
   embeddingModel?: string;
   temperature: number;
   maxTokens: number;
+  // v1.85 — automatic provider failover. allowFallback defaults to
+  // true on the backend when undefined; the UI surfaces it as a
+  // checkbox. fallbackProviders is an ordered list of provider
+  // names that the chain walks when the primary returns a retriable
+  // failure. Empty array = use the env-var FALLBACK_PROVIDERS or
+  // the hard-coded default order.
+  allowFallback?: boolean;
+  fallbackProviders?: ('anthropic' | 'openai' | 'xai' | 'minimax' | 'gemini' | 'custom')[];
 }
 interface EmbeddingConfig { provider: 'local' | 'huggingface' | 'openai' | 'custom'; model: string; dimensions: number; baseURL: string; hasKey: boolean; }
 interface AiConfig {
@@ -90,14 +117,15 @@ const PROVIDER_META = {
     defaultModel: 'MiniMax-M3',
     defaultBaseURL: 'https://api.minimax.io/v1',
     docsUrl: 'https://platform.minimax.io/user-center/basic-information/interface-key',
-    // v1.80 — hint about the two minimax key formats. Coding Plan
-    // keys (sk-cp-…) are only valid against the Coding Plan
-    // endpoints, NOT the general /v1/models or /chat/completions.
-    // Using one against the general endpoint returns the
-    // `1004 login fail` 401 even though the key is "valid" in the
-    // dashboard. General API keys look like sk-… (no -cp-
-    // segment) and live under Account Management → API Keys.
-    keyHint: 'Use a General API key (sk-…), not a Coding Plan key (sk-cp-…). Get it at the link above.',
+    // Both General API keys (sk-…) and Token Plan / Coding Plan keys
+    // (sk-cp-…) authenticate against the same base URL — they share
+    // the /v1/chat/completions endpoint. The only difference is the
+    // billing pool: General keys draw from pay-as-you-go credits, Token
+    // Plan keys draw from your subscription quota. If you have a Token
+    // Plan subscription, use the sk-cp-… key (Subscription Key from
+    // Billing → Token Plan). Otherwise use a general sk-… key from
+    // Account Management → API Keys.
+    keyHint: 'Use a General API key (sk-…) or Token Plan key (sk-cp-…). Both work against this endpoint; pick the one that matches your billing plan. Get it at the link above.',
     badgeColor: 'bg-accent/10 text-accent border-accent/20',
     suggestedModels: ['MiniMax-M3', 'MiniMax-M2.7', 'MiniMax-M2', 'MiniMax-Text-01']
   },
@@ -159,18 +187,33 @@ function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (
 }
 
 // Per-chat-provider edit form used by the unified Provider Settings card.
-// All four fields + health badge + test/save buttons live here, driven by
-// the provider selected in the parent card's dropdown.
+// v1.83 — refactored to support N ordered API key slots per provider. The
+// backend resolves keys in array order and rotates to the next healthy
+// key on 429 / rate-limit. All other fields (baseURL/model/customModelField,
+// live model browser, Test/Save buttons) are unchanged.
 function ChatProviderFields({
   provider, draft, setProviderDrafts, override, isActive, hasKey, monoInput,
   saving, testing, testResult, onSwitchActive, onTest, onSave, onReveal, onClear,
   savingProviderGlobal,
   liveModels, browsingModels, browseError, onBrowse,
+  onAddKey, onRemoveKey, onMoveKey, onUpdateKey,
 }: {
   provider: ProviderKey;
-  draft: { apiKey: string; baseURL: string; model: string; customModelField: string; showKey: boolean; revealing: boolean };
+  draft: {
+    // v1.83 — API Key(s). `apiKey` is still on the draft for back-compat
+    // rendering of any legacy UI/tests; canonical truth is `keys[]`.
+    apiKey: string;
+    // Ordered API key slots. First non-empty key is the "primary" the
+    // backend will use first; remainder are fallbacks.
+    keys: ProviderKeyRow[];
+    baseURL: string;
+    model: string;
+    customModelField: string;
+    showKey: boolean;
+    revealing: boolean;
+  };
   setProviderDrafts: React.Dispatch<React.SetStateAction<Record<ProviderKey, any>>>;
-  override: { hasKey: boolean; baseURL?: string; model?: string } | undefined;
+  override: { hasKey: boolean; keyCount?: number; baseURL?: string; model?: string } | undefined;
   isActive: boolean;
   hasKey: boolean;
   monoInput: string;
@@ -180,8 +223,10 @@ function ChatProviderFields({
   onSwitchActive: (p: string) => void;
   onTest: (p: string) => void;
   onSave: (p: ProviderKey) => void;
-  onReveal: (p: ProviderKey) => void;
-  onClear: (p: ProviderKey) => void;
+  /** Reveal the plaintext of a specific key row (defaults to row 0). */
+  onReveal: (p: ProviderKey, rowId?: string) => void;
+  /** Clear a specific key row (defaults to row 0 = the whole provider). */
+  onClear: (p: ProviderKey, rowId?: string) => void;
   savingProviderGlobal: boolean;
   // Live model browser state for this provider. `liveModels` is the
   // union of the backend response + the hardcoded suggestedModels so
@@ -190,6 +235,11 @@ function ChatProviderFields({
   browsingModels: boolean;
   browseError: string | null;
   onBrowse: (provider: ProviderKey) => void;
+  // Key-row CRUD. Always keep at least one row; max 10 per provider.
+  onAddKey: (p: ProviderKey) => void;
+  onRemoveKey: (p: ProviderKey, rowId: string) => void;
+  onMoveKey: (p: ProviderKey, rowId: string, dir: -1 | 1) => void;
+  onUpdateKey: (p: ProviderKey, rowId: string, patch: Partial<ProviderKeyRow>) => void;
 }) {
   const meta = PROVIDER_META[provider];
   // Picker modal: opens when the user clicks "View all N models".
@@ -200,14 +250,26 @@ function ChatProviderFields({
       ? { dot: 'bg-success', text: 'Configured', tone: 'text-success' }
       : { dot: 'bg-danger', text: 'Active but no API key configured', tone: 'text-danger font-semibold' }
     : { dot: 'bg-border-medium', text: 'Not active', tone: 'text-ink-faint' };
+  // v1.83 — visible "N keys" badge so admins see at-a-glance how many
+  // API key slots are configured for this provider. The summary
+  // endpoint reports `keyCount`; the row list below is the draft,
+  // which may already have new rows the server hasn't seen yet.
+  const serverKeyCount = override?.keyCount ?? (hasKey ? 1 : 0);
+  const visibleKeyCount = Math.max(
+    serverKeyCount,
+    draft.keys?.length ?? 0,
+  );
 
   return (
     <div className="space-y-4">
       {/* Header: provider identity + health badge + switch-active button */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className={`w-2 h-2 rounded-full ${healthBadge.dot}`} />
           <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border ${meta.badgeColor}`}>{meta.label}</span>
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border border-accent/30 bg-accent/10 text-accent" title={`${visibleKeyCount} API key slot${visibleKeyCount === 1 ? '' : 's'} configured`}>
+            {visibleKeyCount} key{visibleKeyCount === 1 ? '' : 's'}
+          </span>
           <span className={`text-[11px] font-mono ${healthBadge.tone}`}>{healthBadge.text}</span>
         </div>
         {!isActive && (
@@ -218,37 +280,132 @@ function ChatProviderFields({
         )}
       </div>
 
-      {/* Two-column layout: API key + URL/model. Wider layout (max-w-5xl)
-          means we can fit everything without stacking. */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <label className="flex items-center justify-between mb-1">
-            <span className="text-[10px] font-semibold text-ink-faint uppercase">API Key</span>
-            {override?.hasKey && (
-              <div className="flex items-center gap-2 text-[10px]">
-                <button type="button" onClick={() => onReveal(provider)} disabled={draft.revealing} className="text-accent hover:text-accent-hover font-medium disabled:opacity-50">
-                  {draft.revealing ? 'Revealing…' : draft.showKey ? 'Hide' : 'Reveal'}
-                </button>
-                <span className="text-border-medium">·</span>
-                <button type="button" onClick={() => onClear(provider)} disabled={saving} className="text-danger hover:text-danger/80 font-medium disabled:opacity-50">Clear</button>
+      {/* v1.83 — multi-key stack rendered at FULL WIDTH above the
+          URL/model row. Previously these rows lived inside a 3-col
+          grid (md:col-span-1) which crammed labels into 1/3 of the
+          card and made the value inputs illegible, especially on
+          mobile. Each key card is now a clean width-100% row. */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+          <span className="text-[10px] font-semibold text-ink-faint uppercase">API Key{draft.keys.length > 1 ? 's' : ''}</span>
+          {hasKey && draft.keys.length === 1 && (
+            <div className="flex items-center gap-2 text-[10px]">
+              <button
+                type="button"
+                onClick={() => onReveal(provider)}
+                disabled={draft.revealing}
+                className="text-accent hover:text-accent-hover font-medium disabled:opacity-50"
+              >
+                {draft.revealing ? 'Revealing…' : draft.showKey ? 'Hide' : 'Reveal'}
+              </button>
+              <span className="text-border-medium">·</span>
+              <button
+                type="button"
+                onClick={() => onClear(provider)}
+                disabled={saving}
+                className="text-danger hover:text-danger/80 font-medium disabled:opacity-50"
+              >
+                Clear
+              </button>
+            </div>
+          )}
+        </div>
+        <div className="space-y-3">
+          {(draft.keys ?? []).map((row, idx) => (
+            <div key={row.id} className="border border-border rounded-lg p-3 bg-bg-secondary/30 space-y-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <input
+                  type="text"
+                  value={row.label}
+                  onChange={e => onUpdateKey(provider, row.id, { label: e.target.value })}
+                  placeholder={idx === 0 ? 'Primary' : `Key ${idx + 1}`}
+                  className={`${monoInput} text-[11px] py-1 flex-1 min-w-0`}
+                  aria-label={`Label for key ${idx + 1}`}
+                />
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => onMoveKey(provider, row.id, -1)}
+                    disabled={idx === 0}
+                    title="Move up (higher priority)"
+                    aria-label="Move up"
+                    className="text-ink-faint hover:text-ink disabled:opacity-30 disabled:cursor-not-allowed px-1 text-xs"
+                  >↑</button>
+                  <button
+                    type="button"
+                    onClick={() => onMoveKey(provider, row.id, 1)}
+                    disabled={idx === (draft.keys?.length ?? 0) - 1}
+                    title="Move down (lower priority)"
+                    aria-label="Move down"
+                    className="text-ink-faint hover:text-ink disabled:opacity-30 disabled:cursor-not-allowed px-1 text-xs"
+                  >↓</button>
+                  <button
+                    type="button"
+                    onClick={() => onRemoveKey(provider, row.id)}
+                    disabled={(draft.keys?.length ?? 0) <= 1}
+                    title={(draft.keys?.length ?? 0) <= 1 ? 'At least one key row is required' : 'Remove this key'}
+                    aria-label="Remove key"
+                    className="text-danger hover:text-danger/80 disabled:opacity-30 disabled:cursor-not-allowed px-1 text-xs"
+                  >×</button>
+                </div>
               </div>
-            )}
-          </label>
-          <input
-            type={draft.showKey ? 'text' : 'password'}
-            value={draft.apiKey}
-            onChange={e => setProviderDrafts(prev => ({ ...prev, [provider]: { ...prev[provider], apiKey: e.target.value, showKey: true } }))}
-            placeholder={override?.hasKey ? '•••••••••••••• (stored) — type to replace' : 'Paste your API key here…'}
-            autoComplete="off" className={monoInput} />
-          <p className="text-[10px] text-ink-faint mt-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <input
+                  type={row.showValue ? 'text' : 'password'}
+                  value={row.value}
+                  onChange={e => onUpdateKey(provider, row.id, { value: e.target.value, showValue: true })}
+                  placeholder={hasKey ? '•••••••••••••• (stored) — type to replace' : 'Paste your API key here…'}
+                  autoComplete="off"
+                  className={`${monoInput} text-[11px] py-1 flex-1 min-w-0`}
+                  aria-label={`Value for key ${idx + 1}`}
+                />
+                <button
+                  type="button"
+                  onClick={() => onUpdateKey(provider, row.id, { showValue: !row.showValue })}
+                  title={row.showValue ? 'Hide value' : 'Reveal value'}
+                  aria-label={row.showValue ? 'Hide value' : 'Reveal value'}
+                  className="text-ink-faint hover:text-ink px-1 text-xs shrink-0"
+                >{row.showValue ? '🙈' : '👁'}</button>
+              </div>
+              {/* Per-key baseURL override — only meaningful for the
+                  `custom` provider (where admins may route each key
+                  through a different upstream). For other providers
+                  the global baseURL applies. */}
+              {provider === 'custom' && (
+                <input
+                  type="text"
+                  value={row.baseURL ?? ''}
+                  onChange={e => onUpdateKey(provider, row.id, { baseURL: e.target.value })}
+                  placeholder="per-key base URL (optional)"
+                  className={`${monoInput} text-[11px] py-1`}
+                  aria-label={`Per-key base URL for key ${idx + 1}`}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          <button
+            type="button"
+            onClick={() => onAddKey(provider)}
+            disabled={(draft.keys?.length ?? 0) >= 10}
+            title={(draft.keys?.length ?? 0) >= 10 ? 'Maximum 10 keys per provider' : 'Add another API key slot (used as fallback on 429)'}
+            className={`${adminBtnSecondary} px-3 py-1 text-[10px] disabled:opacity-50 disabled:cursor-not-allowed`}
+          >+ Add another key</button>
+          <p className="text-[10px] text-ink-faint">
             Get a key: <a href={meta.docsUrl} target="_blank" rel="noreferrer" className="text-accent hover:underline">{meta.docsUrl.replace('https://','')}</a>
           </p>
           {/* Per-provider key-format warning, if the meta declares one. */}
           {('keyHint' in meta) && (
-            <p className="text-[10px] text-warning mt-1">⚠ {String(meta.keyHint)}</p>
+            <p className="text-[10px] text-warning">⚠ {String(meta.keyHint)}</p>
           )}
         </div>
+      </div>
 
+      {/* URL + Model row. Two columns on tablet+ to keep both visible
+          side-by-side, single column on mobile so inputs stretch to
+          full width and don't overflow. */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-[10px] font-semibold text-ink-faint uppercase mb-1">Base URL <span className="text-[9px] font-normal">(optional)</span></label>
           <input type="text" value={draft.baseURL}
@@ -257,42 +414,16 @@ function ChatProviderFields({
           <p className="text-[10px] text-ink-faint mt-1">
             {provider === 'custom'
               ? 'OpenAI-compatible endpoint. Include /v1 in the path (e.g. http://localhost:11434/v1 for Ollama). The backend auto-inserts /v1 if missing.'
-              : 'Proxy / gateway / OpenAI-compatible endpoint.'}
+              : 'Proxy / gateway / OpenAI-compatible endpoint. Applies to every key slot unless a per-key URL is set (custom provider only).'}
           </p>
         </div>
 
         <div>
           <label className="block text-[10px] font-semibold text-ink-faint uppercase mb-1">Default Model <span className="text-[9px] font-normal">(optional)</span></label>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <input type="text" list={`suggested-models-${provider}`} value={draft.model}
               onChange={e => setProviderDrafts(prev => ({ ...prev, [provider]: { ...prev[provider], model: e.target.value } }))}
-              placeholder={meta.defaultModel} className={monoInput} />
-            {/* v1.82 — custom-provider wire-format model field name. Only
-                rendered for `custom`; ignored for the other five. The
-                runtime resolver reads this from the AiConfig doc with
-                fallback to CUSTOM_MODEL_FIELD env then 'model'. */}
-            {provider === 'custom' && (
-              <div className="mt-2">
-                <label className="block text-[10px] font-semibold text-ink-faint uppercase mb-1">
-                  Wire-format Model Field <span className="text-[9px] font-normal">(optional)</span>
-                </label>
-                <select
-                  value={draft.customModelField ?? ''}
-                  onChange={e => setProviderDrafts(prev => ({ ...prev, [provider]: { ...prev[provider], customModelField: e.target.value } }))}
-                  className={monoInput + ' text-xs'}
-                >
-                  <option value="">Default (model)</option>
-                  <option value="model">model</option>
-                  <option value="modelName">modelName (proxy / gateway compat)</option>
-                </select>
-                <p className="text-[10px] text-ink-faint mt-1">
-                  Flip this if a relay or gateway in front of your custom endpoint expects the model
-                  identifier under the <code>modelName</code> field instead of <code>model</code>.
-                  Empty falls back to env (<code>CUSTOM_MODEL_FIELD</code>) or default.
-                </p>
-              </div>
-            )}
-
+              placeholder={meta.defaultModel} className={`${monoInput} flex-1 min-w-0`} />
             {/* Live model browser. Disabled when no API key is configured
                 (the backend would just return ok:false with an empty list
                 anyway, but failing fast in the UI gives clearer feedback). */}
@@ -305,6 +436,34 @@ function ChatProviderFields({
                 : '🔄 Browse live'}
             </button>
           </div>
+          {/* v1.82 — custom-provider wire-format model field name. Only
+              rendered for `custom`; ignored for the other five. The
+              runtime resolver reads this from the AiConfig doc with
+              fallback to CUSTOM_MODEL_FIELD env then 'model'. Now a
+              proper full-width sibling below the model input + browse
+              button (previously nested inside a flex which collapsed
+              it next to the model input). */}
+          {provider === 'custom' && (
+            <div className="mt-3">
+              <label className="block text-[10px] font-semibold text-ink-faint uppercase mb-1">
+                Wire-format Model Field <span className="text-[9px] font-normal">(optional)</span>
+              </label>
+              <select
+                value={draft.customModelField ?? ''}
+                onChange={e => setProviderDrafts(prev => ({ ...prev, [provider]: { ...prev[provider], customModelField: e.target.value } }))}
+                className={monoInput + ' text-xs'}
+              >
+                <option value="">Default (model)</option>
+                <option value="model">model</option>
+                <option value="modelName">modelName (proxy / gateway compat)</option>
+              </select>
+              <p className="text-[10px] text-ink-faint mt-1">
+                Flip this if a relay or gateway in front of your custom endpoint expects the model
+                identifier under the <code>modelName</code> field instead of <code>model</code>.
+                Empty falls back to env (<code>CUSTOM_MODEL_FIELD</code>) or default.
+              </p>
+            </div>
+          )}
           {/* datalist stays as a typing hint for users who know the slug. */}
           <datalist id={`suggested-models-${provider}`}>
             {Array.from(new Set([...liveModels, ...meta.suggestedModels])).map(m => (
@@ -761,13 +920,34 @@ export default function AdminAISettings() {
       setTestingFeature(null);
     }
   };
-  const [providerDrafts, setProviderDrafts] = useState<Record<ProviderKey, { apiKey: string; baseURL: string; model: string; customModelField: string; showKey: boolean; revealing: boolean }>>({
-    anthropic: { apiKey: '', baseURL: '', model: '', customModelField: '', showKey: false, revealing: false },
-    openai:    { apiKey: '', baseURL: '', model: '', customModelField: '', showKey: false, revealing: false },
-    xai:       { apiKey: '', baseURL: '', model: '', customModelField: '', showKey: false, revealing: false },
-    minimax:   { apiKey: '', baseURL: '', model: '', customModelField: '', showKey: false, revealing: false },
-    gemini:    { apiKey: '', baseURL: '', model: '', customModelField: '', showKey: false, revealing: false },
-    custom:    { apiKey: '', baseURL: '', model: '', customModelField: '', showKey: false, revealing: false },
+  // v1.83 — per-provider draft now includes an ordered list of API
+  // key rows. Always at least one row; the admin uses the
+  // "Add another key" UI button (→ onAddKey handler below) to add
+  // more. The `id` is a stable client-side row handle only — the
+  // server sees `{label, value, baseURL?}` per slot.
+  const emptyKeyRow = (): ProviderKeyRow => ({
+    id: `k_${Math.random().toString(36).slice(2, 10)}`,
+    label: '',
+    value: '',
+    baseURL: '',
+    showValue: false,
+  });
+  type ProviderDraftShape = {
+    apiKey: string;
+    keys: ProviderKeyRow[];
+    baseURL: string;
+    model: string;
+    customModelField: string;
+    showKey: boolean;
+    revealing: boolean;
+  };
+  const [providerDrafts, setProviderDrafts] = useState<Record<ProviderKey, ProviderDraftShape>>({
+    anthropic: { apiKey: '', keys: [emptyKeyRow()], baseURL: '', model: '', customModelField: '', showKey: false, revealing: false },
+    openai:    { apiKey: '', keys: [emptyKeyRow()], baseURL: '', model: '', customModelField: '', showKey: false, revealing: false },
+    xai:       { apiKey: '', keys: [emptyKeyRow()], baseURL: '', model: '', customModelField: '', showKey: false, revealing: false },
+    minimax:   { apiKey: '', keys: [emptyKeyRow()], baseURL: '', model: '', customModelField: '', showKey: false, revealing: false },
+    gemini:    { apiKey: '', keys: [emptyKeyRow()], baseURL: '', model: '', customModelField: '', showKey: false, revealing: false },
+    custom:    { apiKey: '', keys: [emptyKeyRow()], baseURL: '', model: '', customModelField: '', showKey: false, revealing: false },
   });
   const [savingProviderDraft, setSavingProviderDraft] = useState<ProviderKey | null>(null);
 
@@ -910,6 +1090,41 @@ export default function AdminAISettings() {
   const handleEmbeddingModelChange = (feature: keyof AiConfig['features'], embeddingModel: string) => { if (!features) return; setFeatures(p => p ? { ...p, [feature]: { ...p[feature], embeddingModel } } : p); setHasChanges(true); };
   const handleTempChange = (feature: keyof AiConfig['features'], temperature: number) => { if (!features) return; setFeatures(p => p ? { ...p, [feature]: { ...p[feature], temperature } } : p); setHasChanges(true); };
   const handleMaxTokensChange = (feature: keyof AiConfig['features'], maxTokens: number) => { if (!features) return; setFeatures(p => p ? { ...p, [feature]: { ...p[feature], maxTokens } } : p); setHasChanges(true); };
+  // v1.85 — provider-failover controls. allowFallback toggles
+  // the whole chain; fallbackProviders is a free-order list of
+  // provider names that the chain walks in order (empty = use
+  // the server-side default order). Stored alongside the
+  // feature model + temperature; backend honours them on the
+  // next request without restart.
+  const handleAllowFallbackChange = (feature: keyof AiConfig['features'], allowed: boolean) => {
+    if (!features) return;
+    setFeatures(p => p ? { ...p, [feature]: { ...p[feature], allowFallback: allowed } } : p);
+    setHasChanges(true);
+  };
+  const handleToggleFallbackProvider = (feature: keyof AiConfig['features'], provider: 'anthropic' | 'openai' | 'xai' | 'minimax' | 'gemini' | 'custom') => {
+    if (!features) return;
+    setFeatures(p => {
+      if (!p) return p;
+      const cur = p[feature].fallbackProviders ?? [];
+      const next = cur.includes(provider) ? cur.filter(x => x !== provider) : [...cur, provider];
+      return { ...p, [feature]: { ...p[feature], fallbackProviders: next } };
+    });
+    setHasChanges(true);
+  };
+  const handleMoveFallbackProvider = (feature: keyof AiConfig['features'], provider: 'anthropic' | 'openai' | 'xai' | 'minimax' | 'gemini' | 'custom', dir: -1 | 1) => {
+    if (!features) return;
+    setFeatures(p => {
+      if (!p) return p;
+      const cur = [...(p[feature].fallbackProviders ?? [])];
+      const idx = cur.indexOf(provider);
+      if (idx < 0) return p;
+      const swap = idx + dir;
+      if (swap < 0 || swap >= cur.length) return p;
+      [cur[idx], cur[swap]] = [cur[swap], cur[idx]];
+      return { ...p, [feature]: { ...p[feature], fallbackProviders: cur } };
+    });
+    setHasChanges(true);
+  };
 
   const handleSaveFeatures = async () => {
     if (!features) return; setSaving(true); setError('');
@@ -958,16 +1173,104 @@ export default function AdminAISettings() {
   const handleSaveProviderDraft = async (provider: ProviderKey) => {
     const draft = providerDrafts[provider]; setSavingProviderDraft(provider); setError('');
     try {
+      // v1.83 — multi-key rotation. Build the canonical `keys[]`
+      // payload from the draft rows, defaulting the first row's
+      // label to "Primary" if empty (matches the seed convention
+      // the backend uses when promoting legacy single keys).
+      // Stripped to label/value/baseURL only (no `id`/`showValue`).
+      const keysPayload = (draft.keys ?? [])
+        .map((k, idx) => ({
+          label: (k.label ?? '').trim() || (idx === 0 ? 'Primary' : `Key ${idx + 1}`),
+          value: k.value ?? '',
+          ...(provider === 'custom' && k.baseURL ? { baseURL: k.baseURL } : {}),
+        }))
+        // Drop empty rows (no value AND no label) so admins can
+        // remove a "planned" row by clearing both fields.
+        .filter((k) => k.value.trim() !== '' || k.label.trim() !== '');
+      // Legacy back-compat shape: keep providers.<p>.apiKey pointing
+      // at the primary slot's value so the existing PATCH endpoint
+      // remains the source of truth for one-key writes (the server
+      // will also upsert the same value into keys[0]).
       const body: Record<string, unknown> = {
-        providers: { [provider]: { baseURL: draft.baseURL, model: draft.model, customModelField: draft.customModelField, ...(draft.apiKey ? { apiKey: draft.apiKey } : {}) } },
+        providers: {
+          [provider]: {
+            baseURL: draft.baseURL,
+            model: draft.model,
+            customModelField: draft.customModelField,
+            ...(keysPayload[0]?.value ? { apiKey: keysPayload[0].value } : {}),
+            // v1.83 — new shape; backend v1.83+ uses it to populate
+            // multi-key rows. Backend ignores on older builds (no
+            // harm) and the legacy `apiKey` above keeps the legacy
+            // flow working unchanged.
+            keys: keysPayload,
+          },
+        },
         batchId: activeBatchId ?? null,
       };
       await adminApi.patch('/admin/ai/config', body);
       setSuccess(`${PROVIDER_META[provider].label} configuration saved.`);
-      setProviderDrafts(prev => ({ ...prev, [provider]: { ...prev[provider], apiKey: '' } }));
+      // Clear draft values after a successful save so secrets don't
+      // linger in component state.
+      setProviderDrafts(prev => ({
+        ...prev,
+        [provider]: {
+          ...prev[provider],
+          apiKey: '',
+          keys: (prev[provider].keys ?? []).map((k) => ({ ...k, value: '', showValue: false })),
+        },
+      }));
       setTimeout(() => setSuccess(''), 3000); loadConfig();
     } catch (err: any) { setError(err.response?.data?.message || 'Failed to save provider configuration.'); }
     finally { setSavingProviderDraft(null); }
+  };
+
+  // v1.83 — multi-key CRUD handlers.
+  // Each one targets a single provider's draft slot; row identity
+  // is `row.id` (client-only, never sent to server).
+
+  // Append a fresh empty row at the end. Capped at 10 by the
+  // caller-side button (also enforced server-side on PUT).
+  const handleAddKey = (provider: ProviderKey) => {
+    setProviderDrafts(prev => {
+      const cur = prev[provider];
+      if ((cur.keys?.length ?? 0) >= 10) return prev;
+      return {
+        ...prev,
+        [provider]: { ...cur, keys: [...(cur.keys ?? []), emptyKeyRow()] },
+      };
+    });
+  };
+
+  const handleRemoveKey = (provider: ProviderKey, rowId: string) => {
+    setProviderDrafts(prev => {
+      const cur = prev[provider];
+      const nextKeys = (cur.keys ?? []).filter((k) => k.id !== rowId);
+      // Always keep at least one row. If the removed row was the
+      // last one, replace it with an empty one.
+      const keys = nextKeys.length > 0 ? nextKeys : [emptyKeyRow()];
+      return { ...prev, [provider]: { ...cur, keys } };
+    });
+  };
+
+  const handleMoveKey = (provider: ProviderKey, rowId: string, dir: -1 | 1) => {
+    setProviderDrafts(prev => {
+      const cur = prev[provider];
+      const keys = [...(cur.keys ?? [])];
+      const idx = keys.findIndex((k) => k.id === rowId);
+      if (idx < 0) return prev;
+      const swap = idx + dir;
+      if (swap < 0 || swap >= keys.length) return prev;
+      [keys[idx], keys[swap]] = [keys[swap], keys[idx]];
+      return { ...prev, [provider]: { ...cur, keys } };
+    });
+  };
+
+  const handleUpdateKey = (provider: ProviderKey, rowId: string, patch: Partial<ProviderKeyRow>) => {
+    setProviderDrafts(prev => {
+      const cur = prev[provider];
+      const keys = (cur.keys ?? []).map((k) => k.id === rowId ? { ...k, ...patch } : k);
+      return { ...prev, [provider]: { ...cur, keys } };
+    });
   };
 
   const handleClearApiKey = async (provider: ProviderKey) => {
@@ -1294,6 +1597,10 @@ export default function AdminAISettings() {
                 browsingModels={browsingChat[editingProvider]}
                 browseError={browseErrorChat[editingProvider]}
                 onBrowse={(p: ProviderKey) => handleBrowseModels('chat', p)}
+                onAddKey={handleAddKey}
+                onRemoveKey={handleRemoveKey}
+                onMoveKey={handleMoveKey}
+                onUpdateKey={handleUpdateKey}
               />
             )}
           </div>
@@ -1448,6 +1755,95 @@ export default function AdminAISettings() {
                         groupedByProvider={embeddingGroups}
                         pickerId={`feature:embedding:${feature}`}
                       />
+                    </div>
+                    {/* v1.85 — provider failover. Toggle the chain
+                        on/off; reorder the per-feature fallback
+                        list (drag-style up/down buttons; order =
+                        chain order). Empty list = "use the server
+                        default order". Each provider in the list
+                        must have a key configured (in Provider
+                        Settings) for the chain to actually try it;
+                        unconfigured providers are silently
+                        skipped server-side. */}
+                    <div className="col-span-2 pt-2 border-t border-border/60">
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <label className="flex items-center gap-2 text-[10px] font-semibold text-ink-faint uppercase">
+                          <input
+                            type="checkbox"
+                            checked={f.allowFallback !== false}
+                            onChange={e => handleAllowFallbackChange(feature, e.target.checked)}
+                            data-testid={`feature-${feature}-allow-fallback`}
+                            className="cursor-pointer"
+                          />
+                          Allow Provider Fallback
+                        </label>
+                        <span className="text-[10px] text-ink-faint">
+                          {f.fallbackProviders && f.fallbackProviders.length > 0
+                            ? `${f.fallbackProviders.length} provider(s) in chain`
+                            : 'using server default order'}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5" data-testid={`feature-${feature}-fallback-chain`}>
+                        {(['anthropic', 'openai', 'xai', 'minimax', 'gemini', 'custom'] as const).map((prov) => {
+                          const inChain = (f.fallbackProviders ?? []).includes(prov);
+                          const orderIdx = (f.fallbackProviders ?? []).indexOf(prov);
+                          const provHasKey = config?.providers?.[prov]?.hasKey ?? false;
+                          return (
+                            <div
+                              key={prov}
+                              className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[10px] ${
+                                inChain
+                                  ? 'bg-accent/10 border-accent/40 text-ink'
+                                  : 'bg-mist/40 border-border text-ink-faint'
+                              }`}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => handleToggleFallbackProvider(feature, prov)}
+                                disabled={!provHasKey}
+                                title={!provHasKey
+                                  ? `${prov} has no API key — configure it in Provider Settings first`
+                                  : inChain
+                                    ? `Click to remove ${prov} from the chain`
+                                    : `Click to add ${prov} to the chain`}
+                                className="cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 font-semibold"
+                              >
+                                {prov}
+                                {inChain && (
+                                  <span className="ml-1 text-[9px] text-ink-faint">#{orderIdx + 1}</span>
+                                )}
+                              </button>
+                              {inChain && (
+                                <span className="flex items-center gap-0.5 ml-1 border-l border-border/60 pl-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleMoveFallbackProvider(feature, prov, -1)}
+                                    disabled={orderIdx === 0}
+                                    aria-label={`Move ${prov} earlier in the chain`}
+                                    className="text-[10px] px-1 text-ink-soft hover:text-ink disabled:opacity-30"
+                                  >
+                                    ▲
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleMoveFallbackProvider(feature, prov, +1)}
+                                    disabled={orderIdx === (f.fallbackProviders?.length ?? 0) - 1}
+                                    aria-label={`Move ${prov} later in the chain`}
+                                    className="text-[10px] px-1 text-ink-soft hover:text-ink disabled:opacity-30"
+                                  >
+                                    ▼
+                                  </button>
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <p className="text-[10px] text-ink-faint mt-1.5">
+                        Retriable failures (401, 429, 5xx, network) trigger the next provider.
+                        Validation errors (400) abort the chain. The chain is also auto-skipped
+                        for providers without a configured API key.
+                      </p>
                     </div>
                   </div>
                   {/* v1.82 — live test result panel. Shows whatever the

@@ -41,11 +41,13 @@ export default function AdminSettings() {
   };
 
   return (
-    <div className="space-y-5 max-w-xl">
+    <div className="w-full space-y-5">
       {toast && <Toast toast={toast} />}
       <p className="text-sm text-ink-faint -mt-2">Manage your profile</p>
 
-      {/* Profile */}
+      {/* Profile + Security (left column on md+, full width on mobile) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+      <div className="space-y-5">
       <div className="admin-card-surface">
         <div className="admin-card-header">
           <p className="text-sm font-semibold text-ink">Profile</p>
@@ -98,7 +100,9 @@ export default function AdminSettings() {
           <p className="text-xs text-ink-faint pt-1">Tokens stored in localStorage. Use HTTPS in production.</p>
         </div>
       </div>
+      </div>
 
+      <div className="space-y-5">
       {/* v1.65 — Global app settings (Golden Ticket knobs). Live in
           the admin's own /admin/settings page (not on /admin/features)
           because they're runtime tunables, not feature toggles. */}
@@ -108,6 +112,8 @@ export default function AdminSettings() {
           link + regenerate button. The card manages its own state and
           calls /api/admin/registration-config directly. */}
       <RegistrationControlCard onSaved={showToast} />
+      </div>
+      </div>
     </div>
   );
 }

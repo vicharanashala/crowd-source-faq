@@ -31,6 +31,18 @@
  * provider (e.g. `model` vs `modelName`). Surfaced via publicView()
  * and surfaced to the admin UI as a select on the Custom provider
  * card. See aiProvider.ts for the runtime fallback chain.
+ *
+ * v1.83 — Multi-API-key rotation. Each provider override now carries
+ * an ordered `keys: IProviderKey[]` array (label + encrypted value +
+ * per-key baseURL + transient unhealthyUntil). The legacy single
+ * `apiKeyCipher` field is preserved on the doc to keep env-var
+ * resolution and external `getApiKey()` callers (auth/profile,
+ * apiUsageLog, etc.) working unchanged. On read, missing/empty
+ * `keys[]` is lazily promoted from the legacy field on first access;
+ * the next write (PUT /admin/ai/provider-keys/:provider or the
+ * PATCH /admin/ai/config convenience wrapper) drops the legacy
+ * field. Public views only expose hasKey + keyCount — plaintext is
+ * gated behind the admin reveal endpoint.
  */
 
 import mongoose, { Schema, type Document, Types } from 'mongoose';
@@ -39,10 +51,37 @@ import { logger } from '../../utils/http/logger.js';
 
 export type AIProviderType = 'anthropic' | 'openai' | 'xai' | 'minimax' | 'gemini' | 'custom';
 
+/**
+ * v1.83 — One API key slot in a provider's multi-key array.
+ * `valueEnc` is the same AES-GCM ciphertext the legacy `apiKeyCipher`
+ * field holds; we keep a separate field name so Mongoose schema
+ * updates don't break older docs that only carry the legacy field.
+ */
+export interface IProviderKey {
+  label: string;
+  valueEnc: string;
+  baseURL?: string;
+  /**
+   * Transient rate-limit recovery window. Set when a 429 or auth
+   * failure marks this key unhealthy; cleared on next successful
+   * call. Pure runtime hint — callers may also persist via
+   * `markUnhealthy()` on the model for cross-restart durability,
+   * but the default flow is to skip keys with unhealthyUntil > now.
+   */
+  unhealthyUntil?: Date | null;
+}
+
 export interface IProviderOverride {
-  // Encrypted at rest. Empty string = "use env var" (or "not configured").
+  // LEGACY (pre-v1.83) — encrypted single API key.
+  // v1.83 keeps this field for back-compat with callers that still
+  // read `getApiKey(provider)` (apiUsageLog, mintServiceToken,
+  // zoomOAuth, etc.). On read, an empty `keys[]` is lazily promoted
+  // from this field. On write, the new endpoints clear this field
+  // once `keys[]` is populated.
   apiKeyCipher: string;
   // Custom base URL. Empty string = "use provider default".
+  // v1.83 — this remains the provider-default baseURL. Per-key
+  // baseURLs live inside `keys[].baseURL` and override this when set.
   baseURL: string;
   // Per-provider model override. Empty string = "use provider default".
   model: string;
@@ -57,6 +96,14 @@ export interface IProviderOverride {
    * validates the allowed values at write time.
    */
   customModelField?: string;
+  /**
+   * v1.83 — ordered list of API key slots. Caller resolves them
+   * in array order; the first non-empty + non-unhealthy slot wins.
+   * The runtime (provider-resolver.service.ts) reads from this
+   * array and emits a `candidates[]` list for the 429-rotation
+   * logic in ai-client.service.ts.
+   */
+  keys: IProviderKey[];
 }
 
 export interface IEmbeddingConfig {
@@ -109,20 +156,35 @@ export interface IAiConfig extends Document {
   // Instance methods (implemented below on the schema)
   getApiKey(provider: AIProviderType): string | null;
   setApiKey(provider: AIProviderType, plainKey: string): void;
+  getApiKeys(provider: AIProviderType): IProviderKey[];
   getEmbeddingApiKey(): string | null;
   setEmbeddingApiKey(plainKey: string): void;
   publicView(): Record<string, unknown>;
 }
 
+const providerKeySchema = new Schema<IProviderKey>(
+  {
+    label: { type: Schema.Types.String, default: '' },
+    valueEnc: { type: Schema.Types.String, default: '' },
+    baseURL: { type: Schema.Types.String, default: '' },
+    unhealthyUntil: { type: Date, default: null },
+  },
+  { _id: false }
+);
+
 const providerOverrideSchema = new Schema<IProviderOverride>(
   {
-    apiKeyCipher: { type: String, default: '' },
-    baseURL:      { type: String, default: '' },
-    model:        { type: String, default: '' },
+    apiKeyCipher: { type: Schema.Types.String, default: '' },
+    baseURL:      { type: Schema.Types.String, default: '' },
+    model:        { type: Schema.Types.String, default: '' },
     // v1.82 — plain String (not enum) so legacy docs round-trip
     // cleanly. Controller validates '' | 'model' | 'modelName'
     // before persisting.
-    customModelField: { type: String, default: '' },
+    customModelField: { type: Schema.Types.String, default: '' },
+    // v1.83 — multi-key rotation list. Empty by default — the
+    // legacy `apiKeyCipher` is the source of truth until the
+    // admin saves the new shape via the dedicated endpoint.
+    keys: { type: [providerKeySchema], default: [] },
   },
   { _id: false }
 );
@@ -136,7 +198,7 @@ const aiConfigSchema = new Schema<IAiConfig>(
       default: null,
     },
     activeProvider: {
-      type: String,
+      type: Schema.Types.String,
       enum: ['anthropic', 'openai', 'xai', 'minimax', 'gemini', 'custom'] as AIProviderType[],
       required: true,
       default: 'anthropic',
@@ -157,12 +219,12 @@ const aiConfigSchema = new Schema<IAiConfig>(
       } as any,
       required: true,
       default: () => ({
-        anthropic: { apiKeyCipher: '', baseURL: '', model: '', customModelField: '' },
-        openai:    { apiKeyCipher: '', baseURL: '', model: '', customModelField: '' },
-        xai:       { apiKeyCipher: '', baseURL: '', model: '', customModelField: '' },
-        minimax:   { apiKeyCipher: '', baseURL: '', model: '', customModelField: '' },
-        gemini:    { apiKeyCipher: '', baseURL: '', model: '', customModelField: '' },
-        custom:    { apiKeyCipher: '', baseURL: '', model: '', customModelField: '' },
+        anthropic: { apiKeyCipher: '', baseURL: '', model: '', customModelField: '', keys: [] },
+        openai:    { apiKeyCipher: '', baseURL: '', model: '', customModelField: '', keys: [] },
+        xai:       { apiKeyCipher: '', baseURL: '', model: '', customModelField: '', keys: [] },
+        minimax:   { apiKeyCipher: '', baseURL: '', model: '', customModelField: '', keys: [] },
+        gemini:    { apiKeyCipher: '', baseURL: '', model: '', customModelField: '', keys: [] },
+        custom:    { apiKeyCipher: '', baseURL: '', model: '', customModelField: '', keys: [] },
       }),
     },
 
@@ -179,11 +241,11 @@ const aiConfigSchema = new Schema<IAiConfig>(
 
     embedding: {
       type: {
-        provider: { type: String, enum: ['local', 'huggingface', 'openai', 'custom'], default: 'local' },
-        model: { type: String, default: 'mixedbread-ai/mxbai-embed-large-v1' },
+        provider: { type: Schema.Types.String, enum: ['local', 'huggingface', 'openai', 'custom'], default: 'local' },
+        model: { type: Schema.Types.String, default: 'mixedbread-ai/mxbai-embed-large-v1' },
         dimensions: { type: Number, default: 1024 },
-        apiKeyCipher: { type: String, default: '' },
-        baseURL: { type: String, default: '' },
+        apiKeyCipher: { type: Schema.Types.String, default: '' },
+        baseURL: { type: Schema.Types.String, default: '' },
       },
       required: true,
       default: () => ({
@@ -234,8 +296,35 @@ aiConfigSchema.index(
 
 // ── Method implementations ─────────────────────────────────────────────────
 
+/**
+ * v1.83 — Promote a legacy `apiKeyCipher` into `keys[]` on read.
+ * Idempotent: returns the array as-is if it's already populated,
+ * or synthesises a single "Primary" entry from the legacy field
+ * when present. The lazy promotion happens inside the read paths
+ * so callers (provider-resolver, ai-client, ai-config controller)
+ * never have to care about the legacy shape. Callers that persist
+ * the document (admin endpoints) are responsible for clearing
+ * `apiKeyCipher` on the next write.
+ */
+function ensureKeysArray(self: IAiConfig, provider: AIProviderType): IProviderKey[] {
+  const slot = self.providers?.[provider];
+  if (!slot) return [];
+  if (Array.isArray(slot.keys) && slot.keys.length > 0) return slot.keys;
+  // Legacy promotion — synthesise a single key from apiKeyCipher.
+  if (slot.apiKeyCipher) {
+    return [{
+      label: 'Primary',
+      valueEnc: slot.apiKeyCipher,
+      baseURL: slot.baseURL || '',
+      unhealthyUntil: null,
+    }];
+  }
+  return [];
+}
+
 aiConfigSchema.methods.getApiKey = function (provider: AIProviderType): string | null {
-  const cipher = (this as unknown as IAiConfig).providers?.[provider]?.apiKeyCipher;
+  const self = this as unknown as IAiConfig;
+  const cipher = self.providers?.[provider]?.apiKeyCipher;
   if (!cipher) return null;
   try {
     return decrypt(cipher);
@@ -249,9 +338,20 @@ aiConfigSchema.methods.setApiKey = function (provider: AIProviderType, plainKey:
   const self = this as unknown as IAiConfig;
   if (!self.providers) self.providers = {} as any;
   if (!self.providers[provider]) {
-    self.providers[provider] = { apiKeyCipher: '', baseURL: '', model: '', customModelField: '' } as IProviderOverride;
+    self.providers[provider] = { apiKeyCipher: '', baseURL: '', model: '', customModelField: '', keys: [] } as IProviderOverride;
   }
   self.providers[provider].apiKeyCipher = plainKey ? encrypt(plainKey) : '';
+};
+
+/**
+ * v1.83 — Return the full list of encrypted key slots for a
+ * provider, lazily promoting from `apiKeyCipher` if `keys[]`
+ * is empty. Used by provider-resolver and the admin reveal
+ * endpoint. The returned array is the live sub-document array;
+ * callers that need to mutate should make a copy first.
+ */
+aiConfigSchema.methods.getApiKeys = function (provider: AIProviderType): IProviderKey[] {
+  return ensureKeysArray(this as unknown as IAiConfig, provider);
 };
 
 aiConfigSchema.methods.getEmbeddingApiKey = function (): string | null {
@@ -273,19 +373,37 @@ aiConfigSchema.methods.setEmbeddingApiKey = function (plainKey: string) {
   self.embedding.apiKeyCipher = plainKey ? encrypt(plainKey) : '';
 };
 
+/**
+ * Public summary — explicitly strips plaintext.
+ * v1.83 — exposes `keyCount: number` (number of configured keys
+ * for each provider). No `value`/`valueEnc` ever leaves this
+ * method. Admins who need plaintext fetch it via the dedicated
+ * reveal endpoint, which is logged.
+ */
 aiConfigSchema.methods.publicView = function () {
   const self = this as unknown as IAiConfig;
   const obj = self.toObject();
-  const view: Record<string, { hasKey: boolean; baseURL: string; model: string; customModelField: string }> = {};
+  const view: Record<string, {
+    hasKey: boolean;
+    keyCount: number;
+    baseURL: string;
+    model: string;
+    customModelField: string;
+  }> = {};
   for (const p of ['anthropic', 'openai', 'xai', 'minimax', 'gemini', 'custom'] as AIProviderType[]) {
-    const prov = obj.providers?.[p] ?? { apiKeyCipher: '', baseURL: '', model: '', customModelField: '' };
+    const prov = obj.providers?.[p] ?? { apiKeyCipher: '', baseURL: '', model: '', customModelField: '', keys: [] };
+    // Prefer the new keys[] for the truth on presence. Fall back
+    // to the legacy single cipher for legacy docs.
+    const keysArr: IProviderKey[] = Array.isArray(prov.keys) ? prov.keys : [];
+    const hasLegacyCipher = !!prov.apiKeyCipher;
+    const keyCount = keysArr.length > 0
+      ? keysArr.filter((k) => !!(k?.valueEnc)).length
+      : (hasLegacyCipher ? 1 : 0);
     view[p] = {
-      hasKey: !!prov.apiKeyCipher,
+      hasKey: keyCount > 0,
+      keyCount,
       baseURL: prov.baseURL ?? '',
       model: prov.model ?? '',
-      // v1.82 — only meaningful for `custom`. Ship empty string
-      // for other providers so the frontend can read a single
-      // field without per-provider branching.
       customModelField: prov.customModelField ?? '',
     };
   }

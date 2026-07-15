@@ -61,10 +61,12 @@ const NAV: NavGroup[] = [
   {
     label: 'Data Sources',
     items: [
-      { to: '/admin/zoom-meetings',  label: 'Zoom Meetings', icon: VideoIcon },
-      { to: '/admin/document-insights', label: 'Document Insights', icon: DocIcon, featureFlag: 'documentPipeline' },
-      { to: '/admin/context-sources', label: 'Context Sources', icon: LinkIcon },
-      { to: '/admin/train',          label: 'Train',         icon: SparkleIcon },
+      // v1.83 — collapsed 4 pages (Zoom Meetings, Zoom Insights,
+      // Document Insights, Context Sources) into a single tabbed
+      // `/admin/knowledge` route. Old entries still resolve via
+      // `<Navigate>` redirects in AppRoutes.tsx for bookmarks.
+      { to: '/admin/knowledge',     label: 'Knowledge',    icon: DocIcon, featureFlag: 'documentPipeline' },
+      { to: '/admin/train',         label: 'Train',         icon: SparkleIcon },
     ],
   },
   {

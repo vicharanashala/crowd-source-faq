@@ -9,9 +9,14 @@ import AdminAuditLogTab from '../components/welcome/AdminAuditLogTab';
 // Co-exists with the legacy Orientation Video tab — neither was
 // renamed or removed.
 import AdminResourcesTab from '../components/welcome/AdminResourcesTab';
+// v1.76 — Welcome Package: Journey Tracks. Generic, admin-driven
+// track editor + assignment + progress monitor.
+import AdminJourneyTracksTab from '../components/welcome/AdminJourneyTracksTab';
 
 export default function AdminWelcomePage() {
-  const [activeTab, setActiveTab] = useState<'orientation' | 'onboarding' | 'projects' | 'timeline' | 'mentors' | 'audit' | 'resources'>('orientation');
+  const [activeTab, setActiveTab] = useState<
+    'orientation' | 'onboarding' | 'projects' | 'timeline' | 'mentors' | 'audit' | 'resources' | 'journeys'
+  >('orientation');
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -96,6 +101,17 @@ export default function AdminWelcomePage() {
           >
             Resources
           </button>
+          {/* v1.76 — Journey Tracks. Generic, admin-authored tracks. */}
+          <button
+            onClick={() => setActiveTab('journeys')}
+            className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'journeys'
+                ? 'border-accent text-accent'
+                : 'border-transparent text-ink-soft hover:text-ink hover:border-border'
+            }`}
+          >
+            Journey Tracks
+          </button>
       </div>
 
       <div className="pt-4">
@@ -105,6 +121,7 @@ export default function AdminWelcomePage() {
         {activeTab === 'mentors' && <AdminMentorsTab />}
         {activeTab === 'audit' && <AdminAuditLogTab />}
         {activeTab === 'resources' && <AdminResourcesTab />}
+        {activeTab === 'journeys' && <AdminJourneyTracksTab />}
         {activeTab === 'projects' && (
           <div className="-mt-8">
             <AdminProjectsPage />

@@ -21,7 +21,7 @@
 
 import mongoose, { Document, Schema as MongooseSchema, Types } from 'mongoose';
 
-export type SettingKey = 'goldenCooldownHours' | 'goldenPenaltyMultiplier' | 'zoomPassScore' | 'zoomQuestionCount' | 'zoomTranscript' | 'zoomUrl' | 'zoomTitle' | 'zoomDescription' | 'zoomDuration' | 'zoomActive' | 'zoomDailyResetTime' | 'autoAnswerApproveThreshold' | 'autoAnswerSuggestThreshold' | 'autoAnswerMinConfidence' | 'autoAnswerBatchSize' | 'autoAnswerMinAgeHours' | 'autoAnswerAskHumanThreshold' | 'autoAnswerCooldownMinutes' | 'faqDuplicateThreshold';
+export type SettingKey = 'goldenCooldownHours' | 'goldenPenaltyMultiplier' | 'zoomPassScore' | 'zoomQuestionCount' | 'zoomTranscript' | 'zoomUrl' | 'zoomTitle' | 'zoomDescription' | 'zoomDuration' | 'zoomActive' | 'zoomDailyResetTime' | 'autoAnswerApproveThreshold' | 'autoAnswerSuggestThreshold' | 'autoAnswerMinConfidence' | 'autoAnswerBatchSize' | 'autoAnswerMinAgeHours' | 'autoAnswerAskHumanThreshold' | 'autoAnswerCooldownMinutes' | 'faqDuplicateThreshold' | 'teeMockupUrl' | 'teeMockupBackUrl';
 
 export interface IAppSetting extends Document<string> {
   /** Always 'singleton' — there is only one settings document. */
@@ -52,6 +52,8 @@ export interface IAppSetting extends Document<string> {
     autoAnswerBatchSize?: number;
     autoAnswerMinAgeHours?: number;
     faqDuplicateThreshold?: number;
+    teeMockupUrl?: string;
+    teeMockupBackUrl?: string;
   };
   /** Last admin to edit. */
   updatedBy: Types.ObjectId | null;
@@ -91,7 +93,9 @@ const appSettingSchema = new MongooseSchema<IAppSetting>(
       autoAnswerMinAgeHours: { type: Number, default: 2, min: 0, max: 720 },
       autoAnswerAskHumanThreshold: { type: Number, default: 0.30, min: 0, max: 1 },
       autoAnswerCooldownMinutes: { type: Number, default: 60, min: 1, max: 1440 },
-      faqDuplicateThreshold: { type: Number, default: 0.82, min: 0, max: 1 }
+      faqDuplicateThreshold: { type: Number, default: 0.82, min: 0, max: 1 },
+      teeMockupUrl: { type: String, default: '' },
+      teeMockupBackUrl: { type: String, default: '' }
     },
     updatedBy: { type: MongooseSchema.Types.ObjectId, ref: 'User', default: null },
   },

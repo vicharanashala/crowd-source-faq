@@ -28,7 +28,7 @@ import { getAuthedUserId } from '../support/support-core.controller.js';
 import { adminLog } from '../../utils/http/logger.js';
 
 /** Public-safe subset returned to non-admin callers. */
-const PUBLIC_KEYS: SettingKey[] = ['goldenCooldownHours'];
+const PUBLIC_KEYS: SettingKey[] = ['goldenCooldownHours', 'teeMockupUrl', 'teeMockupBackUrl'];
 
 function batchIdFromQueryOrBody(req: Request): string | null {
   const q = req.query.batchId;
@@ -109,6 +109,11 @@ export async function adminUpdateSetting(req: Request, res: Response): Promise<v
     const n = Number(body.value);
     if (!Number.isFinite(n) || n < 0 || n > 5) {
       res.status(400).json({ message: 'goldenPenaltyMultiplier must be a number between 0 and 5.' });
+      return;
+    }
+  } else if (key === 'teeMockupUrl' || key === 'teeMockupBackUrl') {
+    if (typeof body.value !== 'string') {
+      res.status(400).json({ message: `${key} must be a string.` });
       return;
     }
   } else {
@@ -212,6 +217,12 @@ export async function publicGetSettings(req: Request, res: Response): Promise<vo
         } else {
           out[k] = fallback;
         }
+      } else if (k === 'teeMockupUrl') {
+        const fallback = await readSetting('teeMockupUrl', '');
+        out[k] = fallback;
+      } else if (k === 'teeMockupBackUrl') {
+        const fallback = await readSetting('teeMockupBackUrl', '');
+        out[k] = fallback;
       }
     }
     res.json({ settings: out });

@@ -33,7 +33,8 @@ import { readSetting } from '../program/app-setting.model.js';
 // converted in one pass — every one was a cron/AI event.
 import { cronLog } from '../../utils/http/logger.js';
 import { searchKnowledge, searchRelevantFaqs, searchRelevantCommunityPosts } from '../knowledge/knowledge-base.service.js';
-import { chatWithConfig, getPipelineProviderConfig } from '../../utils/ai/aiProvider.js';
+import { getPipelineProviderConfig } from '../../utils/ai/aiProvider.js';
+import { runWithFallback } from '../../services/ai/fallbackChain.js';
 import { PipelineResult } from './pipeline-result.model.js';
 import {
   searchKnowledgeWithFallback,
@@ -204,7 +205,14 @@ async function findBestAnswer(postTitle: string, postBody: string, batchId?: Typ
     ];
 
     const cfg = await getPipelineProviderConfig('auto_answer');
-    const reply = await chatWithConfig(cfg, messages);
+    // v1.85 — wrap in runWithFallback so a primary-provider 401/429/5xx
+    // (or network blip) walks the configured fallback chain instead of
+    // failing the auto-answer run.
+    const { reply } = await runWithFallback(
+      'auto_answer',
+      messages,
+      { primaryOverride: cfg, batchId: batchId ? String(batchId) : null, feature: 'auto_answer' },
+    );
     if (reply && reply.trim().length > 20) {
       // Boost confidence slightly when we had any relevant matches; otherwise
       // the synthesized answer is unanchored and gets a low conservative score.
