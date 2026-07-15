@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { FAQItem, getCategoryTheme, getCategoryDescription, getCategoryIcon, formatCategoryName, getQuestionTitle } from './faqUtils';
+import { FAQItem, getCategoryTheme, getCategoryDescription, getCategoryIcon, formatCategoryName, getQuestionTitle, CATEGORY_CONFIG } from './faqUtils';
 
 /**
  * Curated set of category names for the search-overlay suggestion pills.
@@ -10,18 +10,8 @@ import { FAQItem, getCategoryTheme, getCategoryDescription, getCategoryIcon, for
  * this export exists so legacy consumers (e.g. the home-page search
  * overlay) have a sensible default before the API responds.
  */
-export const categoryPills: Array<{ name: string; icon: React.ReactNode }> = [
-  'ViBe (Learning Platform)',
-  'Team Formation',
-  'Timings',
-  'NOC',
-  'Offer Letter',
-  'Projects',
-  'Rosetta',
-  'Certificate',
-  'Interviews',
-  'Others',
-].map((name) => ({ name, icon: getCategoryIcon(name) }));
+export const categoryPills: Array<{ name: string; icon: React.ReactNode }> =
+  Object.values(CATEGORY_CONFIG).map((cfg) => ({ name: cfg.name, icon: cfg.icon }));
 
 interface CategoryCardProps {
   name: string;

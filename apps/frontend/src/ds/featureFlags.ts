@@ -91,6 +91,15 @@ export const FEATURE_FLAGS = {
       'the button is hidden from the UI. Toggle on to re-enable the chatbot for users.',
     category: 'ai',
   },
+  categorySidebar: {
+    default: true,
+    label: 'Category Sidebar',
+    description:
+      'Replaces the category grid with a sticky sidebar and pill-select layout ' +
+      'for browsing FAQs by category. When disabled, the existing CategoryCardGrid ' +
+      'is shown instead.',
+    category: 'faq',
+  },
 } as const satisfies Record<string, FeatureFlagMeta>;
 
 export type FeatureFlagKey = keyof typeof FEATURE_FLAGS;

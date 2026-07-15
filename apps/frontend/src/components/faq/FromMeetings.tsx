@@ -97,12 +97,20 @@ export default function FromMeetings() {
     );
   }
 
+  const latestFaqTime = faqs.length > 0
+    ? faqs.reduce((latest, f) => f.createdAt > latest ? f.createdAt : latest, faqs[0].createdAt)
+    : null;
+
   return (
     <section className="mt-12">
       <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
         <div>
           <div className="flex items-center gap-2 text-ink-faint">
             <VideoIcon />
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-success" />
+            </span>
             <p className="text-[11px] font-semibold uppercase tracking-wider">From Zoom Meetings</p>
           </div>
           <h2 className="mt-1 font-serif text-xl sm:text-2xl text-ink leading-snug">
@@ -117,13 +125,18 @@ export default function FromMeetings() {
           </p>
         </div>
         {anyZoomActivity && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[11px] text-ink-soft bg-card border border-border rounded-lg px-2.5 py-1">
               {stats!.meetingsProcessed} meetings
             </span>
             <span className="text-[11px] text-ink-soft bg-card border border-border rounded-lg px-2.5 py-1">
               {stats!.faqsPromoted} FAQs added
             </span>
+            {hasData && latestFaqTime && (
+              <span className="text-[10px] text-ink-faint">
+                Last sync {formatRelativeTime(latestFaqTime)}
+              </span>
+            )}
           </div>
         )}
       </div>

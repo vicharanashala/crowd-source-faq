@@ -16,106 +16,109 @@
    ═══════════════════════════════════════════════════════════════ */
 :root {
   /* ── Backgrounds (RGB triples) ──────────────────────────────── */
-  --bg-primary-rgb: 251 237 224;      /* #FBEDE0 — Page bg (brand) */
-  --bg-secondary-rgb: 255 246 235;    /* cream + warm lift — surface (brand) */
-  --bg-card-rgb: 255 242 230;         /* cream + peach touch — card (brand) */
-  --bg-card-hover-rgb: 251 234 218;   /* slight peach shift on hover */
+  --bg-primary-rgb: 255 255 255;      /* #FFFFFF — Crisp White */
+  --bg-secondary-rgb: 241 244 248;    /* #F1F4F8 — Cooler mist surface */
+  --bg-card-rgb: 255 255 255;         /* #FFFFFF — pure white card */
+  --bg-card-hover-rgb: 241 244 248;   /* slightly cooler shift on hover */
 
   /* ── Text ────────────────────────────────────────────────────── */
-  --text-primary-rgb: 60 42 30;       /* #3C2A1E — Primary text (brand) */
-  --text-secondary-rgb: 106 84 69;    /* #6A5445 — Secondary text (brand) */
-  --text-muted-rgb: 172 159 124;      /* #AC9F7C — Placeholders/metadata (brand) */
+  --text-primary-rgb: 30 41 59;       /* #1E293B — Slate 800, deeper */
+  --text-secondary-rgb: 71 85 105;    /* #475569 — Slate 600, stronger */
+  --text-muted-rgb: 100 116 139;      /* #64748B — Slate 500, solid */
 
-  /* ── Accent ──────────────────────────────────────────────────── */
-  --accent-rgb: 184 133 102;          /* #B88566 — Primary accent (brand) */
-  --accent-hover-rgb: 166 115 86;     /* #A67356 — Hover (brand) */
-  --accent-text-rgb: 251 237 224;     /* #FBEDE0 — Text on accent buttons (brand) */
+  /* ── Accent (Rich Amber) ──────────────────────────────────────── */
+  --accent-rgb: 154 123 46;           /* #9A7B2E — Deep Amber, WCAG AA on white */
+  --accent-hover-rgb: 134 106 38;    /* #866A26 — darker hover */
+  --accent-text-rgb: 255 255 255;     /* white text on accent bg */
+
+  /* ── Primary (Deep Teal) ──────────────────────────────────────── */
+  --primary-rgb: 0 99 93;             /* #00635D — Deep Teal */
 
   /* ── Borders ─────────────────────────────────────────────────── */
-  --border-rgb: 196 152 130;          /* #C49882 — Border (brand) */
-  --border-subtle-rgb: 232 215 202;    /* derived — soft border */
-  --border-medium-rgb: 175 130 108;
+  --border-rgb: 203 213 225;          /* #CBD5E1 — Slate 300, visible */
+  --border-subtle-rgb: 226 232 240;   /* #E2E8F0 — softer border */
+  --border-medium-rgb: 186 197 212;
 
-  --icon-default-rgb: 140 125 112;
-  --icon-active-rgb: 184 133 102;
+  --icon-default-rgb: 100 116 139;
+  --icon-active-rgb: 0 99 93;
 
   /* ── Status (Light) ──────────────────────────────────────────── */
-  --success-rgb: 126 156 114;         /* #7E9C72 — Sage Green */
-  --warning-rgb: 216 155 82;          /* #D89B52 — Amber */
-  --danger-rgb: 228 131 104;          /* #E48368 — Coral */
-  --info-rgb: 141 157 182;            /* #8D9DB6 — Slate Blue */
+  --success-rgb: 34 197 94;           /* #22C55E — Green */
+  --warning-rgb: 245 158 11;          /* #F59E0B — Amber */
+  --danger-rgb: 239 68 68;            /* #EF4444 — Red */
+  --info-rgb: 59 130 246;             /* #3B82F6 — Blue */
 
-  --nav-bg-rgb: 251 237 224;
-  --nav-text-rgb: 106 84 69;
-  --nav-active-rgb: 60 42 30;
-  --nav-border-rgb: 196 152 130;
+  --nav-bg-rgb: 0 99 93;             /* #00635D — Deep Teal nav */
+  --nav-text-rgb: 255 255 255;
+  --nav-active-rgb: 196 168 108;      /* #9A7B2E — Gold active */
+  --nav-border-rgb: 0 89 84;
 
-  --section-title-rgb: 60 42 30;
+  --section-title-rgb: 0 99 93;       /* #00635D */
 
   /* ── Pre-tinted semantic colors (full rgba — no /<alpha-value>) ── */
-  --tag-high-bg: rgba(184, 133, 102, 0.14);      /* accent-soft */
-  --tag-high-text: #6B4A30;
-  --tag-medium-bg: rgba(216, 155, 82, 0.14);     /* warning-soft */
-  --tag-medium-text: #8A6914;
-  --badge-solved-bg: rgba(126, 156, 114, 0.18); /* success-soft */
-  --badge-solved-text: #4F6B47;
-  --badge-open-bg: rgba(232, 215, 202, 0.5);
-  --badge-open-text: #6B4A30;
-  --success-bg: rgba(126, 156, 114, 0.14);
-  --warning-bg: rgba(216, 155, 82, 0.14);
-  --info-bg: rgba(141, 157, 182, 0.14);
-  --danger-bg: rgba(228, 131, 104, 0.10);
+  --tag-high-bg: rgba(0, 99, 93, 0.10);          /* teal-soft */
+  --tag-high-text: #004D47;
+  --tag-medium-bg: rgba(245, 158, 11, 0.12);     /* warning-soft */
+  --tag-medium-text: #92400E;
+  --badge-solved-bg: rgba(34, 197, 94, 0.14);    /* success-soft */
+  --badge-solved-text: #166534;
+  --badge-open-bg: rgba(241, 245, 249, 0.8);
+  --badge-open-text: #475569;
+  --success-bg: rgba(34, 197, 94, 0.12);
+  --warning-bg: rgba(245, 158, 11, 0.12);
+  --info-bg: rgba(59, 130, 246, 0.10);
+  --danger-bg: rgba(239, 68, 68, 0.10);
 
-  --pill-bg: #FFF2E6;                  /* matches Card (cream + peach touch) */
-  --pill-border: #E8D7CA;              /* matches Border soft */
-  --pill-text: #6B4A30;
-  --pill-active-bg: #B88566;            /* solid warm brown — accent on active */
-  --pill-active-border: #A67356;
-  --pill-active-text: #FBEDE0;
-  --pill-active-text-on-bg: #FBEDE0;
-  --pill-active-indicator: #B88566;
+  --pill-bg: #FFFFFF;
+  --pill-border: #E2E8F0;
+  --pill-text: #475569;
+  --pill-active-bg: #00635D;            /* Deep Teal — active pill */
+  --pill-active-border: #00635D;
+  --pill-active-text: #FFFFFF;
+  --pill-active-text-on-bg: #FFFFFF;
+  --pill-active-indicator: #9A7B2E;
 
-  --input-bg: #FFF2E6;                 /* matches Card */
-  --input-border: #E8D7CA;
-  --input-placeholder: #AC9F7C;
-  --input-focus-border: rgba(184, 133, 102, 0.55);
+  --input-bg: #FFFFFF;
+  --input-border: #E2E8F0;
+  --input-placeholder: #94A3B8;
+  --input-focus-border: rgba(0, 99, 93, 0.45);
 
-  --nav-active-indicator: #B88566;
-  --section-icon: #B88566;
-  --deco-stroke: rgba(184, 133, 102, 0.60);
-  --deco-stroke-soft: #E8D7CA;
+  --nav-active-indicator: #9A7B2E;
+  --section-icon: #00635D;
+  --deco-stroke: rgba(232, 220, 196, 0.60);
+  --deco-stroke-soft: #E2E8F0;
 
-  --modal-bg: #FFFFFF;                 /* modal uses pure white for max lift above cream */
-  --modal-border: #E8D7CA;
-  --dropdown-bg: #FFF2E6;
-  --dropdown-border: #E8D7CA;
-  --dropdown-hover: #FBEADE;           /* matches Hover */
-  --overlay-bg: rgba(60, 42, 30, 0.4);
+  --modal-bg: #FFFFFF;
+  --modal-border: #E2E8F0;
+  --dropdown-bg: #FFFFFF;
+  --dropdown-border: #E2E8F0;
+  --dropdown-hover: #F8FAFC;
+  --overlay-bg: rgba(0, 99, 93, 0.4);
 
-  --scrollbar-thumb: #C49882;
+  --scrollbar-thumb: #CBD5E1;
   --scrollbar-track: transparent;
 
   /* ── Theme-toggle (light defaults) ─────────────────────────────── */
-  --toggle-pill-bg: rgba(184, 133, 102, 0.14);
-  --toggle-pill-border: rgba(184, 133, 102, 0.30);
-  --toggle-knob-bg: #FFF2E6;
-  --toggle-icon-color: #B88566;
+  --toggle-pill-bg: rgba(0, 99, 93, 0.14);
+  --toggle-pill-border: rgba(0, 99, 93, 0.30);
+  --toggle-knob-bg: #FFFFFF;
+  --toggle-icon-color: #00635D;
   --toggle-knob-x: 3px;
   --toggle-sun-opacity: 1;
   --toggle-sun-transform: rotate(0deg) scale(1);
   --toggle-moon-opacity: 0;
   --toggle-moon-transform: rotate(90deg) scale(0.5);
 
-  /* ── Shadows (light) — warm, soft, layered ─────────────────────── */
-  --shadow-card: 0 4px 12px rgba(60, 42, 30, 0.04), 0 12px 32px rgba(60, 42, 30, 0.05);
-  --shadow-card-hover: 0 8px 20px rgba(60, 42, 30, 0.06), 0 20px 44px rgba(60, 42, 30, 0.08);
-  --shadow-float: 0 12px 32px rgba(60, 42, 30, 0.10);
-  --shadow-glow: 0 0 0 4px rgba(184, 133, 102, 0.14), 0 8px 32px rgba(60, 42, 30, 0.06);
-  --shadow-subtle: 0 2px 12px rgba(60, 42, 30, 0.04);
+  /* ── Shadows (light) — boosted for depth ──────────────────────── */
+  --shadow-card: 0 2px 6px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-card-hover: 0 4px 14px rgba(0, 0, 0, 0.09), 0 8px 28px rgba(0, 0, 0, 0.10);
+  --shadow-float: 0 8px 32px rgba(0, 0, 0, 0.14);
+  --shadow-glow: 0 0 0 4px rgba(0, 99, 93, 0.18), 0 8px 32px rgba(0, 0, 0, 0.08);
+  --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.06);
 
-  /* ── Body background — barely-there warm wash at the top ───────── */
+  /* ── Body background — subtle teal wash at the top ─────────────── */
   --body-bg-image:
-    radial-gradient(ellipse 80% 50% at 50% 0%, rgba(184, 133, 102, 0.06) 0%, transparent 60%);
+    radial-gradient(ellipse 80% 50% at 50% 0%, rgba(0, 99, 93, 0.04) 0%, transparent 60%);
 
   /* ── ShadCN tokens (aliased to the brand palette) ──────────────── */
   --background: var(--bg-primary-rgb);
@@ -124,7 +127,7 @@
   --card-foreground: var(--text-primary-rgb);
   --popover: var(--bg-card-rgb);
   --popover-foreground: var(--text-primary-rgb);
-  --primary: var(--accent-rgb);
+  --primary: var(--primary-rgb);
   --primary-foreground: var(--accent-text-rgb);
   --secondary: var(--bg-secondary-rgb);
   --secondary-foreground: var(--text-primary-rgb);
@@ -133,27 +136,27 @@
   --accent: var(--bg-secondary-rgb);
   --accent-foreground: var(--text-primary-rgb);
   --destructive: var(--danger-rgb);
-  --destructive-foreground: 251 237 224;
+  --destructive-foreground: 255 255 255;
   --border: var(--border-rgb);
   --input: var(--border-rgb);
-  --ring: var(--accent-rgb);
+  --ring: var(--primary-rgb);
 
-  /* ── Chart palette — warm monochromatic ramp ──────────────────── */
-  --chart-1: var(--accent-rgb);
-  --chart-2: 166 115 86;       /* accent-hover */
-  --chart-3: 172 159 124;      /* muted */
-  --chart-4: 60 42 30;          /* text-primary */
-  --chart-5: 196 152 130;      /* border */
+  /* ── Chart palette — teal-based ramp ──────────────────────────── */
+  --chart-1: var(--primary-rgb);
+  --chart-2: 0 120 113;          /* lighter teal */
+  --chart-3: 160 174 192;        /* muted */
+  --chart-4: 44 62 80;           /* text-primary */
+  --chart-5: 226 232 240;        /* border */
 
   /* ── Sidebar (ShadCN sidebar blocks) ──────────────────────────── */
   --sidebar: var(--bg-card-rgb);
   --sidebar-foreground: var(--text-primary-rgb);
-  --sidebar-primary: var(--accent-rgb);
+  --sidebar-primary: var(--primary-rgb);
   --sidebar-primary-foreground: var(--accent-text-rgb);
   --sidebar-accent: var(--bg-secondary-rgb);
   --sidebar-accent-foreground: var(--text-primary-rgb);
   --sidebar-border: var(--border-rgb);
-  --sidebar-ring: var(--accent-rgb);
+  --sidebar-ring: var(--primary-rgb);
 
   --radius: 0.5rem;
 
@@ -164,75 +167,77 @@
    DARK MODE — ultra-deep pitch + electric coral
    ═══════════════════════════════════════════════════════════════ */
 [data-theme="dark"] {
-  --bg-primary-rgb: 10 11 14;          /* #0A0B0E — Background (brand) */
-  --bg-secondary-rgb: 18 20 24;       /* #121418 — Surface (brand) */
-  --bg-card-rgb: 25 28 33;            /* #191C21 — Card (brand) */
-  --bg-card-hover-rgb: 35 38 44;      /* slight lift on hover */
+  --bg-primary-rgb: 15 23 42;          /* #0F172A — dark navy-slate bg */
+  --bg-secondary-rgb: 24 34 55;        /* #182237 — surface */
+  --bg-card-rgb: 30 41 59;             /* #1E293B — dark card */
+  --bg-card-hover-rgb: 45 58 78;       /* slight lift on hover */
 
-  --text-primary-rgb: 237 237 237;    /* #EDEDED — Text (brand) */
-  --text-secondary-rgb: 180 184 190;  /* derived — between text and muted */
-  --text-muted-rgb: 134 138 147;      /* #868A93 — Muted Text (brand) */
+  --text-primary-rgb: 241 245 249;     /* #F1F5F9 — light text */
+  --text-secondary-rgb: 203 213 225;   /* #CBD5E1 */
+  --text-muted-rgb: 163 177 198;       /* #A3B1C6 — boosted contrast */
 
-  --accent-rgb: 255 107 74;           /* #FF6B4A — Electric Coral (brand) */
-  --accent-hover-rgb: 255 133 107;    /* #FF856B — Lighter Electric Coral (brand) */
-  --accent-text-rgb: 10 11 14;        /* #0A0B0E — Text on accent (brand) */
+  --accent-rgb: 208 180 120;           /* #D0B478 — Rich Warm Gold (dark) */
+  --accent-hover-rgb: 192 164 104;     /* slightly darker gold (dark) */
+  --accent-text-rgb: 15 23 42;         /* dark text on accent */
 
-  --border-rgb: 42 45 53;             /* #2A2D35 — Border (brand) */
-  --border-subtle-rgb: 28 30 36;
-  --border-medium-rgb: 56 60 70;
+  --primary-rgb: 0 99 93;              /* #00635D — Deep Teal (unchanged) */
 
-  --icon-default-rgb: 134 138 147;
-  --icon-active-rgb: 255 107 74;
+  --border-rgb: 51 65 85;              /* #334155 — slate border */
+  --border-subtle-rgb: 30 41 59;
+  --border-medium-rgb: 71 85 105;
+
+  --icon-default-rgb: 148 163 184;
+  --icon-active-rgb: 232 220 196;
 
   /* Status (Dark) */
-  --success-rgb: 140 166 125;         /* #8CA67D — Sage Green */
-  --warning-rgb: 217 162 91;          /* #D9A25B — Amber */
-  --danger-rgb: 240 80 70;            /* derived — deeper electric coral-ish for destructive */
-  --info-rgb: 127 149 174;            /* #7F95AE — Steel Blue */
+  --success-rgb: 52 211 153;           /* emerald */
+  --warning-rgb: 251 191 36;           /* amber */
+  --danger-rgb: 248 113 113;           /* red */
+  --info-rgb: 96 165 250;              /* blue */
 
-  --nav-bg-rgb: 10 11 14;
-  --nav-text-rgb: 180 184 190;
-  --nav-active-rgb: 237 237 237;
-  --nav-border-rgb: 42 45 53;
+  --nav-bg-rgb: 0 99 93;              /* #00635D — Deep Teal (unchanged) */
+  --nav-text-rgb: 203 213 225;
+  --nav-active-rgb: 208 180 120;       /* #D0B478 — Gold (dark) */
+  --nav-border-rgb: 51 65 85;
 
-  --section-title-rgb: 237 237 237;
+  --section-title-rgb: 241 245 249;
 
   /* Pre-tinted semantic colors (full rgba — no /<alpha-value>) */
-  --tag-high-bg: rgba(255, 107, 74, 0.18);       /* electric-coral-soft */
-  --tag-high-text: #FF6B4A;
-  --tag-medium-bg: rgba(217, 162, 91, 0.16);     /* warning-soft */
-  --tag-medium-text: #D9A25B;
-  --badge-solved-bg: rgba(140, 166, 125, 0.18); /* success-soft */
-  --badge-solved-text: #8CA67D;
+  --tag-high-bg: rgba(0, 99, 93, 0.18);           /* teal-soft */
+  --tag-high-text: #00635D;
+  --tag-medium-bg: rgba(251, 191, 36, 0.16);      /* warning-soft */
+  --tag-medium-text: #FBBF24;
+  --badge-solved-bg: rgba(52, 211, 153, 0.18);   /* success-soft */
+  --badge-solved-text: #34D399;
   --badge-open-bg: rgba(255, 255, 255, 0.06);
-  --badge-open-text: #868A93;
-  --success-bg: rgba(140, 166, 125, 0.14);
-  --warning-bg: rgba(217, 162, 91, 0.14);
-  --info-bg: rgba(127, 149, 174, 0.14);
-  --danger-bg: rgba(240, 80, 70, 0.16);
+  --badge-open-text: #94A3B8;
+  --success-bg: rgba(52, 211, 153, 0.14);
+  --warning-bg: rgba(251, 191, 36, 0.14);
+  --info-bg: rgba(96, 165, 250, 0.14);
+  --danger-bg: rgba(248, 113, 113, 0.16);
 
   --pill-bg: rgba(255, 255, 255, 0.05);
   --pill-border: rgba(255, 255, 255, 0.10);
-  --pill-text: #868A93;
-  --pill-active-bg: #FF6B4A;                /* solid electric coral — accent on active */
-  --pill-active-border: #FF856B;
-  --pill-active-text: #0A0B0E;
-  --pill-active-text-on-bg: #0A0B0E;
-  --pill-active-indicator: #FF6B4A;
+  --pill-text: #94A3B8;
+  --pill-active-bg: #00635D;                /* Deep Teal */
+  --pill-active-border: #00756B;
+  --pill-active-text: #FFFFFF;
+  --pill-active-text-on-bg: #FFFFFF;
+  --pill-active-indicator: #9A7B2E;
 
-  --input-bg: #121418;                   /* matches Surface */
+  --input-bg: #1E293B;
   --input-border: rgba(255, 255, 255, 0.10);
-  --input-placeholder: #868A93;
-  --input-focus-border: rgba(255, 107, 74, 0.55);
+  --input-placeholder: #94A3B8;
+  --input-focus-border: rgba(208, 180, 120, 0.55);
 
-  --nav-active-indicator: #FF6B4A;
-  --section-icon: #FF6B4A;
-  --deco-stroke: rgba(255, 107, 74, 0.45);
-  --deco-stroke-soft: rgba(255, 107, 74, 0.22);
+  --nav-active-indicator: #D0B478;
+  --section-icon: #D0B478;
+  --deco-stroke: rgba(208, 180, 120, 0.45);
+  --deco-stroke-soft: rgba(208, 180, 120, 0.22);
 
-  --modal-bg: #121418;
+  --modal-bg: #1E293B;
   --modal-border: rgba(255, 255, 255, 0.10);
-  --dropdown-bg: #121418;
+  --dropdown-bg: #1E293B;
   --dropdown-border: rgba(255, 255, 255, 0.10);
   --dropdown-hover: rgba(255, 255, 255, 0.05);
   --overlay-bg: rgba(0, 0, 0, 0.70);
@@ -241,27 +246,26 @@
   --scrollbar-track: transparent;
 
   /* Toggle (dark) */
-  --toggle-pill-bg: rgba(255, 107, 74, 0.14);
-  --toggle-pill-border: rgba(255, 107, 74, 0.30);
-  --toggle-knob-bg: #FF6B4A;
-  --toggle-icon-color: #0A0B0E;
+  --toggle-pill-bg: rgba(232, 220, 196, 0.14);
+  --toggle-pill-border: rgba(232, 220, 196, 0.30);
+  --toggle-knob-bg: #9A7B2E;
+  --toggle-icon-color: #0F172A;
   --toggle-knob-x: 27px;
   --toggle-sun-opacity: 0;
   --toggle-sun-transform: rotate(-90deg) scale(0.5);
   --toggle-moon-opacity: 1;
   --toggle-moon-transform: rotate(0deg) scale(1);
 
-  /* Shadows (dark) — soft, diffused, with subtle electric-coral glow on hover */
+  /* Shadows (dark) — soft, diffused */
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.5);
   --shadow-card-hover: 0 8px 32px rgba(0, 0, 0, 0.55),
-                        0 0 0 1px rgba(255, 107, 74, 0.20);
+                        0 0 0 1px rgba(232, 220, 196, 0.15);
   --shadow-float: 0 12px 40px rgba(0, 0, 0, 0.7);
-  --shadow-glow: 0 0 0 3px rgba(255, 107, 74, 0.25);
+  --shadow-glow: 0 0 0 3px rgba(232, 220, 196, 0.20);
 
-  /* Body — subtle radial gradient with faint electric-coral tint on dark */
+  /* Body — subtle radial gradient */
   --body-bg-image:
-    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(255, 107, 74, 0.06) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 50% at 100% 100%, rgba(255, 107, 74, 0.04) 0%, transparent 60%);
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(0, 99, 93, 0.06) 0%, transparent 60%);
 
   /* ShadCN tokens (dark) */
   --background: var(--bg-primary-rgb);
@@ -270,7 +274,7 @@
   --card-foreground: var(--text-primary-rgb);
   --popover: var(--bg-card-rgb);
   --popover-foreground: var(--text-primary-rgb);
-  --primary: var(--accent-rgb);
+  --primary: var(--primary-rgb);
   --primary-foreground: var(--accent-text-rgb);
   --secondary: var(--bg-secondary-rgb);
   --secondary-foreground: var(--text-primary-rgb);
@@ -279,25 +283,19 @@
   --accent: var(--bg-secondary-rgb);
   --accent-foreground: var(--text-primary-rgb);
   --destructive: var(--danger-rgb);
-  --destructive-foreground: 10 11 14;
+  --destructive-foreground: 15 23 42;
   --border: var(--border-rgb);
   --input: var(--border-rgb);
-  --ring: var(--accent-rgb);
+  --ring: var(--primary-rgb);
 
-  --chart-1: var(--accent-rgb);
-  --chart-2: 255 133 107;
-  --chart-3: 217 162 91;
-  --chart-4: 240 80 70;
-  --chart-5: 134 138 147;
+  --chart-1: var(--primary-rgb);
+  --chart-2: 232 220 196;
+  --chart-3: 0 120 113;
+  --chart-4: 203 213 225;
+  --chart-5: 148 163 184;
 
   --sidebar: var(--bg-card-rgb);
   --sidebar-foreground: var(--text-primary-rgb);
-  --sidebar-primary: var(--accent-rgb);
-  --sidebar-primary-foreground: var(--accent-text-rgb);
-  --sidebar-accent: var(--bg-secondary-rgb);
-  --sidebar-accent-foreground: var(--text-primary-rgb);
-  --sidebar-border: var(--border-rgb);
-  --sidebar-ring: var(--accent-rgb);
 
   color-scheme: dark;
 }
@@ -305,6 +303,155 @@
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
+}
+
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Homepage Section Styles — stats strip, timeline, popular cards
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Statistics Strip ────────────────────────────────────────── */
+.stat-card {
+  text-align: center;
+  padding: 1.25rem 0.75rem;
+}
+
+.stat-card__value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: rgb(var(--accent-rgb));
+}
+
+.stat-card__label {
+  font-size: 0.75rem;
+  color: rgb(var(--text-secondary-rgb));
+  margin-top: 0.25rem;
+  font-weight: 600;
+}
+
+.stat-card__icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 0.5rem;
+}
+
+/* ── Timeline — vertical dot + line layout for Recent FAQs ─── */
+.timeline {
+  position: relative;
+  padding-left: 1.75rem;
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 0.5rem;
+  top: 0.25rem;
+  bottom: 0;
+  width: 2px;
+  background: rgb(var(--border-rgb));
+  border-radius: 1px;
+}
+
+.timeline-item {
+  position: relative;
+  padding-bottom: 1.25rem;
+}
+
+.timeline-item:last-child {
+  padding-bottom: 0;
+}
+
+.timeline-dot {
+  position: absolute;
+  left: -1.75rem;
+  top: 0.35rem;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 9999px;
+  background: rgb(var(--accent-rgb));
+  border: 2px solid rgb(var(--bg-primary-rgb));
+  z-index: 1;
+}
+
+.timeline-content {
+  min-width: 0;
+}
+
+/* ── Popular Card — horizontal scroll card with sand top border ── */
+.popular-card {
+  min-width: 240px;
+  max-width: 260px;
+  flex-shrink: 0;
+  scroll-snap-align: start;
+  border-top: 2px solid rgb(var(--accent-rgb));
+}
+
+.popular-card:hover {
+  transform: translateY(-2px);
+}
+
+/* ── Horizontal Scroll Container ─────────────────────────────── */
+.h-scroll {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 0.5rem;
+}
+
+.h-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── CTA Arrow animation ─────────────────────────────────────── */
+.cta-arrow {
+  display: inline-block;
+  transition: transform 0.25s ease;
+}
+
+.cta-arrow:hover .cta-arrow-icon {
+  transform: translateX(3px);
+}
+
+/* ── Avatar stack for CTA ────────────────────────────────────── */
+.avatar-stack {
+  display: flex;
+  align-items: center;
+}
+
+.avatar-stack__item {
+  width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  border: 2px solid rgb(var(--bg-card-rgb));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 600;
+  margin-left: -6px;
+}
+
+.avatar-stack__item:first-child {
+  margin-left: 0;
 }
 
 /* Admin dark inputs */
@@ -519,7 +666,7 @@ select option {
     justify-content: center;
     gap: 8px;
     padding: 12px 28px;
-    background-color: rgb(var(--text-primary-rgb));
+    background-color: rgb(var(--accent-rgb));
     color: rgb(var(--accent-text-rgb));
     border-radius: 12px;
     font-size: 14px;
@@ -531,22 +678,25 @@ select option {
                 box-shadow 0.2s ease,
                 transform 0.1s ease;
     cursor: pointer;
+    border: 1px solid rgb(var(--accent-rgb) / 0.30);
   }
   .btn-cta:hover {
-    opacity: 0.88;
+    background-color: rgb(var(--accent-hover-rgb, var(--accent-rgb)));
+    box-shadow: 0 0 16px rgb(var(--accent-rgb) / 0.25);
+    opacity: 1;
   }
   [data-theme="dark"] .btn-cta {
-    background-color: #191919;
+    background-color: rgb(var(--accent-rgb) / 0.15);
     border-width: 1px;
     border-style: solid;
-    border-color: #2A2A2A;
-    color: #F2F2F2;
+    border-color: rgb(var(--accent-rgb) / 0.35);
+    color: rgb(var(--accent-rgb));
   }
   [data-theme="dark"] .btn-cta:hover {
-    background-color: #202020;
-    border-color: rgb(var(--accent-rgb) / 0.40);
+    background-color: rgb(var(--accent-rgb) / 0.22);
+    border-color: rgb(var(--accent-rgb) / 0.55);
     color: rgb(var(--accent-rgb));
-    box-shadow: 0 0 20px rgb(var(--accent-rgb) / 0.15);
+    box-shadow: 0 0 24px rgb(var(--accent-rgb) / 0.18);
     opacity: 1;
   }
   [data-theme="dark"] .btn-cta:hover .btn-cta-icon {
@@ -562,7 +712,7 @@ select option {
     height: 16px;
     flex-shrink: 0;
     transition: transform 0.2s ease, color 0.2s ease;
-    color: rgb(var(--text-primary-rgb));
+    color: rgb(var(--accent-text-rgb));
   }
 
   /* ═════════════════════════════════════════════════════════════
@@ -905,16 +1055,16 @@ select option {
   .faq-sort-bar__count {
     font-size: 13px;
     font-weight: 500;
-    color: rgba(0, 0, 0, 0.40);
+    color: rgb(var(--text-secondary-rgb));
     letter-spacing: 0.01em;
   }
   .faq-sort-bar__select {
     border-radius: 9999px;
-    border: 1px solid rgba(0, 0, 0, 0.08);
-    background: #ffffff;
+    border: 1px solid rgb(var(--text-primary-rgb) / 0.12);
+    background: var(--bg-card, #fff);
     padding: 5px 14px;
     font-size: 12px;
-    color: rgba(0, 0, 0, 0.55);
+    color: rgb(var(--text-secondary-rgb));
     cursor: pointer;
     transition: border-color 0.2s ease;
   }
@@ -923,38 +1073,35 @@ select option {
     border-color: rgb(var(--accent-rgb) / 0.45);
   }
   [data-theme="dark"] .faq-sort-bar__count {
-    color: rgba(255, 255, 255, 0.35);
+    color: rgb(var(--text-secondary-rgb));
   }
   [data-theme="dark"] .faq-sort-bar__select {
-    background: #131313;
-    border-color: rgba(255, 255, 255, 0.06);
-    color: rgba(255, 255, 255, 0.45);
+    background: var(--bg-card, #131313);
+    border-color: rgb(var(--text-primary-rgb) / 0.10);
+    color: rgb(var(--text-secondary-rgb));
   }
 
   .faq-item {
     position: relative;
-    background: #ffffff;
-    border: 1px solid rgba(0, 0, 0, 0.05);
+    background: rgb(var(--bg-card-rgb));
+    border: 1px solid rgb(var(--border-rgb));
     border-left: 2px solid transparent;
     border-radius: 12px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04),
-                0 1px 2px rgba(0, 0, 0, 0.02);
+    box-shadow: var(--shadow-card);
     transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
     overflow: hidden;
   }
   .faq-item:hover {
     transform: translateY(-1px);
-    background: #f9fafb;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.07),
-                0 2px 4px rgba(0, 0, 0, 0.03);
-    border-color: rgba(0, 0, 0, 0.08);
+    background: rgb(var(--bg-card-hover-rgb));
+    box-shadow: var(--shadow-card-hover);
+    border-color: rgb(var(--border-medium-rgb));
   }
   .faq-item--expanded {
-    background: #f9fafb;
-    border-left-color: rgb(var(--accent-rgb) / 0.55);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06),
-                0 2px 6px rgba(0, 0, 0, 0.03);
-    border-color: rgba(0, 0, 0, 0.07);
+    background: rgb(var(--bg-card-hover-rgb));
+    border-left-color: rgb(var(--accent-rgb));
+    box-shadow: var(--shadow-card-hover);
+    border-color: rgb(var(--border-medium-rgb));
   }
   .faq-item--expanded:hover {
     transform: none;
@@ -1020,10 +1167,10 @@ select option {
   .faq-item__answer {
     margin-top: 0;
     padding-top: 16px;
-    border-top: 1px solid rgba(0, 0, 0, 0.05);
+    border-top: 1px solid rgb(var(--border-subtle-rgb));
     font-size: 14px;
     line-height: 1.7;
-    color: #4b5563;
+    color: rgb(var(--text-secondary-rgb));
     white-space: pre-wrap;
     word-break: break-word;
   }

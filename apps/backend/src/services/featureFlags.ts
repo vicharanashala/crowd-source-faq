@@ -211,6 +211,15 @@ export const FEATURE_FLAGS = {
       'review a dry run first via the admin schedule UI.',
     category: 'faq',
   },
+  categorySidebar: {
+    default: true,
+    label: 'Category Sidebar',
+    description:
+      'Replaces the category grid with a sticky sidebar and pill-select layout ' +
+      'for browsing FAQs by category. When disabled, the existing CategoryCardGrid ' +
+      'is shown instead.',
+    category: 'faq',
+  },
 } as const satisfies Record<string, FeatureFlagMeta>;
 
 /** Union of every registered flag key. Derived from the registry so

@@ -7,7 +7,6 @@ export type NavItem = { label: string; to: string; xlOnly?: true };
 
 export const baseNavItems: NavItem[] = [
   { label: 'Home', to: '/' },
-  { label: 'FAQ', to: '/faq' },
   { label: 'Welcome Package', to: '/welcome' },
   { label: 'Community', to: '/community' },
 ];
@@ -22,15 +21,16 @@ export function useNavItems() {
     ? [{ label: 'Golden', to: '/golden', xlOnly: true as const }]
     : [];
 
-  // Welcome Package nav link is admin-controlled. Hide on an explicit
-  // `false` (and only after the flag list has loaded — don't flicker
-  // the link off during the initial load).
-  const visibleBaseItems =
-    !flagsLoading && welcomeOn === false
+  // Welcome Package and Support require authentication — hide for guests
+  // regardless of the feature flag default.
+  const visibleBaseItems = !user
+    ? baseNavItems.filter((item) => item.to !== '/welcome')
+    : !flagsLoading && welcomeOn === false
       ? baseNavItems.filter((item) => item.to !== '/welcome')
       : baseNavItems;
 
-  let allNavItems: NavItem[] = supportOn
+  const supportVisible = user && supportOn;
+  let allNavItems: NavItem[] = supportVisible
     ? [...visibleBaseItems, { label: 'Support', to: '/support' }, ...goldenExtras]
     : visibleBaseItems;
 

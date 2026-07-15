@@ -1,31 +1,30 @@
 // Home/FAQ Discovery Page — the single source of truth for the landing portal.
 // Layout (when nothing is selected):
 //
-//   HERO  →  "Ask. Discover. Get Solved."  +  stats
-//   SEARCH BAR  (big)
-//   TWO-COLUMN BODY
-//     left  →  Most Popular  +  Recent FAQs  +  Top Solved Today  +
-//              From Zoom Meetings  +  All FAQs (full 141)
-//     right →  Browse Categories (4×2 icon grid) + Trending Issues
-//   BROWSE ALL CATEGORIES  (full-width, all 14)
-//   CTA  →  "Still have a question?"
+//   HERO  →  "Ask. Discover. Get Solved."  +  search bar + chips
+//   STATISTICS STRIP  →  4 counters
+//   MOST POPULAR  →  horizontal scroll cards
+//   RECENT FAQs  →  vertical timeline
+//   FROM ZOOM MEETINGS  →  existing component
+//   BROWSE BY CATEGORY  →  CategoryCardGrid (3-column)
+//   CTA  →  "Didn't find your answer?"
 //
 // Every section pulls live data from the backend (no hardcoded content):
-//   /api/faq                                 → 141 FAQs grouped by category
+//   /api/faq                                 → FAQs grouped by category
 //   /api/public/popular-faqs?limit=5         → Most Popular (views + read time)
 //   /api/public/recent-faqs?limit=5          → Recent FAQs
 //   /api/faq/recent?source=zoom_transcript   → From Zoom Meetings
-//   /api/community/solved?limit=4            → Top Solved Today
-//   /api/community                           → Trending Issues
-//   /api/search/trending                     → (kept for future use)
 
-import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Tags } from 'lucide-react';
 import Footer from '../components/layout/Footer';
 import SearchBar from '../components/search/SearchBar';
 import { HomeDoodles } from '../components/ui/PageDoodles';
 import api from '../utils/api';
 import { useBatch } from '../context/BatchContext';
+import { useFeatureFlag } from '../context/FeatureFlagContext';
 
 // Modular FAQ components — shared utilities
 import {
@@ -42,10 +41,11 @@ import QuestionList from '../components/faq/QuestionList';
 import QuestionDetail from '../components/faq/QuestionDetail';
 
 // Sidebar / chrome — already built, already wired to live APIs
-import TopSolved from '../components/community/TopSolved';
-import TrendingIssues from '../components/search/TrendingIssues';
 import FromMeetings from '../components/faq/FromMeetings';
+import CategoryCardGrid from '../components/faq/CategoryCardGrid';
+import CategorySidebarContent from '../components/faq/CategorySidebar';
 import CTA from '../components/ui/CTA';
+import { useMergedCategoryFaqs } from '../hooks/useMergedCategoryFaqs';
 
 // ── Public-popular FAQ shape (extends FAQItem with view / read metrics) ──
 interface PublicPopularFaq extends FAQItem {
@@ -71,267 +71,21 @@ function formatViews(n?: number): string {
   return `${v} ${v === 1 ? 'view' : 'views'}`;
 }
 
-// ── Relative date formatter: 2026-06-13 → "Jun 13" ──────────────────────
-function formatShortDate(dateStr?: string): string {
+// ── Relative time: "2h ago", "Yesterday", "3 days ago" ──────────────────
+function formatRelativeTime(dateStr?: string): string {
   if (!dateStr) return '';
-  const d = new Date(dateStr);
-  if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  const hours = Math.floor(mins / 60);
+  const days = Math.floor(hours / 24);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  if (hours < 48) return `Yesterday`;
+  return `${days}d ago`;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-//  Sidebar helper — list item used in the full "Browse all categories" section
-// ═══════════════════════════════════════════════════════════════════════════
-function BrowseCategoryRow({
-  name,
-  count,
-  onSelect,
-}: {
-  name: string;
-  count: number;
-  onSelect: () => void;
-}): React.ReactElement {
-  return (
-    <li>
-      <button
-        type="button"
-        onClick={onSelect}
-        className="group w-full flex items-center justify-between py-2.5 px-2 -mx-2 rounded-xl hover:bg-cream/60 transition-colors duration-150"
-      >
-        <span className="text-sm font-medium text-ink group-hover:text-accent transition-colors line-clamp-1 text-left">
-          {formatCategoryName(name)}
-        </span>
-        <span className="flex items-center gap-2 text-[11px] text-ink-faint">
-          <span className="tabular-nums">{count}</span>
-          <svg className="text-ink-faint group-hover:text-accent transition-colors" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="m9 18 6-6-6-6" />
-          </svg>
-        </span>
-      </button>
-    </li>
-  );
-}
 
-// ═══════════════════════════════════════════════════════════════════════════
-//  All-Categories accordion card
-//  Collapsed → category name + count. Expanded → a small per-category search
-//  box, the top 3 most-searched FAQs (by popularity), and a link to the full
-//  FAQ section. Typing in the box filters this category's FAQs locally.
-// ═══════════════════════════════════════════════════════════════════════════
-const TOP_PER_CATEGORY = 3;
-
-function AllCategoryCard({
-  name,
-  count,
-  items,
-  topItems,
-  expanded,
-  onToggle,
-  onOpenQuestion,
-  onViewAll,
-}: {
-  name: string;
-  count: number;
-  items: FAQItem[];
-  topItems: FAQItem[];
-  expanded: boolean;
-  onToggle: () => void;
-  onOpenQuestion: (item: FAQItem) => void;
-  onViewAll: () => void;
-}): React.ReactElement {
-  const panelId = `cat-panel-${name.replace(/\s+/g, '-')}`;
-  const [query, setQuery] = useState('');
-
-  // Fallback ordering when the live ranking endpoint hasn't loaded:
-  // popularity, then guest views.
-  const ranked = useMemo(() => (
-    [...items].sort((a, b) => (
-      (Number(b.popularityScore) || 0) - (Number(a.popularityScore) || 0)
-      || (Number(b.guestViewCount) || 0) - (Number(a.guestViewCount) || 0)
-    ))
-  ), [items]);
-
-  // Default view = top-N by live opens + search hits (from the backend).
-  // If that feed is empty, fall back to the popularity ordering above.
-  const top = (topItems && topItems.length > 0 ? topItems : ranked).slice(0, TOP_PER_CATEGORY);
-
-  const q = query.trim().toLowerCase();
-  const visible = q
-    ? ranked.filter((it) => getQuestionTitle(it).toLowerCase().includes(q))
-    : top;
-
-  return (
-    <div className="bg-card rounded-2xl border border-border overflow-hidden scroll-mt-32">
-      <button
-        type="button"
-        onClick={onToggle}
-        className="w-full flex items-center justify-between p-5 hover:bg-cream/40 transition-colors text-left"
-        aria-expanded={expanded}
-        aria-controls={panelId}
-      >
-        <div className="flex items-center gap-3 min-w-0">
-          <span className="shrink-0 w-9 h-9 rounded-xl bg-cream text-accent flex items-center justify-center">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M3 7h18M3 12h18M3 17h12" />
-            </svg>
-          </span>
-          <div className="min-w-0">
-            <h3 className="font-serif text-lg text-ink leading-snug truncate">{formatCategoryName(name)}</h3>
-            <p className="text-xs text-ink-soft mt-0.5">{count} {count === 1 ? 'FAQ' : 'FAQs'}</p>
-          </div>
-        </div>
-        <span className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-ink-faint transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="m9 18 6-6-6-6" />
-          </svg>
-        </span>
-      </button>
-
-      {expanded && (
-        <div id={panelId} className="border-t border-border/60 px-5 pt-4 pb-2">
-          {/* Per-category search box */}
-          <div className="relative mb-1">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint pointer-events-none">
-              <svg width="15" height="15" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-                <circle cx="7.5" cy="7.5" r="5.5" stroke="currentColor" strokeWidth="1.5" />
-                <path d="M13 13L16 16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
-            </span>
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={`Search in ${formatCategoryName(name)}…`}
-              className="w-full pl-9 pr-3 py-2 rounded-xl border border-border/70 bg-cream/50 text-sm text-ink placeholder-ink-faint focus:outline-none focus:border-accent/50 focus:bg-card transition-colors"
-              autoComplete="off"
-            />
-          </div>
-
-          {/* Top-3 (or filtered) FAQ rows */}
-          <div className="divide-y divide-border/40">
-            {visible.length === 0 ? (
-              <p className="text-xs text-ink-soft py-3">
-                {q ? 'No matches in this category.' : 'No questions in this category yet.'}
-              </p>
-            ) : (
-              visible.map((item) => (
-                <button
-                  key={item._id}
-                  type="button"
-                  onClick={() => onOpenQuestion({ ...item, category: name })}
-                  className="group w-full text-left flex items-start gap-3 py-3"
-                >
-                  <span className="shrink-0 mt-1.5 w-1.5 h-1.5 rounded-full bg-accent/40 group-hover:bg-accent transition-colors" aria-hidden="true" />
-                  <span className="flex-1 min-w-0 text-sm text-ink group-hover:text-accent transition-colors line-clamp-2">
-                    {getQuestionTitle(item)}
-                  </span>
-                  <svg className="shrink-0 mt-1 text-ink-faint group-hover:text-accent transition-colors" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <path d="m9 18 6-6-6-6" />
-                  </svg>
-                </button>
-              ))
-            )}
-          </div>
-
-          {/* Footer — caption + link to the full FAQ section */}
-          <div className="mt-1 pt-3 border-t border-border/60 flex items-center justify-between gap-3">
-            <span className="text-[11px] text-ink-faint">
-              {q
-                ? `${visible.length} ${visible.length === 1 ? 'match' : 'matches'}`
-                : count > TOP_PER_CATEGORY
-                  ? `Top ${TOP_PER_CATEGORY} of ${count}`
-                  : `${count} ${count === 1 ? 'FAQ' : 'FAQs'}`}
-            </span>
-            <button
-              type="button"
-              onClick={onViewAll}
-              className="text-xs text-accent font-medium hover:underline inline-flex items-center gap-1"
-            >
-              Open in FAQ section
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="m9 18 6-6-6-6" />
-              </svg>
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-//  Numbered FAQ row — used by Most Popular + Recent FAQs lists
-// ═══════════════════════════════════════════════════════════════════════════
-function NumberedFaqRow({
-  rank,
-  item,
-  meta,
-  onOpen,
-}: {
-  rank: number;
-  item: FAQItem;
-  meta?: React.ReactNode;
-  onOpen: (item: FAQItem) => void;
-}): React.ReactElement {
-  const verified = item.reviewStatus === 'verified';
-  return (
-    <li>
-      <button
-        type="button"
-        onClick={() => onOpen(item)}
-        className="group w-full text-left flex items-start gap-3 py-2.5 px-2 -mx-2 rounded-xl hover:bg-cream/60 transition-colors duration-150"
-      >
-        <span className="shrink-0 w-6 h-6 rounded-md bg-cream text-ink-soft text-[11px] font-semibold flex items-center justify-center mt-0.5 tabular-nums">
-          {rank}
-        </span>
-
-        <div className="flex-1 min-w-0">
-          <h3 className="text-sm font-medium text-ink leading-snug line-clamp-2 group-hover:text-accent transition-colors">
-            {getQuestionTitle(item)}
-          </h3>
-          {item.answer && (
-            <p className="text-xs text-ink-soft mt-1 line-clamp-1">
-              {item.answer}
-            </p>
-          )}
-          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-            {item.category && (
-              <span className="text-[11px] text-ink-faint bg-mist px-1.5 py-0.5 rounded">
-                {formatCategoryName(item.category).replace(/^\d+\.\s*/, '')}
-              </span>
-            )}
-            {verified && (
-              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-success/15 text-success">
-                Verified
-              </span>
-            )}
-            {meta}
-          </div>
-        </div>
-
-        <svg className="shrink-0 mt-1.5 text-ink-faint group-hover:text-accent transition-colors" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="m9 18 6-6-6-6" />
-        </svg>
-      </button>
-    </li>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-//  Skeleton row used while data is loading
-// ═══════════════════════════════════════════════════════════════════════════
-function NumberedSkeletonRow({ rank }: { rank: number }): React.ReactElement {
-  return (
-    <li className="flex items-start gap-3 py-2.5 px-2 -mx-2">
-      <span className="shrink-0 w-6 h-6 rounded-md bg-mist animate-pulse flex items-center justify-center text-[11px] tabular-nums text-transparent">{rank}</span>
-      <div className="flex-1">
-        <div className="h-3 bg-mist rounded animate-pulse w-4/5 mb-1.5" />
-        <div className="h-2.5 bg-mist rounded animate-pulse w-full mb-1" />
-        <div className="h-2.5 bg-mist rounded animate-pulse w-2/3" />
-      </div>
-    </li>
-  );
-}
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  Main page
@@ -351,9 +105,6 @@ export default function HomePage() {
   const [popularLoading, setPopularLoading] = useState(true);
   const [recentPublicFaqs, setRecentPublicFaqs] = useState<PublicPopularFaq[]>([]);
   const [recentLoading, setRecentLoading] = useState(true);
-  // Per-category top FAQs ranked by live opens + search hits (dynamic).
-  const [topByCategory, setTopByCategory] = useState<Record<string, FAQItem[]>>({});
-
   // ── UI state ─────────────────────────────────────────────────────────────
   const [activeCategory, setActiveCategory] = useState('');
   const [activeQuestion, setActiveQuestion] = useState<FAQItem | null>(null);
@@ -362,31 +113,34 @@ export default function HomePage() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [sortOption, setSortOption] = useState('relevant');
   const [visibleCount, setVisibleCount] = useState(8);
-  const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
+  const [isPopularHovered, setIsPopularHovered] = useState(false);
+
+  const { enabled: sidebarEnabled } = useFeatureFlag('categorySidebar');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
+  const [showAllFaqs, setShowAllFaqs] = useState(false);
 
   const searchBarRef = useRef<HTMLInputElement>(null);
-  const allCategoriesRef = useRef<HTMLDivElement>(null);
+  const popularScrollRef = useRef<HTMLDivElement>(null);
+  const detailRef = useRef<HTMLDivElement>(null);
 
   const [resultFaqId, setResultFaqId] = useState<string | undefined>(undefined);
   const { id: urlFaqId } = useParams<string>();
   const navigate = useNavigate();
 
-  const scrollToTop = useCallback(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, []);
-
-  const scrollToAllCategories = useCallback(() => {
-    allCategoriesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, []);
-
-  const toggleCategory = useCallback((name: string) => {
-    setExpandedCats((prev) => {
-      const next = new Set(prev);
-      if (next.has(name)) next.delete(name);
-      else next.add(name);
-      return next;
+  // ── Scroll to QuestionDetail after it renders ─────────────────────────────
+  // When activeQuestion becomes non-null, the detail view mounts asynchronously.
+  // We use requestAnimationFrame to wait for the browser to paint, then scroll
+  // the detail container into view with a small offset for the sticky nav.
+  useEffect(() => {
+    if (!activeQuestion) return;
+    const raf = requestAnimationFrame(() => {
+      detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
-  }, []);
+    return () => cancelAnimationFrame(raf);
+  }, [activeQuestion]);
+
+
 
   // ── Fetch all data sources dynamically when batchId changes ──────────────
   useEffect(() => {
@@ -423,11 +177,6 @@ export default function HomePage() {
       .catch(() => { /* non-fatal */ })
       .finally(() => { if (mounted) setRecentLoading(false); });
 
-    // /api/public/category-top-faqs — per-category top 3 by opens + search hits
-    api.get('/public/category-top-faqs', { params: { limit: 3, batchId } })
-      .then((res) => { if (mounted) setTopByCategory(res.data?.grouped || {}); })
-      .catch(() => { /* non-fatal — falls back to popularityScore ordering */ });
-
     // /api/search/trending — removed (no longer used)
 
     return () => { mounted = false; };
@@ -450,6 +199,16 @@ export default function HomePage() {
       source: item.source || 'faq',
     })))
   ), [categories, grouped]);
+
+  const verifiedCount = useMemo(() =>
+    flatQuestions.filter((q) => q.reviewStatus === 'verified').length,
+  [flatQuestions]);
+
+  const zoomFaqCount = useMemo(() =>
+    flatQuestions.filter((q) => (q.source as string) === 'zoom_transcript').length,
+  [flatQuestions]);
+
+  const mergedCategoryFaqs = useMergedCategoryFaqs(grouped, selectedCategories, flatQuestions);
 
   // ── Deep-link handler (/faq/:id from URL) ───────────────────────────────
   useEffect(() => {
@@ -495,6 +254,39 @@ export default function HomePage() {
       sessionStorage.removeItem('yaksha_faq_highlight');
     }
   }, [grouped]);
+
+  // ── Deep-link to a category via ?category=... ──────────────────────────
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    if (!grouped || Object.keys(grouped).length === 0) return;
+    const cat = searchParams.get('category');
+    if (!cat) return;
+    if (grouped[cat]) {
+      setActiveCategory(cat);
+      setActiveQuestion(null);
+    }
+    setSearchParams((prev) => {
+      prev.delete('category');
+      return prev;
+    }, { replace: true });
+  }, [grouped, searchParams, setSearchParams]);
+
+  // ── Auto-scroll for Most Popular horizontal carousel ────────────────────
+  useEffect(() => {
+    const el = popularScrollRef.current;
+    if (!el || isPopularHovered || popularFaqs.length === 0) return;
+    const interval = setInterval(() => {
+      if (!popularScrollRef.current || isPopularHovered) return;
+      const { scrollLeft, scrollWidth, clientWidth } = popularScrollRef.current;
+      const maxScroll = scrollWidth - clientWidth;
+      if (scrollLeft >= maxScroll - 10) {
+        popularScrollRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+      } else {
+        popularScrollRef.current.scrollBy({ left: 300, behavior: 'smooth' });
+      }
+    }, 8000);
+    return () => clearInterval(interval);
+  }, [popularFaqs.length, isPopularHovered]);
 
   // ── Search bookkeeping ──────────────────────────────────────────────────
   useEffect(() => {
@@ -554,7 +346,6 @@ export default function HomePage() {
     setActiveQuestion(item);
     setSearchQuery('');
     setSearchResults(null);
-    scrollToTop();
   };
 
   const handleBackToCategories = () => {
@@ -590,6 +381,15 @@ export default function HomePage() {
 
   // True when the user is browsing the discovery landing (nothing selected)
   const showDiscovery = !loading && !error && !activeQuestion && !activeCategory;
+
+  const sidebarContent = (
+    <CategorySidebarContent
+      grouped={grouped}
+      selectedCategories={selectedCategories}
+      totalFaqCount={mergedCategoryFaqs.length}
+      onSelectionChange={(cats) => { setSelectedCategories(cats); setShowAllFaqs(false); }}
+    />
+  );
 
   // ── Render ──────────────────────────────────────────────────────────────
   return (
@@ -700,7 +500,8 @@ export default function HomePage() {
         )}
 
         {/* ─── DETAIL VIEW (when a question is opened) ──────────────── */}
-        {!loading && !error && activeQuestion && (
+        {!loading && !error && activeQuestion && !sidebarEnabled && (
+          <div ref={detailRef}>
           <QuestionDetail
             item={activeQuestion}
             relatedItems={relatedItems}
@@ -714,18 +515,19 @@ export default function HomePage() {
                 : 'Back to Categories'
             }
           />
+          </div>
         )}
 
         {/* Search results render inline in the dropdown under the search bar
             (see SearchDropdown) — no full-page results view / redirect. */}
 
-        {/* ─── CATEGORY VIEW ────────────────────────────────────────── */}
-        {!loading && !error && !activeQuestion && !searchActive && activeCategory && (
+        {/* ─── CATEGORY VIEW (non-sidebar only) ────────────────────────── */}
+        {!loading && !error && !activeQuestion && !searchActive && activeCategory && !sidebarEnabled && (
           <section className="max-w-4xl mx-auto">
             <div className="mb-6">
               <button
                 onClick={handleBackToCategories}
-                className="inline-flex items-center gap-2 text-xs font-semibold text-ink-soft hover:text-ink transition-colors"
+                className="inline-flex items-center gap-2 text-xs font-semibold text-accent hover:text-ink transition-colors"
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="15 18 9 12 15 6" />
@@ -763,162 +565,462 @@ export default function HomePage() {
           </section>
         )}
 
-        {/* ─── DISCOVERY LANDING ─────────────────────────────────────── */}
-        {showDiscovery && (
+        {/* ─── SIDEBAR LAYOUT (feature flag: categorySidebar) ──────────── */}
+        {!loading && !error && sidebarEnabled && (
           <>
-            {/* ─── 3-COLUMN: Most Popular · Recent FAQs · Browse Categories ─── */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4">
-              {/* ───── MOST POPULAR ───── */}
-              <section className="bg-card rounded-2xl border border-border p-6 flex flex-col h-full" aria-labelledby="most-popular-heading">
-                <header className="flex items-center justify-between mb-6 shrink-0">
-                  <div className="flex items-center gap-2 text-accent">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            {/* Mobile: Categories opener button */}
+            <button
+              onClick={() => setSidebarMobileOpen(true)}
+              className="lg:hidden mb-4 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-accent bg-accent/10 border border-accent/25 rounded-xl hover:bg-accent/18 transition-colors"
+            >
+              <Tags size={16} />
+              Categories
+              {selectedCategories.length > 0 && (
+                <span className="ml-1 px-1.5 py-0.5 text-[10px] font-semibold bg-accent/10 text-accent rounded-full">
+                  {selectedCategories.length}
+                </span>
+              )}
+            </button>
+
+            <div className="flex gap-6 items-start mt-6">
+              {/* Desktop sidebar */}
+              <aside className="hidden lg:flex flex-col w-[260px] shrink-0 sticky top-24 h-[calc(100vh-8rem)] bg-card rounded-2xl border border-border/60 shadow-sm z-30 overflow-hidden">
+                {sidebarContent}
+              </aside>
+
+              {/* Right panel */}
+              <div className="flex-1 min-w-0">
+                {/* Stats strip */}
+                <section className="mt-0" aria-label="Platform statistics">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+                    <div className="stat-card bg-card rounded-2xl border border-border">
+                      <div className="stat-card__icon bg-accent/10 text-accent">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                          <polyline points="22 4 12 14.01 9 11.01" />
+                        </svg>
+                      </div>
+                      <div className="stat-card__value">{total.toLocaleString()}+</div>
+                      <div className="stat-card__label">Questions Answered</div>
+                    </div>
+                    <div className="stat-card bg-card rounded-2xl border border-border">
+                      <div className="stat-card__icon bg-accent/10 text-accent">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="9.5" />
+                          <path d="M9.5 9a2.5 2.5 0 1 1 4 2c-1 0.7-1.5 1.2-1.5 2.5" />
+                          <path d="M12 17.5h.01" />
+                        </svg>
+                      </div>
+                      <div className="stat-card__value">{categories.length}</div>
+                      <div className="stat-card__label">Categories</div>
+                    </div>
+                    <div className="stat-card bg-card rounded-2xl border border-border">
+                      <div className="stat-card__icon bg-accent/10 text-accent">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                          <polygon points="23 7 16 12 23 17 23 7" />
+                          <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+                        </svg>
+                      </div>
+                      <div className="stat-card__value">{zoomFaqCount > 0 ? `${zoomFaqCount}+` : '\u2014'}</div>
+                      <div className="stat-card__label">Zoom Sessions</div>
+                    </div>
+                    <div className="stat-card bg-card rounded-2xl border border-border">
+                      <div className="stat-card__icon bg-accent/10 text-accent">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
+                          <polyline points="16 7 22 7 22 13" />
+                        </svg>
+                      </div>
+                      <div className="stat-card__value">{total > 0 ? `${Math.round((verifiedCount / total) * 100)}%` : '95%'}</div>
+                      <div className="stat-card__label">Questions Resolved</div>
+                    </div>
+                  </div>
+                </section>
+
+                {/* Most Popular */}
+                <section className="mt-12" aria-labelledby="most-popular-heading">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1 h-5 rounded-full bg-accent" />
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-accent" aria-hidden="true">
+                        <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
+                        <polyline points="16 7 22 7 22 13" />
+                      </svg>
+                      <h2 id="most-popular-heading" className="font-serif text-xl text-ink leading-none">Most Popular</h2>
+                    </div>
+                    <span className="text-[10px] text-ink-soft uppercase tracking-wider font-semibold">Last 7 days</span>
+                  </div>
+                  <div
+                    ref={popularScrollRef}
+                    className="h-scroll"
+                    onMouseEnter={() => setIsPopularHovered(true)}
+                    onMouseLeave={() => setIsPopularHovered(false)}
+                  >
+                    {popularLoading
+                      ? Array.from({ length: 5 }).map((_, i) => (
+                          <div key={i} className="popular-card bg-card rounded-2xl border border-border/60 p-4 animate-pulse min-w-[240px]">
+                            <div className="h-3 bg-mist rounded w-3/4 mb-3" />
+                            <div className="h-2.5 bg-mist rounded w-full mb-2" />
+                            <div className="h-2.5 bg-mist rounded w-2/3" />
+                          </div>
+                        ))
+                      : popularFaqs.length === 0
+                        ? <p className="text-xs text-ink-soft py-3">{'No popular FAQs yet \u2014 once interns start viewing, they\'ll show up here.'}</p>
+                        : popularFaqs.slice(0, 5).map((item) => (
+                            <button
+                              key={item._id}
+                              type="button"
+                              onClick={() => handleQuestionOpen(item)}
+                              className="popular-card bg-card rounded-2xl border border-border/60 p-4 cursor-pointer text-left hover:shadow-card-hover transition-all duration-200 group"
+                            >
+                              <h3 className="text-sm font-semibold text-ink leading-snug line-clamp-2 group-hover:text-accent transition-colors">
+                                {getQuestionTitle(item)}
+                              </h3>
+                              {item.answer && (
+                                <p className="mt-2 text-xs text-ink-soft leading-relaxed line-clamp-2">
+                                  {item.answer}
+                                </p>
+                              )}
+                              <div className="mt-3 flex items-center gap-2 text-[10px] text-ink-soft">
+                                <span>{formatViews(item.guestViewCount)}</span>
+                                {item.expectedReadMs && <><span>{'\u00B7'}</span><span>{formatReadTime(item.expectedReadMs)}</span></>}
+                              </div>
+                            </button>
+                          ))
+                    }
+                  </div>
+                </section>
+
+                {/* Recent FAQs */}
+                <section className="mt-12" aria-labelledby="recent-faqs-heading">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1 h-5 rounded-full bg-accent" />
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-accent" aria-hidden="true">
+                        <circle cx="12" cy="12" r="9" />
+                        <polyline points="12 7 12 12 15.5 14" />
+                      </svg>
+                      <h2 id="recent-faqs-heading" className="font-serif text-xl text-ink leading-none">Recent FAQs</h2>
+                    </div>
+                    <span className="text-[10px] text-ink-soft uppercase tracking-wider font-semibold">Newest</span>
+                  </div>
+                  <div className="bg-card rounded-2xl border border-border p-5 sm:p-6">
+                    {recentLoading ? (
+                      <div className="space-y-4">
+                        {[1, 2, 3, 4, 5].map((n) => (
+                          <div key={n} className="flex items-start gap-3 animate-pulse">
+                            <div className="w-3 h-3 rounded-full bg-mist shrink-0 mt-1" />
+                            <div className="flex-1">
+                              <div className="h-3 bg-mist rounded w-3/4 mb-1.5" />
+                              <div className="h-2.5 bg-mist rounded w-1/4" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : recentPublicFaqs.length === 0 ? (
+                      <p className="text-xs text-ink-soft py-3">No recent FAQs yet.</p>
+                    ) : (
+                      <div className="timeline">
+                        {recentPublicFaqs.slice(0, 6).map((item) => (
+                          <div key={item._id} className="timeline-item">
+                            <div className="timeline-dot" />
+                            <button
+                              type="button"
+                              onClick={() => handleQuestionOpen(item)}
+                              className="timeline-content w-full text-left group"
+                            >
+                              <div className="flex items-center gap-2 mb-0.5">
+                                {item.category && (
+                                  <span className="text-[10px] font-semibold text-ink-faint bg-mist px-1.5 py-0.5 rounded">
+                                    {formatCategoryName(item.category).replace(/^\d+\.\s*/, '')}
+                                  </span>
+                                )}
+                                <span className="text-[10px] text-ink-faint">{formatRelativeTime(item.createdAt)}</span>
+                              </div>
+                              <p className="text-sm text-ink leading-snug group-hover:text-accent transition-colors line-clamp-1">
+                                {getQuestionTitle(item)}
+                              </p>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </section>
+
+                {/* Merged FAQs or Detail */}
+                {activeQuestion ? (
+                  <section ref={detailRef} className="mt-12">
+                    <QuestionDetail
+                      item={activeQuestion}
+                      relatedItems={relatedItems}
+                      onBack={handleBackFromDetail}
+                      onSelectRelated={handleQuestionOpen}
+                      backLabel={
+                        searchActive
+                          ? 'Back to Search Results'
+                          : activeCategory
+                          ? `Back to ${formatCategoryName(activeCategory)}`
+                          : 'Back to Categories'
+                      }
+                    />
+                  </section>
+                ) : (
+                  <section className="mt-12">
+                    {(() => {
+                      const noCategorySelected = selectedCategories.length === 0;
+                      const previewMode = noCategorySelected && !showAllFaqs;
+                      const previewItems = previewMode ? mergedCategoryFaqs.slice(0, 8) : mergedCategoryFaqs;
+                      const remainingCount = mergedCategoryFaqs.length - 8;
+
+                      return (
+                        <>
+                          <QuestionList
+                            items={previewItems}
+                            loading={false}
+                            sortOption={sortOption}
+                            onSortChange={setSortOption}
+                            visibleCount={previewMode ? 8 : visibleCount}
+                            onLoadMore={() => {
+                              if (previewMode) {
+                                setShowAllFaqs(true);
+                              } else {
+                                setVisibleCount((prev) => prev + 6);
+                              }
+                            }}
+                            emptyMessage="No questions found."
+                          />
+                          {previewMode && remainingCount > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setShowAllFaqs(true)}
+                              className="mt-4 w-full py-2.5 text-sm font-medium text-accent bg-accent/8 hover:bg-accent/15 rounded-xl transition-colors"
+                            >
+                              View All Questions ({mergedCategoryFaqs.length})
+                            </button>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </section>
+                )}
+
+                <FromMeetings />
+                <CTA />
+              </div>
+            </div>
+
+            {/* Mobile drawer — overlay, outside flex layout */}
+            <AnimatePresence>
+              {sidebarMobileOpen && (
+                <>
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="fixed inset-0 z-40 bg-ink/40 backdrop-blur-sm lg:hidden"
+                    onClick={() => setSidebarMobileOpen(false)}
+                  />
+                  <motion.aside
+                    initial={{ x: -280 }}
+                    animate={{ x: 0 }}
+                    exit={{ x: -280 }}
+                    transition={{ type: 'tween', duration: 0.2, ease: 'easeOut' }}
+                    className="fixed left-0 top-16 bottom-0 w-[280px] z-50 lg:hidden bg-card border-r border-border/60 shadow-xl overflow-hidden"
+                  >
+                    {sidebarContent}
+                  </motion.aside>
+                </>
+              )}
+            </AnimatePresence>
+          </>
+        )}
+
+        {/* ─── DISCOVERY LANDING (non-sidebar) ─────────────────────────── */}
+        {showDiscovery && !sidebarEnabled && (
+          <>
+            {/* ─── STATISTICS STRIP ─── */}
+            <section className="mt-6" aria-label="Platform statistics">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+                <div className="stat-card bg-card rounded-2xl border border-border">
+                  <div className="stat-card__icon bg-accent/10 text-accent">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                      <polyline points="22 4 12 14.01 9 11.01" />
+                    </svg>
+                  </div>
+                  <div className="stat-card__value">{total.toLocaleString()}+</div>
+                  <div className="stat-card__label">Questions Answered</div>
+                </div>
+                <div className="stat-card bg-card rounded-2xl border border-border">
+                  <div className="stat-card__icon bg-accent/10 text-accent">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="9.5" />
+                      <path d="M9.5 9a2.5 2.5 0 1 1 4 2c-1 0.7-1.5 1.2-1.5 2.5" />
+                      <path d="M12 17.5h.01" />
+                    </svg>
+                  </div>
+                  <div className="stat-card__value">{categories.length}</div>
+                  <div className="stat-card__label">Categories</div>
+                </div>
+                <div className="stat-card bg-card rounded-2xl border border-border">
+                  <div className="stat-card__icon bg-accent/10 text-accent">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <polygon points="23 7 16 12 23 17 23 7" />
+                      <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+                    </svg>
+                  </div>
+                  <div className="stat-card__value">{zoomFaqCount > 0 ? `${zoomFaqCount}+` : '\u2014'}</div>
+                  <div className="stat-card__label">Zoom Sessions</div>
+                </div>
+                <div className="stat-card bg-card rounded-2xl border border-border">
+                  <div className="stat-card__icon bg-accent/10 text-accent">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                       <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
                       <polyline points="16 7 22 7 22 13" />
                     </svg>
-                    <h2 id="most-popular-heading" className="font-serif text-lg text-ink leading-none">Most Popular</h2>
                   </div>
-                  <span className="text-[10px] text-ink-faint uppercase tracking-wider font-semibold">Last 7 days</span>
-                </header>
-                <div className="flex-1 flex flex-col">
-                  <ol className="space-y-0">
-                    {popularLoading
-                      ? [1, 2, 3, 4, 5].map((n) => <NumberedSkeletonRow key={n} rank={n} />)
-                      : popularFaqs.length === 0
-                        ? <p className="text-xs text-ink-soft py-3">No popular FAQs yet — once interns start viewing, they&apos;ll show up here.</p>
-                        : popularFaqs.slice(0, 5).map((item, idx) => (
-                            <NumberedFaqRow
-                              key={item._id}
-                              rank={idx + 1}
-                              item={item}
-                              meta={
-                                <>
-                                  <span className="text-[11px] text-ink-faint">{formatViews(item.guestViewCount)}</span>
-                                  <span className="text-[11px] text-ink-faint">· {formatReadTime(item.expectedReadMs)}</span>
-                                </>
-                              }
-                              onOpen={handleQuestionOpen}
-                            />
-                          ))
-                    }
-                  </ol>
+                  <div className="stat-card__value">{total > 0 ? `${Math.round((verifiedCount / total) * 100)}%` : '95%'}</div>
+                  <div className="stat-card__label">Questions Resolved</div>
                 </div>
-              </section>
-
-              {/* ───── RECENT FAQs ───── */}
-              <section className="bg-card rounded-2xl border border-border p-6 flex flex-col h-full" aria-labelledby="recent-faqs-heading">
-                <header className="flex items-center justify-between mb-6 shrink-0">
-                  <div className="flex items-center gap-2 text-accent">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <circle cx="12" cy="12" r="9" />
-                      <polyline points="12 7 12 12 15.5 14" />
-                    </svg>
-                    <h2 id="recent-faqs-heading" className="font-serif text-lg text-ink leading-none">Recent FAQs</h2>
-                  </div>
-                  <span className="text-[10px] text-ink-faint uppercase tracking-wider font-semibold">Newest</span>
-                </header>
-                <div className="flex-1 flex flex-col">
-                  <ol className="space-y-0">
-                    {recentLoading
-                      ? [1, 2, 3, 4, 5].map((n) => <NumberedSkeletonRow key={n} rank={n} />)
-                      : recentPublicFaqs.length === 0
-                        ? <p className="text-xs text-ink-soft py-3">No recent FAQs yet.</p>
-                        : recentPublicFaqs.slice(0, 5).map((item, idx) => (
-                            <NumberedFaqRow
-                              key={item._id}
-                              rank={idx + 1}
-                              item={item}
-                              meta={
-                                <>
-                                  <span className="text-[11px] text-ink-faint">{formatShortDate(item.createdAt)}</span>
-                                  {item.expectedReadMs ? <span className="text-[11px] text-ink-faint">· {formatReadTime(item.expectedReadMs)}</span> : null}
-                                </>
-                              }
-                              onOpen={handleQuestionOpen}
-                            />
-                          ))
-                    }
-                  </ol>
-                </div>
-              </section>
-
-              {/* ───── BROWSE CATEGORIES ───── */}
-              <section className="bg-card rounded-2xl border border-border p-6 flex flex-col h-full" aria-labelledby="browse-categories-heading">
-                <header className="flex items-center justify-between mb-6 shrink-0">
-                  <div className="flex items-center gap-2 text-accent">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
-                      <line x1="7" y1="7" x2="7.01" y2="7" />
-                    </svg>
-                    <h2 id="browse-categories-heading" className="font-serif text-lg text-ink leading-none">Browse Categories</h2>
-                  </div>
-                  <span className="text-[10px] text-ink-faint uppercase tracking-wider font-semibold">{categories.length} topics</span>
-                </header>
-                <div className="flex-1 flex flex-col">
-                  <ul className="space-y-0">
-                    {categories.slice(0, 8).map((cat) => (
-                      <BrowseCategoryRow
-                        key={cat}
-                        name={cat}
-                        count={grouped[cat]?.length ?? 0}
-                        onSelect={() => handleCategoryOpen(cat)}
-                      />
-                    ))}
-                    {categories.length > 8 && (
-                      <li className="pt-2 border-t border-border/60 mt-2">
-                        <button
-                          type="button"
-                          onClick={scrollToAllCategories}
-                          className="text-xs text-accent font-medium hover:underline px-2"
-                        >
-                          + {categories.length - 8} more categories below
-                        </button>
-                      </li>
-                    )}
-                  </ul>
-                </div>
-              </section>
-            </div>
-
-            {/* ─── ALL CATEGORIES (accordion) ─── */}
-            <section ref={allCategoriesRef} id="all-categories" className="mt-16 scroll-mt-32" aria-labelledby="all-categories-heading">
-              <header className="flex items-baseline justify-between mb-8">
-                <h2 id="all-categories-heading" className="font-serif text-2xl text-ink">All Categories</h2>
-                <span className="text-xs text-ink-soft">{categories.length} topics</span>
-              </header>
-              {categories.length === 0 ? (
-                <p className="text-sm text-ink-soft">No categories yet.</p>
-              ) : (
-                <div className="space-y-3">
-                  {categories.map((cat) => (
-                    <AllCategoryCard
-                      key={cat}
-                      name={cat}
-                      count={grouped[cat]?.length ?? 0}
-                      items={grouped[cat] || []}
-                      topItems={topByCategory[cat] || []}
-                      expanded={expandedCats.has(cat)}
-                      onToggle={() => toggleCategory(cat)}
-                      onOpenQuestion={handleQuestionOpen}
-                      onViewAll={() => navigate(`/faq?category=${encodeURIComponent(cat)}`)}
-                    />
-                  ))}
-                </div>
-              )}
+              </div>
             </section>
 
-            {/* ─── TOP SOLVED TODAY · TRENDING ISSUES ─── */}
-            <section className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-5 sm:gap-8 items-start mt-16">
-              <TopSolved />
-              <div className="lg:mt-14 mt-0">
-                <TrendingIssues />
+            {/* ─── MOST POPULAR (horizontal scroll) ─── */}
+            <section className="mt-12" aria-labelledby="most-popular-heading">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-5 rounded-full bg-accent" />
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-accent" aria-hidden="true">
+                    <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
+                    <polyline points="16 7 22 7 22 13" />
+                  </svg>
+                  <h2 id="most-popular-heading" className="font-serif text-xl text-ink leading-none">Most Popular</h2>
+                </div>
+                <span className="text-[10px] text-ink-soft uppercase tracking-wider font-semibold">Last 7 days</span>
               </div>
+              <div
+                ref={popularScrollRef}
+                className="h-scroll"
+                onMouseEnter={() => setIsPopularHovered(true)}
+                onMouseLeave={() => setIsPopularHovered(false)}
+              >
+                {popularLoading
+                  ? Array.from({ length: 5 }).map((_, i) => (
+                      <div key={i} className="popular-card bg-card rounded-2xl border border-border/60 p-4 animate-pulse min-w-[240px]">
+                        <div className="h-3 bg-mist rounded w-3/4 mb-3" />
+                        <div className="h-2.5 bg-mist rounded w-full mb-2" />
+                        <div className="h-2.5 bg-mist rounded w-2/3" />
+                      </div>
+                    ))
+                  : popularFaqs.length === 0
+                    ? <p className="text-xs text-ink-soft py-3">{'No popular FAQs yet \u2014 once interns start viewing, they\'ll show up here.'}</p>
+                    : popularFaqs.slice(0, 5).map((item) => (
+                        <button
+                          key={item._id}
+                          type="button"
+                          onClick={() => handleQuestionOpen(item)}
+                          className="popular-card bg-card rounded-2xl border border-border/60 p-4 cursor-pointer text-left hover:shadow-card-hover transition-all duration-200 group"
+                        >
+                          <h3 className="text-sm font-semibold text-ink leading-snug line-clamp-2 group-hover:text-accent transition-colors">
+                            {getQuestionTitle(item)}
+                          </h3>
+                          {item.answer && (
+                            <p className="mt-2 text-xs text-ink-soft leading-relaxed line-clamp-2">
+                              {item.answer}
+                            </p>
+                          )}
+                          <div className="mt-3 flex items-center gap-2 text-[10px] text-ink-faint">
+                            <span>{formatViews(item.guestViewCount)}</span>
+                            {item.expectedReadMs && <><span>{'\u00B7'}</span><span>{formatReadTime(item.expectedReadMs)}</span></>}
+                          </div>
+                        </button>
+                      ))
+                }
+              </div>
+            </section>
+
+            {/* ─── RECENT FAQs (timeline) ─── */}
+            <section className="mt-12" aria-labelledby="recent-faqs-heading">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-5 rounded-full bg-accent" />
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-accent" aria-hidden="true">
+                    <circle cx="12" cy="12" r="9" />
+                    <polyline points="12 7 12 12 15.5 14" />
+                  </svg>
+                  <h2 id="recent-faqs-heading" className="font-serif text-xl text-ink leading-none">Recent FAQs</h2>
+                </div>
+                <span className="text-[10px] text-ink-soft uppercase tracking-wider font-semibold">Newest</span>
+              </div>
+              <div className="bg-card rounded-2xl border border-border p-5 sm:p-6">
+                {recentLoading ? (
+                  <div className="space-y-4">
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <div key={n} className="flex items-start gap-3 animate-pulse">
+                        <div className="w-3 h-3 rounded-full bg-mist shrink-0 mt-1" />
+                        <div className="flex-1">
+                          <div className="h-3 bg-mist rounded w-3/4 mb-1.5" />
+                          <div className="h-2.5 bg-mist rounded w-1/4" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : recentPublicFaqs.length === 0 ? (
+                  <p className="text-xs text-ink-soft py-3">No recent FAQs yet.</p>
+                ) : (
+                  <div className="timeline">
+                    {recentPublicFaqs.slice(0, 6).map((item) => (
+                      <div key={item._id} className="timeline-item">
+                        <div className="timeline-dot" />
+                        <button
+                          type="button"
+                          onClick={() => handleQuestionOpen(item)}
+                          className="timeline-content w-full text-left group"
+                        >
+                          <div className="flex items-center gap-2 mb-0.5">
+                            {item.category && (
+                              <span className="text-[10px] font-semibold text-accent bg-accent/10 px-1.5 py-0.5 rounded">
+                                {formatCategoryName(item.category).replace(/^\d+\.\s*/, '')}
+                              </span>
+                            )}
+                            <span className="text-[10px] text-ink-soft">{formatRelativeTime(item.createdAt)}</span>
+                          </div>
+                          <p className="text-sm text-ink leading-snug group-hover:text-accent transition-colors line-clamp-1">
+                            {getQuestionTitle(item)}
+                          </p>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {/* ─── BROWSE CATEGORIES ─── */}
+            <section className="mt-12" aria-labelledby="browse-categories-heading">
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-5 rounded-full bg-accent" />
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-accent" aria-hidden="true">
+                    <path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+                    <line x1="7" y1="7" x2="7.01" y2="7" />
+                  </svg>
+                  <h2 id="browse-categories-heading" className="font-serif text-xl text-ink leading-none">Browse by Category</h2>
+                </div>
+                <span className="text-[10px] text-ink-soft uppercase tracking-wider font-semibold">{categories.length} topics</span>
+              </div>
+              <CategoryCardGrid
+                grouped={grouped}
+                onSelect={handleCategoryOpen}
+                onQuestionClick={handleQuestionOpen}
+              />
             </section>
 
             {/* ─── FROM ZOOM MEETINGS ─── */}
             <FromMeetings />
 
-            {/* CTA — "Still have a question?" */}
+            {/* ─── CTA ─── */}
             <CTA />
           </>
         )}

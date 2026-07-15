@@ -6,13 +6,14 @@ import { emptyPaddedCenter, surfaceCardFlat, textBodySoft } from '../../styles/s
 interface CategoryCardGridProps {
   grouped: Record<string, FAQItem[]>;
   onSelect: (categoryName: string) => void;
+  onQuestionClick?: (item: FAQItem) => void;
 }
 
 /**
  * Responsive grid of CategoryCard, one per FAQ category.
  * 1 col on mobile, 2 on tablet, 3 on desktop.
  */
-export default function CategoryCardGrid({ grouped, onSelect }: CategoryCardGridProps) {
+export default function CategoryCardGrid({ grouped, onSelect, onQuestionClick }: CategoryCardGridProps) {
   const categories = useMemo(() => {
     return Object.entries(grouped)
       .map(([name, items]) => ({ name, items, count: items.length }))
@@ -41,6 +42,7 @@ export default function CategoryCardGrid({ grouped, onSelect }: CategoryCardGrid
           count={count}
           items={items}
           onSelect={() => onSelect(name)}
+          onQuestionClick={onQuestionClick}
         />
       ))}
     </div>
