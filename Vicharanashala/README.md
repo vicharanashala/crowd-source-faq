@@ -169,4 +169,3 @@ When deploying to Vercel:
 | **Scholar** | `100 - 299 SP` | 🛡️ |
 | **Sage** | `300 - 599 SP` | ⚔️ |
 | **Oracle** | `600+ SP` | 👑 |
-<img width="1160" height="637" alt="image" src="https://github.com/user-attachments/assets/b0f2389f-1ec4-46be-9658-f1f1076418b1" />

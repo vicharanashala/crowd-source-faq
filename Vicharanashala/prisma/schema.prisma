@@ -1,0 +1,92 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id               String            @id @default(uuid())
+  name             String
+  email            String            @unique
+  password         String
+  studentId        String?
+  college          String?
+  role             String            @default("USER")
+  isVerified       Boolean           @default(false)
+  spurtiPoints     Int               @default(0)
+  streak           Int               @default(0)
+  lastLoginDate    String?
+  badges           String            @default("[]") // JSON array of badges
+  createdAt        DateTime          @default(now())
+  chatMessages     ChatMessage[]
+  bookmarks        Bookmark[]
+  activityLogs     ActivityLog[]
+  communityAnswers CommunityAnswer[]
+  notifications    Notification[]
+}
+
+model FAQ {
+  id          String     @id // e.g. FAQ-001
+  category    String
+  question    String
+  answer      String
+  upvotes     Int        @default(0)
+  downvotes   Int        @default(0)
+  popularity  Int        @default(0)
+  tags        String     @default("[]") // JSON string array
+  related     String     @default("[]") // JSON string array
+  lastUpdated String
+  isOfficial  Boolean    @default(true)
+  bookmarks   Bookmark[]
+}
+
+model ChatMessage {
+  id        String   @id @default(uuid())
+  userId    String
+  message   String
+  response  String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Bookmark {
+  id        String   @id @default(uuid())
+  userId    String
+  faqId     String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  faq       FAQ      @relation(fields: [faqId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, faqId])
+}
+
+model ActivityLog {
+  id        String   @id @default(uuid())
+  userId    String
+  action    String
+  xpEarned  Int
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model CommunityAnswer {
+  id         String   @id @default(uuid())
+  question   String
+  answer     String
+  authorId   String
+  isVerified Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  author     User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
