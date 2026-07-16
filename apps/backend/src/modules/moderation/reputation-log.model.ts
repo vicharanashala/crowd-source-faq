@@ -49,6 +49,7 @@ const reputationLogSchema = new MongooseSchema<IReputationLog>({
       'system',
       'support_request',
       'user',
+      'quiz',
     ] as (
       | 'faq'
       | 'comment'
@@ -62,6 +63,7 @@ const reputationLogSchema = new MongooseSchema<IReputationLog>({
       | 'system'
       | 'support_request'
       | 'user'
+      | 'quiz'
     )[],
   },
   awardedBy: { type: MongooseSchema.Types.ObjectId, ref: 'User' },

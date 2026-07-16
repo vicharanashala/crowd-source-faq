@@ -83,13 +83,22 @@ export const FEATURE_FLAGS = {
       'the page shows the unavailable panel.',
     category: 'onboarding',
   },
-  askAiChatbot: {
+askAiChatbot: {
     default: false,
     label: 'Ask AI Chatbot',
     description:
       'The floating AskAI assistant button shown on non-admin pages. When disabled, ' +
       'the button is hidden from the UI. Toggle on to re-enable the chatbot for users.',
     category: 'ai',
+  },
+ quizMode: {
+    default: false,
+    label: 'FAQ Quiz Mode',
+    description:
+      'Spaced-repetition quiz layer over approved FAQs. Users answer ' +
+      'auto-generated questions; wrong answers resurface sooner. Ties ' +
+      'into the existing SP/reputation system. Experimental.',
+    category: 'faq',
   },
 } as const satisfies Record<string, FeatureFlagMeta>;
 

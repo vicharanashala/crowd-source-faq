@@ -194,25 +194,33 @@ export const FEATURE_FLAGS = {
       'in retrieval. Leave OFF until you have reviewed which seed URLs to crawl.',
     category: 'integrations',
   },
-  // v1.71 — replaces the deprecated `categoryClusterer` cron (which called a
+quizMode: {
+    default: false,
+    label: 'FAQ Quiz Mode',
+    description:
+      'Spaced-repetition quiz layer over approved FAQs. Users answer ' +
+      'auto-generated questions; wrong answers resurface sooner. Ties ' +
+      'into the existing SP/reputation system. Experimental.',
+    category: 'faq',
+  },
+  // v1.71 - replaces the deprecated `categoryClusterer` cron (which called a
   // local ONNX embedder that isn't running in this deployment, producing a
   // burst of `[categoryClusterer] embed failed for X: Connection error` warnings
   // every boot + 2 days). The new path uses the existing AI provider chain
   // (chatWithProvider / resolveActiveAiConfig) and writes directly to the
-  // Category collection. Off by default — flip on in /admin/features once
+  // Category collection. Off by default - flip on in /admin/features once
   // you've reviewed how aggressively the LLM will rewrite your category tree.
   categoryRecategorize: {
     default: false,
     label: 'LLM FAQ Recategorize (v1.71)',
     description:
       'Every 2 days, asks the configured LLM to re-assign each approved FAQ to the ' +
-      'best category. Creates new categories as needed. OFF by default — turning this ' +
+      'best category. Creates new categories as needed. OFF by default - turning this ' +
       'on will overwrite existing FAQ `category` assignments based on LLM output, so ' +
       'review a dry run first via the admin schedule UI.',
     category: 'faq',
   },
 } as const satisfies Record<string, FeatureFlagMeta>;
-
 /** Union of every registered flag key. Derived from the registry so
  *  the two can never drift. */
 export type FeatureFlagKey = keyof typeof FEATURE_FLAGS;

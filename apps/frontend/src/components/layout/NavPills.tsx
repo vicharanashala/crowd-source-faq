@@ -12,14 +12,20 @@ export const baseNavItems: NavItem[] = [
   { label: 'Community', to: '/community' },
 ];
 
+
 export function useNavItems() {
   const { user } = useAuth();
   const { enabled: supportOn } = useFeatureFlag('sessionSupport');
   const { enabled: goldenOn } = useFeatureFlag('goldenTicket');
+  const { enabled: quizOn } = useFeatureFlag('quizMode');
   const { enabled: welcomeOn, loading: flagsLoading } = useFeatureFlag('welcomePackage');
 
   const goldenExtras: NavItem[] = goldenOn
     ? [{ label: 'Golden', to: '/golden', xlOnly: true as const }]
+    : [];
+
+  const quizExtras: NavItem[] = quizOn
+    ? [{ label: 'Quiz', to: '/quiz' }]
     : [];
 
   // Welcome Package nav link is admin-controlled. Hide on an explicit
@@ -29,10 +35,9 @@ export function useNavItems() {
     !flagsLoading && welcomeOn === false
       ? baseNavItems.filter((item) => item.to !== '/welcome')
       : baseNavItems;
-
   let allNavItems: NavItem[] = supportOn
-    ? [...visibleBaseItems, { label: 'Support', to: '/support' }, ...goldenExtras]
-    : visibleBaseItems;
+    ? [...visibleBaseItems, { label: 'Support', to: '/support' }, ...goldenExtras, ...quizExtras]
+    : [...visibleBaseItems, ...quizExtras];
 
   if (user?.role === 'admin') {
     allNavItems = allNavItems
