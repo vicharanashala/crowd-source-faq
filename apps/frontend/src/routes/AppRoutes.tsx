@@ -41,6 +41,7 @@ const GoldenTicketDetailPage = lazy(() => import('../pages/GoldenTicketDetailPag
 const WelcomePackagePage = lazy(() => import('../pages/WelcomePackagePage'));
 const ProgramPortalPage = lazy(() => import('../pages/ProgramPortalPage'));
 const ProgramPage = lazy(() => import('../pages/ProgramPage'));
+const LeaderboardPage = lazy(() => import('../pages/LeaderboardPage'));
 // v1.87 — Sign My Tee: designer wizard + share + public sign pages.
 const TeeDesignerPage = lazy(() => import('../pages/TeeDesignerPage'));
 const TeeSharePage = lazy(() => import('../pages/TeeSharePage'));
@@ -75,6 +76,7 @@ const AdminApiLogsPage = lazy(() => import('../admin/pages/AdminApiLogsPage'));
 const FaqReview = lazy(() => import('../admin/pages/FaqReview'));
 const AdminAutoAnswerQueue = lazy(() => import('../admin/pages/AdminAutoAnswerQueue'));
 const AdminFAQAudit = lazy(() => import('../admin/pages/AdminFAQAudit'));
+const AdminFaqAnalytics = lazy(() => import('../admin/pages/AdminFaqAnalytics'));
 const AdminBatches = lazy(() => import('../admin/pages/AdminBatches'));
 const AdminProgramSettingsPage = lazy(() => import('../admin/pages/AdminProgramSettingsPage'));
 const AdminDynamicCategoriesPage = lazy(() => import('../admin/pages/AdminDynamicCategoriesPage'));
@@ -174,6 +176,7 @@ export default function AppRoutes() {
             <Route path="/golden" element={<RouteElement name="golden"><GoldenRoute /></RouteElement>} />
             <Route path="/golden/ticket/:id" element={<RouteElement name="golden-ticket-:id"><GoldenTicketDetailRoute /></RouteElement>} />
             <Route path="/program/:slug" element={<RouteElement name="program-:slug"><ProgramPage /></RouteElement>} />
+            <Route path="/leaderboard" element={<RouteElement name="leaderboard"><LeaderboardPage /></RouteElement>} />
             <Route
               path="/account"
               element={<RouteElement name="account"><AccountRoute>
@@ -236,6 +239,7 @@ export default function AppRoutes() {
           <Route path="/admin/train" element={<RouteElement name="admin-train"><AdminRoute><AdminLayout><AdminTrain /></AdminLayout></AdminRoute></RouteElement>} />
           <Route path="/admin/auto-answer" element={<RouteElement name="admin-auto-answer"><AdminRoute><AdminLayout><FeatureGate featureKey="aiAutoAnswer" featureLabel="AI Auto-Answer"><AdminAutoAnswerQueue /></FeatureGate></AdminLayout></AdminRoute></RouteElement>} />
           <Route path="/admin/faq-audit" element={<RouteElement name="admin-faq-audit"><AdminRoute><AdminLayout><FeatureGate featureKey="faqFreshness" featureLabel="FAQ Freshness Audit"><AdminFAQAudit /></FeatureGate></AdminLayout></AdminRoute></RouteElement>} />
+          <Route path="/admin/faq-analytics" element={<RouteElement name="admin-faq-analytics"><AdminRoute><AdminLayout><AdminFaqAnalytics /></AdminLayout></AdminRoute></RouteElement>} />
           <Route path="/admin/batches" element={<RouteElement name="admin-batches"><AdminRoute><AdminLayout><AdminBatches /></AdminLayout></AdminRoute></RouteElement>} />
           <Route path="/admin/courses" element={<RouteElement name="admin-courses"><AdminRoute><AdminLayout><AdminCoursesPage /></AdminLayout></AdminRoute></RouteElement>} />
           <Route path="/admin/programs/:id/settings" element={<RouteElement name="admin-programs-:id-settings"><AdminRoute><AdminLayout><AdminProgramSettingsPage /></AdminLayout></AdminRoute></RouteElement>} />

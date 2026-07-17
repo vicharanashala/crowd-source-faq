@@ -10,6 +10,7 @@ export const baseNavItems: NavItem[] = [
   { label: 'FAQ', to: '/faq' },
   { label: 'Welcome Package', to: '/welcome' },
   { label: 'Community', to: '/community' },
+  { label: 'Leaderboard', to: '/leaderboard' },
 ];
 
 export function useNavItems() {

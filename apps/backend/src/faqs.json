@@ -2,10 +2,80 @@
   "faqs": [
     {
       "id": "1",
-      "section": "General",
-      "question": "What is the Yaksha research internship?",
-      "answer": "Yaksha is a two-month research internship program.",
-      "category": "General Info"
+      "section": "About the internship",
+      "question": "What is the Vicharanashala internship?",
+      "answer": "A two-month, full-time engagement at the Vicharanashala Lab, a research lab at IIT Ropar. You will work on a real open-source project under a mentor, after a short training phase tailored to where you already are. The internship is free — we do not charge, and the work is real.",
+      "category": "About the internship"
+    },
+    {
+      "id": "2",
+      "section": "About the internship",
+      "question": "What is VINS?",
+      "answer": "VINS is the Vicharanashala Internship — an online programme open to anyone who clears our interview. The work is real open-source contribution under a mentor, the certificate is from the Vicharanashala Lab for Education Design at IIT Ropar, and the programme itself is free (we charge nothing). There is no stipend. If you are seeing a yellow VINS panel on your result page, you are selected.",
+      "category": "About the internship"
+    },
+    {
+      "id": "3",
+      "section": "Timing and dates",
+      "question": "When can I start?",
+      "answer": "You can start any time in 2026 — VINS is flexible on the start date — but there are two things you must hold in mind together, and one strong recommendation. The hard rule. Your internship must finish by 31 December 2026. That date is non-negotiable. Whatever start you pick, your end date (your start + 2 months, with up to 1 month grace) must land on or before 31 December 2026. So while there is no last date to opt in, there is absolutely a last date to finish. The strong recommendation: start as soon as possible. The earlier you join, the more of the May–July main cohort you catch — and three things make starting earlier materially better than starting later: Cohort networking. The batch goes through Bronze together — peer discussions, parallel problem-solving, and lasting connections happen during this window. Later in the year the cohort disperses and late starters are largely solo. TA support is concentrated in May–July. TAs are full-time during this window. After this they return to their own college work and bandwidth is materially thinner. Training rolls out with the cohort, not piecemeal — you get the material with the discussion around it, not as a static document. If starting now is genuinely impossible for you (exams, other unavoidable commitments), you can begin later and still complete and earn the certificate — but be honest with yourself: the cohort effect and support will be lighter, and the December cap means a late start leaves no room for slippage.",
+      "category": "Timing and dates"
+    },
+    {
+      "id": "4",
+      "section": "Timing and dates",
+      "question": "How long is the internship?",
+      "answer": "Two months from your chosen start date, with an optional one-month grace period if you need it. End must land on or before 31 December 2026.",
+      "category": "Timing and dates"
+    },
+    {
+      "id": "5",
+      "section": "NOC (No Objection Certificate)",
+      "question": "What dates do I put on the NOC?",
+      "answer": "Default: your chosen start date → your start + 2 months (with up to 1 month grace), ensuring the end date is on or before 31 December 2026. Pick the earliest start date you can realistically make — the May–July summer window is the main cohort. If the NOC will be signed on a specific later date, pick a start date after the signature date.",
+      "category": "NOC (No Objection Certificate)"
+    },
+    {
+      "id": "6",
+      "section": "NOC (No Objection Certificate)",
+      "question": "Who can sign the NOC?",
+      "answer": "Any authorised signatory at your college: HOD, Acting HOD (during holidays), Principal, Dean, Director, or Training & Placement Officer. For dual-degree students, either institution can sign — pick whichever is easier. For IITM BS Online Degree (standalone) students, any officer from the BS office can sign.",
+      "category": "NOC (No Objection Certificate)"
+    },
+    {
+      "id": "7",
+      "section": "Selection, offer letter, and certificate",
+      "question": "How do I know if I am selected?",
+      "answer": "If you can see your yellow VINS result panel on samagama.in, you are selected. There is no separate selection step or confirmation email.",
+      "category": "Selection, offer letter, and certificate"
+    },
+    {
+      "id": "8",
+      "section": "Selection, offer letter, and certificate",
+      "question": "How do I opt in for the internship?",
+      "answer": "Tell Yaksha in the chat: \"I want to take up the online internship without stipend.\" Yaksha will confirm. Opting in is the selection — no separate confirmation email is sent at that stage.",
+      "category": "Selection, offer letter, and certificate"
+    },
+    {
+      "id": "9",
+      "section": "Work, mentorship, and projects",
+      "question": "What project will I be working on?",
+      "answer": "A real open-source project from Vicharanashala's portfolio — assigned based on your background and the lab's current needs. Areas range across AI/ML, web development, NLP, computer vision, agriculture-tech (Annam.AI), education-tech (ViBe), and open-source infrastructure. We do not pre-publish the exact problem; you choose to join knowing the lab will assign the project.",
+      "category": "Work, mentorship, and projects"
+    },
+    {
+      "id": "10",
+      "section": "Work, mentorship, and projects",
+      "question": "How much time commitment is expected?",
+      "answer": "Plan for 6 to 10 hours a day, sometimes more during the build phase. This is a full-time internship for the two-month window. Most candidates who drop out are juggling something else — VINS expects your full attention.",
+      "category": "Work, mentorship, and projects"
+    },
+    {
+      "id": "11",
+      "section": "Code of conduct — communication channels",
+      "question": "What are the official communication channels?",
+      "answer": "Official channels only. The Announcements section on samagama.in is how we notify you — all programme notifications are posted there (we no longer send notifications by email). Log in and check it regularly during working hours; sessions are announced at least 1 hour before they begin. To get help with a question or problem, follow this order: Yaksha chat on samagama.in. This is the first place to bring any question or problem — start here and let Yaksha help. Discussion forum. If Yaksha cannot resolve your matter, take it to the discussion forum. The link was sent to you in your sign-up (registration) email when you first created your account on samagama.in, and is also posted in the Announcements section. This is where you troubleshoot and discuss with your peers and the team. Escalate to a human. Only if the discussion forum does not resolve your issue — return to Yaksha chat and use #escalate to reach Sudarshan Iyengar and the team. Email to internship@vicharanashala.ai — an absolute last resort, only after all of the above have not resolved your question. WhatsApp support is cancelled. There is no WhatsApp troubleshooting group. Not being on WhatsApp does not put you at any disadvantage — all information goes through the channels above. Unofficial groups are strictly prohibited. Creating, joining, or operating any WhatsApp group, Telegram channel, Discord server, or any other peer-coordinated space involving interns or a subset of interns — or contacting another intern through their personal phone number — is against the code of conduct. Any complaint or report of this will lead to the immediate termination of your internship. You may connect with fellow interns over LinkedIn and email.",
+      "category": "Code of conduct — communication channels"
     }
   ]
 }

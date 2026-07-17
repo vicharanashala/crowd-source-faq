@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { Types } from 'mongoose';
 import FAQ from './faq.model.js';
+import FaqFeedback from './faq-feedback.model.js';
 import GuestEvent, { type GuestEventType } from '../program/guest-event.model.js';
 import SearchLog from '../search/search-log.model.js';
 import { communityLog } from '../../utils/http/logger.js';
@@ -730,6 +731,69 @@ export async function recomputePopularity(): Promise<{ updated: number; duration
     const durationMs = Date.now() - start;
     communityLog.error(`[publicFaq] recomputePopularity failed after ${durationMs}ms: ${(err as Error).message}`);
     return { updated: 0, durationMs };
+  }
+}
+
+// ─── POST /api/public/faqs/:id/feedback ──────────────────────────────────────
+
+export async function submitFaqFeedback(req: Request, res: Response): Promise<void> {
+  const guestId = setGuestCookieIfMissing(req, res);
+
+  const rawId = req.params.id;
+  const id = Array.isArray(rawId) ? rawId[0] : rawId;
+  if (!id || !Types.ObjectId.isValid(id)) {
+    res.status(400).json({ message: 'Invalid FAQ id.' });
+    return;
+  }
+
+  const { isHelpful, reason, comments, sessionId } = req.body;
+
+  if (typeof isHelpful !== 'boolean') {
+    res.status(400).json({ message: 'isHelpful must be a boolean.' });
+    return;
+  }
+
+  if (!sessionId || typeof sessionId !== 'string') {
+    res.status(400).json({ message: 'sessionId is required.' });
+    return;
+  }
+
+  const objectFaqId = new Types.ObjectId(id);
+
+  try {
+    const faq = await FAQ.findById(objectFaqId).select('_id helpfulVotes unhelpfulVotes');
+    if (!faq) {
+      res.status(404).json({ message: 'FAQ not found.' });
+      return;
+    }
+
+    // Check for duplicate feedback from this session on this FAQ
+    const existingFeedback = await FaqFeedback.findOne({ faqId: objectFaqId, sessionId });
+    if (existingFeedback) {
+      res.status(409).json({ message: 'Feedback already submitted for this FAQ in this session.' });
+      return;
+    }
+
+    // Create the feedback record
+    await FaqFeedback.create({
+      faqId: objectFaqId,
+      sessionId,
+      isHelpful,
+      reason: reason ?? null,
+      comments: comments ?? null,
+    });
+
+    // Increment votes on the FAQ document
+    if (isHelpful) {
+      await FAQ.updateOne({ _id: objectFaqId }, { $inc: { helpfulVotes: 1 } });
+    } else {
+      await FAQ.updateOne({ _id: objectFaqId }, { $inc: { unhelpfulVotes: 1 } });
+    }
+
+    res.json({ success: true, message: 'Feedback submitted successfully.' });
+  } catch (err) {
+    communityLog.error(`[publicFaq] submitFaqFeedback failed: ${(err as Error).message}`);
+    res.status(500).json({ message: 'Failed to submit feedback.' });
   }
 }
 

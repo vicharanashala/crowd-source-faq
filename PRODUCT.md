@@ -99,3 +99,49 @@ Four zero-touch pillars, in order of automation:
 - GitHub: https://github.com/vicharanashala/crowd-source-faq
 - License: see [`LICENSE`](LICENSE)
 - Branch: `main` (active), with `MCSFAQ/main-v2` for the next iteration
+
+
+## Recent Feature Additions
+
+### 1. Leaderboard 
+**Goal:** Gamify the student experience and encourage active community participation by highlighting top contributors.
+- **Location:** Accessible via the main navigation bar (\/leaderboard\).
+- **Features:** 
+  - Displays a ranked list of top community contributors.
+  - Users earn "Spurti Points" for helping peers and providing accepted answers.
+  - Shows the logged-in user's current rank and progress toward the next tier.
+  - Time filters available (e.g., All Time, This Month, This Week).
+
+### 2. FAQ Feedback (Thumbs Up / Thumbs Down) 
+**Goal:** Empower users to rate the helpfulness of official FAQs to continuously improve the knowledge base.
+- **Location:** Embedded directly at the bottom of every expanded FAQ card on the FAQ detail page.
+- **Features:**
+  - Users can click **Yes** or **No** to the prompt "Was this answer helpful?".
+  - Clicking **Yes** registers a positive vote instantly with a friendly thank-you message.
+  - Clicking **No** opens a contextual feedback form asking the user to specify the issue (e.g., "Outdated information", "Hard to understand") along with an optional text comment.
+
+### 3. FAQ Analytics Dashboard 
+**Goal:** Provide administrators with actionable insights based on user engagement and FAQ feedback.
+- **Location:** Admin Panel -> FAQ Analytics (\/admin/faq-analytics\).
+- **Features:**
+  - **Overview Cards:** High-level metrics showing Total FAQs, Total Feedback, Helpful/Not Helpful counts, and overall Helpful Rate.
+  - **Most Viewed FAQs:** Ranks FAQs by view count to show what students are struggling with the most.
+  - **Recent Comments:** Streams recent contextual feedback provided by users who clicked "Thumbs Down".
+  - **Needs Improvement:** Highlights FAQs with low helpfulness ratings so admins can prioritize rewrites.
+
+### 4. ViBe Quick Access Button 
+**Goal:** Provide seamless, one-click access to the external ViBe student learning portal.
+- **Location:** Positioned permanently in the top navigation bar, right next to the Zoom button.
+- **Features:**
+  - Styled as a sleek, glowing "bubble" to match the premium dashboard aesthetics.
+  - Features a pulsing indicator dot.
+  - Safely opens the ViBe portal (\https://vibe.vicharanashala.ai/student\) in a secure new browser tab.
+
+### 5. Save for Later & Personal Collections 
+**Goal:** Allow users to curate their own personal library of important official FAQs and community posts.
+- **Location:** A "Save for Later" button on the FAQ detail page, and a "My Saved Knowledge" page (\/saved\) in the top navigation.
+- **Features:**
+  - Instantly bookmark FAQs with a single click.
+  - The Saved Dashboard uses a tabbed interface to separate **Community Posts** and **Official FAQs**.
+  - Empty states guide new users on how to populate their collections.
+
