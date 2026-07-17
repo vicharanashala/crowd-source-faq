@@ -54,6 +54,14 @@ interface AiFeatureConfig {
   embeddingModel?: string;
   temperature: number;
   maxTokens: number;
+  // v1.85 — automatic provider failover. allowFallback defaults to
+  // true on the backend when undefined; the UI surfaces it as a
+  // checkbox. fallbackProviders is an ordered list of provider
+  // names that the chain walks when the primary returns a retriable
+  // failure. Empty array = use the env-var FALLBACK_PROVIDERS or
+  // the hard-coded default order.
+  allowFallback?: boolean;
+  fallbackProviders?: ('anthropic' | 'openai' | 'xai' | 'minimax' | 'gemini' | 'custom')[];
 }
 interface EmbeddingConfig { provider: 'local' | 'huggingface' | 'openai' | 'custom'; model: string; dimensions: number; baseURL: string; hasKey: boolean; }
 interface AiConfig {
@@ -109,14 +117,15 @@ const PROVIDER_META = {
     defaultModel: 'MiniMax-M3',
     defaultBaseURL: 'https://api.minimax.io/v1',
     docsUrl: 'https://platform.minimax.io/user-center/basic-information/interface-key',
-    // v1.80 — hint about the two minimax key formats. Coding Plan
-    // keys (sk-cp-…) are only valid against the Coding Plan
-    // endpoints, NOT the general /v1/models or /chat/completions.
-    // Using one against the general endpoint returns the
-    // `1004 login fail` 401 even though the key is "valid" in the
-    // dashboard. General API keys look like sk-… (no -cp-
-    // segment) and live under Account Management → API Keys.
-    keyHint: 'Use a General API key (sk-…), not a Coding Plan key (sk-cp-…). Get it at the link above.',
+    // Both General API keys (sk-…) and Token Plan / Coding Plan keys
+    // (sk-cp-…) authenticate against the same base URL — they share
+    // the /v1/chat/completions endpoint. The only difference is the
+    // billing pool: General keys draw from pay-as-you-go credits, Token
+    // Plan keys draw from your subscription quota. If you have a Token
+    // Plan subscription, use the sk-cp-… key (Subscription Key from
+    // Billing → Token Plan). Otherwise use a general sk-… key from
+    // Account Management → API Keys.
+    keyHint: 'Use a General API key (sk-…) or Token Plan key (sk-cp-…). Both work against this endpoint; pick the one that matches your billing plan. Get it at the link above.',
     badgeColor: 'bg-accent/10 text-accent border-accent/20',
     suggestedModels: ['MiniMax-M3', 'MiniMax-M2.7', 'MiniMax-M2', 'MiniMax-Text-01']
   },
@@ -1081,6 +1090,41 @@ export default function AdminAISettings() {
   const handleEmbeddingModelChange = (feature: keyof AiConfig['features'], embeddingModel: string) => { if (!features) return; setFeatures(p => p ? { ...p, [feature]: { ...p[feature], embeddingModel } } : p); setHasChanges(true); };
   const handleTempChange = (feature: keyof AiConfig['features'], temperature: number) => { if (!features) return; setFeatures(p => p ? { ...p, [feature]: { ...p[feature], temperature } } : p); setHasChanges(true); };
   const handleMaxTokensChange = (feature: keyof AiConfig['features'], maxTokens: number) => { if (!features) return; setFeatures(p => p ? { ...p, [feature]: { ...p[feature], maxTokens } } : p); setHasChanges(true); };
+  // v1.85 — provider-failover controls. allowFallback toggles
+  // the whole chain; fallbackProviders is a free-order list of
+  // provider names that the chain walks in order (empty = use
+  // the server-side default order). Stored alongside the
+  // feature model + temperature; backend honours them on the
+  // next request without restart.
+  const handleAllowFallbackChange = (feature: keyof AiConfig['features'], allowed: boolean) => {
+    if (!features) return;
+    setFeatures(p => p ? { ...p, [feature]: { ...p[feature], allowFallback: allowed } } : p);
+    setHasChanges(true);
+  };
+  const handleToggleFallbackProvider = (feature: keyof AiConfig['features'], provider: 'anthropic' | 'openai' | 'xai' | 'minimax' | 'gemini' | 'custom') => {
+    if (!features) return;
+    setFeatures(p => {
+      if (!p) return p;
+      const cur = p[feature].fallbackProviders ?? [];
+      const next = cur.includes(provider) ? cur.filter(x => x !== provider) : [...cur, provider];
+      return { ...p, [feature]: { ...p[feature], fallbackProviders: next } };
+    });
+    setHasChanges(true);
+  };
+  const handleMoveFallbackProvider = (feature: keyof AiConfig['features'], provider: 'anthropic' | 'openai' | 'xai' | 'minimax' | 'gemini' | 'custom', dir: -1 | 1) => {
+    if (!features) return;
+    setFeatures(p => {
+      if (!p) return p;
+      const cur = [...(p[feature].fallbackProviders ?? [])];
+      const idx = cur.indexOf(provider);
+      if (idx < 0) return p;
+      const swap = idx + dir;
+      if (swap < 0 || swap >= cur.length) return p;
+      [cur[idx], cur[swap]] = [cur[swap], cur[idx]];
+      return { ...p, [feature]: { ...p[feature], fallbackProviders: cur } };
+    });
+    setHasChanges(true);
+  };
 
   const handleSaveFeatures = async () => {
     if (!features) return; setSaving(true); setError('');
@@ -1711,6 +1755,95 @@ export default function AdminAISettings() {
                         groupedByProvider={embeddingGroups}
                         pickerId={`feature:embedding:${feature}`}
                       />
+                    </div>
+                    {/* v1.85 — provider failover. Toggle the chain
+                        on/off; reorder the per-feature fallback
+                        list (drag-style up/down buttons; order =
+                        chain order). Empty list = "use the server
+                        default order". Each provider in the list
+                        must have a key configured (in Provider
+                        Settings) for the chain to actually try it;
+                        unconfigured providers are silently
+                        skipped server-side. */}
+                    <div className="col-span-2 pt-2 border-t border-border/60">
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <label className="flex items-center gap-2 text-[10px] font-semibold text-ink-faint uppercase">
+                          <input
+                            type="checkbox"
+                            checked={f.allowFallback !== false}
+                            onChange={e => handleAllowFallbackChange(feature, e.target.checked)}
+                            data-testid={`feature-${feature}-allow-fallback`}
+                            className="cursor-pointer"
+                          />
+                          Allow Provider Fallback
+                        </label>
+                        <span className="text-[10px] text-ink-faint">
+                          {f.fallbackProviders && f.fallbackProviders.length > 0
+                            ? `${f.fallbackProviders.length} provider(s) in chain`
+                            : 'using server default order'}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5" data-testid={`feature-${feature}-fallback-chain`}>
+                        {(['anthropic', 'openai', 'xai', 'minimax', 'gemini', 'custom'] as const).map((prov) => {
+                          const inChain = (f.fallbackProviders ?? []).includes(prov);
+                          const orderIdx = (f.fallbackProviders ?? []).indexOf(prov);
+                          const provHasKey = config?.providers?.[prov]?.hasKey ?? false;
+                          return (
+                            <div
+                              key={prov}
+                              className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[10px] ${
+                                inChain
+                                  ? 'bg-accent/10 border-accent/40 text-ink'
+                                  : 'bg-mist/40 border-border text-ink-faint'
+                              }`}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => handleToggleFallbackProvider(feature, prov)}
+                                disabled={!provHasKey}
+                                title={!provHasKey
+                                  ? `${prov} has no API key — configure it in Provider Settings first`
+                                  : inChain
+                                    ? `Click to remove ${prov} from the chain`
+                                    : `Click to add ${prov} to the chain`}
+                                className="cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 font-semibold"
+                              >
+                                {prov}
+                                {inChain && (
+                                  <span className="ml-1 text-[9px] text-ink-faint">#{orderIdx + 1}</span>
+                                )}
+                              </button>
+                              {inChain && (
+                                <span className="flex items-center gap-0.5 ml-1 border-l border-border/60 pl-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleMoveFallbackProvider(feature, prov, -1)}
+                                    disabled={orderIdx === 0}
+                                    aria-label={`Move ${prov} earlier in the chain`}
+                                    className="text-[10px] px-1 text-ink-soft hover:text-ink disabled:opacity-30"
+                                  >
+                                    ▲
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleMoveFallbackProvider(feature, prov, +1)}
+                                    disabled={orderIdx === (f.fallbackProviders?.length ?? 0) - 1}
+                                    aria-label={`Move ${prov} later in the chain`}
+                                    className="text-[10px] px-1 text-ink-soft hover:text-ink disabled:opacity-30"
+                                  >
+                                    ▼
+                                  </button>
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <p className="text-[10px] text-ink-faint mt-1.5">
+                        Retriable failures (401, 429, 5xx, network) trigger the next provider.
+                        Validation errors (400) abort the chain. The chain is also auto-skipped
+                        for providers without a configured API key.
+                      </p>
                     </div>
                   </div>
                   {/* v1.82 — live test result panel. Shows whatever the

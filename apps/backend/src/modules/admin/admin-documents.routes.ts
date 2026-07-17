@@ -16,6 +16,7 @@ import {
   listDocuments,
   deleteDocument,
 } from './adminDocuments.controller.js';
+import { reindexDocuments, getReindexDiagnostics } from './adminReindex.controller.js';
 
 const UPLOAD_DIR = path.resolve(
   process.cwd(),
@@ -66,4 +67,11 @@ router.use(adminWriteLimiter);
 router.post('/documents', upload.single('file'), addDocument);
 router.get('/documents', listDocuments);
 router.delete('/documents/:id', deleteDocument);
+// Reindex trigger — re-extracts metadata + (when EMBEDDING_MODEL is
+// set) re-embeds DocumentAsset rows. Idempotent. Accepts
+// ?target=all (default) or ?target=<documentId>.
+router.post('/documents/reindex', reindexDocuments);
+// Diagnostics — in-memory ring of the last 50 reindex events, plus
+// the per-doc index state. Consumed by /admin/document-index.
+router.get('/documents/diagnostics', getReindexDiagnostics);
 export default router;

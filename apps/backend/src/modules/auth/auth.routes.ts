@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { login, register, getMe, getAllUsers, updateUserRole, deleteUser, updateProfile, changePassword, exportUserData, logout, refresh } from './auth.controller.js';
+import { login, register, getMe, getAllUsers, updateUserRole, deleteUser, updateProfile, changePassword, exportUserData, logout, refresh, adminResetUserPassword } from './auth.controller.js';
 import { protect, authorize } from '../../middleware/auth.js';
 import { loginLimiter, registerLimiter, passwordChangeLimiter, refreshLimiter } from '../../utils/auth/rateLimit.js';
-import { validateBody, refreshSchema, registerSchema, loginSchema, updateProfileSchema, changePasswordSchema } from '../../utils/auth/validation.js';
+import { validateBody, refreshSchema, registerSchema, loginSchema, updateProfileSchema, changePasswordSchema, adminResetPasswordSchema } from '../../utils/auth/validation.js';
 // v1.70 — Controlled-registration gate. Mounted BEFORE validateBody so
 // closed/invalid-token requests 403 before the Zod schema runs.
 import { registrationGate } from '../../utils/auth/registrationGate.js';
@@ -62,5 +62,22 @@ router.patch('/users/:id/role', protect, authorize('admin'), updateUserRole);
 
 // DELETE /api/auth/users/:id (Protected: Admin only)
 router.delete('/users/:id', protect, authorize('admin'), deleteUser);
+
+// PUT /api/auth/users/:id/password (Protected: Admin only) — v1.85.
+// Admin-initiated password reset. Rate-limited via the same
+// passwordChangeLimiter bucket as the user-self-change path so
+// a runaway admin script can't hammer the bcryptjs pre-save hook
+// (12 rounds × N requests is a real cost). Validated via
+// adminResetPasswordSchema (same passwordPolicy as user-self).
+// The handler itself enforces the hard floor that admins cannot
+// be reset by other admins — see auth.controller.ts.
+router.put(
+  '/users/:id/password',
+  protect,
+  authorize('admin'),
+  passwordChangeLimiter,
+  validateBody(adminResetPasswordSchema),
+  adminResetUserPassword,
+);
 
 export default router;

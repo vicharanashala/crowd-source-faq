@@ -126,6 +126,33 @@ export default function AccountPage() {
 
   const handleLogout = () => { logout(); navigate('/'); };
 
+  // ─── T-Shirt Hub states and loading ─────────────────────────────
+  const [hubTab, setHubTab] = useState<'mine' | 'signed'>('mine');
+  const [myTee, setMyTee] = useState<any | null>(null);
+  const [signedTees, setSignedTees] = useState<any[]>([]);
+  const [hubLoading, setHubLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    (async () => {
+      try {
+        const [meRes, signedRes] = await Promise.all([
+          api.get('/tee/me'),
+          api.get('/tee/me/signed-by-me'),
+        ]);
+        if (!active) return;
+        setMyTee(meRes.data?.tee ?? null);
+        setSignedTees(signedRes.data?.tees ?? []);
+      } catch (err) {
+        console.error('Failed to load T-shirt hub data', err);
+      } finally {
+        if (active) setHubLoading(false);
+      }
+    })();
+    return () => { active = false; };
+  }, [user]);
+
   // Poll progress while a transcript is processing
   useEffect(() => {
     if (!transcriptMeetingId) return;
@@ -314,6 +341,148 @@ export default function AccountPage() {
 
         {/* Password card */}
         <PasswordCard />
+
+        {/* 👕 My T-Shirt Hub */}
+        <div className="bg-card rounded-2xl border border-border p-6 space-y-4">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">
+              <span className="text-base">👕</span>
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold text-ink">My T-Shirt Hub</h2>
+              <p className="text-[11px] text-ink-faint mt-0.5">
+                Track your signatures and see the tees you have signed.
+              </p>
+            </div>
+          </div>
+
+          {/* Sub-tabs */}
+          <div className="flex border-b border-border">
+            <button
+              type="button"
+              onClick={() => setHubTab('mine')}
+              className={`flex-1 pb-2 text-xs font-semibold text-center border-b-2 transition-all ${
+                hubTab === 'mine'
+                  ? 'border-accent text-accent'
+                  : 'border-transparent text-ink-soft hover:text-ink'
+              }`}
+            >
+              ✍️ Who Signed Mine ({myTee?.signatures?.length ?? 0})
+            </button>
+            <button
+              type="button"
+              onClick={() => setHubTab('signed')}
+              className={`flex-1 pb-2 text-xs font-semibold text-center border-b-2 transition-all ${
+                hubTab === 'signed'
+                  ? 'border-accent text-accent'
+                  : 'border-transparent text-ink-soft hover:text-ink'
+              }`}
+            >
+              👕 Tees I Signed ({signedTees.length})
+            </button>
+          </div>
+
+          {hubLoading ? (
+            <div className="py-6 flex justify-center">
+              <div className="w-5 h-5 rounded-full border-2 border-accent/20 border-t-accent animate-spin" />
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {/* Tab 1: Who Signed Mine */}
+              {hubTab === 'mine' && (
+                <>
+                  {!myTee ? (
+                    <div className="py-4 text-center">
+                      <p className="text-xs text-ink-soft mb-3">You haven't configured your T-shirt yet!</p>
+                      <button
+                        onClick={() => navigate('/tee')}
+                        className="px-3.5 py-1.5 rounded-lg bg-accent text-accent-text text-xs font-semibold hover:bg-accent-hover transition-colors"
+                      >
+                        Create My Tee
+                      </button>
+                    </div>
+                  ) : myTee.signatures?.length === 0 ? (
+                    <div className="py-4 text-center space-y-2">
+                      <p className="text-xs text-ink-soft">No signatures yet. Share your link to get signatures!</p>
+                      <button
+                        onClick={() => navigate(`/tee/share/${myTee.shareId}`)}
+                        className="px-3 py-1.5 rounded-lg bg-card border border-border text-xs text-ink hover:bg-mist transition-colors"
+                      >
+                        View & Share My Tee
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-2 max-h-[220px] overflow-y-auto pr-1">
+                        {myTee.signatures.map((s: any) => (
+                          <div
+                            key={s._id}
+                            className="bg-bg border border-border rounded-xl p-2.5 flex items-center gap-2.5"
+                          >
+                            <div className="w-8 h-8 rounded bg-card border border-border overflow-hidden shrink-0 grid place-items-center p-1">
+                              <img src={s.signerDataUrl} alt="" className="max-h-full max-w-full object-contain" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-semibold text-ink truncate">{s.signerName}</p>
+                              <p className="text-[10px] text-ink-faint">
+                                {s.face === 'front' ? 'Signed Front' : 'Signed Back'}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <button
+                        onClick={() => navigate(`/tee/share/${myTee.shareId}`)}
+                        className="w-full py-2 rounded-xl bg-card border border-border hover:bg-mist text-xs text-ink font-semibold transition-all text-center block"
+                      >
+                        View & Manage My Tee
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Tab 2: Tees I Signed */}
+              {hubTab === 'signed' && (
+                <>
+                  {signedTees.length === 0 ? (
+                    <div className="py-6 text-center text-xs text-ink-soft">
+                      You haven't signed anyone's T-shirt yet! Ask your colleagues for their share links.
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
+                      {signedTees.map((t: any) => (
+                        <div
+                          key={t.shareId}
+                          onClick={() => navigate(`/tee/share/${t.shareId}`)}
+                          className="bg-bg border border-border rounded-xl p-2.5 flex items-center justify-between hover:border-accent/40 cursor-pointer transition-all"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-accent/15 flex items-center justify-center shrink-0">
+                              <span className="text-sm">👕</span>
+                            </div>
+                            <div>
+                              <p className="text-xs font-semibold text-ink">
+                                {t.owner?.name ?? 'Summership'}'s Tee
+                              </p>
+                              <p className="text-[10px] text-ink-faint">
+                                Name on back: <span className="font-mono text-accent">{t.nameOnBack}</span>
+                              </p>
+                            </div>
+                          </div>
+                          <span className="text-[10px] text-accent font-semibold flex items-center gap-0.5">
+                            View
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
 
         {user?.role === 'admin' && (
           /* Zoom integration card */

@@ -35,9 +35,9 @@ import {
   type RankedHit,
 } from './contextRetriever.js';
 import {
-  chatWithConfig,
   getPipelineProviderConfig,
 } from '../utils/ai/aiProvider.js';
+import { runWithFallback } from './ai/fallbackChain.js';
 import { isSensitiveContent } from '../utils/ai/pipelineCommon.js';
 import { getAssistantPersona } from '../utils/ai/assistantPersona.js';
 
@@ -167,25 +167,31 @@ async function generateAnswerFromContext(
     };
   }
 
-  // LLM synthesis path — calls chatWithConfig with context blocks.
+  // LLM synthesis path — calls runWithFallback with context blocks.
+  // v1.85 — automatic provider failover. A primary-provider 401/429
+  // walks the configured fallback chain instead of throwing.
   try {
     const contextBlocks = hits
       .slice(0, 4)
       .map((h, i) => `[${h.source}:${i + 1}] Q: ${h.question}\nA: ${h.answer.slice(0, 400)}`);
     const cfg = await getPipelineProviderConfig('auto_answer', post.batchId?.toString() ?? null);
-    const reply = await chatWithConfig(cfg, [
-      {
-        role: 'system',
-        // Persona first — establishes identity, tone, and rules. Then
-        // task-specific instructions for THIS call (synthesis, length
-        // cap, honesty about missing context).
-        content: `${getAssistantPersona()}\n\n---\n\nYou are answering a community question. Use ONLY the provided context sources to answer. Keep replies under 300 words. If the context does not contain a complete answer, say so explicitly and suggest the user post to the community for help.`,
-      },
-      {
-        role: 'user',
-        content: `Context:\n${contextBlocks.join('\n\n')}\n\nUser question: ${post.title}${post.body ? `\nDetails: ${post.body}` : ''}`,
-      },
-    ]);
+    const { reply } = await runWithFallback(
+      'auto_answer',
+      [
+        {
+          role: 'system',
+          // Persona first — establishes identity, tone, and rules. Then
+          // task-specific instructions for THIS call (synthesis, length
+          // cap, honesty about missing context).
+          content: `${getAssistantPersona()}\n\n---\n\nYou are answering a community question. Use ONLY the provided context sources to answer. Keep replies under 300 words. If the context does not contain a complete answer, say so explicitly and suggest the user post to the community for help.`,
+        },
+        {
+          role: 'user',
+          content: `Context:\n${contextBlocks.join('\n\n')}\n\nUser question: ${post.title}${post.body ? `\nDetails: ${post.body}` : ''}`,
+        },
+      ],
+      { primaryOverride: cfg, batchId: post.batchId?.toString() ?? null, feature: 'auto_answer' },
+    );
     return { answer: (reply ?? '').trim().slice(0, 1500), sensitive };
   } catch (err) {
     logDecision('error', post._id, { phase: 'llm', message: (err as Error).message });

@@ -143,6 +143,39 @@ describe('profile update validation', () => {
     expect(res.success).toBe(false);
   });
 
+  // v1.87 — Sign My Tee: mandatory internshipEndDate. Pin the
+  // contract so the FE's <input type="date"> (which emits YYYY-MM-DD
+  // with no time component) can't be silently rejected by a future
+  // refactor that "tightens" the date validator.
+  it('accepts a YYYY-MM-DD date-only string for internshipEndDate (HTML date input shape)', () => {
+    const res = updateProfileSchema.safeParse({
+      internshipEndDate: '2026-07-15',
+    });
+    expect(res.success).toBe(true);
+    if (res.success) {
+      expect(res.data.internshipEndDate instanceof Date).toBe(true);
+      expect((res.data.internshipEndDate as Date).toISOString().slice(0, 10)).toBe('2026-07-15');
+    }
+  });
+  it('accepts an ISO 8601 datetime with offset for internshipEndDate (JSON callers)', () => {
+    const res = updateProfileSchema.safeParse({
+      internshipEndDate: '2026-07-15T00:00:00.000Z',
+    });
+    expect(res.success).toBe(true);
+  });
+  it('rejects a non-date garbage string for internshipEndDate', () => {
+    const res = updateProfileSchema.safeParse({
+      internshipEndDate: 'tomorrow',
+    });
+    expect(res.success).toBe(false);
+  });
+  it('accepts null to clear internshipEndDate', () => {
+    const res = updateProfileSchema.safeParse({
+      internshipEndDate: null,
+    });
+    expect(res.success).toBe(true);
+  });
+
   it('strips unknown fields / prevents mass assignment', () => {
     const parsed = updateProfileSchema.parse({
       name: 'Ada',

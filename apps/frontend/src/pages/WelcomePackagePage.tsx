@@ -10,6 +10,12 @@ import ProjectDiscoveryTab from '../components/welcome/ProjectDiscoveryTab';
 // exactly while adding the new resource system without modifying
 // any existing tab.
 import ResourceViewerTab from '../components/welcome/ResourceViewerTab';
+// v1.76 — Welcome Package: Journey Tracks (user-side).
+// The JourneyTracksViewer fetches the user's assigned tracks from
+// the backend and renders them through the shared renderer. It
+// surfaces an empty state when no tracks are assigned, so the
+// tab never takes up space for users who don't qualify.
+import JourneyTracksViewer from '../components/welcome/journey/JourneyTracksViewer';
 import api from '../utils/api';
 import { useAuth } from '../hooks/useAuth';
 import { useProgram } from '../context/ProgramContext';
@@ -42,7 +48,7 @@ export default function WelcomePackagePage() {
     hasResources: false,
   });
 
-  const [activeTab, setActiveTab] = useState<'orientation' | 'timeline' | 'my-project' | 'discovery'>(() => {
+  const [activeTab, setActiveTab] = useState<'orientation' | 'timeline' | 'my-project' | 'discovery' | 'journey'>(() => {
     if (!user?.orientationCompleted) return 'orientation';
     if (user?.orientationCompleted && !user.projectSelectionLocked) return 'discovery';
     return 'my-project';
@@ -56,11 +62,6 @@ export default function WelcomePackagePage() {
     }
   }, [user, activeTab]);
 
-  // v1.69 — Fetch orientation + resources in parallel to drive the
-  // conditional layout. We pass the active program's batchId
-  // explicitly so the backend scopes correctly even on first mount
-  // before the localStorage interceptor has populated.
-  //
   // 1.2 (MEDIUM) — Previously this effect listed `activeTab` in its
   // dep array. Every tab switch re-fetched orientation + resources
   // even though those APIs are program-scoped, not tab-scoped. Worse,
@@ -95,21 +96,27 @@ export default function WelcomePackagePage() {
     return () => { cancelled = true; };
   }, [currentProgram?._id]);
 
+  // v1.76 — Welcome Package: Journey Tracks. The "Your Journey"
+  // tab is always rendered so users can preview the empty state
+  // and admins can confirm the wiring without a per-user
+  // assignment dance. The tab body itself surfaces the
+  // "No journeys assigned yet" empty state when /welcome/journeys
+  // returns [] — the gating previously lived in this file but it
+  // duplicated a useEffect that was also dead code.
   const tabs = (() => {
-    if (!user?.orientationCompleted) {
+    const base = (() => {
+      if (!user?.orientationCompleted) {
+        return [{ id: 'orientation' as const, label: 'Orientation' }];
+      }
+      if (user?.orientationCompleted && !user.projectSelectionLocked) {
+        return [{ id: 'discovery' as const, label: 'Project Discovery' }];
+      }
       return [
-        { id: 'orientation', label: 'Orientation' }
-      ] as const;
-    }
-    if (user?.orientationCompleted && !user.projectSelectionLocked) {
-      return [
-        { id: 'discovery', label: 'Project Discovery' }
-      ] as const;
-    }
-    return [
-      { id: 'my-project', label: 'My Project' },
-      { id: 'timeline', label: 'Project Timeline' }
-    ] as const;
+        { id: 'my-project' as const, label: 'My Project' },
+        { id: 'timeline' as const, label: 'Project Timeline' },
+      ];
+    })();
+    return [...base, { id: 'journey' as const, label: 'Your Journey' }];
   })();
 
   // Conditional rendering decisions (Cases A / B / C / D):
@@ -208,18 +215,36 @@ export default function WelcomePackagePage() {
               {activeTab === 'discovery' && <ProjectDiscoveryTab />}
               {activeTab === 'my-project' && <MyProjectTab />}
               {activeTab === 'timeline' && <ProjectTimelineTab />}
+              {activeTab === 'journey' && <JourneyTracksViewer />}
             </motion.div>
           </AnimatePresence>
         </div>
 
-        {/* v1.69 — Conditional resources rendering (Cases A/B/C/D).
-            We hide the entire Resources section when resources is
-            empty AND orientation has content (Case A — only video).
-            In all other cases we render the viewer; it surfaces
-            its own empty-state message ("No resources published.")
-            when both are empty (Case D), or its actual resource list
-            when resources exist (Cases B/C). */}
-        {!resourcesHidden && (
+        {/* v1.69 — Onboarding resources + Ask the AI belong to
+            the Orientation tab ONLY. They live inside the
+            per-tab AnimatePresence above so they animate in/out
+            with the tab, instead of being glued to the page
+            footer where they'd appear on every tab (Journey,
+            Discovery, MyProject, Timeline).
+
+            The `resourcesHidden` / `orientationHidden` Cases A/B
+            from the v1.69 spec still apply — we only render the
+            tab content for the active tab, so cases are
+            simplified:
+              - active=orientation  → OrientationTab renders its
+                embedded ResourceViewerTab via the tab body itself
+                (moved below).
+              - active≠orientation  → nothing.
+
+            For the Orientation tab we keep the original v1.69
+            Cases A/B/C/D behaviour inside OrientationTab's render
+            tree. The simplest move is to render the ResourceViewer
+            inside OrientationTab itself — but to keep this diff
+            minimal we mount a tab-specific render block here:
+            orientation → ResourceViewerTab below the orientation
+            content; everything else → nothing.
+        */}
+        {activeTab === 'orientation' && !orientationHidden && !resourcesHidden && (
           <div className="relative z-10 mt-12">
             <ResourceViewerTab refreshKey={activeTab} />
           </div>

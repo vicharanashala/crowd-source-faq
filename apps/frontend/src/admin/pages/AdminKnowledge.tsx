@@ -43,6 +43,7 @@ import {
   ZoomInsightsView,
 } from './AdminZoomInsights';
 import { DocumentInsightsView } from './AdminDocumentInsights';
+import AdminDocumentIndex from './AdminDocumentIndex';
 
 // ── Tabs ──────────────────────────────────────────────────────────────────
 
@@ -52,7 +53,8 @@ type TabKey =
   | 'url'            // Web URL
   | 'zoom-insights'  // Zoom Insights
   | 'doc-insights'   // Document Insights
-  | 'paste';         // Paste text / HTML
+  | 'paste'          // Paste text / HTML
+  | 'index';         // Document Index — diagnostics
 
 interface TabSpec {
   key: TabKey;
@@ -67,6 +69,7 @@ const TABS: TabSpec[] = [
   { key: 'zoom',          label: 'Connect Zoom', hint: 'OAuth + transcript upload + meeting list' },
   { key: 'upload',        label: 'Upload Document', hint: 'PDF, TXT, MD, CSV, HTML' },
   { key: 'url',           label: 'Web URL', hint: 'Server fetches + extracts text' },
+  { key: 'index',         label: 'Document Index', hint: 'View indexing status, re-index, recent activity' },
   { key: 'zoom-insights', label: 'Zoom Insights' },
   { key: 'doc-insights',  label: 'Document Insights' },
   { key: 'paste',         label: 'Paste Text/HTML', hint: 'For JS-only / login-walled pages' },
@@ -143,6 +146,9 @@ function TabContent({ tab, onJumpToUpload }: { tab: TabKey; onJumpToUpload: () =
 
     case 'url':
       return <WebUrlView />;
+
+    case 'index':
+      return <AdminDocumentIndex />;
 
     case 'zoom-insights':
       return <ZoomInsightsView />;
