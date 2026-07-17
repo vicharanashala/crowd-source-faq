@@ -13,7 +13,7 @@ import {
 } from '../../utils/http/search.js';
 import { searchRequests, searchResultsReturned, searchLogFlushActive, searchLogFlushes } from '../../utils/http/metrics.js';
 import { searchKnowledge } from '../knowledge/knowledge-base.service.js';
-
+import AppSetting from '../program/app-setting.model.js';
 // Cache configuration: Store up to 500 recent queries for 1 hour to reduce DB/AI loads
 const searchCache = new LRUCache<string, SearchResultItem[]>({
   max: 500,
@@ -318,7 +318,11 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
     const merged = computeRRF(allVec, allTxt);
 
     // 5. Apply threshold filters to remove irrelevant garbage results
-    const filtered = applySearchThreshold(merged).slice(0, 5); // Return only the absolute top 5 results
+    // Fetch configurable thresholds from AppSetting (falls back to defaults if not set)
+    const settingsDoc = await AppSetting.findById('singleton').lean();
+    const textThreshold = settingsDoc?.settings?.searchTextThreshold;
+    const vectorThreshold = settingsDoc?.settings?.searchVectorThreshold;
+    const filtered = applySearchThreshold(merged, { textThreshold, vectorThreshold }).slice(0, 5);
 
     // 5b. TranscriptKnowledge fallback — if FAQ + Community returned nothing,
     // try the auto-extracted Zoom knowledge base. Zero-human data path:
