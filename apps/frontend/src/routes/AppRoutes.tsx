@@ -39,6 +39,7 @@ const SupportTicketPage = lazy(() => import('../pages/SupportTicketPage'));
 const GoldenTicketPage = lazy(() => import('../pages/GoldenTicketPage'));
 const GoldenTicketDetailPage = lazy(() => import('../pages/GoldenTicketDetailPage'));
 const WelcomePackagePage = lazy(() => import('../pages/WelcomePackagePage'));
+const OfflineModePage = lazy(() => import('../pages/OfflineModePage'));
 const ProgramPortalPage = lazy(() => import('../pages/ProgramPortalPage'));
 const ProgramPage = lazy(() => import('../pages/ProgramPage'));
 // v1.87 — Sign My Tee: designer wizard + share + public sign pages.
@@ -187,6 +188,12 @@ export default function AppRoutes() {
                     <WelcomePackagePage />
                   </FeatureGate>
                 </AccountRoute></RouteElement>}
+            />
+            <Route
+              path="/offline"
+              element={<RouteElement name="offline"><FeatureGate featureKey="offlineMode" featureLabel="Offline Mode">
+                  <OfflineModePage />
+                </FeatureGate></RouteElement>}
             />
             {/* v1.87 — Sign My Tee. The wizard + share page are auth-protected
                 (they're the owner's surface). The sign-page is public so a

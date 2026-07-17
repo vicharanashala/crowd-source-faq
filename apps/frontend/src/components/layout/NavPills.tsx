@@ -17,9 +17,13 @@ export function useNavItems() {
   const { enabled: supportOn } = useFeatureFlag('sessionSupport');
   const { enabled: goldenOn } = useFeatureFlag('goldenTicket');
   const { enabled: welcomeOn, loading: flagsLoading } = useFeatureFlag('welcomePackage');
+  const { enabled: offlineOn } = useFeatureFlag('offlineMode');
 
   const goldenExtras: NavItem[] = goldenOn
     ? [{ label: 'Golden', to: '/golden', xlOnly: true as const }]
+    : [];
+  const offlineExtras: NavItem[] = offlineOn
+    ? [{ label: 'Offline', to: '/offline', xlOnly: true as const }]
     : [];
 
   // Welcome Package nav link is admin-controlled. Hide on an explicit
@@ -31,8 +35,8 @@ export function useNavItems() {
       : baseNavItems;
 
   let allNavItems: NavItem[] = supportOn
-    ? [...visibleBaseItems, { label: 'Support', to: '/support' }, ...goldenExtras]
-    : visibleBaseItems;
+    ? [...visibleBaseItems, { label: 'Support', to: '/support' }, ...goldenExtras, ...offlineExtras]
+    : [...visibleBaseItems, ...offlineExtras];
 
   if (user?.role === 'admin') {
     allNavItems = allNavItems
