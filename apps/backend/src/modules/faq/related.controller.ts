@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import CommunityPost from '../community/community-post.model.js';
 import FAQ from './faq.model.js';
 import { communityLog } from '../../utils/http/logger.js';
+import AiClient from '../ai/ai-client.service.js';
 
 interface RelatedItem {
   _id: string;
@@ -164,3 +165,73 @@ export async function getRelatedForPost(req: Request, res: Response): Promise<vo
     res.status(500).json({ error: 'Failed to load related items' });
   }
 }
+
+/**
+ * GET /api/faq/:id/pathway
+ * Returns an ordered learning pathway for the given FAQ.
+ */
+export async function getFAQPathway(req: Request, res: Response): Promise<void> {
+  try {
+    const faq = await FAQ.findById(req.params.id);
+    if (!faq) {
+      res.status(404).json({ error: 'FAQ not found' });
+      return;
+    }
+
+    // Check if pathway already generated
+    if (faq.pathway && faq.pathway.length > 0) {
+      const pathwayFaqs = await FAQ.find({ _id: { $in: faq.pathway } })
+        .select('_id question category tags status categoryNumber')
+        .lean();
+      
+      // Keep them in the order specified by faq.pathway
+      const ordered = faq.pathway
+        .map(id => pathwayFaqs.find(f => String(f._id) === String(id)))
+        .filter(Boolean);
+
+      res.json({ pathway: ordered });
+      return;
+    }
+
+    // Otherwise, generate it
+    // Get candidate FAQs (same category, or just generally approved)
+    const candidates = await FAQ.find({
+      status: 'approved',
+      _id: { $ne: faq._id },
+      category: faq.category
+    })
+      .select('_id question answer')
+      .limit(30)
+      .lean();
+
+    if (candidates.length === 0) {
+      res.json({ pathway: [] });
+      return;
+    }
+
+    const aiClient = new AiClient();
+    const pathwayIds = await aiClient.generatePathway(
+      { _id: String(faq._id), question: faq.question, answer: faq.answer },
+      candidates.map(c => ({ _id: String(c._id), question: c.question, answer: c.answer }))
+    );
+
+    if (pathwayIds.length > 0) {
+      faq.pathway = pathwayIds as any;
+      await faq.save();
+    }
+
+    const pathwayFaqs = await FAQ.find({ _id: { $in: pathwayIds } })
+      .select('_id question category tags status categoryNumber')
+      .lean();
+
+    const ordered = pathwayIds
+      .map(id => pathwayFaqs.find(f => String(f._id) === id))
+      .filter(Boolean);
+
+    res.json({ pathway: ordered });
+  } catch (err) {
+    communityLog.error(`Failed to generate FAQ pathway: ${(err as Error).message}`);
+    res.status(500).json({ error: 'Failed to generate pathway' });
+  }
+}
+

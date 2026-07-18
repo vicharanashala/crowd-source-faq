@@ -93,6 +93,8 @@ export interface IFAQ extends Document {
   expectedReadMs: number;
   /** Last popularity score recompute timestamp. */
   popularityUpdatedAt: Date | null;
+  /** Cached pathway (sequence of related FAQs) */
+  pathway: Types.ObjectId[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -290,6 +292,11 @@ const faqSchema = new MongooseSchema(
       ref: 'Category',
       default: null,
       index: true,
+    },
+    /** Cached pathway (sequence of related FAQs) */
+    pathway: {
+      type: [{ type: MongooseSchema.Types.ObjectId, ref: 'FAQ' }],
+      default: [],
     },
     // ── Public guest-page analytics (additive, computed fields) ────────────
     popularityScore:    { type: Number, default: 0 },

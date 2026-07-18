@@ -170,7 +170,8 @@ export type AIFeature =
   | 'duplicateDetection'
   | 'knowledgeExtraction'
   | 'searchSummarization'
-  | 'faqGeneration';
+  | 'faqGeneration'
+  | 'pathwayGeneration';
 
 export interface AIResult {
   content: string;
@@ -340,6 +341,15 @@ export class AiClient {
           provider: 'openai',
           modelName: 'gpt-4o',
           tokensUsed: 100,
+          estimatedCost: 0,
+        };
+      }
+      if (feature === 'pathwayGeneration') {
+        return {
+          content: JSON.stringify(["mock-id-1", "mock-id-2"]),
+          provider: 'openai',
+          modelName: 'gpt-4o',
+          tokensUsed: 150,
           estimatedCost: 0,
         };
       }
@@ -922,6 +932,48 @@ The answer should be direct and actionable. Do not add disclaimers.`;
     return parseFAQResponse(result.content);
   }
 
+  // ─── Feature: Pathway generation ─────────────────────────────────────────
+
+  /**
+   * Generates a learning pathway (ordered sequence of follow-up FAQs) for a given FAQ.
+   * Takes the current FAQ question and a list of candidates.
+   * Returns an array of candidate IDs in the suggested logical order.
+   */
+  async generatePathway(
+    currentFaq: { _id: string; question: string; answer?: string },
+    candidates: Array<{ _id: string; question: string; answer?: string }>
+  ): Promise<string[]> {
+    const systemPrompt = `You are an expert curriculum designer for an onboarding and FAQ portal.
+Given a current FAQ that a user is reading, and a list of candidate related FAQs, create a logical "Learning Pathway" (a sequence of 2 to 4 follow-up FAQs that the user should read next to deepen their understanding).
+The pathway should flow logically (e.g., from basic concepts to advanced configuration to troubleshooting).
+Return ONLY a valid JSON array of the recommended FAQ IDs in the correct order.
+Output format: ["id1", "id2", "id3"]`;
+
+    const candidateList = candidates
+      .filter(c => String(c._id) !== String(currentFaq._id))
+      .map((c) => `  - id="${c._id}", question="${c.question.replace(/"/g, "'")}"`)
+      .join('\n');
+
+    if (!candidateList) return [];
+
+    const userContent =
+      `Current FAQ:\nQuestion: "${currentFaq.question.replace(/"/g, "'")}"\n` +
+      (currentFaq.answer ? `Answer snippet: "${currentFaq.answer.slice(0, 200).replace(/"/g, "'")}"\n\n` : '\n') +
+      `Candidate FAQs:\n${candidateList}\n\n` +
+      `Respond with a JSON array of up to 4 FAQ IDs that form the best logical follow-up sequence.`;
+
+    const result = await this.chat(
+      [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userContent },
+      ],
+      'pathwayGeneration',
+      { temperature: 0.2, maxTokens: 256 }
+    );
+
+    return parsePathwayResponse(result.content, candidates.map(c => String(c._id)));
+  }
+
   // ─── Vector pre-filter ─────────────────────────────────────────────────────
 
   /**
@@ -1046,6 +1098,23 @@ function parseFAQResponse(
   } catch (err) {
     logger.warn(`[aiClient] Failed to parse FAQ generation response JSON: ${(err as Error).message}. Raw response: ${raw.slice(0, 300)}`);
     return { question: '', answer: '', category: 'General', confidence: 0 };
+  }
+}
+
+function parsePathwayResponse(raw: string, validIds: string[]): string[] {
+  const clean = raw.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+  const match = clean.match(/\[[\s\S]*?\]/);
+  if (!match) return [];
+  try {
+    const parsed = JSON.parse(match[0]) as unknown[];
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map(id => String(id))
+      .filter(id => validIds.includes(id))
+      .slice(0, 4);
+  } catch (err) {
+    logger.warn(`[aiClient] Failed to parse pathway JSON: ${(err as Error).message}`);
+    return [];
   }
 }
 

@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import api from '../../utils/api';
 import { FAQItem, getQuestionTitle, getAnswerText, formatDate, getCategoryIcon, formatCategoryName, TrustBadge } from './faqUtils';
 import ReportFAQButton from './ReportFAQButton';
 import FreshnessBadge from '../faq/FreshnessBadge';
@@ -33,6 +34,27 @@ interface QuestionDetailProps {
 }
 
 export default function QuestionDetail({ item, relatedItems, onBack, onSelectRelated, backLabel }: QuestionDetailProps) {
+  const [pathway, setPathway] = useState<FAQItem[]>([]);
+  const [loadingPathway, setLoadingPathway] = useState(false);
+
+  useEffect(() => {
+    if (!item || !item._id) {
+      setPathway([]);
+      return;
+    }
+    setLoadingPathway(true);
+    api.get(`/faq/${item._id}/pathway`)
+      .then((res) => {
+        setPathway(res.data.pathway || []);
+      })
+      .catch(() => {
+        setPathway([]);
+      })
+      .finally(() => {
+        setLoadingPathway(false);
+      });
+  }, [item?._id]);
+
   const title = getQuestionTitle(item);
   const prefix = item.questionNumber ? `${item.questionNumber}. ` : '';
   const answer = getAnswerText(item);
@@ -121,6 +143,48 @@ export default function QuestionDetail({ item, relatedItems, onBack, onSelectRel
           <div className="mt-5 rounded-xl border border-accent/15 bg-accent-light p-4">
             <p className={textLabelXsBold}>Key takeaway</p>
             <p className={`mt-2 text-sm text-ink/70`}>{highlight}.</p>
+          </div>
+        )}
+
+        {/* Learning Pathway */}
+        {(pathway.length > 0 || loadingPathway) && (
+          <div className="mt-8 rounded-xl border border-border bg-card p-5 shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-accent text-white">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+              </span>
+              <p className="text-sm font-bold text-ink">Learning Pathway</p>
+            </div>
+            
+            {loadingPathway ? (
+              <div className="flex flex-col gap-3">
+                {[1, 2].map(i => (
+                  <div key={i} className="h-12 rounded-lg border border-border/50 bg-mist/50 animate-pulse" />
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {pathway.map((step, idx) => (
+                  <button
+                    key={step._id}
+                    onClick={() => onSelectRelated(step)}
+                    className="flex items-center justify-between p-3 rounded-lg border border-border/60 hover:border-accent/50 hover:bg-mist transition-colors group text-left"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="flex-shrink-0 flex items-center justify-center w-5 h-5 rounded-full bg-mist text-[10px] font-bold text-ink-soft group-hover:bg-accent/10 group-hover:text-accent transition-colors">
+                        {idx + 1}
+                      </span>
+                      <span className="text-sm font-medium text-ink group-hover:text-accent transition-colors line-clamp-1">
+                        {step.questionNumber ? `${step.questionNumber}. ` : ''}{getQuestionTitle(step)}
+                      </span>
+                    </div>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-ink-faint group-hover:text-accent transition-colors">
+                      <polyline points="9 18 15 12 9 6" />
+                    </svg>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

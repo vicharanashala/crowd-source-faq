@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { getAllFAQs, getFAQById, getRecentFAQs, createFAQ, updateFAQ, deleteFAQ, checkFAQMatch, getPaginatedFAQs, submitFeedback, reportFAQ, getFAQHistory, createFAQSuggestion, getFAQCategories } from './faq.controller.js';
+import { getFAQPathway } from './related.controller.js';
 import { flagFAQ, voteReview } from './freshness.controller.js';
 import { protect, authorize } from '../../middleware/auth.js';
 import { validateObjectId } from '../../middleware/validateObjectId.js';
@@ -30,6 +31,7 @@ router.post('/check-match', protect, checkFAQMatch);
 // `validateObjectId('id')` mounted before each handler, malformed
 // ids return a clean 400.
 router.get('/:id', validateObjectId('id'), getFAQById);
+router.get('/:id/pathway', validateObjectId('id'), getFAQPathway);
 router.get('/:id/history', validateObjectId('id'), getFAQHistory);
 
 router.post('/', protect, authorize('admin', 'moderator'), validateBody(createFAQSchema), createFAQ);
