@@ -71,7 +71,25 @@ Eight flagship capabilities define this platform:
 Other capabilities: semantic hybrid search, community Q&A board, reputation system + badges + leaderboard, SpillTheTea event-driven notifications, per-user Zoom OAuth, RAG-powered `/ask-ai` assistant with image + file attachments, soft user lifecycle, experimental feature flags, support tickets (troubleshoot → admin triage → resolution).
 
 ---
+---
 
+# Offline Mode (PWA)
+
+The Crowd Source FAQ portal supports Progressive Web App (PWA) functionality to improve usability during network interruptions.
+
+## Features
+
+- Displays an offline banner when internet connectivity is lost.
+- Allows users to continue browsing previously cached FAQ pages.
+- Provides a Retry button to refresh content after reconnecting.
+- Caches important frontend assets for faster loading.
+- Automatically restores the latest data once the network becomes available.
+
+## Benefits
+
+- Better experience for users with unstable internet.
+- Faster page loading using cached resources.
+- Improved accessibility in low-connectivity environments.
 ## Admin Dashboard
 
 The admin panel at `/admin` (mounted at `/api/admin/*`) provides telemetry, moderation, and operational control. Key areas:
