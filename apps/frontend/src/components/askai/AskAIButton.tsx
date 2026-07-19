@@ -31,8 +31,8 @@ function bumpAnonCount(): number {
 }
 
 interface Source { kind: 'knowledge'|'faq'|'community'; title: string; snippet: string; score: number; href: string; id: string; aboveThreshold?: boolean; }
-interface AskResponse { question: string; answer: string; sources: Source[]; relevantCount: number; sourceCount: number; model: string; aiFailed: boolean; }
-interface ChatMessage { id: string; role: 'user'|'assistant'; content: string; sources?: Source[]; loading?: boolean; error?: string; }
+interface AskResponse { question: string; answer: string; sources: Source[]; relevantCount: number; sourceCount: number; model: string; aiFailed: boolean;confidence: number; confidenceTier: 'high' | 'medium' | 'low'; }
+interface ChatMessage { id: string; role: 'user'|'assistant'; content: string; sources?: Source[]; loading?: boolean; error?: string;confidence?: number; confidenceTier?: 'high' | 'medium' | 'low'; }
 
 /** File/image attachment queued in the chat composer. */
 interface PendingAttachment {
@@ -104,19 +104,29 @@ function MessageBubble({ m, onNav }: { m: ChatMessage; onNav: (href: string) => 
     return (<div className="flex justify-start"><div className="max-w-[80%] px-3.5 py-2.5 rounded-2xl rounded-bl-md bg-danger-light border border-danger/30 text-danger text-sm">{m.error}</div></div>);
   }
   return (
-    <div className="flex justify-start">
-      <div className="max-w-[85%] space-y-2">
-        <div className="px-3.5 py-2.5 rounded-2xl rounded-bl-md bg-card border border-border text-ink text-sm leading-relaxed whitespace-pre-wrap">{m.content}</div>
+  <div className="flex justify-start">
+    <div className="max-w-[85%] space-y-2">
+      <div className="px-3.5 py-2.5 rounded-2xl rounded-bl-md bg-card border border-border text-ink text-sm leading-relaxed whitespace-pre-wrap">
+        {m.confidenceTier && (
+          <span className={`inline-block mb-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+            m.confidenceTier === 'high' ? 'bg-green-100 text-green-800' :
+            m.confidenceTier === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+            'bg-red-100 text-red-800'
+          }`}>
+            {m.confidenceTier === 'high' ? 'High confidence' : m.confidenceTier === 'medium' ? 'Take with caution' : 'Low confidence'}
+          </span>
+        )}
+        {m.content}
         {m.sources && m.sources.length > 0 && (
-          <div className="space-y-1 pl-1">
-            <p className="text-[10px] uppercase tracking-wider text-ink-faint font-semibold pl-1">Sources ({m.sources.length})</p>
-            {m.sources.map((s, i) => <SourceRow key={`${s.id}-${i}`} s={s} i={i} onNav={onNav} />)}
-          </div>
+         <div className="space-y-1 pl-1">
+         <p className="text-[10px] uppercase tracking-wider text-ink-faint font-semibold pl-1">Sources ({m.sources.length})</p>
+         {m.sources.map((s, i) => <SourceRow key={`${s.id}-${i}`} s={s} i={i} onNav={onNav} />)}
+         </div>
         )}
       </div>
     </div>
-  );
-}
+  </div>
+);}
 
 export default function AskAIButton() {
   const navigate = useNavigate();
@@ -279,7 +289,7 @@ export default function AskAIButton() {
       } else {
         res = await api.post<AskResponse>('/ask-ai', { question: q });
       }
-      setMessages(m => m.map(msg => msg.id === aiMsg.id ? { ...msg, content: res.data.answer, sources: res.data.sources, loading: false } : msg));
+      setMessages(m => m.map(msg => msg.id === aiMsg.id ? { ...msg, content: res.data.answer, sources: res.data.sources,confidence: res.data.confidence, confidenceTier: res.data.confidenceTier, loading: false } : msg));
       if (!isAuthenticated) { const next = bumpAnonCount(); setAnonCount(next); if (next === ANON_AI_LIMIT) setTimeout(() => openModal('signin'), 1500); }
       // Release any preview URLs we held.
       sending.forEach((a) => { if (a.previewUrl) URL.revokeObjectURL(a.previewUrl); });
