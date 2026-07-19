@@ -6,6 +6,7 @@ import Spinner from '../components/ui/Spinner';
 import ErrorBoundary from '../components/ui/ErrorBoundary';
 import { FeatureGate } from '../components/support/FeatureGate';
 
+
 /**
  * Per-route error boundary. Without this, a single page crash unmounts
  * the whole React tree and leaves a blank SPA. Phase 4 §4.5 outstanding
@@ -26,6 +27,7 @@ import MainLayout from '../components/layout/MainLayout';
 import AskAIButton from '../components/askai/AskAIButton';
 import AccountRoute from './guards/AccountRoute';
 import AdminRoute from './guards/AdminRoute';
+import InternshipRoadmapPage from "../pages/InternshipRoadmapPage";
 
 // User pages
 const AccountPage = lazy(() => import('../pages/AccountPage'));
@@ -185,6 +187,14 @@ export default function AppRoutes() {
                 </AccountRoute></RouteElement>}
             />
           </Route>
+          <Route
+  path="/internship-roadmap"
+  element={
+    <RouteElement name="internship-roadmap">
+      <InternshipRoadmapPage />
+    </RouteElement>
+  }
+/>
 
           <Route
             path="/admin/login"
