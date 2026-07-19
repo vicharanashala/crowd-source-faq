@@ -194,14 +194,14 @@ export const askAIController = async (req: Request, res: Response): Promise<void
     // or filters out the real KB hits. The numbers below are tuned against
     // the live RRF and `searchKnowledge` ranges observed in practice.
     const THRESHOLDS: Record<string, number> = {
-      faq: 0.025,        // top-rank RRF hit
-      community: 0.025,  // top-rank RRF hit
+      faq: 0.015,        // top-rank RRF hit
+      community: 0.015,  // top-rank RRF hit
       knowledge: 0.35,   // meaningful vector similarity
     };
     const DEFAULT_THRESHOLD = 0.05;
 
     const t0 = Date.now();
-    let result: { answer: string; sources: Array<{ id: string; type: string; title: string; snippet: string; url: string; score: number }>; modelName: string };
+    let result: { answer: string; sources: Array<{ id: string; type: string; title: string; snippet: string; url: string; score: number }>; modelName: string; confidence: number; confidenceTier: 'high' | 'medium' | 'low' };
     let aiFailed = false;
     try {
       result = await runRag(question, attachments);
@@ -216,6 +216,8 @@ export const askAIController = async (req: Request, res: Response): Promise<void
       result = {
         answer: '',
         modelName: 'fallback',
+        confidence: 0.3,
+        confidenceTier: 'low',
         sources: kbMatches.map((m) => ({
           id: m._id,
           type: 'knowledge',
@@ -273,6 +275,8 @@ export const askAIController = async (req: Request, res: Response): Promise<void
       relevantCount: ranked.length,
       sourceCount: sources.length,
       modelName: result.modelName,
+      confidence: result.confidence,           // NEW
+      confidenceTier: result.confidenceTier,   // NEW
       aiFailed,
     });
   } catch (err) {

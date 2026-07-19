@@ -42,6 +42,17 @@ export interface RagResult {
   sources: RagSource[];
   /** The model that produced the answer (e.g. "gpt-4o-mini"). */
   modelName: string;
+  confidence: number;                          // NEW
+  confidenceTier: 'high' | 'medium' | 'low';    // NEW
+}
+
+function computeConfidence(sources: RagSource[]): { confidence: number; tier: 'high' | 'medium' | 'low' } {
+  if (sources.length === 0) return { confidence: 0.2, tier: 'low' };
+  const topScore = sources[0].score; // already sorted desc by score at this point
+  const avgTop3 = sources.slice(0, 3).reduce((sum, s) => sum + s.score, 0) / Math.min(3, sources.length);
+  const confidence = Math.min(topScore * 0.7 + avgTop3 * 0.3, 0.98);
+  const tier = confidence >= 0.85 ? 'high' : confidence >= 0.60 ? 'medium' : 'low';
+  return { confidence, tier };
 }
 
 const TOP_K_PER_SOURCE = 4;
@@ -301,6 +312,7 @@ export async function runRag(question: string, attachments: RagAttachment[] = []
 
   // Re-rank by score so the LLM sees the strongest sources first.
   sources.sort((a, b) => b.score - a.score);
+  let { confidence, tier } = computeConfidence(sources);   // NEW — right after sort
 
   // If we found nothing at all, skip the LLM call — just say "no answer".
   if (sources.length === 0) {
@@ -308,6 +320,8 @@ export async function runRag(question: string, attachments: RagAttachment[] = []
       answer: "I couldn't find anything relevant in the FAQ, community, or your team's Zoom knowledge base. Try rephrasing, or post a new question to the community.",
       sources: [],
       modelName: 'none',
+      confidence: 0.2,
+      confidenceTier: 'low'
     };
   }
 
@@ -342,9 +356,11 @@ export async function runRag(question: string, attachments: RagAttachment[] = []
   } catch (llmErr) {
     logger.warn('rag.completion.failed', { error: (llmErr as Error).message });
     answer = sources[0]?.snippet ?? '';
+    confidence = Math.min(confidence, 0.5);   // NEW — LLM failed, cap confidence
+    tier = confidence >= 0.60 ? 'medium' : 'low';
   }
 
-  return { answer, sources, modelName: model };
+    return { answer, sources, modelName: model, confidence, confidenceTier: tier };
 }
 
 /**
