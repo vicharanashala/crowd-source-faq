@@ -85,7 +85,7 @@ crowd-source-faq/
 - **Hybrid search** merges vector similarity + keyword text search via **Reciprocal Rank Fusion** (RRF_K=60)
 - User types query → backend generates embedding via **`@xenova/transformers` `Xenova/multi-qa-mpnet-base-dot-v1`** (768-dim, singleton pipeline in Node.js)
 - 4 parallel queries: FAQ vector, community vector, FAQ text, community text
-- Results filtered by threshold: `textScore > 0 || vectorScore > 0.80`
+- Results filtered by threshold: `textScore > 0 || vectorScore > search.hybrid.minScore (default 0.80, configurable)`
 - Returns top 5 merged + ranked results
 - In-memory LRU cache (500 items, 1-hour TTL) for repeated queries
 - **SearchLog** records every query for analytics: `{ query, resultsCount, topResultId, topResultSource }`

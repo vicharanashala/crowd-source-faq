@@ -73,7 +73,7 @@ search:
     keywordWeight: 0.4
     rrfK: 60                           # RRF constant
     maxResults: 20
-    minScore: 0.3
+    minScore: 0.80                     # vector-only threshold for applySearchThreshold
   embedding:
     model: "mixedbread-ai/mxbai-embed-large-v1"
     dimensions: 1024

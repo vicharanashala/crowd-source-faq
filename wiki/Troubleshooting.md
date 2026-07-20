@@ -42,7 +42,7 @@ This page lists common configuration issues, connection errors, and integration 
 
 ### Search Returns 0 Results
 - **Index Missing**: MongoDB Atlas Vector Search requires a vector index named exactly `vector_index` on the `embedding` field. Verify the index is active in your MongoDB Atlas dashboard.
-- **Min Score Threshold**: The default minimum score threshold is `0.3`. If query embeddings do not match documents above this similarity score, they are filtered out. You can adjust `search.hybrid.minScore` in your YAML config.
+- **Min Score Threshold**: The default minimum vector score threshold is `0.80`. If query embeddings do not match documents above this similarity score, they are filtered out. You can adjust `search.hybrid.minScore` in your YAML config.
 - **Text Index Missing**: Traditional keyword search requires text indexes on the `faqs` and `communityposts` collections. If the text index is missing, search queries will log warnings and fall back to vector-only results.
 
 ---

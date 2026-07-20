@@ -96,7 +96,7 @@ The hybrid search pipeline (vector + keyword + RRF) lives in `apps/backend/src/m
 
 - `POST /api/search` is **public** (no `protect`). The frontend SearchBar sends no JWT.
 - The LRU cache is in-memory and per-instance — does not survive restarts. Upstash Redis is the multi-instance cache when configured.
-- `applySearchThreshold` accepts a `thresholds` parameter but currently ignores it; filtering is hardcoded to `textScore > 0 || vectorScore >= 0.80`.
+- `applySearchThreshold` accepts an optional `minVectorScore` parameter; if omitted, it defaults to the configured `search.hybrid.minScore` and filtering checks `textScore > 0 || vectorScore > threshold`.
 
 ## Documentation
 

@@ -1,4 +1,5 @@
 import { Types } from 'mongoose';
+import { loadConfig } from '../../config/loader.js';
 
 export type ResultSource = 'faq' | 'community' | 'knowledge';
 
@@ -78,10 +79,12 @@ export function computeRRF(
 /**
  * Applies the platform's threshold filter to remove irrelevant results.
  * A document is kept if it has any keyword match (textScore > 0) OR
- * a strong semantic match (vectorScore > 0.80).
+ * a strong semantic match (vectorScore > configured threshold).
+ * Threshold defaults to `search.hybrid.minScore` from configuration.
  */
-export function applySearchThreshold(results: SearchResultItem[]): SearchResultItem[] {
+export function applySearchThreshold(results: SearchResultItem[], minVectorScore?: number): SearchResultItem[] {
+  const threshold = minVectorScore ?? loadConfig().search.hybrid.minScore;
   return results.filter(
-    (doc) => (doc.textScore && doc.textScore > 0) || (doc.vectorScore && doc.vectorScore > 0.80)
+    (doc) => (doc.textScore && doc.textScore > 0) || (doc.vectorScore && doc.vectorScore > threshold)
   );
 }

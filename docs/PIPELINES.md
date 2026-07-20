@@ -282,9 +282,9 @@ computeRRF(allVec, allTxt)
   Sort descending by rrfScore
         │
         ▼
-applySearchThreshold(results)
-  Kept if: textScore > 0  OR  vectorScore ≥ 0.80
-  (Note: `thresholds` param is accepted but IGNORED — filtering is hardcoded)
+applySearchThreshold(results, minVectorScore?)
+  Kept if: textScore > 0  OR  vectorScore > search.hybrid.minScore (default 0.80)
+  Override via config.default.yaml → search.hybrid.minScore, or pass explicit minVectorScore
         │
         ▼
 slice(0, 5) → setCachedResults → bufferSearchLog → log → return JSON
