@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+
+<body>
+    <h2>VoiceFAQ - Input Test</h2>
+    <button id="micBtn">🎤 Start Listening</button>
+    <p id="output">Say something...</p>
+
+    <script>
+        const recognition = new webkitSpeechRecognition(); // Chrome only
+        recognition.continuous = false;
+        recognition.lang = "en-US";
+
+        document.getElementById("micBtn").onclick = () => {
+            recognition.start();
+            document.getElementById("output").innerText = "Listening...";
+        };
+
+        recognition.onresult = (event) => {
+            const text = event.results[0][0].transcript;
+            document.getElementById("output").innerText = text;
+            console.log("Transcribed text:", text);
+        };
+
+        recognition.onerror = (event) => {
+            document.getElementById("output").innerText = "Error: " + event.error;
+            console.error("Speech recognition error:", event.error);
+        };
+    </script>
+</body>
+
+</html>
