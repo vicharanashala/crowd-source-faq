@@ -41,7 +41,7 @@ export function invalidatePublicCaches(): void {
 
 // ─── Cookie helpers ──────────────────────────────────────────────────────────
 
-function setGuestCookieIfMissing(req: Request, res: Response): string {
+export function setGuestCookieIfMissing(req: Request, res: Response): string {
   // Express parses cookies; the frontend will get one minted on first hit.
   const existing = (req as Request & { cookies?: Record<string, string> }).cookies?.[GUEST_COOKIE];
   if (existing && /^[a-z0-9-]{8,64}$/i.test(existing)) {

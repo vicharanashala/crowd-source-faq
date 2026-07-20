@@ -59,5 +59,5 @@ faqSatisfactionRatingSchema.index(
 export default mongoose.model<IFaqSatisfactionRating>(
   'FaqSatisfactionRating',
   faqSatisfactionRatingSchema,
-  'yaksha_faq_satisfaction_ratings'
+  'yaksha_faq_satisfaction_rating'
 );
