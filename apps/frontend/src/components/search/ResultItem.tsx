@@ -250,10 +250,16 @@ export default function ResultItem({ result, expanded, onToggle, onShowHistory, 
           )}
         </button>
         {result.source === 'faq' && (
-          <button onClick={(e) => { e.stopPropagation(); onShowHistory(result._id, title); }}
-            className={suggestCtaFaint}>
-            <ClockIcon /><span>History</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={(e) => { e.stopPropagation(); navigate(`/faq/${result._id}`); }}
+              className={suggestCtaFaint}>
+              <span>Open in FAQ</span>
+            </button>
+            <button onClick={(e) => { e.stopPropagation(); onShowHistory(result._id, title); }}
+              className={suggestCtaFaint}>
+              <ClockIcon /><span>History</span>
+            </button>
+          </div>
         )}
       </div>
     </div>

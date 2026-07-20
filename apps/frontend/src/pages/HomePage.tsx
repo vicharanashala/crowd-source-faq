@@ -533,10 +533,41 @@ export default function HomePage() {
     return [];
   }, [searchResults]);
 
-  const relatedItems = useMemo(() => {
-    if (!activeQuestion?.category) return [];
-    const pool = grouped[activeQuestion.category] || [];
-    return pool.filter((item) => item._id !== activeQuestion._id).slice(0, 5);
+  const [relatedItems, setRelatedItems] = useState<FAQItem[]>([]);
+
+  useEffect(() => {
+    if (!activeQuestion?._id) {
+      setRelatedItems([]);
+      return;
+    }
+
+    let cancelled = false;
+    api.get<{ relatedFaqs: FAQItem[] }>(`/faq/${activeQuestion._id}/related`)
+      .then((res) => {
+        if (cancelled) return;
+        if (res.data.relatedFaqs && res.data.relatedFaqs.length > 0) {
+          setRelatedItems(res.data.relatedFaqs);
+        } else {
+          // Fallback: same-category random slice, so the section is never empty and not static
+          const category = activeQuestion.category || '';
+          const pool = grouped[category] || [];
+          const filtered = pool.filter((i: FAQItem) => i._id !== activeQuestion._id);
+          const shuffled = [...filtered].sort(() => 0.5 - Math.random());
+          setRelatedItems(shuffled.slice(0, 5));
+        }
+      })
+      .catch(() => {
+        if (cancelled) return;
+        const category = activeQuestion.category || '';
+        const pool = grouped[category] || [];
+        const filtered = pool.filter((i: FAQItem) => i._id !== activeQuestion._id);
+        const shuffled = [...filtered].sort(() => 0.5 - Math.random());
+        setRelatedItems(shuffled.slice(0, 5));
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [activeQuestion, grouped]);
 
   // ── Handlers ────────────────────────────────────────────────────────────
@@ -571,6 +602,10 @@ export default function HomePage() {
     }
     setActiveQuestion(null);
   };
+
+  const handleTagClick = useCallback((tag: string) => {
+    navigate(`/faq?search=${encodeURIComponent(tag)}`);
+  }, [navigate]);
 
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
@@ -706,6 +741,7 @@ export default function HomePage() {
             relatedItems={relatedItems}
             onBack={handleBackFromDetail}
             onSelectRelated={handleQuestionOpen}
+            onTagClick={handleTagClick}
             backLabel={
               searchActive
                 ? 'Back to Search Results'
@@ -756,6 +792,7 @@ export default function HomePage() {
               loading={false}
               sortOption={sortOption}
               onSortChange={setSortOption}
+              onTagClick={handleTagClick}
               visibleCount={visibleCount}
               onLoadMore={() => setVisibleCount((prev) => prev + 6)}
               emptyMessage="No questions in this category yet."

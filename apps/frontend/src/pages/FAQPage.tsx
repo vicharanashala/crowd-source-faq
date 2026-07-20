@@ -34,6 +34,17 @@ import QuestionDetail from '../components/faq/QuestionDetail';
 import CTA from '../components/ui/CTA';
 import { searchPanel } from '../styles/style_config';
 
+const recentlyViewedKey = 'yaksha_recent_faq_ids';
+
+const readRecentlyViewed = (): string[] => {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(recentlyViewedKey) || '[]');
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : [];
+  } catch {
+    return [];
+  }
+};
+
 // ═══════════════════════════════════════════════════════════════════════════
 //  Main page
 // ═══════════════════════════════════════════════════════════════════════════
@@ -55,12 +66,16 @@ export default function FAQPage() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [sortOption, setSortOption] = useState('relevant');
   const [visibleCount, setVisibleCount] = useState(8);
+  const [recentlyViewedIds, setRecentlyViewedIds] = useState<string[]>(readRecentlyViewed);
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [dropdownDismissed, setDropdownDismissed] = useState(false);
 
   const searchBarRef = useRef<HTMLInputElement>(null);
   const [resultFaqId, setResultFaqId] = useState<string | undefined>(undefined);
   const { id: urlFaqId } = useParams<string>();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const lastUrlSearchRef = useRef('');
 
   const scrollToTop = useCallback(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -107,6 +122,30 @@ export default function FAQPage() {
     void load();
   }, [batchId, load]);
 
+  useEffect(() => {
+    const urlSearch = searchParams.get('search')?.trim() ?? '';
+    if (!urlSearch) return;
+    setSearchQuery(urlSearch);
+    setActiveCategory('');
+    setActiveQuestion(null);
+
+    if (!urlSearch || !batchId) return;
+    const searchKey = `${batchId}:${urlSearch}`;
+    if (searchKey === lastUrlSearchRef.current) return;
+    lastUrlSearchRef.current = searchKey;
+    setSearchLoading(true);
+    api.post('/search', { query: urlSearch, batchId })
+      .then((res) => {
+        setSearchResults((res.data.results ?? []) as FAQItem[]);
+        setError('');
+      })
+      .catch(() => {
+        setSearchResults([]);
+        setError('Search failed. Please check your connection and try again.');
+      })
+      .finally(() => setSearchLoading(false));
+  }, [batchId, searchParams]);
+
   // ── Derived data ─────────────────────────────────────────────────────────
   const categories = useMemo(() => Object.keys(grouped).sort((a, b) => {
     // Order by the dynamic categoryNumber assigned in applyQuestionNumbers
@@ -123,6 +162,28 @@ export default function FAQPage() {
       source: item.source || 'faq',
     })))
   ), [categories, grouped]);
+
+  const recentlyViewedItems = useMemo<FAQItem[]>(() => {
+    const byId = new Map<string, FAQItem>(flatQuestions.map((item) => [item._id, item]));
+    return recentlyViewedIds.reduce<FAQItem[]>((acc, id) => {
+      const item = byId.get(id);
+      if (item) acc.push(item);
+      return acc;
+    }, []).slice(0, 5);
+  }, [flatQuestions, recentlyViewedIds]);
+
+  useEffect(() => {
+    if (!activeQuestion?._id) return;
+    setRecentlyViewedIds((prev) => {
+      const next = [activeQuestion._id, ...prev.filter((id) => id !== activeQuestion._id)].slice(0, 5);
+      try {
+        localStorage.setItem(recentlyViewedKey, JSON.stringify(next));
+      } catch {
+        /* ignore storage failures */
+      }
+      return next;
+    });
+  }, [activeQuestion?._id]);
 
   // ── Deep-link handler (/faq/:id from URL) ───────────────────────────────
   useEffect(() => {
@@ -217,12 +278,12 @@ export default function FAQPage() {
   const activeCategoryItems = activeCategory ? (grouped[activeCategory] || []) : [];
   const activeCategoryMeta = getCategoryDescription(activeCategoryItems);
 
-  const searchActive = searchQuery.trim().length >= 3 && Array.isArray(searchResults) && searchResults.length > 0;
+  const searchActive = searchQuery.trim().length > 0 && Array.isArray(searchResults);
   // v2 — Show the glassmorphic dropdown as soon as the user types a single
   // character. The dropdown's left column shows live results from the same
   // `searchResults` array that the in-page section consumes below, so the
   // two views cannot disagree on counts.
-  const showDropdown = searchQuery.trim().length > 0;
+  const showDropdown = searchQuery.trim().length > 0 && searchFocused && !dropdownDismissed;
 
   // v2 — Dropdown now ONLY shows API search results, which stream live as
   // the user types. The right column stays as the always-live category
@@ -234,10 +295,41 @@ export default function FAQPage() {
     return [];
   }, [searchResults]);
 
-  const relatedItems = useMemo(() => {
-    if (!activeQuestion?.category) return [];
-    const pool = grouped[activeQuestion.category] || [];
-    return pool.filter((item) => item._id !== activeQuestion._id).slice(0, 5);
+  const [relatedItems, setRelatedItems] = useState<FAQItem[]>([]);
+
+  useEffect(() => {
+    if (!activeQuestion?._id) {
+      setRelatedItems([]);
+      return;
+    }
+
+    let cancelled = false;
+    api.get<{ relatedFaqs: FAQItem[] }>(`/faq/${activeQuestion._id}/related`)
+      .then((res) => {
+        if (cancelled) return;
+        if (res.data.relatedFaqs && res.data.relatedFaqs.length > 0) {
+          setRelatedItems(res.data.relatedFaqs);
+        } else {
+          // Fallback: same-category random slice, so the section is never empty and not static
+          const category = activeQuestion.category || '';
+          const pool = grouped[category] || [];
+          const filtered = pool.filter((i: FAQItem) => i._id !== activeQuestion._id);
+          const shuffled = [...filtered].sort(() => 0.5 - Math.random());
+          setRelatedItems(shuffled.slice(0, 5));
+        }
+      })
+      .catch(() => {
+        if (cancelled) return;
+        const category = activeQuestion.category || '';
+        const pool = grouped[category] || [];
+        const filtered = pool.filter((i: FAQItem) => i._id !== activeQuestion._id);
+        const shuffled = [...filtered].sort(() => 0.5 - Math.random());
+        setRelatedItems(shuffled.slice(0, 5));
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [activeQuestion, grouped]);
 
   // ── Handlers ────────────────────────────────────────────────────────────
@@ -255,8 +347,26 @@ export default function FAQPage() {
     setActiveQuestion(item);
     setSearchQuery('');
     setSearchResults(null);
+    if (item._id && urlFaqId !== item._id) {
+      navigate(`/faq/${item._id}`);
+    }
     scrollToTop();
   };
+
+  const handleTagClick = useCallback((tag: string) => {
+    setActiveCategory('');
+    setActiveQuestion(null);
+    setSearchQuery(tag);
+    setVisibleCount(8);
+    setSearchLoading(true);
+    setDropdownDismissed(true); // Hide dropdown immediately on tag click
+    scrollToTop();
+
+    api.post<{ results: FAQItem[] }>('/search', { query: tag, batchId: batchId || undefined })
+      .then((res) => setSearchResults(res.data.results ?? []))
+      .catch(() => setSearchResults([]))
+      .finally(() => setSearchLoading(false));
+  }, [batchId, scrollToTop]);
 
   const handleBackToCategories = () => {
     setActiveCategory('');
@@ -270,11 +380,15 @@ export default function FAQPage() {
       navigate('/');
       return;
     }
+    if (urlFaqId) {
+      navigate('/faq');
+    }
     setActiveQuestion(null);
   };
 
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
+    setDropdownDismissed(false); // Reset dismissed state on typing
     if (value.trim()) {
       setActiveCategory('');
       setActiveQuestion(null);
@@ -331,6 +445,16 @@ export default function FAQPage() {
               onError={(err) => setError(err || '')}
               placeholder="Ask anything about your internship..."
               disableSuggestions={true}
+              onFocus={() => {
+                setSearchFocused(true);
+                setDropdownDismissed(false);
+              }}
+              onBlur={() => {
+                setTimeout(() => setSearchFocused(false), 200);
+              }}
+              onSearchSubmit={() => {
+                setDropdownDismissed(true);
+              }}
             />
 
             {showDropdown && (
@@ -348,6 +472,27 @@ export default function FAQPage() {
         </section>
 
         {/* ─── CATEGORY FILTER PILLS ─────────────────────────────────── */}
+        {!loading && !error && !activeQuestion && recentlyViewedItems.length > 0 && (
+          <section className="mt-4 max-w-4xl mx-auto">
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
+                Recently viewed
+              </span>
+              {recentlyViewedItems.map((item) => (
+                <button
+                  key={item._id}
+                  type="button"
+                  onClick={() => handleQuestionOpen(item)}
+                  className="max-w-[220px] truncate rounded-full border border-border/70 bg-card px-3 py-1.5 text-xs font-semibold text-ink-soft hover:border-accent/40 hover:text-accent transition-colors"
+                  title={getQuestionTitle(item)}
+                >
+                  {getQuestionTitle(item)}
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
         {!loading && !error && !activeQuestion && !searchActive && categories.length > 0 && (
           <nav
             className="mt-3 max-w-5xl mx-auto px-1 flex flex-wrap justify-center gap-2"
@@ -425,6 +570,7 @@ export default function FAQPage() {
             relatedItems={relatedItems}
             onBack={handleBackFromDetail}
             onSelectRelated={handleQuestionOpen}
+            onTagClick={handleTagClick}
             backLabel={
               searchActive
                 ? 'Back to Search Results'
@@ -462,6 +608,7 @@ export default function FAQPage() {
               loading={searchLoading}
               sortOption={sortOption}
               onSortChange={setSortOption}
+              onTagClick={handleTagClick}
               visibleCount={visibleCount}
               onLoadMore={() => setVisibleCount((prev) => prev + 6)}
               emptyMessage="No results yet. Try another keyword or browse a category."
@@ -506,6 +653,7 @@ export default function FAQPage() {
               loading={false}
               sortOption={sortOption}
               onSortChange={setSortOption}
+              onTagClick={handleTagClick}
               visibleCount={visibleCount}
               onLoadMore={() => setVisibleCount((prev) => prev + 6)}
               emptyMessage="No questions in this category yet."

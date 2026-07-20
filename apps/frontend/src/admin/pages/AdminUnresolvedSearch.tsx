@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom';
 import { adminBtnGhost, adminLabel, adminSearchInput, adminSelect } from '../../styles/style_config';
 import { AnimatePresence, motion } from 'framer-motion';
 import adminApi from '../utils/adminApi';
@@ -53,6 +54,7 @@ function Toast({ toast }: { toast: Toast }) {
 }
 
 export default function AdminUnresolvedSearch() {
+  const navigate = useNavigate();
   const [items, setItems] = useState<UnresolvedItem[]>([]);
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [total, setTotal] = useState(0);
@@ -239,6 +241,13 @@ export default function AdminUnresolvedSearch() {
                         title="View">
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                        </svg>
+                      </button>
+                      <button onClick={() => navigate(`/faq?search=${encodeURIComponent(item.query)}`)}
+                        className="w-6 h-6 flex items-center justify-center rounded text-ink-faint hover:text-accent hover:bg-accent/10 transition-colors"
+                        title="Search FAQs">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
                         </svg>
                       </button>
                       {item.status === 'pending' && (

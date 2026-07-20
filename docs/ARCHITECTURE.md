@@ -365,7 +365,7 @@ Each controller handles a set of related operations. Controllers are imported by
 | Page | Route | Purpose |
 |---|---|---|
 | `HomePage.tsx` | `/` | Hero search + trending + category grid |
-| `FAQPage.tsx` | `/faq` | FAQ category browser + search |
+| `FAQPage.tsx` | `/faq`, `/faq/:id`, `/faq?search=...` | FAQ category browser, search, shareable detail view, and Recently viewed strip |
 | `BatchPortalPage.tsx` | `/explore/select` | Guest batch picker (anonymous-friendly entry) |
 | `CommunityPage.tsx` | `/community` | Community Q&A board |
 | `SavedKnowledgePage.tsx` | `/saved` | Bookmarked knowledge |
@@ -392,7 +392,7 @@ Each controller handles a set of related operations. Controllers are imported by
 | `AdminZoomMeetings.tsx` | `/admin/zoom-meetings` | Zoom meeting records |
 | `AdminZoomInsights.tsx` | `/admin/zoom-insights` | Zoom insight review |
 | `AdminLeaderboard.tsx` | `/admin/leaderboard` | Reputation leaderboard |
-| `AdminUnresolvedSearch.tsx` | `/admin/unresolved-search` | Unresolved query tracking |
+| `AdminUnresolvedSearch.tsx` | `/admin/unresolved-search` | Unresolved query tracking with quick action to `/faq?search=...` |
 | `AdminAISettings.tsx` | `/admin/ai-settings` | Per-pipeline AI provider config |
 | `AdminSettings.tsx` | `/admin/settings` | App settings (incl. GoldenTicketSettingsCard: cooldown hours) |
 | `AdminBatches.tsx` | `/admin/batches` | Batch + category management (cohort, term, FAQ scoping) |
@@ -408,8 +408,10 @@ Each controller handles a set of related operations. Controllers are imported by
 
 | Component | Location | Purpose |
 |---|---|---|
-| `SearchBar.tsx` | `components/search/` | Floating bottom-center search bar |
+| `SearchBar.tsx` | `components/search/` | Floating bottom-center search bar with local search-history chips |
 | `SearchDropdown.tsx` | `components/search/` | FAQ autocomplete dropdown |
+| `SearchResults.tsx` | `components/search/` | Search result list with direct Open in FAQ navigation for FAQ hits |
+| `ResultItem.tsx` | `components/search/` | Individual search result card with FAQ/community direct-open actions |
 | `ThreadDetail.tsx` | `components/community/` | Community post modal with comments |
 | `PostDetailDialog.tsx` | `components/community/` | Post + comments dialog |
 | `CommentNode.tsx` | `components/community/` | Individual comment with edit/delete |
@@ -417,7 +419,8 @@ Each controller handles a set of related operations. Controllers are imported by
 | `CategoryCardGrid.tsx` | `components/faq/` | Sage-green FAQ category card grid (homepage hero) |
 | `CategoryCard.tsx` | `components/faq/` | Single category card |
 | `CategoryGrid.tsx` | `components/faq/` | Category pill grid (FAQ browser) |
-| `QuestionList.tsx` | `components/faq/` | FAQ accordion list |
+| `QuestionList.tsx` | `components/faq/` | FAQ accordion list with Most helpful client-side sorting |
+| `QuestionDetail.tsx` | `components/faq/` | FAQ detail view with canonical Copy link action |
 | `FreshnessBadge.tsx` | `components/faq/` | `✓ Verified` / `⏳ Under review` / `⚠ Update requested` indicator |
 | `FlagOutdatedButton.tsx` | `components/faq/` | Per-FAQ manual flag-outdated (modal + reason) |
 | `FreshnessTierSelector.tsx` | `components/faq/` | Tier radio (evergreen/seasonal/volatile) + interval input |

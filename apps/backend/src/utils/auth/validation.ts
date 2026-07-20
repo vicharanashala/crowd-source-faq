@@ -85,8 +85,10 @@ export const createFAQSchema = z.object({
   answer:             z.string().min(3, 'Answer is too short').max(10000),
   category:           z.string().min(1, 'Category is required').max(100),
   batchId:            objectIdLike,
+  tags:               z.array(z.string()).optional(),
   freshnessTier:      z.enum(['evergreen', 'seasonal', 'volatile']).optional(),
   reviewIntervalDays: z.number().int().min(0).max(365).optional(),
+  changeSummary:      z.string().max(500).optional(),
 });
 
 export const updateFAQSchema = z.object({
@@ -94,9 +96,11 @@ export const updateFAQSchema = z.object({
   answer:             z.string().min(3).max(10000).optional(),
   category:           z.string().min(1).max(100).optional(),
   batchId:            objectIdLike.optional(),
+  tags:               z.array(z.string()).optional(),
   status:             z.enum(['approved', 'pending', 'rejected']).optional(),
   freshnessTier:      z.enum(['evergreen', 'seasonal', 'volatile']).optional(),
   reviewIntervalDays: z.number().int().min(0).max(365).optional(),
+  changeSummary:      z.string().max(500).optional(),
 });
 
 export const flagFAQSchema = z.object({
@@ -106,6 +110,10 @@ export const flagFAQSchema = z.object({
 export const voteReviewSchema = z.object({
   verdict:     z.enum(['still_accurate', 'needs_update']),
   suggestion:  z.string().max(300, 'Suggestion must be 300 characters or less').optional(),
+});
+
+export const rollbackFAQSchema = z.object({
+  changeSummary: z.string().max(500).optional(),
 });
 
 // ─── Community ──────────────────────────────────────────────────────────────────

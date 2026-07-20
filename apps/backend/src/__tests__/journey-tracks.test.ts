@@ -146,6 +146,9 @@ vi.mock('../modules/auth/user.model.js', () => ({
     find: vi.fn(() => ({
       select: () => ({ lean: async () => mocks.state.users }),
     })),
+    findById: vi.fn(() => ({
+      select: () => ({ lean: async () => mocks.state.users[0] ?? null }),
+    })),
   },
 }));
 

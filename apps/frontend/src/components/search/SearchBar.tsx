@@ -31,7 +31,19 @@ interface SearchBarProps {
   className?: string;
   disableSuggestions?: boolean;
   variant?: 'default' | 'compact';
+  onSearchSubmit?: () => void;
 }
+
+const searchHistoryKey = 'yaksha_faq_search_history';
+
+const readSearchHistory = (): string[] => {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(searchHistoryKey) || '[]');
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : [];
+  } catch {
+    return [];
+  }
+};
 
 const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function SearchBar(
   {
@@ -46,6 +58,7 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
     className = '',
     disableSuggestions = false,
     variant = 'default',
+    onSearchSubmit,
   },
   ref
 ) {
@@ -53,31 +66,44 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
   const batchId = currentBatch?._id ?? null;
   const navigate = useNavigate();
   const [internalQuery, setInternalQuery] = useState<string>('');
+  const [history, setHistory] = useState<string[]>(readSearchHistory);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [suggestionError, setSuggestionError] = useState<string | null>(null);
   const isControlled = value !== undefined;
   const query = isControlled ? (value ?? '') : internalQuery;
   const suggestDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // 1.6 — tracks the suggestionError auto-dismiss timer so we can
   // clear it on the next click / unmount.
-  const suggestErrorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  const handleSearch = async (searchQuery: string) => {
-    if (!searchQuery.trim() || searchQuery.trim().length < 3) {
+  const rememberQuery = (searchQuery: string) => {
+    const trimmed = searchQuery.trim();
+    if (!trimmed) return;
+    const next = [trimmed, ...history.filter((item) => item.toLowerCase() !== trimmed.toLowerCase())].slice(0, 5);
+    setHistory(next);
+    try {
+      localStorage.setItem(searchHistoryKey, JSON.stringify(next));
+    } catch {
+      /* ignore storage failures */
+    }
+  };
+
+  const handleSearch = async (searchQuery: string, remember = false) => {
+    const trimmed = searchQuery.trim();
+    if (!trimmed || trimmed.length < 3) {
       onResults(null);
       onError?.(null);
       return;
     }
+    if (remember) rememberQuery(trimmed);
 
     onLoading(true);
     onError?.(null);
     try {
       const res = await api.post<{ results: SearchResult[] }>('/search', {
-        query: searchQuery.trim(),
+        query: trimmed,
         batchId: batchId || undefined,
       });
       onResults(res.data.results ?? null);
@@ -140,7 +166,11 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
   const runSearchNow = () => {
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     setShowSuggestions(false);
-    handleSearch(query);
+    onSearchSubmit?.();
+    if (ref && typeof ref === 'object' && 'current' in ref && ref.current) {
+      ref.current.blur();
+    }
+    handleSearch(query, true);
   };
 
   const handleSubmit = (e: FormEvent) => {
@@ -148,40 +178,34 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
     runSearchNow();
   };
 
-  const handleSuggestionClick = async (faqId: string) => {
+  const handleHistoryClick = (historyQuery: string) => {
+    if (isControlled) {
+      onQueryChange?.(historyQuery);
+    } else {
+      setInternalQuery(historyQuery);
+    }
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    setShowSuggestions(false);
+    handleSearch(historyQuery, true);
+  };
+
+  const handleSuggestionClick = (faqId: string) => {
     setShowSuggestions(false);
     setSuggestions([]);
-    setSuggestionError(null);
+    navigate(`/faq/${faqId}`);
     // 1.6 (LOW) — clear any stale suggestionError on every click so it
     // doesn't linger indefinitely if the user stopped typing. The
     // 4-second auto-dismiss below still applies for fresh errors.
-    if (suggestErrorTimerRef.current) {
-      clearTimeout(suggestErrorTimerRef.current);
-      suggestErrorTimerRef.current = null;
-    }
-    try {
-      const res = await api.get<{ _id: string; question: string; answer: string; category: string }>(`/faq/${faqId}`);
-      sessionStorage.setItem('yaksha_faq_highlight', JSON.stringify(res.data));
-    } catch {
       // 1.6 (LOW) — auto-dismiss after 4 seconds so the red banner
       // doesn't linger until the next fetchSuggestions cycle.
-      setSuggestionError('Could not load FAQ. Navigating anyway.');
-      suggestErrorTimerRef.current = setTimeout(() => {
-        setSuggestionError(null);
-        suggestErrorTimerRef.current = null;
-      }, 4000);
-    }
-    navigate(`/faq/${faqId}`);
   };
 
   // 1.6 — clear pending auto-dismiss timer on unmount so we don't
   // try to setState after the component is gone.
   useEffect(() => {
     return () => {
-      if (suggestErrorTimerRef.current) {
-        clearTimeout(suggestErrorTimerRef.current);
-        suggestErrorTimerRef.current = null;
-      }
+      if (suggestDebounceRef.current) clearTimeout(suggestDebounceRef.current);
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     };
   }, []);
 
@@ -257,10 +281,18 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
             ))}
           </div>
         )}
-        {/* Suggestion click error */}
-        {suggestionError && (
-          <div className="absolute top-full left-0 right-0 mt-2 px-4 py-2 bg-danger-light border border-danger/20 rounded-xl text-xs text-danger">
-            {suggestionError}
+        {history.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-2 px-1">
+            {history.map((historyQuery) => (
+              <button
+                key={historyQuery}
+                type="button"
+                onClick={() => handleHistoryClick(historyQuery)}
+                className="rounded-full border border-border/70 bg-card px-3 py-1 text-[11px] font-semibold text-ink-soft hover:border-accent/40 hover:text-accent transition-colors"
+              >
+                {historyQuery}
+              </button>
+            ))}
           </div>
         )}
       </div>

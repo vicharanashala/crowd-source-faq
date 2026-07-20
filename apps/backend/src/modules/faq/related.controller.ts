@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import CommunityPost from '../community/community-post.model.js';
 import FAQ from './faq.model.js';
 import { communityLog } from '../../utils/http/logger.js';
+import { EMBEDDING_DIM } from '../../utils/ai/embeddings.js';
 
 interface RelatedItem {
   _id: string;
@@ -107,7 +108,7 @@ export async function getRelatedForPost(req: Request, res: Response): Promise<vo
       // main search endpoint uses.
       try {
         const postEmbedding = post.embedding;
-        if (Array.isArray(postEmbedding) && postEmbedding.length === 768) {
+        if (Array.isArray(postEmbedding) && postEmbedding.length === EMBEDDING_DIM) {
           const db = (await import('mongoose')).default.connection.db;
           if (db) {
             const sim = await db.collection('yaksha_faq_faqs').aggregate([
@@ -162,5 +163,116 @@ export async function getRelatedForPost(req: Request, res: Response): Promise<vo
     res.json({ relatedQuestions, similarFaqs });
   } catch (err) {
     res.status(500).json({ error: 'Failed to load related items' });
+  }
+}
+
+/**
+ * GET /api/faq/:id/related
+ * Returns FAQs related to the given FAQ, ranked by tag overlap with a
+ * vector-similarity fallback when tags are sparse. Mirrors
+ * getRelatedForPost's approach, applied FAQ -> FAQ instead of post -> FAQ.
+ */
+export async function getRelatedForFAQ(req: Request, res: Response): Promise<void> {
+  try {
+    const source = await FAQ.findById(req.params.id).select('tags embedding status');
+    if (!source) {
+      res.status(404).json({ error: 'FAQ not found' });
+      return;
+    }
+
+    const tags = (source.tags ?? []).filter(Boolean);
+    const limit = Math.min(5, Math.max(1, parseInt(String(req.query.limit ?? '5'))));
+
+    let relatedFaqs: RelatedItem[] = [];
+
+    if (tags.length > 0) {
+      const related = await FAQ.aggregate([
+        {
+          $match: {
+            _id: { $ne: source._id },
+            status: 'approved',
+            tags: { $in: tags },
+          },
+        },
+        {
+          $addFields: {
+            overlap: { $size: { $setIntersection: ['$tags', tags] } },
+          },
+        },
+        { $sort: { overlap: -1, helpfulVotes: -1 } },
+        { $limit: limit },
+        {
+          $project: {
+            _id: 1,
+            question: 1,
+            tags: 1,
+            helpfulVotes: 1,
+            overlap: 1,
+          },
+        },
+      ]);
+
+      relatedFaqs = related.map((f) => ({
+        _id: String(f._id),
+        title: f.question,
+        tags: f.tags ?? [],
+        matchScore: f.overlap ?? 0,
+        upvotes: f.helpfulVotes ?? 0,
+        url: `/faq/${String(f._id)}`,
+      }));
+    } else {
+      // No tags on the source FAQ — vector fallback
+      try {
+        const sourceEmbedding = source.embedding;
+        if (Array.isArray(sourceEmbedding) && sourceEmbedding.length === EMBEDDING_DIM) {
+          const db = (await import('mongoose')).default.connection.db;
+          if (db) {
+            const sim = await db.collection('yaksha_faq_faqs').aggregate([
+              {
+                $vectorSearch: {
+                  index: 'vector_index',
+                  path: 'embedding',
+                  queryVector: sourceEmbedding,
+                  numCandidates: limit * 10,
+                  limit: limit + 1, // +1 because the source FAQ itself will match
+                },
+              },
+              { $match: { status: 'approved', _id: { $ne: source._id } } },
+              { $limit: limit },
+              { $project: { _id: 1, question: 1, tags: 1, score: { $meta: 'vectorSearchScore' } } },
+            ]).toArray();
+
+            relatedFaqs = sim.map((f) => ({
+              _id: String(f._id),
+              title: f.question as string,
+              tags: (f.tags as string[]) ?? [],
+              matchScore: Math.round((f.score as number) * 100),
+              upvotes: 0,
+              url: `/faq/${String(f._id)}`,
+            }));
+          }
+        }
+      } catch (e) {
+        // Fallback to random sample from same category if embeddings are offline or fail
+        const sameCategory = await FAQ.aggregate([
+          { $match: { status: 'approved', category: source.category, _id: { $ne: source._id } } },
+          { $sample: { size: limit } },
+          { $project: { _id: 1, question: 1, tags: 1, helpfulVotes: 1 } }
+        ]);
+        
+        relatedFaqs = sameCategory.map((f) => ({
+          _id: String(f._id),
+          title: f.question as string,
+          tags: (f.tags as string[]) ?? [],
+          matchScore: 0,
+          upvotes: f.helpfulVotes ?? 0,
+          url: `/faq/${String(f._id)}`,
+        }));
+      }
+    }
+
+    res.json({ relatedFaqs });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to load related FAQs' });
   }
 }

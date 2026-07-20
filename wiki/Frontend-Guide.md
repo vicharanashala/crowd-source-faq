@@ -79,6 +79,7 @@ The app uses `BrowserRouter` with `basename="/csfaq"`. In production, all routes
 - **User Routes**:
   - `/` (Home page / Program selector)
   - `/faq` (FAQ list and search tool)
+  - `/faq/:id` (shareable FAQ detail page)
   - `/community` (Community Q&A and escalations)
   - `/support` (My support requests and Golden Ticket flow)
 - **Admin Routes**:
@@ -87,6 +88,20 @@ The app uses `BrowserRouter` with `basename="/csfaq"`. In production, all routes
   - `/admin/faqs` (Manage FAQ entries)
   - `/admin/moderation` (Review flagged posts and comments)
   - `/admin/settings` (System configuration, AI providers, and integration logs)
+
+---
+
+## FAQ and Search UX
+
+FAQ browsing and search use frontend-only helpers layered on top of the existing routes:
+
+- `QuestionDetail.tsx` exposes a Copy link action that writes the canonical FAQ detail URL to the clipboard. The URL is built from `window.location.origin`, `import.meta.env.BASE_URL`, and `/faq/:id`, so shared links include the `/csfaq` base path in production.
+- Search results and FAQ suggestions should navigate directly with React Router to `/faq/:id`. Do not write new FAQ navigation state to `sessionStorage`; the detail route is the source of truth.
+- FAQ search result cards include an Open in FAQ action. Community results continue to open with `/community?post=:id`.
+- `QuestionList.tsx` includes a Most helpful sort. It orders client-side by `popularityScore`, then `helpfulVotes`, then guest/view counts, then recency, treating missing metrics as `0`.
+- `FAQPage.tsx` stores recently opened FAQ IDs in `localStorage` under `yaksha_recent_faq_ids`, resolves them from the loaded FAQ data, and renders a compact Recently viewed strip.
+- `SearchBar.tsx` stores the last five unique non-empty submitted queries in `localStorage` under `yaksha_faq_search_history` and renders them as clickable chips below the input.
+- `/faq?search=<query>` initializes the FAQ page search field. Admin unresolved-search actions use this route to let admins check existing FAQs before creating new content.
 
 ---
 

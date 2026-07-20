@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { Check, Copy } from 'lucide-react';
 import { FAQItem, getQuestionTitle, getAnswerText, formatDate, getCategoryIcon, formatCategoryName, TrustBadge } from './faqUtils';
 import ReportFAQButton from './ReportFAQButton';
+import TagChips from './TagChips';
 import FreshnessBadge from '../faq/FreshnessBadge';
 import {
   avatarPlaceholder,
@@ -29,10 +31,19 @@ interface QuestionDetailProps {
   relatedItems: FAQItem[];
   onBack: () => void;
   onSelectRelated: (item: FAQItem) => void;
+  onTagClick?: (tag: string) => void;
   backLabel?: string;
 }
 
-export default function QuestionDetail({ item, relatedItems, onBack, onSelectRelated, backLabel }: QuestionDetailProps) {
+export default function QuestionDetail({
+  item,
+  relatedItems,
+  onBack,
+  onSelectRelated,
+  onTagClick,
+  backLabel,
+}: QuestionDetailProps) {
+  const [copied, setCopied] = useState(false);
   const title = getQuestionTitle(item);
   const prefix = item.questionNumber ? `${item.questionNumber}. ` : '';
   const answer = getAnswerText(item);
@@ -40,6 +51,17 @@ export default function QuestionDetail({ item, relatedItems, onBack, onSelectRel
   const sourceLabel = item?.source ? (item.source === 'faq' ? 'FAQ' : 'Community') : '';
   const trustLevel = item?.trustLevel;
   const highlight = answer ? answer.split('. ').slice(0, 1).join('. ') : '';
+  const handleCopyLink = async () => {
+    const basePath = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
+    const url = `${window.location.origin}${basePath}/faq/${item._id}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      setCopied(false);
+    }
+  };
 
   return (
     <div className="grid lg:grid-cols-[260px_1fr] gap-6">
@@ -74,15 +96,26 @@ export default function QuestionDetail({ item, relatedItems, onBack, onSelectRel
       </aside>
 
       <div className={surfaceCardPadded + ' border-border shadow-subtle'}>
-        <button
-          onClick={onBack}
-          className="inline-flex items-center gap-2 text-xs font-semibold text-ink-soft hover:text-ink transition-colors"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-          {backLabel || 'Back'}
-        </button>
+        <div className="flex items-center justify-between gap-3">
+          <button
+            onClick={onBack}
+            className="inline-flex items-center gap-2 text-xs font-semibold text-ink-soft hover:text-ink transition-colors"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+            {backLabel || 'Back'}
+          </button>
+          <button
+            type="button"
+            onClick={handleCopyLink}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border/70 bg-card px-2.5 py-1.5 text-xs font-semibold text-ink-soft hover:border-accent/40 hover:text-accent transition-colors"
+            title="Copy link"
+          >
+            {copied ? <Check size={13} /> : <Copy size={13} />}
+            {copied ? 'Copied' : 'Copy link'}
+          </button>
+        </div>
 
         <div className={`mt-4 ${flexRowWrap} gap-2`}>
           {sourceLabel && (
@@ -102,6 +135,13 @@ export default function QuestionDetail({ item, relatedItems, onBack, onSelectRel
             />
           )}
         </div>
+
+        {/* NEW — tag chips, placed right after the meta row, before the title */}
+        {item.tags && item.tags.length > 0 && (
+          <div className="mt-3">
+            <TagChips tags={item.tags} onTagClick={onTagClick} size="sm" />
+          </div>
+        )}
 
         <h2 className={`mt-4 text-xl font-semibold text-ink leading-snug`}>
           <span className={`${textBodyFaint} mr-2 ${textNumeric}`}>{prefix}</span>

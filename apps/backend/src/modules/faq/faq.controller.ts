@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import mongoose, { Types } from 'mongoose';
 import FAQ, { type IFAQ } from './faq.model.js';
+import FaqVersion from './faq-version.model.js';
 import CommunityPost from '../community/community-post.model.js';
 import { generateQueryEmbedding } from '../../utils/ai/embeddings.js';
 import { adminLog } from '../../utils/http/logger.js';
@@ -19,6 +20,67 @@ import { readSetting } from '../program/app-setting.model.js';
 // Mongoose filter through withProgramScope. Single tenant callers
 // (no batchId) keep working until the rollout flips required=true.
 import { withProgramScope, assertSameProgram } from '../../utils/db/scopedQuery.js';
+
+export async function handleFaqEditHistory(
+  faq: IFAQ,
+  newFields: { question?: string; answer?: string; category?: string; batchId?: Types.ObjectId; tags?: string[] },
+  changeSummary: string,
+  userId: Types.ObjectId | string
+) {
+  const count = await FaqVersion.countDocuments({ faqId: faq._id });
+  let nextVersionNumber = 1;
+
+  if (count === 0) {
+    let initialSummary = 'Initial FAQ creation';
+    if (faq.sourceType === 'zoom_transcript') {
+      initialSummary = 'Initial FAQ ingestion from Zoom meeting transcript.';
+    }
+    
+    await FaqVersion.create({
+      faqId: faq._id,
+      versionNumber: 1,
+      question: faq.question,
+      answer: faq.answer,
+      tags: faq.tags || [],
+      category: faq.category,
+      editedBy: faq.createdBy || new Types.ObjectId(userId),
+      editedAt: faq.createdAt || new Date(),
+      changeSummary: initialSummary,
+      batchId: faq.batchId || null,
+    });
+    
+    nextVersionNumber = 2;
+  } else {
+    const lastVersionDoc = await FaqVersion.findOne({ faqId: faq._id })
+      .sort({ versionNumber: -1 })
+      .select('versionNumber');
+    nextVersionNumber = (lastVersionDoc?.versionNumber ?? 1) + 1;
+  }
+
+  const updatedQuestion = newFields.question !== undefined ? newFields.question : faq.question;
+  const updatedAnswer = newFields.answer !== undefined ? newFields.answer : faq.answer;
+  const updatedCategory = newFields.category !== undefined ? newFields.category : faq.category;
+  const updatedBatchId = newFields.batchId !== undefined ? newFields.batchId : faq.batchId;
+  const updatedTags = newFields.tags !== undefined ? newFields.tags : faq.tags;
+
+  await FaqVersion.create({
+    faqId: faq._id,
+    versionNumber: nextVersionNumber,
+    question: updatedQuestion,
+    answer: updatedAnswer,
+    tags: updatedTags || [],
+    category: updatedCategory,
+    editedBy: new Types.ObjectId(userId),
+    editedAt: new Date(),
+    changeSummary: changeSummary || 'Manual update',
+    batchId: updatedBatchId || null,
+  });
+
+  const threshold = nextVersionNumber - 15;
+  if (threshold > 0) {
+    await FaqVersion.deleteMany({ faqId: faq._id, versionNumber: { $lte: threshold } });
+  }
+}
 
 // v1.69 — batchIdFromQuery helper: read ?batchId=... from
 // any request. The type is intentionally narrow ({query: any})
@@ -320,10 +382,12 @@ export const createFAQ = async (req: Request, res: Response): Promise<void> => {
       question, answer, category, batchId: rawBatchId,
       freshnessTier,
       reviewIntervalDays,
+      tags,
     } = req.body as {
       question?: string; answer?: string; category?: string; batchId?: string;
       freshnessTier?: 'evergreen' | 'seasonal' | 'volatile';
       reviewIntervalDays?: number;
+      tags?: string[];
     };
 
     const batchId = rawBatchId || req.programContext?.batchId;
@@ -363,6 +427,7 @@ export const createFAQ = async (req: Request, res: Response): Promise<void> => {
       answer: answer_,
       category: category_,
       batchId: new Types.ObjectId(batchId),
+      tags: tags || [],
       // embedding omitted — assigned offline by weekly batch cron
       freshnessTier: tier,
       reviewIntervalDays: interval,
@@ -373,6 +438,21 @@ export const createFAQ = async (req: Request, res: Response): Promise<void> => {
       flagReason: null,
       flaggedBy: null,
       reviewCycle: 0,
+      createdBy: req.user!._id,
+    });
+
+    // Save Version 1 snapshot
+    await FaqVersion.create({
+      faqId: faq._id,
+      versionNumber: 1,
+      question: faq.question,
+      answer: faq.answer,
+      tags: faq.tags || [],
+      category: faq.category,
+      editedBy: req.user!._id,
+      editedAt: now,
+      changeSummary: (req.body as any).changeSummary || 'Initial FAQ creation',
+      batchId: faq.batchId || null,
     });
 
     // Invalidate search cache so new FAQ appears in results immediately
@@ -392,9 +472,10 @@ export const createFAQ = async (req: Request, res: Response): Promise<void> => {
 // PUT /api/faq/:id — Update an FAQ (Admin/Moderator only)
 export const updateFAQ = async (req: Request<{ id: string }>, res: Response): Promise<void> => {
   try {
-    const { question, answer, category, batchId, status } = req.body as {
+    const { question, answer, category, batchId, status, tags } = req.body as {
       question?: string; answer?: string; category?: string; batchId?: string;
       status?: 'approved' | 'pending' | 'rejected';
+      tags?: string[];
     };
 
     const faq = await FAQ.findById(req.params.id);
@@ -404,9 +485,35 @@ export const updateFAQ = async (req: Request<{ id: string }>, res: Response): Pr
     }
     if (assertSameProgram(faq, req.programContext, res)) return;
 
+    const tagsChanged = tags && (
+      tags.length !== (faq.tags?.length ?? 0) ||
+      tags.some((t, i) => t !== faq.tags?.[i])
+    );
+
+    // Check if anything actually changed
+    const hasChanges = (question && sanitizeHtml(question) !== faq.question) ||
+                       (answer && sanitizeHtml(answer) !== faq.answer) ||
+                       (category && sanitizeHtml(category) !== faq.category) ||
+                       (batchId && batchId !== faq.batchId?.toString()) ||
+                       (status && status !== faq.status) ||
+                       tagsChanged;
+
+    if (hasChanges) {
+      const changeSummary = (req.body as any).changeSummary || 'Manual update';
+      const newFields = {
+        question: question ? sanitizeHtml(question) : undefined,
+        answer: answer ? sanitizeHtml(answer) : undefined,
+        category: category ? sanitizeHtml(category) : undefined,
+        batchId: batchId ? new Types.ObjectId(batchId) : undefined,
+        tags: tags || undefined,
+      };
+      await handleFaqEditHistory(faq, newFields, changeSummary, req.user!._id);
+    }
+
     if (question) faq.question = sanitizeHtml(question);
     if (answer) faq.answer = sanitizeHtml(answer);
     if (category) faq.category = sanitizeHtml(category);
+    if (tags) faq.tags = tags;
     if (batchId) {
       if (!Types.ObjectId.isValid(batchId)) {
         res.status(400).json({ message: 'Invalid batchId.' });
@@ -756,6 +863,169 @@ export const createFAQSuggestion = async (req: Request<{ id: string }, Record<st
     res.json({ message: 'Suggestion submitted successfully.' });
   } catch (error) {
     res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
+  }
+};
+
+// GET /api/faq/:id/versions — Fetch all saved history versions of an FAQ
+export const getFAQVersions = async (req: Request<{ id: string }>, res: Response): Promise<void> => {
+  try {
+    const faq = await FAQ.findById(req.params.id);
+    if (!faq) {
+      res.status(404).json({ message: 'FAQ not found.' });
+      return;
+    }
+    if (req.user?.role !== 'admin' && assertSameProgram(faq, req.programContext, res)) return;
+
+    const count = await FaqVersion.countDocuments({ faqId: faq._id });
+    if (count === 0) {
+      let initialSummary = 'Initial FAQ creation';
+      if (faq.sourceType === 'zoom_transcript') {
+        initialSummary = 'Initial FAQ ingestion from Zoom meeting transcript.';
+      }
+      await FaqVersion.create({
+        faqId: faq._id,
+        versionNumber: 1,
+        question: faq.question,
+        answer: faq.answer,
+        tags: faq.tags || [],
+        category: faq.category,
+        editedBy: faq.createdBy || faq.flaggedBy || req.user!._id,
+        editedAt: faq.createdAt || new Date(),
+        changeSummary: initialSummary,
+        batchId: faq.batchId || null,
+      });
+    }
+
+    const versions = await FaqVersion.find({ faqId: req.params.id })
+      .sort({ versionNumber: -1 })
+      .populate('editedBy', '_id name')
+      .lean();
+
+    res.json({ success: true, versions });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// GET /api/faq/:id/versions/:versionNumber — Fetch specific version snapshot details of an FAQ
+export const getFAQVersionSnapshot = async (req: Request<{ id: string; versionNumber: string }>, res: Response): Promise<void> => {
+  try {
+    const faq = await FAQ.findById(req.params.id);
+    if (!faq) {
+      res.status(404).json({ message: 'FAQ not found.' });
+      return;
+    }
+    if (req.user?.role !== 'admin' && assertSameProgram(faq, req.programContext, res)) return;
+
+    const versionNum = parseInt(req.params.versionNumber);
+    if (isNaN(versionNum)) {
+      res.status(400).json({ message: 'Invalid version number.' });
+      return;
+    }
+
+    const version = await FaqVersion.findOne({ faqId: req.params.id, versionNumber: versionNum })
+      .populate('editedBy', 'name')
+      .lean();
+
+    if (!version) {
+      res.status(404).json({ message: 'Version not found.' });
+      return;
+    }
+
+    res.json({ success: true, version });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// POST /api/faq/:id/rollback/:versionNumber — Revert an FAQ to a previous saved version snapshot
+export const rollbackFAQVersion = async (req: Request<{ id: string; versionNumber: string }>, res: Response): Promise<void> => {
+  try {
+    const faq = await FAQ.findById(req.params.id);
+    if (!faq) {
+      res.status(404).json({ message: 'FAQ not found.' });
+      return;
+    }
+    if (req.user?.role !== 'admin' && assertSameProgram(faq, req.programContext, res)) return;
+
+    const targetVersionNum = parseInt(req.params.versionNumber);
+    if (isNaN(targetVersionNum)) {
+      res.status(400).json({ message: 'Invalid version number.' });
+      return;
+    }
+
+    const targetSnapshot = await FaqVersion.findOne({ faqId: faq._id, versionNumber: targetVersionNum });
+    if (!targetSnapshot) {
+      res.status(404).json({ message: 'Target version not found in history.' });
+      return;
+    }
+
+    const count = await FaqVersion.countDocuments({ faqId: faq._id });
+    let currentActiveVersion = 1;
+    if (count > 0) {
+      const lastVersionDoc = await FaqVersion.findOne({ faqId: faq._id })
+        .sort({ versionNumber: -1 })
+        .select('versionNumber');
+      currentActiveVersion = lastVersionDoc?.versionNumber ?? 1;
+    } else {
+      let initialSummary = 'Initial FAQ creation';
+      if (faq.sourceType === 'zoom_transcript') {
+        initialSummary = 'Initial FAQ ingestion from Zoom meeting transcript.';
+      }
+      await FaqVersion.create({
+        faqId: faq._id,
+        versionNumber: 1,
+        question: faq.question,
+        answer: faq.answer,
+        tags: faq.tags || [],
+        category: faq.category,
+        editedBy: faq.createdBy || req.user!._id,
+        editedAt: faq.createdAt || new Date(),
+        changeSummary: initialSummary,
+        batchId: faq.batchId || null,
+      });
+      currentActiveVersion = 1;
+    }
+
+    const nextVersionNum = currentActiveVersion + 1;
+    const changeSummary = req.body.changeSummary || `Rollback to Version ${targetVersionNum}`;
+
+    await FaqVersion.create({
+      faqId: faq._id,
+      versionNumber: nextVersionNum,
+      question: targetSnapshot.question,
+      answer: targetSnapshot.answer,
+      tags: targetSnapshot.tags || [],
+      category: targetSnapshot.category,
+      editedBy: req.user!._id,
+      editedAt: new Date(),
+      changeSummary: changeSummary,
+      batchId: targetSnapshot.batchId || faq.batchId || null,
+    });
+
+    const threshold = nextVersionNum - 15;
+    if (threshold > 0) {
+      await FaqVersion.deleteMany({ faqId: faq._id, versionNumber: { $lte: threshold } });
+    }
+
+    faq.question = targetSnapshot.question;
+    faq.answer = targetSnapshot.answer;
+    faq.tags = targetSnapshot.tags;
+    faq.category = targetSnapshot.category;
+    faq.batchId = targetSnapshot.batchId || faq.batchId;
+    faq.status = 'approved';
+    await faq.save();
+
+    await invalidateCache();
+    invalidatePublicCaches();
+
+    res.json({
+      success: true,
+      message: `FAQ successfully rolled back to version ${targetVersionNum}`,
+      faq,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
   }
 };
 

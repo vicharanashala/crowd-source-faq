@@ -19,6 +19,7 @@ export interface FAQItem {
   status?: string;
   updatedAt?: string;
   createdAt?: string;
+  tags?: string[];
   // Freshness system — required for the public FreshnessBadge
   reviewStatus?: 'verified' | 'pending_review' | 'update_requested';
   lastVerifiedDate?: string;

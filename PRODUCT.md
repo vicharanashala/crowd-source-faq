@@ -18,7 +18,7 @@ Four zero-touch pillars, in order of automation:
 ## Key features
 
 - **Hybrid search** — vector + keyword + Reciprocal Rank Fusion. Auto-falls-back to keyword when vector search is empty.
-- **Public FAQ portal** — no-auth browse path, batch-scoped, with popularity ranking and guest analytics.
+- **Public FAQ portal** — no-auth browse path, batch-scoped, with popularity ranking, shareable FAQ detail links, local recent/history helpers, and guest analytics.
 - **Community Q&A** — posts + threaded comments + upvotes + AI auto-answer; admin escalation flow.
 - **Session Support** — student issue tracker with 4-step troubleshooting checklists, evidence uploads, admin follow-ups.
 - **Golden Tickets** — admin-promoted high-priority support requests with Spurti Points (SP) economy and 48h cooldown.

@@ -8,6 +8,7 @@ import Modal from '../components/common/Modal';
 import { TableSkeleton } from '../components/common/SkeletonLoader';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useCategories } from '../../components/explore/usePublicFaqApi';
+import FaqVersionHistoryModal from '../components/faq/FaqVersionHistoryModal';
 
 
 interface FAQ {
@@ -155,6 +156,8 @@ export default function AdminFAQs() {
   const [toast, setToast] = useState<Toast | null>(null);
   const [addCategoryOption, setAddCategoryOption] = useState<string>('');
   const [editCategoryOption, setEditCategoryOption] = useState<string>('');
+  const [historyModal, setHistoryModal] = useState(false);
+  const [selectedFaqForHistory, setSelectedFaqForHistory] = useState<FAQ | null>(null);
   const debouncedSearch = useDebounce(search, 350);
 
   const { data: addCategoriesData } = useCategories(newFaq.batchId || null, null);
@@ -344,6 +347,10 @@ export default function AdminFAQs() {
                       {faq.status !== 'approved' && <button onClick={() => handleApprove(faq._id)} className="w-6 h-6 flex items-center justify-center rounded text-ink-faint hover:text-success hover:bg-success/10 transition-colors" title="Approve"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg></button>}
                       {faq.status !== 'rejected' && <button onClick={() => handleReject(faq._id)} className="w-6 h-6 flex items-center justify-center rounded text-ink-faint hover:text-warning hover:bg-warning/10 transition-colors" title="Reject"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>}
                       <button onClick={() => {
+                        setSelectedFaqForHistory(faq);
+                        setHistoryModal(true);
+                      }} className="w-6 h-6 flex items-center justify-center rounded text-ink-faint hover:text-ink hover:bg-mist transition-colors" title="Revision History"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></button>
+                      <button onClick={() => {
                         setEditFaq({ ...faq, batchId: faq.batchId ?? '', freshnessTier: (faq as { freshnessTier?: 'evergreen' | 'seasonal' | 'volatile' }).freshnessTier ?? 'evergreen', reviewIntervalDays: (faq as { reviewIntervalDays?: number }).reviewIntervalDays ?? 0 });
                         setEditCategoryOption(categories.includes(faq.category) ? faq.category : (faq.category ? '__other__' : ''));
                         setEditModal(true);
@@ -515,6 +522,13 @@ export default function AdminFAQs() {
           </div>
         </div>
       </Modal>
+
+      <FaqVersionHistoryModal
+        open={historyModal}
+        onClose={() => setHistoryModal(false)}
+        faq={selectedFaqForHistory}
+        onRollbackSuccess={fetchFaqs}
+      />
     </div>
   );
 }

@@ -76,6 +76,9 @@ export interface FAQItem {
   freshnessTier?: 'evergreen' | 'seasonal' | 'volatile';
   helpfulVotes?: number;
   unhelpfulVotes?: number;
+  popularityScore?: number;
+  guestViewCount?: number;
+  views?: number;
 }
 
 export interface SearchResult {
@@ -93,6 +96,9 @@ export interface SearchResult {
   textScore?: number;
   helpfulVotes?: number;
   unhelpfulVotes?: number;
+  popularityScore?: number;
+  guestViewCount?: number;
+  views?: number;
 }
 
 export interface FAQMatch {

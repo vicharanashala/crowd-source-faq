@@ -17,6 +17,7 @@ import { generateEmbedding } from '../../utils/ai/embeddings.js';
 import { withProgramScope, assertSameProgram } from '../../utils/db/scopedQuery.js';
 import ProgramEnrollment from '../program/program-enrollment.model.js';
 import { setContextBatchId } from '../../utils/http/requestContext.js';
+import { handleFaqEditHistory } from '../faq/faq.controller.js';
 
 export const logAction = async (
   adminId: string,
@@ -358,7 +359,29 @@ export const updateFAQ = async (req: Request, res: Response): Promise<void> => {
       res.status(404).json({ message: 'FAQ not found.' });
       return;
     }
-    if (assertSameProgram(faq, req.programContext, res)) return;
+    if (req.user?.role !== 'admin' && assertSameProgram(faq, req.programContext, res)) return;
+
+    const tagsChanged = tags && (
+      tags.length !== (faq.tags?.length ?? 0) ||
+      tags.some((t, i) => t !== faq.tags?.[i])
+    );
+
+    const hasChanges = (question && sanitizeHtml(question) !== faq.question) ||
+                       (answer && sanitizeHtml(answer) !== faq.answer) ||
+                       (category && sanitizeHtml(category) !== faq.category) ||
+                       (status && status !== faq.status) ||
+                       tagsChanged;
+
+    if (hasChanges) {
+      const changeSummary = (req.body as any).changeSummary || 'Manual update';
+      const newFields = {
+        question: question ? sanitizeHtml(question) : undefined,
+        answer: answer ? sanitizeHtml(answer) : undefined,
+        category: category ? sanitizeHtml(category) : undefined,
+        tags: tags || undefined,
+      };
+      await handleFaqEditHistory(faq, newFields, changeSummary, req.user!._id);
+    }
 
     if (question) faq.question = sanitizeHtml(question);
     if (answer) faq.answer = sanitizeHtml(answer);
@@ -390,23 +413,22 @@ export const updateFAQ = async (req: Request, res: Response): Promise<void> => {
 
     // Admin edit while under review = re-verification
     if (faq.reviewStatus === 'pending_review' || faq.reviewStatus === 'update_requested') {
-      // v1.68 — H3 fix: in-memory mutate + save() is racy.
-      // Wrap as a single atomic $set on the fields the
-      // pending-review branch touches. (reports=[] is set
-      // whether verify is true or not — the original "else"
-      // branch handled the !verify case by just clearing reports.)
       const newCycle = faq.reviewCycle + 1;
-      await FAQ.findOneAndUpdate(
-        { _id: faq._id },
-        { $set: { reports: [], lastVerifiedDate: new Date(), flaggedAt: null, flagType: null, flagReason: null, flaggedBy: null, reviewCycle: newCycle } },
-      );
+      faq.reviewStatus = 'verified';
+      faq.lastVerifiedDate = new Date();
+      faq.flaggedAt = null;
+      faq.flagType = null;
+      faq.flagReason = null;
+      faq.flaggedBy = null;
+      faq.reviewCycle = newCycle;
+      faq.reports = [];
       await FreshReviewVote.deleteMany({ faqId: faq._id });
     } else {
-      await FAQ.findOneAndUpdate(
-        { _id: faq._id },
-        { $set: { reports: [] } },
-      );
+      faq.reports = [];
     }
+
+    await faq.save();
+
     await logAction(req.user!._id.toString(), 'edit_faq', faq._id.toString(), 'faq', faq.question);
 
     // Invalidate search cache so updated FAQ reflects immediately
@@ -427,7 +449,7 @@ export const deleteFAQ = async (req: Request, res: Response): Promise<void> => {
       res.status(404).json({ message: 'FAQ not found.' });
       return;
     }
-    if (assertSameProgram(faq, req.programContext, res)) return;
+    if (req.user?.role !== 'admin' && assertSameProgram(faq, req.programContext, res)) return;
     await faq.deleteOne();
     await logAction(req.user!._id.toString(), 'delete_faq', faq._id.toString(), 'faq', faq.question);
 
