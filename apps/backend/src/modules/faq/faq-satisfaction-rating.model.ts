@@ -2,8 +2,8 @@ import mongoose, { Document, Schema as MongooseSchema, Types } from 'mongoose';
 
 export interface IFaqSatisfactionRating extends Document {
   faqId: Types.ObjectId;
-  userId?: Types.ObjectId;
-  guestId?: string;
+  userId: Types.ObjectId | null;
+  guestId: string | null;
   rating: number;
   createdAt: Date;
   updatedAt: Date;
@@ -20,10 +20,12 @@ const faqSatisfactionRatingSchema = new MongooseSchema(
     userId: {
       type: MongooseSchema.Types.ObjectId,
       ref: 'User',
+      default: null,
     },
 
     guestId: {
       type: String,
+      default: null,
     },
 
     rating: {
@@ -40,12 +42,18 @@ const faqSatisfactionRatingSchema = new MongooseSchema(
 
 faqSatisfactionRatingSchema.index(
   { faqId: 1, userId: 1 },
-  { unique: true, sparse: true }
+  {
+    unique: true,
+    partialFilterExpression: { userId: { $type: 'objectId' } },
+  }
 );
 
 faqSatisfactionRatingSchema.index(
   { faqId: 1, guestId: 1 },
-  { unique: true, sparse: true }
+  {
+    unique: true,
+    partialFilterExpression: { guestId: { $type: 'string' } },
+  }
 );
 
 export default mongoose.model<IFaqSatisfactionRating>(

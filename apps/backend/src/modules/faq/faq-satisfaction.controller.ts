@@ -1,7 +1,7 @@
 import { Types } from 'mongoose';
 
-import FAQ from './faq.model';
-import FaqSatisfactionRating from './faq-satisfaction-rating.model';
+import FAQ from './faq.model.js';
+import FaqSatisfactionRating from './faq-satisfaction-rating.model.js';
 
 async function recomputeSatisfaction(
   faqId: Types.ObjectId | string
