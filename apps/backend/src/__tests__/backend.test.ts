@@ -7,6 +7,7 @@ import type { NextFunction, Request, Response } from 'express';
 // Imports from backend components
 import { signUploadParams, isOurCloudinaryAsset, uploadSignatureToCloudinary, type CloudinaryConfig } from '../integrations/cloudinary/cloudinary.js';
 import { computeRRF, applySearchThreshold } from '../utils/http/search.js';
+import { loadConfig } from '../config/loader.js';
 import { authorize, type AuthedRequest } from '../middleware/authShared.js';
 import { matcher, moderateText } from '../config/moderationEngine.js';
 
@@ -243,6 +244,13 @@ describe('computeRRF', () => {
 // 4. Search: applySearchThreshold Tests
 // ==========================================
 describe('applySearchThreshold', () => {
+  it('should load default search minScore as 0.80 from config (canary test)', () => {
+    // This canary test proves that the actual YAML + Zod pipeline correctly defaults to 0.80.
+    // If someone changes config.default.yaml or schema.ts without checking this, it will fail.
+    const config = loadConfig();
+    expect(config.search.hybrid.minScore).toBe(0.80);
+  });
+
   it('should return all results when no scores are set (both scores falsy)', () => {
     const results = [
       { _id: { toString: () => 'a' } as any, source: 'faq' as const, score: 1 },
@@ -259,7 +267,7 @@ describe('applySearchThreshold', () => {
     expect(filtered).toHaveLength(1);
   });
 
-  it('should include a result if vectorScore > 0.80 even when textScore is 0', () => {
+  it('should include a result if vectorScore > default threshold (0.80) even when textScore is 0', () => {
     const results = [
       { _id: { toString: () => 'a' } as any, source: 'faq' as const, score: 1, textScore: 0, vectorScore: 0.85 } as any,
     ];
@@ -267,7 +275,7 @@ describe('applySearchThreshold', () => {
     expect(filtered).toHaveLength(1);
   });
 
-  it('should include a result when BOTH textScore > 0 AND vectorScore > 0.80', () => {
+  it('should include a result when BOTH textScore > 0 AND vectorScore > default threshold (0.80)', () => {
     const results = [
       { _id: { toString: () => 'a' } as any, source: 'faq' as const, score: 1, textScore: 0.4, vectorScore: 0.9 } as any,
     ];
@@ -275,12 +283,39 @@ describe('applySearchThreshold', () => {
     expect(filtered).toHaveLength(1);
   });
 
-  it('should exclude a result when textScore is 0 AND vectorScore is below 0.80', () => {
+  it('should exclude a result when textScore is 0 AND vectorScore is below default threshold (0.80)', () => {
     const results = [
       { _id: { toString: () => 'a' } as any, source: 'faq' as const, score: 1, textScore: 0, vectorScore: 0.75 } as any,
     ];
     const filtered = applySearchThreshold(results);
     expect(filtered).toHaveLength(0);
+  });
+
+  it('should exclude a result when using custom high threshold (0.90)', () => {
+    const results = [
+      { _id: { toString: () => 'a' } as any, source: 'faq' as const, score: 1, textScore: 0, vectorScore: 0.85 } as any,
+    ];
+    // With default 0.80 it would pass, with custom 0.90 it should be excluded
+    const filtered = applySearchThreshold(results, 0.90);
+    expect(filtered).toHaveLength(0);
+  });
+
+  it('should include a result when using custom low threshold (0.50)', () => {
+    const results = [
+      { _id: { toString: () => 'a' } as any, source: 'faq' as const, score: 1, textScore: 0, vectorScore: 0.60 } as any,
+    ];
+    // With default 0.80 it would fail, with custom 0.50 it should be included
+    const filtered = applySearchThreshold(results, 0.50);
+    expect(filtered).toHaveLength(1);
+  });
+
+  it('should include a result based on textScore independently of a high vector threshold', () => {
+    const results = [
+      { _id: { toString: () => 'a' } as any, source: 'faq' as const, score: 1, textScore: 0.5, vectorScore: 0.50 } as any,
+    ];
+    // Vector score 0.50 fails the 0.99 threshold, but textScore 0.5 is > 0 so it should pass
+    const filtered = applySearchThreshold(results, 0.99);
+    expect(filtered).toHaveLength(1);
   });
 
   it('should exclude a result when only textScore > 0 but textScore is very small', () => {

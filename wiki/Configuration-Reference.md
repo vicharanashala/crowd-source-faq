@@ -43,7 +43,7 @@ Governs IP-based request throttles using `express-rate-limit`:
 - `hybrid.vectorWeight`: Relative weight of vector rankings in RRF merging (default `0.6`).
 - `hybrid.keywordWeight`: Relative weight of keyword text rankings in RRF merging (default `0.4`).
 - `hybrid.rrfK`: The constant $k$ used to damp Reciprocal Rank Fusion ranks (default `60`).
-- `hybrid.minScore`: Minimum score similarity threshold below which results are discarded (default `0.3`).
+- `hybrid.minScore`: Minimum vector score similarity threshold below which results are discarded (default `0.80`).
 - `embedding.model`: Hugging Face model key used for local embedding generation (default `mixedbread-ai/mxbai-embed-large-v1`).
 - `embedding.dimensions`: The number of vector dimensions (default `1024`).
 
