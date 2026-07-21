@@ -70,7 +70,7 @@ export default function OfflineModePage(): React.ReactElement {
       // Warm the cache by hitting the public FAQ endpoints — the
       // NetworkFirst runtime caching rule in vite.config.ts stores
       // the responses as a side effect of these requests.
-      await fetch('/csfaq/api/faqs', { cache: 'no-store' }).catch(() => null);
+      await fetch('/csfaq/api/faq', { cache: 'no-store' }).catch(() => null);
       await refreshStatus();
     } finally {
       setRefreshing(false);
