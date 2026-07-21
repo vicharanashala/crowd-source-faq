@@ -198,3 +198,4 @@ apps/backend/tessdata/
 apps/backend/uploads/*
 !apps/backend/uploads/onboarding-resources/
 apps/backend/faqs.json
+apps/frontend/dev-dist/

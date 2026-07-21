@@ -211,6 +211,21 @@ export const FEATURE_FLAGS = {
       'review a dry run first via the admin schedule UI.',
     category: 'faq',
   },
+  // Offline Mode — PWA support so users can view previously-loaded
+  // FAQs without an internet connection. Frontend-only: caches the
+  // FAQ list and detail pages via a service worker plus a Web App
+  // Manifest so the site can be installed. OFF by default since
+  // it's a new experimental feature.
+  offlineMode: {
+    default: false,
+    label: 'Offline Mode (PWA)',
+    description:
+      'Enables a service worker that caches the FAQ list and individual FAQ pages ' +
+      'so users can keep browsing previously-loaded content without an internet ' +
+      'connection. Also adds a Web App Manifest so the site can be installed like ' +
+      'an app. Frontend-only — no backend routes or schema changes.',
+    category: 'experimental',
+  },
 } as const satisfies Record<string, FeatureFlagMeta>;
 
 /** Union of every registered flag key. Derived from the registry so
