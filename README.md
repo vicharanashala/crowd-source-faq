@@ -6,7 +6,13 @@ GitHub: https://github.com/vicharanashala/crowd-source-faq
 Full reference: [`docs/`](docs/README.md) · [Contributing](./CONTRIBUTING.md) · [Code of Conduct](./CODE_OF_CONDUCT.md) · [License](./LICENSE)
 
 ---
+## Quick Links
 
+- 🐛 [Report an Issue](https://github.com/vicharanashala/crowd-source-faq/issues)
+- 📚 [Full Documentation](./docs/)
+- 🤝 [How to Contribute](./CONTRIBUTING.md)
+
+---
 ## Vision
 
 **Automate the FAQ lifecycle end-to-end. Zero people in the loop. Reduce the operational FAQ culture.**
@@ -123,7 +129,24 @@ Optional: at least one AI provider key (`ANTHROPIC_API_KEY` / `OPENAI_API_KEY` /
 See [docs/ARCHITECTURE.md#10-env-variables-reference](docs/ARCHITECTURE.md#10-env-variables-reference) for the full list.
 
 ---
+### Support
 
+If you encounter any issues or have questions:
+
+- **GitHub Issues**: Report bugs or request features [here](https://github.com/vicharanashala/crowd-source-faq/issues).
+- **Documentation**: Check the [docs](./docs/) folder for detailed guides.
+- **Feedback**: Your suggestions are always welcome! Feel free to open an issue to share your ideas.
+
+---
+### Contributors
+
+We thank all the amazing contributors who help make this project better!
+
+<a href="https://github.com/vicharanashala/crowd-source-faq/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=vicharanashala/crowd-source-faq" />
+</a>
+
+---
 ## License
 
 [MIT](./LICENSE) © 2026 vicharanashala
