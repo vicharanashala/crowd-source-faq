@@ -93,6 +93,8 @@ export interface SearchResult {
   textScore?: number;
   helpfulVotes?: number;
   unhelpfulVotes?: number;
+  isTranslated?: boolean;
+  detectedLanguage?: string;
 }
 
 export interface FAQMatch {

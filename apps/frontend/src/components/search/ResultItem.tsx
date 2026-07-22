@@ -18,6 +18,7 @@ import {
   resultHeaderFaq,
   resultMetaCategory,
   resultMetaSource,
+  resultMetaTranslated,
   resultTitle,
   suggestBtnCancel,
   suggestBtnSubmit,
@@ -168,6 +169,11 @@ export default function ResultItem({ result, expanded, onToggle, onShowHistory, 
             <span className={resultMetaSource}>{sourceLabel}</span>
             {result.category && (
               <span className={resultMetaCategory}>{result.category}</span>
+            )}
+            {result.isTranslated && (
+              <span className={resultMetaTranslated}>
+                🌐 Translated ({result.detectedLanguage || 'unknown'})
+              </span>
             )}
           </div>
           <p className={resultTitle}>{title}</p>

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getAllFAQs, getFAQById, getRecentFAQs, createFAQ, updateFAQ, deleteFAQ, checkFAQMatch, getPaginatedFAQs, submitFeedback, reportFAQ, getFAQHistory, createFAQSuggestion, getFAQCategories } from './faq.controller.js';
+import { getAllFAQs, getFAQById, getRecentFAQs, createFAQ, updateFAQ, deleteFAQ, checkFAQMatch, checkFAQDuplicate, getPaginatedFAQs, submitFeedback, reportFAQ, getFAQHistory, createFAQSuggestion, getFAQCategories } from './faq.controller.js';
 import { flagFAQ, voteReview } from './freshness.controller.js';
 import { protect, authorize } from '../../middleware/auth.js';
 import { validateObjectId } from '../../middleware/validateObjectId.js';
@@ -23,6 +23,10 @@ router.get('/categories', getFAQCategories);
 
 // POST /api/faq/check-match — Check if a question already exists in the FAQ (before posting on community)
 router.post('/check-match', protect, checkFAQMatch);
+
+// POST /api/v1/faq/check-duplicate — Smart deduplication check before submit (lexical similarity search)
+router.post('/check-duplicate', checkFAQDuplicate);
+router.post('/v1/check-duplicate', checkFAQDuplicate);
 
 // M4-3 (cross-cutting Pattern A) fix: validate `:id` on every route
 // that takes an FAQ id. The previous controllers used `FAQ.findById`

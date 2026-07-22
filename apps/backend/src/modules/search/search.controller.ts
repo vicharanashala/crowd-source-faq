@@ -13,6 +13,7 @@ import {
 } from '../../utils/http/search.js';
 import { searchRequests, searchResultsReturned, searchLogFlushActive, searchLogFlushes } from '../../utils/http/metrics.js';
 import { searchKnowledge } from '../knowledge/knowledge-base.service.js';
+import { translateQueryToEnglish, translateResultsToLanguage } from '../../utils/ai/translation.js';
 
 // Cache configuration: Store up to 500 recent queries for 1 hour to reduce DB/AI loads
 const searchCache = new LRUCache<string, SearchResultItem[]>({
@@ -271,6 +272,12 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
       return;
     }
 
+    // Translate query to English if non-English
+    const { translatedQuery, isTranslated, detectedLanguage } = await translateQueryToEnglish(
+      query,
+      batchIdObjectId?.toString()
+    );
+
     // 2. Compute AI Embedding for the search term.
     //
     // v1.71 — Phase 8 R3: NO LONGER compute the embed on every search
@@ -288,7 +295,7 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
     // maintainers can re-enable it once the embedder is reliably up):
     //
     //   try {
-    //     embedding = await generateQueryEmbedding(query);
+    //     embedding = await generateQueryEmbedding(translatedQuery);
     //   } catch (embErr) {
     //     httpLog.warn('search.embedding.failed — falling back to keyword-only search', { error: embErr.message });
     //   }
@@ -304,8 +311,8 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
       // is a one-line change: `embedding ? runVectorSearch(...) : empty`.
       empty,
       empty,
-      runTextSearch('yaksha_faq_faqs', query, 5, batchIdObjectId),
-      runTextSearch('yaksha_faq_communityposts', query, 5, batchIdObjectId)
+      runTextSearch('yaksha_faq_faqs', translatedQuery, 5, batchIdObjectId),
+      runTextSearch('yaksha_faq_communityposts', translatedQuery, 5, batchIdObjectId)
     ]);
     
     // Tag results with their origin source (FAQ vs Community)
@@ -333,7 +340,7 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
     // hits the text index only.
     if (filtered.length === 0) {
       try {
-        const knowledgeHits = await searchKnowledge(query, 5, { embedQuery: false });
+        const knowledgeHits = await searchKnowledge(translatedQuery, 5, { embedQuery: false });
         if (knowledgeHits.length > 0) {
           const knowledgeResults: SearchResultItem[] = knowledgeHits.map((k) => ({
             _id: new Types.ObjectId(k._id),
@@ -343,19 +350,25 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
             score: k.score,
           }));
           const final = knowledgeResults.slice(0, 5);
-          searchCache.set(normalizedQuery, final);
-          await setCachedResults(normalizedQuery, final);
+
+          // Translate results back to original language if translated
+          const finalResults = isTranslated
+            ? (await translateResultsToLanguage(final, detectedLanguage, batchIdObjectId?.toString())) as SearchResultItem[]
+            : final;
+
+          searchCache.set(normalizedQuery, finalResults);
+          await setCachedResults(normalizedQuery, finalResults);
           bufferSearchLog({
             query,
-            resultsCount: final.length,
-            topResultId: (final[0]?._id as Types.ObjectId) ?? null,
+            resultsCount: finalResults.length,
+            topResultId: (finalResults[0]?._id as Types.ObjectId) ?? null,
             topResultSource: 'knowledge',
             userId: userObjectId,
             batchId: batchIdObjectId,
           });
           searchRequests.inc({ source: 'fresh', cached: 'false' });
-          searchResultsReturned.observe({ source: 'fresh' }, final.length);
-          res.json({ results: final, total: final.length, cached: false });
+          searchResultsReturned.observe({ source: 'fresh' }, finalResults.length);
+          res.json({ results: finalResults, total: finalResults.length, cached: false });
           return;
         }
       } catch (e) {
@@ -363,15 +376,20 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
       }
     }
 
+    // Translate results back to original language if translated
+    const finalResults = isTranslated
+      ? (await translateResultsToLanguage(filtered, detectedLanguage, batchIdObjectId?.toString())) as SearchResultItem[]
+      : filtered;
+
     // 6. Save to both Redis (shared) and LRU (process-local)
-    searchCache.set(normalizedQuery, filtered);
-    await setCachedResults(normalizedQuery, filtered);
+    searchCache.set(normalizedQuery, finalResults);
+    await setCachedResults(normalizedQuery, finalResults);
 
     // 7. Buffer search log entry for batched async write (non-blocking)
-    const topResult = filtered[0] || null;
+    const topResult = finalResults[0] || null;
     bufferSearchLog({
       query,
-      resultsCount: filtered.length,
+      resultsCount: finalResults.length,
       topResultId: topResult?._id ?? null,
       topResultSource: topResult?.source ?? null,
       userId: userObjectId,
@@ -379,12 +397,12 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
     });
 
     searchRequests.inc({ source: 'fresh', cached: 'false' });
-    searchResultsReturned.observe({ source: 'fresh' }, filtered.length);
+    searchResultsReturned.observe({ source: 'fresh' }, finalResults.length);
 
-    res.json({ results: filtered, total: filtered.length, cached: false });
+    res.json({ results: finalResults, total: finalResults.length, cached: false });
   } catch (error) {
     httpLog.error('Search error', { error: error instanceof Error ? error.message : String(error) });
-    res.status(500).json({ message: 'Search failed', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
+    res.status(500).json({ message: 'Search failed' });
   }
 };
 

@@ -102,6 +102,7 @@ export const resultCardExpanded  = 'border border-accent/30 bg-cream rounded-2xl
 
 export const resultMetaSource    = 'inline-flex items-center px-2.5 py-0.5 rounded-full bg-mist text-ink-soft font-semibold uppercase tracking-wider';
 export const resultMetaCategory  = 'inline-flex items-center px-2.5 py-0.5 rounded-full bg-accent-light text-accent font-semibold uppercase tracking-wider';
+export const resultMetaTranslated = 'inline-flex items-center px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-semibold uppercase tracking-wider';
 
 export const resultBody          = 'mt-1.5 text-xs text-ink-soft leading-relaxed line-clamp-2';
 export const resultTitle         = 'text-sm font-semibold text-ink leading-snug';

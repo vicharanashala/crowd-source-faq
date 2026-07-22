@@ -51,6 +51,7 @@ export function registerRoutes(app: Express): void {
   router.use('/auth', authRoutes);
   router.use('/auth/bridge', authBridgeRoutes);
   router.use('/faq', faqRoutes);
+  router.use('/v1/faq', faqRoutes);
   router.use('/community', communityRoutes);
   router.use('/search', searchRoutes);
   router.use('/admin', adminRoutes);

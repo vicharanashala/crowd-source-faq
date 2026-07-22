@@ -23,8 +23,19 @@ export function stripAllWrappers(s: string): string {
   out = out.replace(/<think>[\s\S]*?<\/think>/gi, '');
   const fenceMatch = out.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
   if (fenceMatch) out = fenceMatch[1];
+  
   const firstBrace = out.indexOf('{');
-  if (firstBrace > 0) out = out.slice(firstBrace);
+  const firstBracket = out.indexOf('[');
+  let startIdx = -1;
+  if (firstBrace !== -1 && firstBracket !== -1) {
+    startIdx = Math.min(firstBrace, firstBracket);
+  } else if (firstBrace !== -1) {
+    startIdx = firstBrace;
+  } else if (firstBracket !== -1) {
+    startIdx = firstBracket;
+  }
+  
+  if (startIdx > 0) out = out.slice(startIdx);
   return out.trim();
 }
 

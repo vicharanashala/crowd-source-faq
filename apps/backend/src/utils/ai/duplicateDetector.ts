@@ -262,3 +262,182 @@ function parseAIMatches(raw: string, candidates: Candidate[]): DuplicateMatch[] 
     return [];
   }
 }
+
+// ─── Lexical String Similarity Algorithms ────────────────────────────────────
+
+/**
+ * Calculates the Sorensen-Dice Coefficient for two strings.
+ * Measures the overlap of character bigrams. Returns a score between 0.0 and 1.0.
+ */
+export function getDiceCoefficient(str1: string, str2: string): number {
+  const s1 = str1.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+  const s2 = str2.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+
+  if (s1 === s2) return 1.0;
+  if (s1.length < 2 || s2.length < 2) return 0.0;
+
+  const getBigrams = (str: string) => {
+    const bigrams = new Set<string>();
+    for (let i = 0; i < str.length - 1; i++) {
+      bigrams.add(str.substring(i, i + 2));
+    }
+    return bigrams;
+  };
+
+  const bigrams1 = getBigrams(s1);
+  const bigrams2 = getBigrams(s2);
+
+  let intersection = 0;
+  for (const val of bigrams1) {
+    if (bigrams2.has(val)) {
+      intersection++;
+    }
+  }
+
+  return (2.0 * intersection) / (bigrams1.size + bigrams2.size);
+}
+
+/**
+ * Calculates the Jaro-Winkler similarity score for two strings.
+ * Returns a score between 0.0 (no similarity) and 1.0 (exact match).
+ */
+export function getJaroWinklerSimilarity(str1: string, str2: string): number {
+  const s1 = str1.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+  const s2 = str2.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+
+  if (s1 === s2) return 1.0;
+  if (!s1 || !s2) return 0.0;
+
+  const len1 = s1.length;
+  const len2 = s2.length;
+
+  const matchWindow = Math.floor(Math.max(len1, len2) / 2) - 1;
+  const matches1 = new Array<boolean>(len1).fill(false);
+  const matches2 = new Array<boolean>(len2).fill(false);
+
+  let matches = 0;
+  for (let i = 0; i < len1; i++) {
+    const start = Math.max(0, i - matchWindow);
+    const end = Math.min(len2 - 1, i + matchWindow);
+
+    for (let j = start; j <= end; j++) {
+      if (!matches2[j] && s1[i] === s2[j]) {
+        matches1[i] = true;
+        matches2[j] = true;
+        matches++;
+        break;
+      }
+    }
+  }
+
+  if (matches === 0) return 0.0;
+
+  let transpositions = 0;
+  let k = 0;
+  for (let i = 0; i < len1; i++) {
+    if (matches1[i]) {
+      while (!matches2[k]) k++;
+      if (s1[i] !== s2[k]) {
+        transpositions++;
+      }
+      k++;
+    }
+  }
+
+  const jaro = (matches / len1 + matches / len2 + (matches - transpositions / 2) / matches) / 3.0;
+
+  // Winkler modification for common prefix
+  let prefix = 0;
+  const maxPrefix = 4;
+  for (let i = 0; i < Math.min(len1, len2, maxPrefix); i++) {
+    if (s1[i] === s2[i]) {
+      prefix++;
+    } else {
+      break;
+    }
+  }
+
+  return jaro + prefix * 0.1 * (1.0 - jaro);
+}
+
+export interface SmartDuplicateMatch {
+  id: string;
+  question: string;
+  score: number;
+  type: 'faq' | 'post';
+}
+
+const STOP_WORDS = new Set([
+  'how', 'to', 'do', 'i', 'a', 'the', 'on', 'and', 'where', 'can', 'is', 'my',
+  'of', 'for', 'in', 'at', 'an', 'you', 'we', 'they', 'he', 'she', 'it', 'us',
+  'them', 'our', 'your', 'their', 'this', 'that', 'these', 'those', 'are', 'was',
+  'were', 'be', 'been', 'being', 'have', 'has', 'had', 'having', 'does',
+  'did', 'doing', 'but', 'if', 'or', 'because', 'as', 'until', 'while', 'about',
+  'into', 'through', 'during', 'before', 'after', 'above', 'below', 'up', 'down',
+  'out', 'off', 'over', 'under', 'again', 'further', 'then', 'once'
+]);
+
+function cleanAndRemoveStopWords(str: string): string {
+  const cleaned = str.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+  const words = cleaned.split(' ').filter(word => word && !STOP_WORDS.has(word));
+  if (words.length === 0) {
+    return cleaned;
+  }
+  return words.join(' ');
+}
+
+/**
+ * Service function that accepts a user query and checks for duplicates in Mongoose collection.
+ * Uses a combined Dice's Coefficient and Jaro-Winkler similarity pipeline.
+ */
+export async function detectDuplicates(question: string, threshold = 0.7): Promise<SmartDuplicateMatch[]> {
+  const query = question.trim();
+  if (!query) return [];
+
+  // Fetch all approved FAQs and all posts
+  const [faqs, posts] = await Promise.all([
+    FAQ.find({ status: 'approved' }).select('_id question').lean(),
+    CommunityPost.find().select('_id title').lean(),
+  ]);
+
+  const matches: SmartDuplicateMatch[] = [];
+
+  const getSimilarity = (s1: string, s2: string): number => {
+    const dice = getDiceCoefficient(s1, s2);
+    const jaroWinkler = getJaroWinklerSimilarity(s1, s2);
+    return Math.max(dice, jaroWinkler);
+  };
+
+  const cleanedQuery = cleanAndRemoveStopWords(query);
+
+  // Run similarity check against FAQ questions
+  for (const faq of faqs as unknown as Array<{ _id: unknown; question: string }>) {
+    const cleanedTarget = cleanAndRemoveStopWords(faq.question);
+    const score = getSimilarity(cleanedQuery, cleanedTarget);
+    if (score >= threshold) {
+      matches.push({
+        id: String(faq._id),
+        question: faq.question,
+        score,
+        type: 'faq',
+      });
+    }
+  }
+
+  // Run similarity check against Post titles
+  for (const post of posts as unknown as Array<{ _id: unknown; title: string }>) {
+    const cleanedTarget = cleanAndRemoveStopWords(post.title);
+    const score = getSimilarity(cleanedQuery, cleanedTarget);
+    if (score >= threshold) {
+      matches.push({
+        id: String(post._id),
+        question: post.title,
+        score,
+        type: 'post',
+      });
+    }
+  }
+
+  // Sort matched duplicates by score descending
+  return matches.sort((a, b) => b.score - a.score);
+}

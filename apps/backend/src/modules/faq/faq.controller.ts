@@ -3,6 +3,7 @@ import mongoose, { Types } from 'mongoose';
 import FAQ, { type IFAQ } from './faq.model.js';
 import CommunityPost from '../community/community-post.model.js';
 import { generateQueryEmbedding } from '../../utils/ai/embeddings.js';
+import { detectDuplicates } from '../../utils/ai/duplicateDetector.js';
 import { adminLog } from '../../utils/http/logger.js';
 import { invalidateCache } from '../../utils/http/cache.js';
 import { createTeaDropsForFAQ } from '../notification/tea-notification.controller.js';
@@ -758,4 +759,31 @@ export const createFAQSuggestion = async (req: Request<{ id: string }, Record<st
     res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
   }
 };
+
+// POST /api/v1/faq/check-duplicate — Smart deduplication check before submitting FAQ
+export const checkFAQDuplicate = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { question } = req.body as { question?: string };
+
+    if (!question || typeof question !== 'string' || !question.trim()) {
+      res.status(400).json({ message: 'Question is required and must be a non-empty string.' });
+      return;
+    }
+
+    const matches = await detectDuplicates(question.trim());
+
+    // Slice and map to top 3 matches with their IDs, questions, and matching scores
+    const topMatches = matches.slice(0, 3).map((match) => ({
+      id: match.id,
+      question: match.question,
+      score: match.score,
+    }));
+
+    res.status(200).json(topMatches);
+  } catch (error) {
+    adminLog.error('FAQ duplicate check error', { error: error instanceof Error ? error.message : String(error) });
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 
