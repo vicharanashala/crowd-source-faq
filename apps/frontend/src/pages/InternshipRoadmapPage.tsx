@@ -395,3 +395,12 @@ export default function InternshipRoadmapPage() {
     </div>
   );
 }
+
+/*
+Samagama:- https://samagama.in
+Matrix Mystics:- https://sudarshansudarshan.github.io/codershigh/matrixmystics/
+Endorsement:- https://samagama.in/spa
+Discourse:- https://vicharanashala.discourse.group/
+ViBe:- https://vibe.vicharanashala.ai/student
+CSFAQ (Phase 1):- https://github.com/vicharanashala/crowd-source-faq
+*/
