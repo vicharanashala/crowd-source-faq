@@ -8,7 +8,8 @@
 // 4. DEFAULT STATE     → shows a grid of category-wise FAQ cards showing top questions.
 
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
+import { slugifyProgramName } from '../utils/programSlug';
 import Footer from '../components/layout/Footer';
 import UserActiveProgramIndicator from '../components/layout/UserActiveProgramIndicator';
 import SearchBar from '../components/search/SearchBar';
@@ -364,6 +365,19 @@ export default function FAQPage() {
             >
               All
             </button>
+            <Link
+              to={currentBatch?.name ? `/program/${slugifyProgramName(currentBatch.name)}/map` : '/map'}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold border bg-card text-ink border-border/70 hover:bg-cream hover:-translate-y-0.5 transition-all duration-200"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-accent">
+                <circle cx="18" cy="18" r="3" />
+                <circle cx="6" cy="6" r="3" />
+                <circle cx="18" cy="6" r="3" />
+                <line x1="9" y1="6" x2="15" y2="6" />
+                <line x1="6" y1="9" x2="15" y2="15" />
+              </svg>
+              Visual Map
+            </Link>
             {categories.map((cat) => {
               const isActive = activeCategory === cat;
               const count = grouped[cat]?.length ?? 0;

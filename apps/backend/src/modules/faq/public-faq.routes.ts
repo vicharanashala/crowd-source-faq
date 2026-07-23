@@ -9,6 +9,7 @@ import {
   searchPublicFaqs,
   trackPublicView,
   trackPublicReading,
+  getPublicKnowledgeMap,
 } from './public-faq.controller.js';
 
 const router = Router();
@@ -54,6 +55,7 @@ router.get('/category-top-faqs', readLimiter, getCategoryTopFaqs);
 router.get('/categories', readLimiter, getCategories);
 router.get('/search', searchLimiter, searchPublicFaqs);
 router.get('/faqs/:id', readLimiter, getPublicFaqById);
+router.get('/knowledge-map', readLimiter, getPublicKnowledgeMap);
 
 router.post('/track-view', trackLimiter, trackPublicView);
 router.post('/track-reading', trackLimiter, trackPublicReading);
