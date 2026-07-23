@@ -18,30 +18,81 @@ const colors = {
   board: "#0E141C",
 };
 
-const boardingRequirements = [
+// Drop each portal's URL in here — leave "" until you have the link.
+const portalLinks = {
+  start: "",
+  registration: "https://samagama.in",
+  standup: "",
+  vibe: "https://vibe.vicharanashala.ai/student/course-registration/6a14258a4fa5339bade5d733",
+  matrix: "https://sudarshansudarshan.github.io/codershigh/matrixmystics/",
+  matrixEndorsement: "https://samagama.in/spa",
+  phase1: "https://github.com/vicharanashala/crowd-source-faq",
+  phase2: "",
+  completion: "",
+};
+
+const registrationChecklist = [
   "Log in to samagama.in",
-  "Upload and verify required documents — NOC, offer letter, participation agreement, honor code",
-  "Submit your Zoom ID and GitHub ID",
-  "Join the daily Zoom stand-up meeting",
-  "Attend polls during the stand-up session",
+  "Upload & verify: No Objection Certificate (NOC)",
+  "Upload & verify: Offer Letter",
+  "Upload & verify: Participation Agreement",
+  "Upload & verify: Honor Code",
+  "Submit your Zoom ID",
+  "Submit your GitHub ID",
 ];
 
-const silverSteps = [
-  "Work in a team of 10 members.",
-  "Choose one meaningful feature.",
-  "Complete development and testing.",
-  "Push your code to your Git branch.",
-  "Create a pull request (PR).",
+const standupChecklist = [
+  "Join the Zoom meeting using the daily link shared by email",
+  "Attend the session using a laptop",
+  "Keep your camera ON throughout the meeting",
+  "Participate in all polls during the session",
 ];
 
-const spurProjects = ["PyBe", "Ajrasakha", "FLN", "ViBe", "Tenali", "Spandan", "Spurti"];
+const vibeCourses = ["Onboarding", "Fundamentals of AI", "MERN Stack Development"];
+
+const vibeWeeks = [
+  { week: "Week 1", items: ["Complete Onboarding", "Complete 70% of Fundamentals of AI"] },
+  { week: "Week 2", items: ["Complete 100% of Fundamentals of AI", "Complete 50% of MERN"] },
+  { week: "Week 3", items: ["Complete 80% of MERN"] },
+  { week: "Week 4", items: ["Complete 100% of all three courses"] },
+];
+
+const phase1Steps = [
+  "Form a team of 10 members.",
+  "Team Lead forks the official repository.",
+  "Add all team members as collaborators.",
+  "Clone the repository.",
+  "Discuss new feature ideas.",
+  "Develop the assigned feature.",
+  "Test the feature.",
+  "Push the code.",
+  "Create a Pull Request.",
+  "Submit the Pull Request link on Samagama.",
+];
+
+const phase2Mentors = [
+  { project: "PyBe", mentor: "Prakash Hegade" },
+  { project: "FLN", mentor: "Pavani Ma'am" },
+  { project: "Spandan", mentor: "Rohit Sir" },
+  { project: "Tenali", mentor: "Jinal Ma'am" },
+];
+
+const completionSteps = [
+  "Attend daily mentor meetings.",
+  "Discuss features with your mentor.",
+  "Develop approved features.",
+  "Submit Pull Requests.",
+  "Once your Pull Requests are approved by the mentor, your internship is successfully completed.",
+];
 
 const overviewStops = [
   { label: "Start", dot: colors.emerald },
-  { label: "Gate", dot: colors.crimson, seg: colors.crimson },
-  { label: "AI basics", dot: colors.amber, seg: colors.amber },
-  { label: "MERN", dot: colors.amber, seg: colors.amber },
-  { label: "Junction", dot: colors.slate, seg: colors.slate },
+  { label: "Register", dot: colors.emerald, seg: colors.emerald },
+  { label: "Stand-up", dot: colors.crimson, seg: colors.crimson },
+  { label: "ViBe", dot: colors.amber, seg: colors.amber },
+  { label: "Matrix", dot: colors.amber, seg: colors.amber },
+  { label: "Phase 1", dot: colors.slate, seg: colors.slate },
+  { label: "Phase 2", dot: colors.slate, seg: colors.slate },
   { label: "Delivery", dot: "#8B94A0", seg: colors.slate },
 ];
 
@@ -113,6 +164,38 @@ function Eyebrow({ color, children }: { color: string; children: ReactNode }) {
   );
 }
 
+function PortalLink({ href, color, label = "Portal link" }: { href?: string; color: string; label?: string }) {
+  if (!href) {
+    return (
+      <div
+        className="mt-4 flex items-center gap-2 rounded-lg border border-dashed px-3.5 py-2.5 font-mono text-[12.5px] opacity-70"
+        style={{ borderColor: color, color }}
+      >
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+          <path d="M10 13a5 5 0 0 0 7.07 0l1.93-1.93a5 5 0 0 0-7.07-7.07L10.5 5.5" />
+          <path d="M14 11a5 5 0 0 0-7.07 0L4.99 12.93a5 5 0 0 0 7.07 7.07L13.5 18.5" />
+        </svg>
+        {label} — paste URL here
+      </div>
+    );
+  }
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="mt-4 inline-flex items-center gap-2 rounded-lg border px-3.5 py-2.5 font-mono text-[12.5px] transition-opacity hover:opacity-75"
+      style={{ borderColor: color, color }}
+    >
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+        <path d="M10 13a5 5 0 0 0 7.07 0l1.93-1.93a5 5 0 0 0-7.07-7.07L10.5 5.5" />
+        <path d="M14 11a5 5 0 0 0-7.07 0L4.99 12.93a5 5 0 0 0 7.07 7.07L13.5 18.5" />
+      </svg>
+      {label} ↗
+    </a>
+  );
+}
+
 export default function InternshipRoadmapPage() {
   return (
     <div className="min-h-screen bg-[#E9EDEF] px-4 py-10">
@@ -133,8 +216,8 @@ export default function InternshipRoadmapPage() {
             The Internship Express
           </h1>
           <p className="mb-6 font-mono text-[12.5px] text-[#7C8590]">
-            ORIGIN <span className="text-[#C9D0D6]">Onboarding</span> &nbsp;→&nbsp; TERMINUS{" "}
-            <span className="text-[#C9D0D6]">Project Delivery</span>
+            ORIGIN <span className="text-[#C9D0D6]">Registration</span> &nbsp;→&nbsp; TERMINUS{" "}
+            <span className="text-[#C9D0D6]">Internship Completion</span>
           </p>
 
           <div className="mb-6 flex items-center gap-3 font-mono text-[11.5px] text-[#8B94A0]">
@@ -169,7 +252,7 @@ export default function InternshipRoadmapPage() {
             <div
               className="h-full w-full opacity-85"
               style={{
-                background: `linear-gradient(to bottom, ${colors.emerald} 0%, ${colors.emerald} 6%, ${colors.crimson} 6%, ${colors.crimson} 18%, ${colors.amber} 18%, ${colors.amber} 52%, ${colors.slate} 52%, ${colors.slate} 100%)`,
+                background: `linear-gradient(to bottom, ${colors.emerald} 0%, ${colors.emerald} 10%, ${colors.emerald} 10%, ${colors.emerald} 22%, ${colors.crimson} 22%, ${colors.crimson} 34%, ${colors.amber} 34%, ${colors.amber} 60%, ${colors.slate} 60%, ${colors.slate} 100%)`,
               }}
             />
             <div
@@ -201,12 +284,30 @@ export default function InternshipRoadmapPage() {
             <Marker code="START" color={colors.emerald} />
             <Card>
               <Eyebrow color={colors.emeraldDeep}>Departure · Platform 1</Eyebrow>
-              <h2 className="mb-2 text-xl font-bold uppercase tracking-wide text-[#12181F]">Onboarding</h2>
+              <h2 className="mb-2 text-xl font-bold uppercase tracking-wide text-[#12181F]">
+                Internship Journey Begins
+              </h2>
+              <p className="mb-4 text-[14.5px] leading-relaxed text-[#5C6670]">
+                Welcome to the AI Internship. Complete the following steps in order to successfully
+                finish your internship.
+              </p>
+              <PortalLink href={portalLinks.start} color={colors.emerald} label="Internship overview" />
+            </Card>
+          </div>
+
+          {/* STOP 1 — Registration */}
+          <div className="relative mb-8">
+            <Marker code="S1" color={colors.emerald} />
+            <Card accent={colors.emerald}>
+              <Eyebrow color={colors.emeraldDeep}>Stop 1 · Platform 1</Eyebrow>
+              <h2 className="mb-2 text-xl font-bold uppercase tracking-wide text-[#12181F]">
+                Internship Registration
+              </h2>
               <p className="mb-4 text-[14.5px] leading-relaxed text-[#5C6670]">
                 Board the internship by completing these requirements first.
               </p>
               <ul className="flex flex-col gap-2.5">
-                {boardingRequirements.map((item) => (
+                {registrationChecklist.map((item) => (
                   <li key={item} className="flex items-start gap-2.5 text-[14.5px] leading-relaxed text-[#12181F]">
                     <span
                       className="mt-0.5 flex h-[18px] w-[18px] flex-none items-center justify-center rounded-[5px] border"
@@ -218,19 +319,38 @@ export default function InternshipRoadmapPage() {
                   </li>
                 ))}
               </ul>
+              <PortalLink href={portalLinks.registration} color={colors.emerald} label="Samagama portal" />
             </Card>
           </div>
 
-          {/* GATE */}
+          {/* STOP 2 — Mandatory Daily Stand-up + Eligibility Gate */}
           <div className="relative mb-8">
             <Marker code="GATE" color={colors.crimson} shape="hexagon" />
             <Card className="!bg-gradient-to-b !from-white !to-[#FAE1DD]">
-              <Eyebrow color={colors.crimsonDeep}>Ticket check</Eyebrow>
+              <Eyebrow color={colors.crimsonDeep}>Stop 2 · Ticket check</Eyebrow>
               <h2 className="mb-2 text-xl font-bold uppercase tracking-wide" style={{ color: colors.crimsonDeep }}>
-                Eligibility gate
+                Mandatory Daily Stand-up Sessions
               </h2>
-              <p className="mb-4 text-[14.5px] leading-relaxed opacity-90" style={{ color: colors.crimsonDeep }}>
-                Fall short of any of these three and you may be held at the platform.
+              <ul className="mb-4 flex flex-col gap-2.5">
+                {standupChecklist.map((item) => (
+                  <li
+                    key={item}
+                    className="flex items-start gap-2.5 text-[14.5px] leading-relaxed"
+                    style={{ color: colors.crimsonDeep }}
+                  >
+                    <span
+                      className="mt-0.5 flex h-[18px] w-[18px] flex-none items-center justify-center rounded-[5px] border"
+                      style={{ background: colors.crimsonSoft, borderColor: colors.crimson }}
+                    >
+                      <CheckIcon color={colors.crimsonDeep} />
+                    </span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+
+              <p className="mb-3 font-mono text-[11px] uppercase tracking-wider" style={{ color: colors.crimsonDeep }}>
+                Eligibility requirements
               </p>
               <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
                 {[
@@ -258,73 +378,110 @@ export default function InternshipRoadmapPage() {
                   <path d="M12 2 22 20H2Z" strokeLinejoin="round" />
                   <path d="M12 9v5M12 17h.01" />
                 </svg>
-                Students who don&apos;t meet these thresholds may be excluded from the internship.
+                Students who do not meet these requirements may be removed from the internship.
               </p>
+              <PortalLink href={portalLinks.standup} color={colors.crimsonDeep} label="Daily Zoom link" />
             </Card>
           </div>
 
-          {/* BRONZE 1 */}
+          {/* STOP 3 — ViBe Learning Platform */}
           <div className="relative mb-8">
             <Marker code="B1" color={colors.amber} />
             <Card accent={colors.amber}>
-              <Eyebrow color={colors.amberDeep}>Bronze line · Stop 1</Eyebrow>
-              <h2 className="mb-2 text-xl font-bold uppercase tracking-wide text-[#12181F]">Fundamentals of AI</h2>
-              <p className="mb-4 text-[14.5px] leading-relaxed text-[#5C6670]">
-                Core concepts before you touch a line of project code.
+              <Eyebrow color={colors.amberDeep}>Bronze line · Stop 3</Eyebrow>
+              <h2 className="mb-2 text-xl font-bold uppercase tracking-wide text-[#12181F]">
+                ViBe Learning Platform
+              </h2>
+              <p className="mb-3 text-[14.5px] leading-relaxed text-[#5C6670]">Courses on this line:</p>
+              <div className="mb-5 flex flex-wrap gap-2">
+                {vibeCourses.map((c) => (
+                  <span
+                    key={c}
+                    className="rounded-full border px-3.5 py-1.5 font-mono text-[12.5px]"
+                    style={{ background: colors.amberSoft, borderColor: "#EACB9C", color: colors.amberDeep }}
+                  >
+                    {c}
+                  </span>
+                ))}
+              </div>
+
+              <p className="mb-3 font-mono text-[11px] uppercase tracking-wider text-[#98A1A9]">
+                Week-wise plan
               </p>
-              <span
-                className="inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 font-mono text-[13px]"
-                style={{ background: colors.amberSoft, borderColor: "#EACB9C", color: colors.amberDeep }}
-              >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                  <circle cx="12" cy="12" r="9" />
-                  <path d="M12 7v5l3 2" />
-                </svg>
-                Due: DOJ + 1 week
-              </span>
+              <div className="flex flex-col gap-3">
+                {vibeWeeks.map((w) => (
+                  <div
+                    key={w.week}
+                    className="rounded-[10px] border px-4 py-3"
+                    style={{ background: colors.amberSoft, borderColor: "#EACB9C" }}
+                  >
+                    <span className="mb-1 block font-mono text-[13px] font-semibold" style={{ color: colors.amberDeep }}>
+                      {w.week}
+                    </span>
+                    <ul className="flex flex-col gap-1">
+                      {w.items.map((it) => (
+                        <li key={it} className="text-[13.5px] leading-relaxed text-[#5C4319]">
+                          • {it}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+              <PortalLink href={portalLinks.vibe} color={colors.amberDeep} label="ViBe platform" />
             </Card>
           </div>
 
-          {/* BRONZE 2 */}
+          {/* STOP 4 — Matrix Mystics */}
           <div className="relative mb-8">
             <Marker code="B2" color={colors.amber} />
             <Card accent={colors.amber}>
-              <Eyebrow color={colors.amberDeep}>Bronze line · Stop 2</Eyebrow>
-              <h2 className="mb-2 text-xl font-bold uppercase tracking-wide text-[#12181F]">MERN stack development</h2>
-              <p className="mb-4 text-[14.5px] leading-relaxed text-[#5C6670]">
-                Full-stack fundamentals, on a two-checkpoint schedule.
+              <Eyebrow color={colors.amberDeep}>Bronze line · Stop 4</Eyebrow>
+              <h2 className="mb-2 text-xl font-bold uppercase tracking-wide text-[#12181F]">Matrix Mystics</h2>
+              <div className="mb-4 flex flex-wrap gap-3">
+                <div
+                  className="min-w-[150px] rounded-[10px] border px-4 py-2.5 font-mono text-[13px]"
+                  style={{ background: colors.amberSoft, borderColor: "#EACB9C", color: colors.amberDeep }}
+                >
+                  <b className="block text-[17px]">53</b>
+                  Mathematics questions
+                </div>
+                <div
+                  className="min-w-[150px] rounded-[10px] border px-4 py-2.5 font-mono text-[13px]"
+                  style={{ background: colors.amberSoft, borderColor: "#EACB9C", color: colors.amberDeep }}
+                >
+                  <b className="block text-[17px]">2 Months</b>
+                  Time limit
+                </div>
+              </div>
+              <p className="mb-2 font-mono text-[11px] uppercase tracking-wider text-[#98A1A9]">
+                Endorsement rule
+              </p>
+              <p className="text-[14.5px] leading-relaxed text-[#5C6670]">
+                Students who already solved a question will conduct a viva for another student. If the
+                student answers correctly, they receive an endorsement, and can then conduct vivas for
+                other students and endorse them — creating a peer-learning cycle.
               </p>
               <div className="flex flex-wrap gap-3">
-                {[
-                  { pct: "50%", when: "DOJ + 2 weeks" },
-                  { pct: "100%", when: "DOJ + 3 weeks" },
-                ].map((s) => (
-                  <div
-                    key={s.pct}
-                    className="min-w-[150px] rounded-[10px] border px-4 py-2.5 font-mono text-[13px]"
-                    style={{ background: colors.amberSoft, borderColor: "#EACB9C", color: colors.amberDeep }}
-                  >
-                    <b className="block text-[17px]">{s.pct}</b>
-                    {s.when}
-                  </div>
-                ))}
+                <PortalLink href={portalLinks.matrix} color={colors.amberDeep} label="Matrix Mystics portal" />
+                <PortalLink href={portalLinks.matrixEndorsement} color={colors.amberDeep} label="Endorsement (viva)" />
               </div>
             </Card>
           </div>
 
-          {/* SILVER JUNCTION */}
-          <div className="relative">
-            <Marker code="S1" color={colors.slate} />
+          {/* STOP 5 — Phase 1: Crowd Source FAQ */}
+          <div className="relative mb-8">
+            <Marker code="P1" color={colors.slate} />
             <Card accent={colors.slate}>
-              <Eyebrow color={colors.slateDeep}>Silver line · Junction</Eyebrow>
+              <Eyebrow color={colors.slateDeep}>Silver line · Stop 5</Eyebrow>
               <h2 className="mb-2 text-xl font-bold uppercase tracking-wide text-[#12181F]">
-                Phase 1 — Crowd source FAQ
+                Phase 1 – Crowd Source FAQ Project
               </h2>
               <p className="mb-4 text-[14.5px] leading-relaxed text-[#5C6670]">
                 Interchange from learning to real project contribution.
               </p>
               <ul className="flex flex-col gap-2.5">
-                {silverSteps.map((step, i) => (
+                {phase1Steps.map((step, i) => (
                   <li key={step} className="flex items-start gap-2.5 text-[14.5px] leading-relaxed text-[#12181F]">
                     <span
                       className="mt-0.5 flex h-[21px] w-[21px] flex-none items-center justify-center rounded-full border font-mono text-[11px]"
@@ -342,37 +499,55 @@ export default function InternshipRoadmapPage() {
               >
                 Team of 10 · Shared branch
               </span>
-
-              {/* Phase 2 spur */}
-              <div className="relative mt-6 pt-7">
-                <div
-                  className="absolute left-2 right-2 top-[9px] border-t-2 border-dashed opacity-50"
-                  style={{ borderColor: colors.slate }}
-                />
-                <p className="mb-3 font-mono text-[11px] uppercase tracking-wider text-[#98A1A9]">
-                  Phase 2 spur · additional project stations
-                </p>
-                <div className="flex flex-wrap gap-x-2.5 gap-y-4">
-                  {spurProjects.map((name) => (
-                    <div key={name} className="flex min-w-[78px] flex-col items-center gap-1.5">
-                      <span
-                        className="h-3 w-3 rounded-full border-2 bg-white"
-                        style={{ borderColor: colors.slate }}
-                      />
-                      <span
-                        className="rounded-lg px-2.5 py-1 text-center font-mono text-xs"
-                        style={{ background: colors.slateSoft, color: colors.slateDeep }}
-                      >
-                        {name}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <PortalLink href={portalLinks.phase1} color={colors.slateDeep} label="Repository" />
             </Card>
           </div>
 
-          {/* END */}
+          {/* STOP 6 — Phase 2: Mentor Projects */}
+          <div className="relative">
+            <Marker code="P2" color={colors.slate} />
+            <Card accent={colors.slate}>
+              <Eyebrow color={colors.slateDeep}>Silver line · Stop 6</Eyebrow>
+              <h2 className="mb-2 text-xl font-bold uppercase tracking-wide text-[#12181F]">
+                Phase 2 – Mentor Projects
+              </h2>
+              <p className="mb-4 text-[14.5px] leading-relaxed text-[#5C6670]">
+                After completing Phase 1, students move to Phase 2 and contribute to one of the
+                mentor-guided projects below.
+              </p>
+              <div className="overflow-hidden rounded-xl border" style={{ borderColor: "#D7DEE2" }}>
+                <table className="w-full border-collapse text-[13.5px]">
+                  <thead>
+                    <tr style={{ background: colors.slateSoft }}>
+                      <th
+                        className="px-4 py-2.5 text-left font-mono text-[11px] uppercase tracking-wider"
+                        style={{ color: colors.slateDeep }}
+                      >
+                        Project
+                      </th>
+                      <th
+                        className="px-4 py-2.5 text-left font-mono text-[11px] uppercase tracking-wider"
+                        style={{ color: colors.slateDeep }}
+                      >
+                        Mentor
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {phase2Mentors.map((row, i) => (
+                      <tr key={row.project} className={i % 2 === 0 ? "bg-white" : "bg-[#F5F7F8]"}>
+                        <td className="px-4 py-2.5 font-semibold text-[#12181F]">{row.project}</td>
+                        <td className="px-4 py-2.5 text-[#5C6670]">{row.mentor}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <PortalLink href={portalLinks.phase2} color={colors.slateDeep} label="Mentor project repo" />
+            </Card>
+          </div>
+
+          {/* FINAL STOP — Internship Completion */}
           <div className="relative mt-8">
             <Marker code="END" color={colors.board} shape="solid" />
             <Card dark>
@@ -384,10 +559,21 @@ export default function InternshipRoadmapPage() {
               <p className="mb-1 font-mono text-[11px] uppercase tracking-wider text-[#7C8590]">
                 Arrival · Final stop
               </p>
-              <h2 className="mb-2 text-xl font-bold uppercase tracking-wide text-[#F4F6F7]">Project delivery</h2>
-              <p className="text-[14.5px] leading-relaxed text-[#8B94A0]">
-                Internship complete. Thanks for riding the line — welcome to the platform.
-              </p>
+              <h2 className="mb-2 text-xl font-bold uppercase tracking-wide text-[#F4F6F7]">
+                Internship Completion
+              </h2>
+              <ul className="flex flex-col gap-2">
+                {completionSteps.map((step) => (
+                  <li
+                    key={step}
+                    className="flex items-start gap-2.5 text-[14.5px] leading-relaxed text-[#C9D0D6]"
+                  >
+                    <span className="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-[#8B94A0]" />
+                    {step}
+                  </li>
+                ))}
+              </ul>
+              <PortalLink href={portalLinks.completion} color="#8B94A0" label="Completion portal" />
             </Card>
           </div>
         </div>
@@ -395,12 +581,3 @@ export default function InternshipRoadmapPage() {
     </div>
   );
 }
-
-/*
-Samagama:- https://samagama.in
-Matrix Mystics:- https://sudarshansudarshan.github.io/codershigh/matrixmystics/
-Endorsement:- https://samagama.in/spa
-Discourse:- https://vicharanashala.discourse.group/
-ViBe:- https://vibe.vicharanashala.ai/student
-CSFAQ (Phase 1):- https://github.com/vicharanashala/crowd-source-faq
-*/
