@@ -331,16 +331,31 @@ export default function ProgramPage() {
                     </div>
                   ) : (
                     <>
-                      <div className="mb-6 max-w-md">
-                        <label htmlFor="program-faq-filter" className="sr-only">Filter</label>
-                        <input
-                          id="program-faq-filter"
-                          type="search"
-                          value={filter}
-                          onChange={(e) => setFilter(e.target.value)}
-                          placeholder="Filter questions…"
-                          className="w-full px-4 py-2.5 rounded-full bg-card border border-border/60 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/40"
-                        />
+                      <div className="mb-6 flex flex-wrap items-center gap-3">
+                        <div className="max-w-md flex-1 min-w-[250px]">
+                          <label htmlFor="program-faq-filter" className="sr-only">Filter</label>
+                          <input
+                            id="program-faq-filter"
+                            type="search"
+                            value={filter}
+                            onChange={(e) => setFilter(e.target.value)}
+                            placeholder="Filter questions…"
+                            className="w-full px-4 py-2.5 rounded-full bg-card border border-border/60 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/40"
+                          />
+                        </div>
+                        <Link
+                          to={`/program/${effectiveSlug}/map`}
+                          className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-full text-xs font-semibold border bg-card text-ink border-border/60 hover:bg-card-hover transition-all duration-200"
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-accent">
+                            <circle cx="18" cy="18" r="3" />
+                            <circle cx="6" cy="6" r="3" />
+                            <circle cx="18" cy="6" r="3" />
+                            <line x1="9" y1="6" x2="15" y2="6" />
+                            <line x1="6" y1="9" x2="15" y2="15" />
+                          </svg>
+                          Visual Map Explorer
+                        </Link>
                       </div>
                       {!filter && filteredSections.length === 0 && (
                         <p className="text-sm text-ink-soft">No matches.</p>

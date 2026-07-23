@@ -760,3 +760,157 @@ function parseCourseId(v: unknown): Types.ObjectId | null {
 function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
+
+export async function getPublicKnowledgeMap(req: Request, res: Response): Promise<void> {
+  setGuestCookieIfMissing(req, res);
+
+  const batchId = parseBatchId(req.query.batchId) || (req.programContext?.batchId ? new Types.ObjectId(req.programContext.batchId) : null);
+  if (req.query.batchId !== undefined && !batchId) {
+    res.status(400).json({ message: 'Invalid batchId.' });
+    return;
+  }
+
+  try {
+    const matchStage: Record<string, unknown> = { status: 'approved' };
+    matchStage.batchId = batchId || new Types.ObjectId();
+    
+    // Fetch FAQs with question, answer, category, tags, and embedding
+    const faqs = await FAQ.find(matchStage)
+      .select('question answer category tags embedding')
+      .lean();
+
+    // Collect all unique categories
+    const categoriesSet = new Set<string>();
+    for (const faq of faqs) {
+      if (faq.category) {
+        categoriesSet.add(faq.category);
+      }
+    }
+
+    const nodes: Array<{
+      id: string;
+      label: string;
+      type: 'faq' | 'category';
+      category?: string;
+      tags?: string[];
+      answer?: string;
+    }> = [];
+
+    // 1. Add Category Nodes
+    for (const catName of categoriesSet) {
+      nodes.push({
+        id: `cat_${catName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`,
+        label: catName,
+        type: 'category',
+      });
+    }
+
+    // 2. Add FAQ Nodes
+    for (const faq of faqs) {
+      nodes.push({
+        id: `faq_${faq._id}`,
+        label: faq.question,
+        type: 'faq',
+        category: faq.category,
+        tags: faq.tags || [],
+        answer: faq.answer,
+      });
+    }
+
+    const edges: Array<{
+      id: string;
+      source: string;
+      target: string;
+      type: 'category_link' | 'semantic_link';
+      similarity?: number;
+    }> = [];
+
+    // 3. Add Category Edges (Hierarchical connection)
+    for (const faq of faqs) {
+      if (faq.category) {
+        const catId = `cat_${faq.category.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+        edges.push({
+          id: `edge_cat_faq_${faq._id}`,
+          source: catId,
+          target: `faq_${faq._id}`,
+          type: 'category_link',
+        });
+      }
+    }
+
+    // 4. Add Semantic Edges (Similarity based)
+    // Filter out FAQs without embeddings or with zero vectors
+    const faqsWithEmbeddings = faqs.filter((f) => {
+      if (!f.embedding || !Array.isArray(f.embedding) || f.embedding.length === 0) return false;
+      // Check if it is a zero vector
+      const magnitude = Math.sqrt(f.embedding.reduce((sum, val) => sum + val * val, 0));
+      return magnitude > 1e-6;
+    });
+
+    // Helper: calculate cosine similarity (dot product of L2 normalized vectors)
+    const dotProduct = (a: number[], b: number[]): number => {
+      let s = 0;
+      const len = Math.min(a.length, b.length);
+      for (let i = 0; i < len; i++) {
+        s += a[i] * b[i];
+      }
+      return s;
+    };
+
+    const threshold = 0.80; // cosine similarity threshold for semantic links
+    const K = 2; // max semantic links per node to prevent hairball graphs
+
+    // For each FAQ, find its top K semantic neighbors
+    for (let i = 0; i < faqsWithEmbeddings.length; i++) {
+      const current = faqsWithEmbeddings[i];
+      const matches: Array<{ index: number; similarity: number }> = [];
+
+      for (let j = 0; j < faqsWithEmbeddings.length; j++) {
+        if (i === j) continue;
+        const other = faqsWithEmbeddings[j];
+        
+        const sim = dotProduct(current.embedding!, other.embedding!);
+        if (sim >= threshold) {
+          matches.push({ index: j, similarity: sim });
+        }
+      }
+
+      // Sort by similarity descending
+      matches.sort((a, b) => b.similarity - a.similarity);
+
+      // Add edges for top K matches
+      const topMatches = matches.slice(0, K);
+      for (const match of topMatches) {
+        const other = faqsWithEmbeddings[match.index];
+        // Ensure source < target ID to avoid duplicate reciprocal edges
+        const id1 = `faq_${current._id}`;
+        const id2 = `faq_${other._id}`;
+        const source = id1 < id2 ? id1 : id2;
+        const target = id1 < id2 ? id2 : id1;
+        const edgeId = `edge_sem_${source}_${target}`;
+
+        // Check if edge already exists
+        const exists = edges.some((e) => e.id === edgeId);
+        if (!exists) {
+          edges.push({
+            id: edgeId,
+            source,
+            target,
+            type: 'semantic_link',
+            similarity: match.similarity,
+          });
+        }
+      }
+    }
+
+    res.json({
+      nodes,
+      edges,
+      batchId: batchId ? batchId.toString() : null,
+    });
+  } catch (err) {
+    communityLog.error(`[publicFaq] getPublicKnowledgeMap failed: ${(err as Error).message}`);
+    res.status(500).json({ message: 'Failed to generate visual knowledge map.' });
+  }
+}
+

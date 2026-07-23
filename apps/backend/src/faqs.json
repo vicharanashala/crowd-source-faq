@@ -1,11 +1,66 @@
 {
+  "source": "yaksha-seeder",
+  "version": "1.0.0",
   "faqs": [
     {
-      "id": "1",
-      "section": "General",
-      "question": "What is the Yaksha research internship?",
-      "answer": "Yaksha is a two-month research internship program.",
-      "category": "General Info"
+      "question": "What is the duration of the Yaksha research internship?",
+      "answer": "The internship runs for exactly two months full-time, during which interns work on open-source research and engineering problems at Vicharanashala Lab, IIT Ropar.",
+      "category": "General"
+    },
+    {
+      "question": "Is a monthly stipend provided to research interns?",
+      "answer": "Yes, all approved full-time interns receive a stipend to cover basic expenses during their research period at the institute.",
+      "category": "General"
+    },
+    {
+      "question": "Do I get an official certificate after completing the internship?",
+      "answer": "Yes, successful candidates who complete their final presentations and get approval from their mentors receive an internship completion certificate from IIT Ropar.",
+      "category": "General"
+    },
+    {
+      "question": "Which Node.js version is recommended for development?",
+      "answer": "We recommend using Node.js v18 or v20 LTS. Be sure to check package.json for engines restrictions and lockfiles to prevent runtime inconsistencies.",
+      "category": "Technical"
+    },
+    {
+      "question": "Why does pnpm fail to install with workspace prefix errors?",
+      "answer": "This happens when running standard npm or older pnpm versions. Always use npx pnpm or pnpm v9+ to correctly resolve linked workspace packages.",
+      "category": "Technical"
+    },
+    {
+      "question": "How do we initialize local environment variables?",
+      "answer": "Copy the .env.example file to .env inside the apps/backend directory and configure your MONGODB_URI and JWT_SECRET keys.",
+      "category": "Technical"
+    },
+    {
+      "question": "Are we required to work on-campus at IIT Ropar?",
+      "answer": "Yes, the internship is a full-time residential program. Interns are expected to work from the Vicharanashala Lab on campus.",
+      "category": "Workspace"
+    },
+    {
+      "question": "How do I get an access card for the research lab?",
+      "answer": "You can request lab access cards from the department office by submitting your selection letter and student ID.",
+      "category": "Workspace"
+    },
+    {
+      "question": "Are hostel accommodations provided for outstation interns?",
+      "answer": "Hostel rooms are subject to availability. Interns can apply for shared hostel accommodation at student rates through the admin office.",
+      "category": "Workspace"
+    },
+    {
+      "question": "What are the criteria for the final internship evaluation?",
+      "answer": "Evaluation is based on your open-source contributions, pull request quality, code reviews, and a final technical presentation before the lab committee.",
+      "category": "Mentorship"
+    },
+    {
+      "question": "How often should I sync with my project mentor?",
+      "answer": "We suggest having brief daily standups or check-ins on Slack, and a more thorough review session once a week to demo progress.",
+      "category": "Mentorship"
+    },
+    {
+      "question": "Where should I submit my pull requests for review?",
+      "answer": "All pull requests should be submitted to the development branch of the respective Github repository, tagging your mentor as the reviewer.",
+      "category": "Mentorship"
     }
   ]
 }

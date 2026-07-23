@@ -41,6 +41,7 @@ const GoldenTicketDetailPage = lazy(() => import('../pages/GoldenTicketDetailPag
 const WelcomePackagePage = lazy(() => import('../pages/WelcomePackagePage'));
 const ProgramPortalPage = lazy(() => import('../pages/ProgramPortalPage'));
 const ProgramPage = lazy(() => import('../pages/ProgramPage'));
+const KnowledgeMapPage = lazy(() => import('../pages/KnowledgeMapPage'));
 // v1.87 — Sign My Tee: designer wizard + share + public sign pages.
 const TeeDesignerPage = lazy(() => import('../pages/TeeDesignerPage'));
 const TeeSharePage = lazy(() => import('../pages/TeeSharePage'));
@@ -174,6 +175,8 @@ export default function AppRoutes() {
             <Route path="/golden" element={<RouteElement name="golden"><GoldenRoute /></RouteElement>} />
             <Route path="/golden/ticket/:id" element={<RouteElement name="golden-ticket-:id"><GoldenTicketDetailRoute /></RouteElement>} />
             <Route path="/program/:slug" element={<RouteElement name="program-:slug"><ProgramPage /></RouteElement>} />
+            <Route path="/program/:slug/map" element={<RouteElement name="program-:slug-map"><KnowledgeMapPage /></RouteElement>} />
+            <Route path="/map" element={<RouteElement name="map"><KnowledgeMapPage /></RouteElement>} />
             <Route
               path="/account"
               element={<RouteElement name="account"><AccountRoute>
