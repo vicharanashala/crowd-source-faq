@@ -128,6 +128,15 @@ export const votePillAccentIdle  = 'border-border text-ink-soft hover:border-acc
 export const votePillDanger      = 'border-danger/40 bg-danger-light text-danger';
 export const votePillDangerIdle  = 'border-border text-ink-soft hover:border-danger/30 hover:text-danger';
 
+export const emojiRatingBase =
+  'flex items-center justify-center w-9 h-9 rounded-full text-lg leading-none transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed';
+
+export const emojiRatingIdle =
+  'grayscale opacity-60 hover:grayscale-0 hover:opacity-100 hover:scale-110';
+
+export const emojiRatingSelected =
+  'grayscale-0 opacity-100 scale-110 bg-accent/10 ring-2 ring-accent/40';
+
 export const tierPillBase        = 'flex-1 py-2 px-3 rounded-xl border text-xs font-medium transition-all';
 export const tierPillAccent      = 'border-accent/40 bg-accent/10 text-accent';
 export const tierPillDanger      = 'border-danger/40 bg-danger-light text-danger';

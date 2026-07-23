@@ -6,6 +6,7 @@ import api from '../../utils/api';
 import type {
   CategoriesResponse,
   CategoryClustersResponse,
+  FaqSatisfactionResponse,
   PopularResponse,
   PublicFaq,
   RecentResponse,
@@ -106,6 +107,7 @@ export function usePublicFaqById(id: string | null) {
   return usePublicGet<PublicFaq>(id ? `/public/faqs/${id}` : null);
 }
 
+
 /**
  * v1.70 — Dynamic Categories hook. Fetches the AI-named category
  * clusters for the given program from /api/public/category-clusters.
@@ -160,3 +162,9 @@ export function trackPublicReading(
     }
   } catch { /* best-effort */ }
 }
+
+// ─── Satisfaction ─────────────────────────────────────────────────────────
+//
+// Unlike the tracking helpers above, this is NOT fire-and-forget: the
+// caller needs the resolved value (to update local state) and needs
+// failures to reject (so the UI can roll back an optimistic selection).

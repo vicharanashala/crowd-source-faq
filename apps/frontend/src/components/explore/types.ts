@@ -78,3 +78,9 @@ export type TrackReadingResponse = {
   reason?: string;
   error?: string;
 };
+// ─── Satisfaction Rating (feature/faq-satisfaction) ──────────────────────
+export type FaqSatisfactionResponse = {
+  satisfactionAvg: number | null;
+  satisfactionCount: number;
+  yourRating: number | null;
+};
