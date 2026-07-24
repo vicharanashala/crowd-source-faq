@@ -47,6 +47,7 @@ export default function AdminCommunity() {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [toast, setToast] = useState<Toast | null>(null);
   const [viewPost, setViewPost] = useState<CommunityPost | null>(null);
+  const [promoting, setPromoting] = useState<string | null>(null);
   const debouncedSearch = useDebounce(search, 350);
   const showToast = (msg: string, type: Toast['type'] = 'success') => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
 
@@ -67,6 +68,21 @@ export default function AdminCommunity() {
   useEffect(() => { fetchPosts(); }, [fetchPosts]);
   useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter, categoryFilter]);
   const handleDelete = async (id: string) => { if (!confirm('Delete this post?')) return; try { await adminApi.delete(`/admin/community/${id}`); showToast('Deleted', 'error'); fetchPosts(); } catch { showToast('Delete failed', 'error'); } };
+  const handlePromote = async (post: CommunityPost) => {
+    if (!post.answer?.trim()) { showToast('This post has no answer yet', 'warn'); return; }
+    if (!confirm(`Promote "${post.title}" to FAQ now? This publishes it immediately — no review needed.`)) return;
+    setPromoting(post._id);
+    try {
+      await adminApi.post(`/admin/community/${post._id}/promote-to-faq`);
+      showToast('Promoted to FAQ', 'success');
+      setViewPost(null);
+      fetchPosts();
+    } catch (err: any) {
+      showToast(err?.response?.data?.message || 'Promote failed', 'error');
+    } finally {
+      setPromoting(null);
+    }
+  };
 
   return (
     <div className="space-y-4 max-w-6xl">
@@ -195,6 +211,16 @@ export default function AdminCommunity() {
                   <td className="admin-td text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
                       <button onClick={() => setViewPost(post)} className="w-6 h-6 flex items-center justify-center rounded text-ink-faint hover:text-ink hover:bg-mist transition-colors" title="View"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+                      {post.answer?.trim() && (
+                        <button
+                          onClick={() => handlePromote(post)}
+                          disabled={promoting === post._id}
+                          className="w-6 h-6 flex items-center justify-center rounded text-ink-faint hover:text-success hover:bg-success/10 transition-colors disabled:opacity-40"
+                          title="Promote to FAQ"
+                        >
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg>
+                        </button>
+                      )}
                       <button onClick={() => handleDelete(post._id)} className="w-6 h-6 flex items-center justify-center rounded text-ink-faint hover:text-danger hover:bg-danger/10 transition-colors" title="Delete"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg></button>
                     </div>
                   </td>
@@ -259,6 +285,15 @@ export default function AdminCommunity() {
               <span className="text-xs text-ink-faint">{new Date(viewPost.createdAt).toLocaleString('en-IN')}</span>
               <div className="flex gap-2">
                 <button onClick={() => { handleDelete(viewPost._id); setViewPost(null); }} className="px-3 py-1.5 rounded-md text-xs font-medium text-danger hover:bg-danger/10 transition-colors">Delete</button>
+                {viewPost.answer?.trim() && (
+                  <button
+                    onClick={() => handlePromote(viewPost)}
+                    disabled={promoting === viewPost._id}
+                    className="px-3 py-1.5 rounded-md text-xs font-medium text-success hover:bg-success/10 transition-colors disabled:opacity-40"
+                  >
+                    {promoting === viewPost._id ? 'Promoting…' : 'Promote to FAQ'}
+                  </button>
+                )}
                 <button onClick={() => setViewPost(null)} className={`${adminBtnGhost} px-3 py-1.5 text-xs`}>Close</button>
               </div>
             </div>
