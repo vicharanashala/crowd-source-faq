@@ -17,7 +17,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       // API calls go to the backend
-      '/csfaq/api': { target: 'http://localhost:6767', changeOrigin: true },
+      '/csfaq/api': { target: 'http://127.0.0.1:6767', changeOrigin: true },
       // v1.69 — publicBasePath fix: onboarding resources (SVG, PDF, PPTX,
       // video, etc.) are stored at /csfaq/uploads/... in Mongo. In dev the
       // backend runs on port 6767, so asset fetches from the Vite dev server
@@ -25,8 +25,8 @@ export default defineConfig({
       // /csfaq/uploads/... from Vite directly → 404. In production the backend
       // serves everything at /csfaq/ so no proxy is needed (the browser
       // requests go directly to the backend's static middleware).
-      '/csfaq/uploads': { target: 'http://localhost:6767', changeOrigin: true },
-      '/uploads': { target: 'http://localhost:6767', changeOrigin: true },
+      '/csfaq/uploads': { target: 'http://127.0.0.1:6767', changeOrigin: true },
+      '/uploads': { target: 'http://127.0.0.1:6767', changeOrigin: true },
     },
   },
   optimizeDeps: {

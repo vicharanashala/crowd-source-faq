@@ -36,11 +36,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@google-cloud/storage": "^7.21.0",
-    "@sentry/node": "^10.55.0",
     "@csfaq/types": "workspace:*",
     "@csfaq/utils": "workspace:*",
     "@csfaq/validation": "workspace:*",
+    "@google-cloud/storage": "^7.21.0",
+    "@sentry/node": "^10.55.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "discord-api-types": "^0.38.48",
@@ -73,7 +73,9 @@
     "@types/node": "^25.9.1",
     "@types/range-parser": "^1.2.7",
     "@types/uuid": "^10.0.0",
+    "canvas": "^3.2.3",
     "nodemon": "^3.0.2",
+    "playwright": "^1.61.1",
     "tsx": "^4.22.3",
     "typescript": "^6.0.3",
     "vitest": "^1.6.0"

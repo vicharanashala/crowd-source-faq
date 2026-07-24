@@ -53,8 +53,8 @@ export interface IRegistrationConfig extends Document<string> {
 const registrationConfigSchema = new MongooseSchema<IRegistrationConfig>(
   {
     _id: { type: String, default: 'singleton' },
-    registrationEnabled: { type: Boolean, default: false },
-    openForAll: { type: Boolean, default: false },
+    registrationEnabled: { type: Boolean, default: true },
+    openForAll: { type: Boolean, default: true },
     inviteToken: { type: String, required: true },
     tokenGeneratedAt: { type: Date, required: true },
     lastToggledBy: {
@@ -97,8 +97,8 @@ export async function ensureRegistrationConfig(): Promise<IRegistrationConfig> {
     const token = generateInviteToken();
     doc = await RegistrationConfigModel.create({
       _id: 'singleton',
-      registrationEnabled: false,
-      openForAll: false,
+      registrationEnabled: true,
+      openForAll: true,
       inviteToken: token,
       tokenGeneratedAt: new Date(),
       lastToggledBy: null,
@@ -108,6 +108,10 @@ export async function ensureRegistrationConfig(): Promise<IRegistrationConfig> {
     console.warn(
       `\n[registrationConfig] First-time init — invite token (copy now, won't be shown again):\n${token}\n`
     );
+  } else if (!doc.registrationEnabled || !doc.openForAll) {
+    doc.registrationEnabled = true;
+    doc.openForAll = true;
+    await doc.save();
   }
   return doc;
 }

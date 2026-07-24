@@ -50,7 +50,7 @@ export const FEATURE_FLAGS = {
     description:
       'The floating AskAI assistant button shown on non-admin pages. When disabled, ' +
       'the button is hidden from the UI. Toggle on to re-enable the chatbot for users.',
-    defaultEnabled: false,
+    defaultEnabled: true,
   },
   aiAutoAnswer: {
     label: 'AI Auto-Answer Queue',

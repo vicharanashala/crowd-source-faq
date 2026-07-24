@@ -73,6 +73,7 @@ export default function Navbar({ showProgramSwitcher: _showProgramSwitcher = fal
 
   const { user, isAuthenticated, logout } = useAuth();
   const { openModal } = useAuthModal();
+  const gate = useAuthGate();
   const navigate = useNavigate();
   const location = useLocation();
   const [scrolled, setScrolled] = useState(false);
@@ -334,23 +335,35 @@ export default function Navbar({ showProgramSwitcher: _showProgramSwitcher = fal
               <BatchSwitcher showCreateLink={user?.role === 'admin'} compact className="w-full" />
             </div>
           )}
-          {allNavItems.map(({ label, to }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === '/'}
-              onClick={() => setMobileOpen(false)}
-              className={({ isActive }) =>
-                `block px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
-                  isActive
-                    ? 'bg-accent-light text-accent'
-                    : 'text-ink-soft hover:text-ink hover:bg-black/[0.03]'
-                }`
+          {allNavItems.map(({ label, to }) => {
+            const isWelcome = to === '/welcome';
+            const handleMobileClick = (e: React.MouseEvent) => {
+              setMobileOpen(false);
+              if (isWelcome && !isAuthenticated) {
+                e.preventDefault();
+                gate(() => {
+                  navigate('/welcome');
+                }, 'Sign in to access the Welcome Package.')();
               }
-            >
-              {label}
-            </NavLink>
-          ))}
+            };
+            return (
+              <NavLink
+                key={to}
+                to={to}
+                end={to === '/'}
+                onClick={handleMobileClick}
+                className={({ isActive }) =>
+                  `block px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
+                    isActive
+                      ? 'bg-accent-light text-accent'
+                      : 'text-ink-soft hover:text-ink hover:bg-black/[0.03]'
+                  }`
+                }
+              >
+                {label}
+              </NavLink>
+            );
+          })}
 
           {/* Mobile: Sign-in / Get started */}
           {!isAuthenticated && (

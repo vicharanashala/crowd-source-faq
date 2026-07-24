@@ -337,7 +337,7 @@ function NumberedSkeletonRow({ rank }: { rank: number }): React.ReactElement {
 //  Main page
 // ═══════════════════════════════════════════════════════════════════════════
 export default function HomePage() {
-  const { currentBatch } = useBatch();
+  const { currentBatch, loading: programLoading } = useBatch();
   const batchId = currentBatch?._id ?? null;
 
   // ── Core data ────────────────────────────────────────────────────────────
@@ -387,6 +387,13 @@ export default function HomePage() {
       return next;
     });
   }, []);
+
+  // ── Redirect if no program is selected ───────────────────────────────────
+  useEffect(() => {
+    if (!programLoading && !batchId) {
+      navigate('/programs', { replace: true });
+    }
+  }, [programLoading, batchId, navigate]);
 
   // ── Fetch all data sources dynamically when batchId changes ──────────────
   useEffect(() => {

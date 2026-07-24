@@ -117,10 +117,10 @@ export function ProgramProvider({ children }: ProgramProviderProps): React.React
   const loadPrograms = useCallback(async (): Promise<Program[]> => {
     try {
       const res = await api.get<{ batches: Program[] }>('/batches');
+      setError(null);
       return res.data.batches ?? [];
-    } catch {
-      // Non-fatal: the public page can still render with an empty list
-      // and a friendly "no programs" empty state.
+    } catch (e: unknown) {
+      if (e instanceof Error && (e.name === 'CanceledError' || (e as any).code === 'ERR_CANCELED')) return [];
       setError('Could not load programs. Please refresh.');
       return [];
     }
@@ -162,6 +162,10 @@ export function ProgramProvider({ children }: ProgramProviderProps): React.React
     if (stored) {
       const storedMatch = programs.find((p) => p._id === stored);
       if (storedMatch) return storedMatch;
+      try {
+        window.localStorage.removeItem(STORAGE_KEY_NEW);
+        window.localStorage.removeItem(STORAGE_KEY_OLD);
+      } catch { /* ignore */ }
     }
 
     // 4. Server-reported isDefault (admin-promoted default program)

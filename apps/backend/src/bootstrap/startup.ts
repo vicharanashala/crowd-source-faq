@@ -42,6 +42,42 @@ export async function startup(config: any): Promise<void> {
     startupLog.error('startup DB connect / migrate failed', { error: (e as Error).message });
   }
 
+  // ── Auto-seed a default program on first boot ──────────────────────────────
+  // On a fresh in-memory or empty MongoDB, there are no programs so the
+  // portal shows "No programs yet." This seeds one so the app is immediately
+  // usable. It is idempotent — runs only if no programs exist at all.
+  try {
+    const { default: Batch } = await import('../modules/program/batch.model.js');
+    const { bootstrapProgram } = await import('../modules/program/provisioning.service.js');
+    const existingCount = await Batch.countDocuments();
+    if (existingCount === 0) {
+      const now = new Date();
+      const start = new Date(now.getFullYear(), now.getMonth(), 1); // First of this month
+      const end   = new Date(now.getFullYear(), now.getMonth() + 6, 0); // 6 months later
+      const seeded = await Batch.create({
+        name: 'Default Program',
+        description: 'Auto-created default program. Rename or replace it from Admin → Programs.',
+        startDate: start,
+        endDate: end,
+        isActive: true,
+        isDefault: true,
+        status: 'active',
+        enrollmentMode: 'open',
+        maxEnrollment: null,
+        createdBy: null,
+        ownerUserId: null,
+      });
+      try {
+        await bootstrapProgram(seeded._id);
+      } catch (_bootstrapErr) {
+        // Non-fatal — categories/settings can be set up manually
+      }
+      startupLog.info(`[seed] Created default program "${seeded.name}" (${seeded._id})`);
+    }
+  } catch (e) {
+    startupLog.warn(`[seed] Default program seed failed (non-fatal): ${(e as Error).message}`);
+  }
+
   // Lazy-init the RegistrationConfig singleton
   try {
     const { ensureRegistrationConfig } = await import('../modules/program/registration-config.model.js');

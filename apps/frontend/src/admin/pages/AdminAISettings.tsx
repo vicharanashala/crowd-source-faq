@@ -694,6 +694,7 @@ export default function AdminAISettings() {
           <div className="divide-y divide-border">
             {(Object.keys(FEATURE_LABELS) as Array<keyof typeof FEATURE_LABELS>).map((feature) => {
               const f = features[feature];
+              if (!f) return null;
               return (
                 <div key={feature} className="p-5 space-y-3">
                   <div className="flex items-center justify-between">

@@ -80,13 +80,14 @@ export const warmEmbedder = async (): Promise<void> => {
  * Generate an embedding for a DOCUMENT (FAQ, post, etc.).
  */
 export const generateEmbedding = async (text: string, options?: { batchId?: string | null }): Promise<number[]> => {
+  const { dimensions, model, baseURL, apiKey } = await getActiveEmbeddingConfig(options?.batchId);
+  if (process.env.FAST_SEED === 'true' || apiKey === 'ollama') {
+    return new Array(dimensions).fill(0);
+  }
   try {
-    const { model, baseURL, apiKey } = await getActiveEmbeddingConfig(options?.batchId);
     return await callCustomEmbedding(text, apiKey, model, baseURL);
   } catch (err) {
     if (process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'development') {
-      const { dimensions } = await getActiveEmbeddingConfig(options?.batchId);
-      logger.warn(`[embeddings] Custom embedding API failed, falling back to mock vector: ${(err as Error).message}`);
       return new Array(dimensions).fill(0);
     }
     throw err;

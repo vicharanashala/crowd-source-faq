@@ -75,7 +75,24 @@ export function FeatureFlagProvider({ children }: ProviderProps): React.ReactEle
     setError(null);
     setLoading(true);
     if (!isAuthenticated) {
-      setFlags({});
+      setFlags({
+        askAiChatbot: {
+          key: 'askAiChatbot',
+          enabled: true,
+          label: 'Ask AI Chatbot',
+          description: 'Floating AI assistant widget',
+          firstEnabledAt: null,
+          lastDisabledAt: null,
+        },
+        welcomePackage: {
+          key: 'welcomePackage',
+          enabled: true,
+          label: 'Welcome Package',
+          description: 'The student onboarding / orientation hub',
+          firstEnabledAt: null,
+          lastDisabledAt: null,
+        },
+      });
       setLoading(false);
       return;
     }

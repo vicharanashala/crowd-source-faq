@@ -17,7 +17,9 @@
  */
 
 import { createWorker, type Worker } from 'tesseract.js';
-import { MarkItDown } from 'markitdown-ts';
+// markitdown-ts is imported lazily (dynamic import) to avoid pdfjs-dist
+// loading at startup — pdfjs-dist requires DOMMatrix which is not available
+// in Node 18. The dynamic import defers the cost to the first PDF conversion.
 import { logger } from './http/logger.js';
 
 export type DocumentFileType = 'image' | 'pdf' | 'docx' | 'xlsx';
@@ -63,9 +65,16 @@ export async function shutdownTesseract(): Promise<void> {
   }
 }
 
-// ─── MarkItDown singleton ────────────────────────────────────────────────────
+// ─── MarkItDown singleton (lazy) ────────────────────────────────────────────
 
-const _markitdown = new MarkItDown();
+let _markitdown: InstanceType<typeof import('markitdown-ts').MarkItDown> | null = null;
+async function getMarkItDown() {
+  if (!_markitdown) {
+    const { MarkItDown } = await import('markitdown-ts');
+    _markitdown = new MarkItDown();
+  }
+  return _markitdown;
+}
 
 // ─── Public entry point ──────────────────────────────────────────────────────
 
@@ -101,7 +110,8 @@ export async function extractTextFromFile(
   // bare form and falls through to the text converter, which chokes
   // on the `%PDF-1.3` binary header.
   const ext = `.${fileType}`;
-  const result = await _markitdown.convertBuffer(buffer, {
+  const markitdown = await getMarkItDown();
+  const result = await markitdown.convertBuffer(buffer, {
     file_extension: ext,
   });
   return {
