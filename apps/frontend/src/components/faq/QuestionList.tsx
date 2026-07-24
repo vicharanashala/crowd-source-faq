@@ -1,6 +1,14 @@
 import React, { useMemo, useRef, useEffect, useCallback, useState } from 'react';
 import { FAQItem, getQuestionTitle, getAnswerText, formatDate, formatCategoryName, TrustBadge, SourceBadge } from './faqUtils';
 import FreshnessBadge from '../faq/FreshnessBadge';
+import {
+  flexRowSm,
+  skeletonLine,
+  stackMd,
+  textBodyFaint,
+  textXsFaint,
+  textNumeric,
+} from '../../styles/style_config';
 
 /* ── Chevron icon (rotates on expand) ── */
 function ChevronDown() {
@@ -46,7 +54,7 @@ export function QuestionItem({ item, isExpanded, onToggle }: QuestionItemProps) 
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(); } }}
       >
         <span className="faq-item__question-text">
-          <span className="text-ink-faint mr-1 tabular-nums">{prefix}</span>
+          <span className={`${textBodyFaint} mr-1 ${textNumeric}`}>{prefix}</span>
           {title}
           <TrustBadge level={item.trustLevel} />
           <SourceBadge sourceType={item.sourceType} />
@@ -177,10 +185,10 @@ export default function QuestionList({
 
       {/* Loading skeleton */}
       {loading && (
-        <div className="space-y-4">
+        <div className={stackMd}>
           {[1, 2, 3].map((i) => (
             <div key={i} className="faq-item animate-pulse" style={{ minHeight: 64 }}>
-              <div className="h-4 rounded bg-mist w-3/4" />
+              <div className={`${skeletonLine} h-4 w-3/4`} />
             </div>
           ))}
         </div>
@@ -188,7 +196,7 @@ export default function QuestionList({
 
       {/* FAQ accordion cards */}
       {!loading && (
-        <div className="space-y-4">
+        <div className={stackMd}>
           {visibleItems.map((item, idx) => {
             const id = item._id || `faq-${idx}`;
             return (

@@ -218,7 +218,10 @@ function escapeRegex(str: string): string {
 export const getUsers = async (req: Request, res: Response): Promise<void> => {
   try {
     const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 20;
+    // S5-H10 (HIGH) fix: cap the limit to 50 (was uncapped — `?limit=9999999`
+    // would dump the entire users collection in one response). Matches
+    // the cap used in getModerationLogs.
+    const limit = Math.min(50, parseInt(req.query.limit as string) || 20);
     const skip = (page - 1) * limit;
     const search = (req.query.search as string) || '';
 
@@ -246,7 +249,8 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
 export const getAdminFAQs = async (req: Request, res: Response): Promise<void> => {
   try {
     const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
+    // S5-H10 (HIGH) fix: cap limit to 50 (was uncapped).
+    const limit = Math.min(50, parseInt(req.query.limit as string) || 10);
     const skip = (page - 1) * limit;
     const status = (req.query.status as string) || '';
     const category = (req.query.category as string) || '';
@@ -291,13 +295,25 @@ export const approveFAQ = async (req: Request, res: Response): Promise<void> => 
     if (!faq) { res.status(404).json({ message: 'FAQ not found.' }); return; }
     if (assertSameProgram(faq, req.programContext, res)) return;
     faq.status = 'approved';
-    await faq.save();
-    await invalidateCache();
-    invalidatePublicCaches();
-    await logAction(req.user!._id.toString(), 'approve_faq', faq._id.toString(), 'faq', faq.question);
+    // S5-M6 (MEDIUM) fix: previously the three side effects
+    // (faq.save, invalidateCache, invalidatePublicCaches, logAction)
+    // were sequential non-atomic — if invalidateCache throws, the
+    // FAQ is saved with status='approved' but the public cache is
+    // stale. Now: run the two cache invalidations in parallel via
+    // Promise.all (both are best-effort). logAction runs in the
+    // finally branch so the audit trail is always written.
+    try {
+      await Promise.all([
+        faq.save(),
+        invalidateCache().catch((e) => console.error('[admin] invalidateCache after approve:', e)),
+      ]);
+      invalidatePublicCaches();
+    } finally {
+      await logAction(req.user!._id.toString(), 'approve_faq', faq._id.toString(), 'faq', faq.question);
+    }
     res.json({ message: 'FAQ approved.', faq });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -310,13 +326,19 @@ export const rejectFAQ = async (req: Request, res: Response): Promise<void> => {
     if (!faq) { res.status(404).json({ message: 'FAQ not found.' }); return; }
     if (assertSameProgram(faq, req.programContext, res)) return;
     faq.status = 'rejected';
-    await faq.save();
-    await invalidateCache();
-    invalidatePublicCaches();
-    await logAction(req.user!._id.toString(), 'reject_faq', faq._id.toString(), 'faq', faq.question);
+    // S5-M6: same cache-invalidation pattern as approveFAQ.
+    try {
+      await Promise.all([
+        faq.save(),
+        invalidateCache().catch((e) => console.error('[admin] invalidateCache after reject:', e)),
+      ]);
+      invalidatePublicCaches();
+    } finally {
+      await logAction(req.user!._id.toString(), 'reject_faq', faq._id.toString(), 'faq', faq.question);
+    }
     res.json({ message: 'FAQ rejected.', faq });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -346,9 +368,24 @@ export const updateFAQ = async (req: Request, res: Response): Promise<void> => {
 
     // Recalculate embedding if key fields updated
     if (question || answer || category) {
-      faq.embedding = await generateEmbedding(
-        `Section: ${faq.category}. Question: ${faq.question}. Answer: ${faq.answer}`
-      );
+      // S5-M7 (MEDIUM) fix: previously this awaited `generateEmbedding`
+      // inline with no timeout — a cold provider could stall the
+      // admin response indefinitely. Now: race the embedding against
+      // a 5-second timeout. On timeout, log + continue without
+      // updating the embedding (the next cron will regenerate).
+      try {
+        const text = `Section: ${faq.category}. Question: ${faq.question}. Answer: ${faq.answer}`;
+        const timeout = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('generateEmbedding timeout (5s)')), 5000)
+        );
+        faq.embedding = (await Promise.race([
+          generateEmbedding(text),
+          timeout,
+        ])) as any;
+      } catch (embErr) {
+        console.warn('[admin] updateFAQ: embedding skipped:', (embErr as Error).message);
+        // Leave the existing embedding in place; the AI cron will regenerate.
+      }
     }
 
     // Admin edit while under review = re-verification
@@ -450,12 +487,28 @@ export const getReports = async (req: Request, res: Response): Promise<void> => 
     if (from) dateFilter.$gte = new Date(from);
     if (to) dateFilter.$lte = new Date(to);
 
+    // S5-L6 (LOW) fix: previously the page/limit query params were
+    // ignored — every call did an uncapped `.limit(500)` and returned
+    // the latest 500 rows regardless of what the admin asked for.
+    // Admins requesting a wide date range silently got only the most
+    // recent 500, with no `total` / `hasMore` so they couldn't tell
+    // it was truncated. Add proper page/limit + total/hasMore.
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const requestedLimit = parseInt(req.query.limit as string) || 50;
+    // Cap at 500 to keep payload size sane; admins can paginate.
+    const limit = Math.max(1, Math.min(500, requestedLimit));
+    const skip = (page - 1) * limit;
+
     const faqQuery = Object.keys(dateFilter).length ? { createdAt: dateFilter } : {};
     const searchQuery = Object.keys(dateFilter).length ? { createdAt: dateFilter } : {};
 
-    const [faqs, searchLogs, categoryBreakdown, statusBreakdown] = await Promise.all([
-      FAQ.find(faqQuery).select('-embedding').sort('-createdAt').limit(500),
-      SearchLog.find(searchQuery).sort('-createdAt').limit(500),
+    const [faqs, searchLogs, totalFaqs, totalSearches, categoryBreakdown, statusBreakdown] = await Promise.all([
+      FAQ.find(faqQuery).select('-embedding').sort('-createdAt').skip(skip).limit(limit),
+      SearchLog.find(searchQuery).sort('-createdAt').skip(skip).limit(limit),
+      // Counts respect the date filter but ignore pagination so the
+      // admin can see "X of Y total" on the response.
+      FAQ.countDocuments(faqQuery),
+      SearchLog.countDocuments(searchQuery),
       FAQ.aggregate([{ $group: { _id: '$category', count: { $sum: 1 } } }, { $sort: { count: -1 } }]),
       FAQ.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
     ]);
@@ -464,14 +517,17 @@ export const getReports = async (req: Request, res: Response): Promise<void> => 
       faqs,
       searchLogs,
       summary: {
-        totalFaqs: faqs.length,
-        totalSearches: searchLogs.length,
+        totalFaqs,
+        totalSearches,
         categoryBreakdown,
         statusBreakdown,
+        page,
+        limit,
+        hasMore: skip + faqs.length < totalFaqs || skip + searchLogs.length < totalSearches,
       },
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -567,19 +623,31 @@ export const getCommunityPosts = async (req: Request, res: Response): Promise<vo
     const skip = (page - 1) * limit;
     const search = (req.query.search as string) || '';
     const status = (req.query.status as string) || '';
+    const category = (req.query.category as string) || '';
     const batchId = (req.query.batchId as string | undefined) ?? null;
 
-    const base: Record<string, unknown> = {};
+    const base: Record<string, any> = {};
     if (search) {
+      // S5-H11 (HIGH) fix: previously this built `{ $regex: search }` raw,
+      // letting admin-controlled regex special characters trigger ReDoS.
+      // The `escapeRegex` helper exists at the top of this file and is
+      // used by getUsers / getAdminFAQs — apply it here too.
       base.$or = [
-        { title: { $regex: search, $options: 'i' } },
-        { body: { $regex: search, $options: 'i' } },
+        { title: { $regex: escapeRegex(search), $options: 'i' } },
+        { body: { $regex: escapeRegex(search), $options: 'i' } },
       ];
     }
     if (status) base.status = status;
+    if (category) {
+      if (category.toLowerCase() === 'uncategorized') {
+        base.$or = [{ tags: { $exists: false } }, { tags: { $size: 0 } }];
+      } else {
+        base.tags = category;
+      }
+    }
     const query = withProgramScope(base, batchId);
 
-    const [posts, total] = await Promise.all([
+    const [posts, total, categoryCounts, uncategorizedCount] = await Promise.all([
       CommunityPost.find(query)
         .select('-embedding')
         .populate('author', 'name email')
@@ -588,22 +656,48 @@ export const getCommunityPosts = async (req: Request, res: Response): Promise<vo
         .skip(skip)
         .limit(limit),
       CommunityPost.countDocuments(query),
+      CommunityPost.aggregate([
+        { $match: withProgramScope({}, batchId) },
+        { $unwind: '$tags' },
+        { $group: { _id: '$tags', count: { $sum: 1 } } },
+        { $sort: { count: -1 } }
+      ]),
+      CommunityPost.countDocuments(
+        withProgramScope({ $or: [{ tags: { $exists: false } }, { tags: { $size: 0 } }] }, batchId)
+      ),
     ]);
 
-    res.json({ posts, total, page, pages: Math.ceil(total / limit) });
+    const categoriesList = categoryCounts.map((c: any) => ({ name: c._id, count: c.count }));
+    if (uncategorizedCount > 0) {
+      categoriesList.push({ name: 'Uncategorized', count: uncategorizedCount });
+    }
+
+    res.json({ posts, total, page, pages: Math.ceil(total / limit), categories: categoriesList });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
 // DELETE /api/admin/community/:id
 export const deleteCommunityPost = async (req: Request, res: Response): Promise<void> => {
   try {
-    const post = await CommunityPost.findByIdAndDelete(req.params.id);
+    // S5-H12 (HIGH) fix: previously this had NO assertSameProgram check,
+    // so an admin from program A could hard-delete any post from program B.
+    // Compare with approveFAQ / rejectFAQ / updateFAQ / deleteFAQ above
+    // (lines 286-405) which all gate on assertSameProgram. The pattern
+    // in the same file: read the doc, check, then act.
+    const post = await CommunityPost.findById(req.params.id);
     if (!post) {
       res.status(404).json({ message: 'Post not found.' });
       return;
     }
+    // Per-program scope check (matches the other admin FAQ delete pattern).
+    if (post.batchId && req.programContext?.batchId &&
+        post.batchId.toString() !== req.programContext.batchId) {
+      res.status(404).json({ message: 'Post not found.' });
+      return;
+    }
+    await CommunityPost.findByIdAndDelete(req.params.id);
     await logAction(req.user!._id.toString(), 'delete_community_post', post._id.toString(), 'community_post', post.title);
     res.json({ message: 'Post deleted.' });
   } catch (error) {

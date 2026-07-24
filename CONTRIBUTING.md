@@ -33,11 +33,11 @@ Required env vars: `MONGODB_URI`, `JWT_SECRET`, at least one AI provider key (`A
 
 ## Workflow
 
-1. Find or open an issue describing the change.
+1. Find or open an issue describing the change. **Use the issue templates** at `.github/ISSUE_TEMPLATE/` (bug_report, feature_request) — they ask the questions we need answered to act on the issue. Freeform / blank issues are disabled (see `config.yml`).
 2. Branch from `main` with a descriptive name (`fix/handle-empty-transcript`, `feat/zoom-retry-dlq`, `docs/architecture-overview`).
 3. Make the change. **One logical change per PR.** No unrelated refactors.
 4. Run quality checks locally (`tsc --noEmit` in both `apps/backend/` and `apps/frontend/`, plus tests).
-5. Open a PR targeting `main`. Reference the issue with `Closes #N` or `Refs #N`.
+5. Open a PR targeting `main`. Use the PR template at `.github/PULL_REQUEST_TEMPLATE.md` — it pre-fills the CI checklist. Reference the issue with `Closes #N` or `Refs #N`.
 6. Address review feedback. Approval + green CI = merge.
 
 ## Pull Request Quality Bar
@@ -112,10 +112,35 @@ Docs and code in the same PR is the norm. Out-of-date docs are a bug.
 
 ## Commit Messages
 
-- Imperative mood, present tense: "Add", "Fix", "Refactor", not "Added" or "Fixes".
-- First line ≤ 72 characters, no period.
-- Body: explain WHY, not WHAT. Reference issues.
-- Examples: `fix: prevent orphaned data on user soft-deletion`, `feat: add retry + dead-letter queue for Zoom ingestion`, `docs: expand admin dashboard analytics section in README`.
+We follow [Conventional Commits 1.0.0](https://www.conventionalcommits.org/).
+
+**Format:** `<type>(<scope>): <subject>`
+
+- **type** — one of `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `perf`, `build`, `ci`.
+- **scope** — the user-visible URL area, lowercase, no spaces. Examples: `community`, `admin/train`, `webPages`, `prompts`. Use the package path or URL prefix, not internal module names.
+- **subject** — imperative mood, present tense ("Add", "Fix", "Refactor", not "Added" or "Fixes"). ≤ 72 characters. No period at the end. No numbers. No arrows or shorthand.
+- **one commit = one change.** Subject says WHAT changed for users, not HOW you implemented it. No `+` lists.
+- **body** — explain WHY (the motivation, the trade-off, the issue link), not WHAT (the code change is in the diff). Reference issues with `Closes #N` or `Refs #N`.
+
+Examples from this repo's recent history:
+
+```
+fix(community): prevent duplicate posts on double-submit
+feat(admin/train): add bulk ingestion panels
+feat(prompts): add CSFAQ Assistant persona to user-facing answer paths
+chore(crons): run embedding-warm weekly instead of hourly
+docs(bridge): fix contract bugs and add LLM prompt
+```
+
+Anti-patterns to avoid:
+
+- ❌ `fix: prevent orphaned data` — no scope, doesn't tell the reader which subsystem
+- ❌ `feat(admin): full schedule management — toggle, edit interval, history` — three things in one subject
+- ❌ `fix(community): invoke auto-answer on post creation (24h cron → seconds)` — comparison/contrast in subject belongs in body
+- ❌ `fix: restore .nojekyll (was deleted with the Pages workflow by mistake)` — implementation context in subject
+- ❌ `chore: stuff` or `WIP` — useless, no type, no scope, no description
+- ❌ Long subjects (over 72 chars) that get truncated in `git log --oneline`
+
 
 ## Reporting Issues
 

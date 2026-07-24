@@ -13,6 +13,14 @@ import type { GcsAsset } from '../../hooks/useGcsUpload';
 import { buildGcsTransformedUrl } from '../../utils/gcsTransform';
 import { useAuth } from '../../hooks/useAuth';
 import { useAuthGate } from '../../context/AuthModalContext';
+import {
+  communityDifficultyEasy,
+  communityDifficultyHard,
+  communityDifficultyModerate,
+  communityReportButton,
+  communityReportHover,
+  communityStatusReported,
+} from '../../styles/style_config';
 import { LIFECYCLE_CONFIG, formatDate, DEPTH_COLORS, DEPTH_BARS } from '../ui/threadUtils';
 
 export interface Comment {
@@ -465,7 +473,7 @@ export default function ThreadDetail({ postId, onClose }: ThreadDetailProps) {
                       setTimeout(() => setActionError(null), 3000);
                     }
                   }}
-                  className="w-8 h-8 rounded-xl bg-mist text-ink-soft hover:bg-red-50 hover:text-red-500 flex items-center justify-center transition-all"
+                  className={communityReportButton}
                   title="Delete post"
                 >
                   <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.4">
@@ -501,12 +509,12 @@ export default function ThreadDetail({ postId, onClose }: ThreadDetailProps) {
                           <span className="text-xs text-ink-faint">·</span>
                           <span className="text-xs text-ink-faint">{formatDate(post.createdAt)}</span>
                           {isPrivileged && post.timeTrialStatus === 'pending' && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 border border-red-200 text-red-600 text-[10px] font-semibold">
+                            <span className={communityStatusReported}>
                               ⚡ Time-Trial · {post.timeTrialHoursRemaining}h left
                             </span>
                           )}
                           {isPrivileged && post.escalationStatus === 'escalated' && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 border border-red-200 text-red-600 text-[10px] font-semibold">
+                            <span className={communityStatusReported}>
                               ⚠ Escalated
                             </span>
                           )}
@@ -619,7 +627,7 @@ export default function ThreadDetail({ postId, onClose }: ThreadDetailProps) {
                       ) : (
                         <button
                           onClick={() => setShowReportForm(true)}
-                          className="flex items-center gap-1 text-xs text-ink-faint hover:text-danger px-2 py-1.5 rounded-full hover:bg-red-50 transition-all"
+                          className={communityReportHover}
                         >
                           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.4">
                             <path d="M6 2L10 10H2L6 2Z"/>
@@ -663,10 +671,12 @@ export default function ThreadDetail({ postId, onClose }: ThreadDetailProps) {
                     </span>
                   )}
                   {post.dna.difficulty && (
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
-                      post.dna.difficulty === 'Easy' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' :
-                      post.dna.difficulty === 'Moderate' ? 'bg-yellow-100 text-yellow-700 border border-yellow-200' :
-                      'bg-red-100 text-red-600 border border-red-200'
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
+                      post.dna.difficulty === 'Easy'
+                        ? communityDifficultyEasy
+                        : post.dna.difficulty === 'Moderate'
+                        ? communityDifficultyModerate
+                        : communityDifficultyHard
                     }`}>
                       {post.dna.difficulty}
                     </span>

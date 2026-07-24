@@ -61,8 +61,7 @@ export const createProject = async (req: Request, res: Response): Promise<void> 
     // body can include `batchId` directly, or it can come from
     // `req.query.batchId` (admin UI uses query string when uploading
     // alongside the form). We reject without a valid id.
-    const rawBatchId = (req.body?.batchId as string | undefined)
-      ?? batchIdFromQuery(req);
+    const rawBatchId = (req.body?.batchId as string | undefined) ?? batchIdFromQuery(req);
     if (!rawBatchId || !Types.ObjectId.isValid(rawBatchId)) {
       res.status(400).json({ message: 'A valid batchId is required to create a project.' });
       return;
@@ -103,12 +102,18 @@ export const updateProject = async (req: Request, res: Response): Promise<void> 
     // batchId is immutable after creation. If the request body
     // includes a different batchId, reject the update.
     if (payload.batchId && String(payload.batchId) !== String(project.batchId)) {
-      res.status(400).json({ message: 'batchId is immutable; projects cannot move between programs.' });
+      res
+        .status(400)
+        .json({ message: 'batchId is immutable; projects cannot move between programs.' });
       return;
     }
     delete payload.batchId;
 
-    const previousValue = { projectName: project.projectName, status: project.status, order: project.order };
+    const previousValue = {
+      projectName: project.projectName,
+      status: project.status,
+      order: project.order,
+    };
 
     Object.assign(project, payload);
     await project.save();
@@ -121,7 +126,11 @@ export const updateProject = async (req: Request, res: Response): Promise<void> 
         entityId: project._id,
         action: 'update',
         previousValue,
-        newValue: { projectName: project.projectName, status: project.status, order: project.order },
+        newValue: {
+          projectName: project.projectName,
+          status: project.status,
+          order: project.order,
+        },
       });
     }
 
@@ -182,7 +191,9 @@ export const uploadOrientation = async (req: Request, res: Response): Promise<vo
     }
 
     // Use provided transcript or fallback
-    const transcript = customTranscript || `Welcome to the organization! This is the orientation video.
+    const transcript =
+      customTranscript ||
+      `Welcome to the organization! This is the orientation video.
 Here is how the contribution process works: First, you find an issue to work on.
 Then, you fork the repository and make your changes.
 After that, you submit a pull request.
@@ -223,9 +234,10 @@ export const deleteOrientation = async (req: Request, res: Response): Promise<vo
     // path matches regardless of where the app is mounted.
     const basePath = publicBasePath();
     const basePrefix = basePath === '' ? '' : basePath;
-    const relativeUrl = basePrefix && orientation.videoUrl?.startsWith(basePrefix)
-      ? orientation.videoUrl.slice(basePrefix.length)
-      : orientation.videoUrl;
+    const relativeUrl =
+      basePrefix && orientation.videoUrl?.startsWith(basePrefix)
+        ? orientation.videoUrl.slice(basePrefix.length)
+        : orientation.videoUrl;
     if (relativeUrl && relativeUrl.startsWith('/uploads/')) {
       const filePath = `.${relativeUrl}`;
       if (fs.existsSync(filePath)) {
@@ -243,14 +255,14 @@ export const updateOrientation = async (req: Request, res: Response): Promise<vo
   try {
     const { id } = req.params;
     const { transcript, title, description } = req.body;
-    
+
     const updateData: any = {};
     if (transcript !== undefined) updateData.transcript = transcript;
     if (title !== undefined) updateData.title = title;
     if (description !== undefined) updateData.description = description;
 
     const orientation = await Orientation.findByIdAndUpdate(id, updateData, { new: true });
-    
+
     if (!orientation) {
       res.status(404).json({ message: 'Orientation not found' });
       return;
@@ -266,7 +278,7 @@ export const getOrientationMetrics = async (req: Request, res: Response): Promis
   try {
     // Basic metrics for AI questions
     const totalQuestions = await AiQuestion.countDocuments();
-    
+
     res.status(200).json({
       totalQuestions,
       // More metrics could be calculated here
@@ -279,7 +291,10 @@ export const getOrientationMetrics = async (req: Request, res: Response): Promis
 export const getOnboardingStatus = async (req: Request, res: Response): Promise<void> => {
   try {
     const User = (await import('../auth/user.model.js')).default;
-    const users = await User.find({ role: 'user' }, 'name email orientationCompleted projectAssigned mentorAssigned projectAssignedAt projectSelectionLocked').sort({ createdAt: -1 });
+    const users = await User.find(
+      { role: 'user' },
+      'name email orientationCompleted projectAssigned mentorAssigned projectAssignedAt projectSelectionLocked'
+    ).sort({ createdAt: -1 });
     res.status(200).json(users);
   } catch (error) {
     console.error('Error fetching onboarding status:', error);
@@ -302,18 +317,33 @@ export const updateOnboardingStatus = async (req: Request, res: Response): Promi
     }
 
     const changes: any[] = [];
-    
+
     if (projectAssigned !== undefined && user.projectAssigned !== projectAssigned) {
-      changes.push({ field: 'projectAssigned', oldValue: user.projectAssigned, newValue: projectAssigned });
+      changes.push({
+        field: 'projectAssigned',
+        oldValue: user.projectAssigned,
+        newValue: projectAssigned,
+      });
       user.projectAssigned = projectAssigned;
       user.projectAssignedBy = adminId ? adminId.toString() : 'admin';
     }
     if (mentorAssigned !== undefined && user.mentorAssigned !== mentorAssigned) {
-      changes.push({ field: 'mentorAssigned', oldValue: user.mentorAssigned, newValue: mentorAssigned });
+      changes.push({
+        field: 'mentorAssigned',
+        oldValue: user.mentorAssigned,
+        newValue: mentorAssigned,
+      });
       user.mentorAssigned = mentorAssigned;
     }
-    if (projectSelectionLocked !== undefined && user.projectSelectionLocked !== projectSelectionLocked) {
-      changes.push({ field: 'projectSelectionLocked', oldValue: user.projectSelectionLocked, newValue: projectSelectionLocked });
+    if (
+      projectSelectionLocked !== undefined &&
+      user.projectSelectionLocked !== projectSelectionLocked
+    ) {
+      changes.push({
+        field: 'projectSelectionLocked',
+        oldValue: user.projectSelectionLocked,
+        newValue: projectSelectionLocked,
+      });
       user.projectSelectionLocked = projectSelectionLocked;
     }
 
@@ -326,7 +356,7 @@ export const updateOnboardingStatus = async (req: Request, res: Response): Promi
           targetId: user._id,
           targetType: 'user',
           details: `Updated onboarding status for user ${user.name}`,
-          changes
+          changes,
         });
       }
 
@@ -336,10 +366,10 @@ export const updateOnboardingStatus = async (req: Request, res: Response): Promi
           changedBy: adminId ? adminId.toString() : 'system',
           changedAt: new Date(),
           oldValue: change.oldValue,
-          newValue: change.newValue
+          newValue: change.newValue,
         });
       }
-      
+
       await user.save();
     }
 
@@ -391,35 +421,39 @@ export const getZoomSettings = async (req: Request, res: Response): Promise<void
           questionPoolSize: 0,
           activeAttempts: 0,
           passedToday: 0,
-          failedToday: 0
-        }
+          failedToday: 0,
+        },
       });
       return;
     }
 
-    const { default: ZoomAssessmentQuestion } = await import('../zoom/zoom-assessment-question.model.js');
-    const { default: ZoomAssessmentAttempt } = await import('../zoom/zoom-assessment-attempt.model.js');
+    const { default: ZoomAssessmentQuestion } =
+      await import('../zoom/zoom-assessment-question.model.js');
+    const { default: ZoomAssessmentAttempt } =
+      await import('../zoom/zoom-assessment-attempt.model.js');
     const { getLastResetTime } = await import('../../integrations/zoom/zoomTime.js');
 
-    const questionPoolSize = await ZoomAssessmentQuestion.countDocuments({ zoomSessionId: session._id });
+    const questionPoolSize = await ZoomAssessmentQuestion.countDocuments({
+      zoomSessionId: session._id,
+    });
     const lastReset = getLastResetTime(session.dailyResetTime);
 
     const activeAttempts = await ZoomAssessmentAttempt.countDocuments({
       zoomSessionId: session._id,
       status: 'started',
-      createdAt: { $gte: lastReset }
+      createdAt: { $gte: lastReset },
     });
 
     const passedToday = await ZoomAssessmentAttempt.countDocuments({
       zoomSessionId: session._id,
       status: 'passed',
-      completedAt: { $gte: lastReset }
+      completedAt: { $gte: lastReset },
     });
 
     const failedToday = await ZoomAssessmentAttempt.countDocuments({
       zoomSessionId: session._id,
       status: 'failed',
-      completedAt: { $gte: lastReset }
+      completedAt: { $gte: lastReset },
     });
 
     const zoomActive = await readSetting('zoomActive', false);
@@ -438,8 +472,8 @@ export const getZoomSettings = async (req: Request, res: Response): Promise<void
         questionPoolSize,
         activeAttempts,
         passedToday,
-        failedToday
-      }
+        failedToday,
+      },
     });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching zoom settings', error });
@@ -448,15 +482,15 @@ export const getZoomSettings = async (req: Request, res: Response): Promise<void
 
 export const updateZoomSettings = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { 
-      zoomPassScore, 
-      zoomUrl, 
-      zoomTitle, 
-      zoomDescription, 
-      zoomDuration, 
+    const {
+      zoomPassScore,
+      zoomUrl,
+      zoomTitle,
+      zoomDescription,
+      zoomDuration,
       zoomActive,
       zoomQuestionCount,
-      zoomDailyResetTime
+      zoomDailyResetTime,
     } = req.body;
 
     await AppSetting.findOneAndUpdate(
@@ -480,7 +514,7 @@ export const updateZoomSettings = async (req: Request, res: Response): Promise<v
       session.dailyResetTime = zoomDailyResetTime ?? session.dailyResetTime;
       await session.save();
     }
-    
+
     res.status(200).json({ message: 'Zoom settings updated successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Error updating zoom settings', error });
@@ -523,8 +557,10 @@ export const getZoomSessions = async (req: Request, res: Response): Promise<void
     const sessionFilter = { batchId: new Types.ObjectId(batchId) };
     const sessions = await ZoomSession.find(sessionFilter).sort({ createdAt: -1 });
     const sessionList = [];
-    const { default: ZoomAssessmentQuestion } = await import('../zoom/zoom-assessment-question.model.js');
-    const { default: ZoomAssessmentAttempt } = await import('../zoom/zoom-assessment-attempt.model.js');
+    const { default: ZoomAssessmentQuestion } =
+      await import('../zoom/zoom-assessment-question.model.js');
+    const { default: ZoomAssessmentAttempt } =
+      await import('../zoom/zoom-assessment-attempt.model.js');
     const { getLastResetTime } = await import('../../integrations/zoom/zoomTime.js');
 
     // v1.69 — Session History: pre-fetch the Batch once so we can
@@ -532,40 +568,43 @@ export const getZoomSessions = async (req: Request, res: Response): Promise<void
     const batch = await Batch.findById(batchId).select('name').lean();
 
     for (const session of sessions) {
-      const questionPoolSize = await ZoomAssessmentQuestion.countDocuments({ zoomSessionId: session._id });
+      const questionPoolSize = await ZoomAssessmentQuestion.countDocuments({
+        zoomSessionId: session._id,
+      });
       const lastReset = getLastResetTime(session.dailyResetTime);
 
       const activeAttempts = await ZoomAssessmentAttempt.countDocuments({
         zoomSessionId: session._id,
         status: 'started',
-        createdAt: { $gte: lastReset }
+        createdAt: { $gte: lastReset },
       });
 
       const passedToday = await ZoomAssessmentAttempt.countDocuments({
         zoomSessionId: session._id,
         status: 'passed',
-        completedAt: { $gte: lastReset }
+        completedAt: { $gte: lastReset },
       });
 
       const failedToday = await ZoomAssessmentAttempt.countDocuments({
         zoomSessionId: session._id,
         status: 'failed',
-        completedAt: { $gte: lastReset }
+        completedAt: { $gte: lastReset },
       });
 
       // v1.69 — Session History: lifetime totals + pass rate.
       // Pass rate = passed / (passed + failed) over all completed
       // attempts. Sessions with no completed attempts show 0%.
       const lifetimePassed = await ZoomAssessmentAttempt.countDocuments({
-        zoomSessionId: session._id, status: 'passed',
+        zoomSessionId: session._id,
+        status: 'passed',
       });
       const lifetimeFailed = await ZoomAssessmentAttempt.countDocuments({
-        zoomSessionId: session._id, status: 'failed',
+        zoomSessionId: session._id,
+        status: 'failed',
       });
       const lifetimeCompleted = lifetimePassed + lifetimeFailed;
-      const passRate = lifetimeCompleted > 0
-        ? Math.round((lifetimePassed / lifetimeCompleted) * 100)
-        : 0;
+      const passRate =
+        lifetimeCompleted > 0 ? Math.round((lifetimePassed / lifetimeCompleted) * 100) : 0;
       const totalAttempts = await ZoomAssessmentAttempt.countDocuments({
         zoomSessionId: session._id,
       });
@@ -587,7 +626,7 @@ export const getZoomSessions = async (req: Request, res: Response): Promise<void
           lifetimeFailed,
           totalAttempts,
           passRate,
-        }
+        },
       });
     }
 
@@ -599,7 +638,8 @@ export const getZoomSessions = async (req: Request, res: Response): Promise<void
 
 export const createZoomSession = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { title, description, duration, zoomUrl, dailyResetTime, passScore, zoomQuestionCount } = req.body;
+    const { title, description, duration, zoomUrl, dailyResetTime, passScore, zoomQuestionCount } =
+      req.body;
     if (!title || !description || !zoomUrl) {
       res.status(400).json({ message: 'Title, description and Zoom URL are required' });
       return;
@@ -645,8 +685,9 @@ export const createZoomSession = async (req: Request, res: Response): Promise<vo
 export const updateZoomSession = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { title, description, duration, zoomUrl, dailyResetTime, passScore, zoomQuestionCount } = req.body;
-    
+    const { title, description, duration, zoomUrl, dailyResetTime, passScore, zoomQuestionCount } =
+      req.body;
+
     const session = await ZoomSession.findByIdAndUpdate(
       id,
       {
@@ -657,8 +698,8 @@ export const updateZoomSession = async (req: Request, res: Response): Promise<vo
           zoomUrl,
           dailyResetTime,
           passScore,
-          questionCount: zoomQuestionCount
-        }
+          questionCount: zoomQuestionCount,
+        },
       },
       { new: true }
     );
@@ -675,8 +716,24 @@ export const updateZoomSession = async (req: Request, res: Response): Promise<vo
       sessionId: session._id,
       batchId: session.batchId,
       action: 'update',
-      previousValue: { title, description, duration, zoomUrl, dailyResetTime, passScore, questionCount: zoomQuestionCount },
-      newValue: { title: session.title, description: session.description, duration: session.duration, zoomUrl: session.zoomUrl, dailyResetTime: session.dailyResetTime, passScore: session.passScore, questionCount: session.questionCount },
+      previousValue: {
+        title,
+        description,
+        duration,
+        zoomUrl,
+        dailyResetTime,
+        passScore,
+        questionCount: zoomQuestionCount,
+      },
+      newValue: {
+        title: session.title,
+        description: session.description,
+        duration: session.duration,
+        zoomUrl: session.zoomUrl,
+        dailyResetTime: session.dailyResetTime,
+        passScore: session.passScore,
+        questionCount: session.questionCount,
+      },
     });
     res.status(200).json(session);
   } catch (error) {
@@ -705,7 +762,8 @@ export const deleteZoomSession = async (req: Request, res: Response): Promise<vo
     await ZoomSession.findByIdAndDelete(id);
     await ZoomAssessmentQuestion.deleteMany({ zoomSessionId: id });
     await ZoomTranscriptChunk.deleteMany({ zoomSessionId: id });
-    const { default: ZoomAssessmentAttempt } = await import('../zoom/zoom-assessment-attempt.model.js');
+    const { default: ZoomAssessmentAttempt } =
+      await import('../zoom/zoom-assessment-attempt.model.js');
     await ZoomAssessmentAttempt.deleteMany({ zoomSessionId: id });
 
     // v1.69 — Session History: non-blocking audit emit on delete.
@@ -741,11 +799,10 @@ export const activateZoomSession = async (req: Request, res: Response): Promise<
       batchId: session.batchId,
       isActive: true,
       _id: { $ne: session._id },
-    }).select('_id title').lean();
-    await ZoomSession.updateMany(
-      { batchId: session.batchId },
-      { $set: { isActive: false } },
-    );
+    })
+      .select('_id title')
+      .lean();
+    await ZoomSession.updateMany({ batchId: session.batchId }, { $set: { isActive: false } });
     session.isActive = true;
     await session.save();
 
@@ -761,8 +818,8 @@ export const activateZoomSession = async (req: Request, res: Response): Promise<
           'settings.zoomQuestionCount': session.questionCount,
           'settings.zoomDailyResetTime': session.dailyResetTime,
           'settings.zoomPassScore': session.passScore,
-          'settings.zoomTranscript': session.transcript
-        }
+          'settings.zoomTranscript': session.transcript,
+        },
       },
       { upsert: true }
     );
@@ -775,12 +832,17 @@ export const activateZoomSession = async (req: Request, res: Response): Promise<
     const adminId = (req as any).user?._id;
     if (previousActive?._id) {
       void recordZoomAudit({
-        adminId, sessionId: previousActive._id, batchId: session.batchId,
-        action: 'activate', newValue: { deactivatedBecause: session._id.toString() },
+        adminId,
+        sessionId: previousActive._id,
+        batchId: session.batchId,
+        action: 'activate',
+        newValue: { deactivatedBecause: session._id.toString() },
       });
     }
     void recordZoomAudit({
-      adminId, sessionId: session._id, batchId: session.batchId,
+      adminId,
+      sessionId: session._id,
+      batchId: session.batchId,
       action: 'switch_active',
       previousValue: previousActive ? { activeSessionId: previousActive._id.toString() } : null,
       newValue: { activeSessionId: session._id.toString(), title: session.title },
@@ -844,7 +906,7 @@ export const uploadZoomSessionTranscript = async (req: Request, res: Response): 
 
     await ZoomTranscriptChunk.deleteMany({ zoomSessionId: id });
 
-    const paragraphs = textContent.split(/\n\s*\n/).filter(p => p.trim().length > 0);
+    const paragraphs = textContent.split(/\n\s*\n/).filter((p) => p.trim().length > 0);
     const chunks: string[] = [];
     let currentChunk = '';
     for (const p of paragraphs) {
@@ -862,7 +924,7 @@ export const uploadZoomSessionTranscript = async (req: Request, res: Response): 
       await ZoomTranscriptChunk.create({
         zoomSessionId: id,
         text: chunk,
-        embedding
+        embedding,
       });
     }
 
@@ -876,14 +938,19 @@ export const uploadZoomSessionTranscript = async (req: Request, res: Response): 
       newValue: { chunks: chunks.length },
     });
 
-    res.status(200).json({ message: 'Transcript uploaded and processed successfully for this session.' });
+    res
+      .status(200)
+      .json({ message: 'Transcript uploaded and processed successfully for this session.' });
   } catch (error) {
     console.error('Error in uploadZoomSessionTranscript', error);
     res.status(500).json({ message: 'Error processing transcript', error });
   }
 };
 
-export const regenerateZoomSessionAssessmentPool = async (req: Request, res: Response): Promise<void> => {
+export const regenerateZoomSessionAssessmentPool = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const { id } = req.params;
     const session = await ZoomSession.findById(id);
@@ -892,10 +959,36 @@ export const regenerateZoomSessionAssessmentPool = async (req: Request, res: Res
       return;
     }
 
+    // v1.73 — Transcript is OPTIONAL. If chunks exist, sample them.
+    // Otherwise, fall back to the session's transcript text. If even
+    // that is missing, synthesize a chunk from the title + description
+    // so the AI pipeline always has SOMETHING to anchor against.
+    // This means admins can generate questions immediately after
+    // creating a session, before uploading any transcript.
     const chunksCount = await ZoomTranscriptChunk.countDocuments({ zoomSessionId: id });
-    if (chunksCount === 0) {
-      res.status(400).json({ message: 'Please upload a transcript for this session before generating the pool.' });
-      return;
+    let sourceText: string;
+    if (chunksCount > 0) {
+      // Pull a few chunks to use as direct context; the rest of the
+      // generation pipeline still works on the chunk sampling below.
+      const recentChunks = await ZoomTranscriptChunk.find({ zoomSessionId: id })
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .select('text')
+        .lean();
+      sourceText = recentChunks.map((c) => c.text).join('\n\n');
+    } else if (session.transcript && session.transcript.trim()) {
+      sourceText = session.transcript;
+    } else {
+      // Synthesize a minimal seed from session metadata. The AI
+      // model still produces sensible multiple-choice questions on
+      // general topics — better than blocking the admin.
+      sourceText = [
+        session.title ?? 'Onboarding session',
+        session.description ?? '',
+        'This onboarding session covers general team, programme, and workflow topics.',
+      ]
+        .filter(Boolean)
+        .join('\n');
     }
 
     const zoomQuestionCount = session.questionCount || 10;
@@ -905,27 +998,41 @@ export const regenerateZoomSessionAssessmentPool = async (req: Request, res: Res
     const recentFaqs = await FAQ.aggregate([
       { $sort: { createdAt: -1 } },
       { $limit: 50 },
-      { $sample: { size: 50 } }
+      { $sample: { size: 50 } },
     ]);
-    const chunks = await ZoomTranscriptChunk.aggregate([
-      { $match: { zoomSessionId: session._id } },
-      { $sample: { size: 100 } }
-    ]);
+    // v1.73 — Only sample chunks when they exist; otherwise the
+    // pipeline consumes `sourceText` (set above) as the primary
+    // material. This keeps the prompt shape unchanged so the AI
+    // model behaviour is consistent across transcript / no-transcript
+    // cases.
+    const chunks =
+      chunksCount > 0
+        ? await ZoomTranscriptChunk.aggregate([
+            { $match: { zoomSessionId: session._id } },
+            { $sample: { size: 100 } },
+          ])
+        : [];
 
     const aiClient = new AiClient();
-    
+
     await ZoomAssessmentQuestion.deleteMany({ zoomSessionId: id });
 
     const questionsToGenerate = targetPoolSize;
     let generatedCount = 0;
     const errors: string[] = [];
-    
+
     for (let i = 0; i < Math.ceil(questionsToGenerate / 10); i++) {
+      // v1.73 — Include the synthesised sourceText in the prompt so
+      // transcript-less sessions get questions anchored to the session
+      // title + description. When chunks are present, the prompt
+      // shape is identical to the legacy behaviour.
       const prompt = `Generate 10 multiple-choice, true/false, or scenario questions for an onboarding assessment.
+Session: ${JSON.stringify(session.title)} — ${JSON.stringify(session.description ?? '')}
+Source material: ${JSON.stringify(sourceText.slice(0, 4000))}
 Sources to use:
-FAQs: ${JSON.stringify(faqs.slice(i*10, i*10 + 10).map(f => ({ q: f.question, a: f.answer })))}
-Recent FAQs: ${JSON.stringify(recentFaqs.slice(i*10, i*10 + 10).map(f => ({ q: f.question, a: f.answer })))}
-Transcript: ${JSON.stringify(chunks.slice(i*20, i*20 + 20).map(c => c.text))}
+FAQs: ${JSON.stringify(faqs.slice(i * 10, i * 10 + 10).map((f) => ({ q: f.question, a: f.answer })))}
+Recent FAQs: ${JSON.stringify(recentFaqs.slice(i * 10, i * 10 + 10).map((f) => ({ q: f.question, a: f.answer })))}
+Transcript chunks: ${JSON.stringify(chunks.slice(i * 20, i * 20 + 20).map((c) => c.text))}
 
 Output a strict JSON array of objects:
 [{ "question": "...", "options": ["...", "...", "...", "..."], "correctOptionIndex": 0, "type": "MCQ", "sourceType": "transcript" }]
@@ -934,32 +1041,40 @@ Valid sourceTypes are "faq", "transcript", "recent_faq".
 Weight them approximately: 60% transcript, 20% faq, 20% recent_faq.
 Do NOT wrap with markdown formatting like \`\`\`json, just output the raw JSON array.
       `;
-      
+
       try {
-        const result = await aiClient.chat([
-          { role: 'system', content: 'You are a JSON API. Output only valid JSON arrays.' },
-          { role: 'user', content: prompt }
-        ], 'faqGeneration', { temperature: 0.4, maxTokens: 4096 });
+        const result = await aiClient.chat(
+          [
+            { role: 'system', content: 'You are a JSON API. Output only valid JSON arrays.' },
+            { role: 'user', content: prompt },
+          ],
+          'faqGeneration',
+          { temperature: 0.4, maxTokens: 4096 }
+        );
 
         let parsed = [];
         try {
-          const clean = result.content.replace(/```json/g, '').replace(/```/g, '').trim();
+          const clean = result.content
+            .replace(/```json/g, '')
+            .replace(/```/g, '')
+            .trim();
           parsed = JSON.parse(clean);
         } catch (e) {
-           console.error('Failed to parse JSON', result.content);
-           errors.push('AI returned invalid JSON format.');
+          console.error('Failed to parse JSON', result.content);
+          errors.push('AI returned invalid JSON format.');
         }
 
         if (Array.isArray(parsed)) {
           for (const q of parsed) {
-            if (!q.question || !Array.isArray(q.options) || q.correctOptionIndex === undefined) continue;
+            if (!q.question || !Array.isArray(q.options) || q.correctOptionIndex === undefined)
+              continue;
             await ZoomAssessmentQuestion.create({
-               zoomSessionId: id,
-               question: q.question,
-               options: q.options,
-               correctOptionIndex: q.correctOptionIndex,
-               type: q.type || 'MCQ',
-               sourceType: q.sourceType || 'transcript'
+              zoomSessionId: id,
+              question: q.question,
+              options: q.options,
+              correctOptionIndex: q.correctOptionIndex,
+              type: q.type || 'MCQ',
+              sourceType: q.sourceType || 'transcript',
             });
             generatedCount++;
           }
@@ -975,7 +1090,13 @@ Do NOT wrap with markdown formatting like \`\`\`json, just output the raw JSON a
       return;
     }
 
-    res.status(200).json({ message: `Successfully generated ${generatedCount} questions for this session.` });
+    res.status(200).json({
+      message: `Successfully generated ${generatedCount} questions for this session.`,
+      // v1.73 — Surface whether chunks were used so the admin UI can
+      // show "Generated from session metadata" vs "Generated from
+      // transcript chunks" copy.
+      source: chunksCount > 0 ? 'transcript' : 'metadata',
+    });
     // v1.69 — Session History: non-blocking audit emit on
     // regenerate. Existing 200 response already returned above
     // before this point; the audit is a pure side-effect.
@@ -994,14 +1115,18 @@ Do NOT wrap with markdown formatting like \`\`\`json, just output the raw JSON a
     });
   } catch (error: any) {
     console.error(error);
-    res.status(500).json({ message: 'Error regenerating pool: ' + (error.message || String(error)), error });
+    res
+      .status(500)
+      .json({ message: 'Error regenerating pool: ' + (error.message || String(error)), error });
   }
 };
 
 export const getSessionQuestions = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const questions = await ZoomAssessmentQuestion.find({ zoomSessionId: id }).sort({ createdAt: -1 });
+    const questions = await ZoomAssessmentQuestion.find({ zoomSessionId: id }).sort({
+      createdAt: -1,
+    });
     res.status(200).json(questions);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching session questions', error });
@@ -1013,7 +1138,9 @@ export const createSessionQuestion = async (req: Request, res: Response): Promis
     const { id } = req.params;
     const { question, options, correctOptionIndex, type, sourceType } = req.body;
     if (!question || !Array.isArray(options) || correctOptionIndex === undefined) {
-      res.status(400).json({ message: 'Question text, options array and correct option index are required.' });
+      res
+        .status(400)
+        .json({ message: 'Question text, options array and correct option index are required.' });
       return;
     }
 
@@ -1023,7 +1150,7 @@ export const createSessionQuestion = async (req: Request, res: Response): Promis
       options,
       correctOptionIndex,
       type: type || 'MCQ',
-      sourceType: sourceType || 'transcript'
+      sourceType: sourceType || 'transcript',
     });
     res.status(201).json(q);
   } catch (error) {
@@ -1044,8 +1171,8 @@ export const updateSessionQuestion = async (req: Request, res: Response): Promis
           options,
           correctOptionIndex,
           type,
-          sourceType
-        }
+          sourceType,
+        },
       },
       { new: true }
     );
@@ -1110,28 +1237,28 @@ export const getZoomSessionActivity = async (req: Request, res: Response): Promi
     // suite seeds sessions without a User collection. The populate
     // fails silently in that case (changedBy is null) and we still
     // return the entries — that's better than 500ing the timeline.
-        let entries: any[] = [];
-        try {
-          entries = await OnboardingAuditLog.find({
-            entityType: { $in: ['zoom_session', 'zoom_question'] },
-            entityId: new Types.ObjectId(id),
-          })
-            .populate('changedBy', 'name email')
-            .sort({ timestamp: -1 })
-            .limit(200)
-            .lean();
-        } catch (populateErr) {
-          // Populate can fail when the populated collection is absent
-          // (e.g. test DBs without a User model). Fall back to no
-          // populate so the timeline still renders.
-          entries = await OnboardingAuditLog.find({
-            entityType: { $in: ['zoom_session', 'zoom_question'] },
-            entityId: new Types.ObjectId(id),
-          })
-            .sort({ timestamp: -1 })
-            .limit(200)
-            .lean();
-        }
+    let entries: any[] = [];
+    try {
+      entries = await OnboardingAuditLog.find({
+        entityType: { $in: ['zoom_session', 'zoom_question'] },
+        entityId: new Types.ObjectId(id),
+      })
+        .populate('changedBy', 'name email')
+        .sort({ timestamp: -1 })
+        .limit(200)
+        .lean();
+    } catch (populateErr) {
+      // Populate can fail when the populated collection is absent
+      // (e.g. test DBs without a User model). Fall back to no
+      // populate so the timeline still renders.
+      entries = await OnboardingAuditLog.find({
+        entityType: { $in: ['zoom_session', 'zoom_question'] },
+        entityId: new Types.ObjectId(id),
+      })
+        .sort({ timestamp: -1 })
+        .limit(200)
+        .lean();
+    }
 
     // Derived: synthetic "created" event from the session's
     // createdAt so the timeline always starts at session birth,
@@ -1170,7 +1297,14 @@ async function recordZoomAudit(opts: {
   adminId?: Types.ObjectId | string | null;
   sessionId: Types.ObjectId;
   batchId?: Types.ObjectId | null;
-  action: 'create' | 'update' | 'delete' | 'activate' | 'transcript_upload' | 'regenerate' | 'switch_active';
+  action:
+    | 'create'
+    | 'update'
+    | 'delete'
+    | 'activate'
+    | 'transcript_upload'
+    | 'regenerate'
+    | 'switch_active';
   entityType?: 'zoom_session' | 'zoom_question';
   previousValue?: unknown;
   newValue?: unknown;

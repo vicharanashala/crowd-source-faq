@@ -6,6 +6,34 @@ import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import api from '../../utils/api';
 import Input from '../ui/Input';
 import Button from '../ui/Button';
+import {
+  authCloseButton,
+  authHintFaint,
+  authHintSoft,
+  authInfoBox,
+  authInputIcon,
+  authModalPanel,
+  authTabBase,
+  authTabActive,
+  authTabIdle,
+  authTabRow,
+  authTitle,
+  accentBorderMuted,
+  cardHeaderTitle,
+  dangerBorder,
+  emptyPaddedCenter,
+  inlineDangerBanner,
+  modalShell,
+  modalTitleRow,
+  stackMd,
+  textBody,
+  textHeaderSm,
+  textLabel,
+  textLabelBold,
+  textXsFaint,
+  warningBorder,
+  textXsLabel,
+} from '../../styles/style_config';
 
 type Tab = 'signin' | 'register';
 
@@ -48,6 +76,10 @@ export default function AuthModal() {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  
+  const [showLoginPwd, setShowLoginPwd] = useState(false);
+  const [showRegPwd, setShowRegPwd] = useState(false);
+  const [showRegConfirmPwd, setShowRegConfirmPwd] = useState(false);
 
   // v1.7x — Public registration-mode snapshot. Fetched when the modal
   // opens on the register tab so we can render the right banner copy
@@ -260,7 +292,7 @@ export default function AuthModal() {
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center px-4 animate-fade-in"
+      className={modalShell}
       style={{
         backgroundColor: 'rgba(15, 15, 15, 0.45)',
         backdropFilter: 'blur(14px) saturate(1.4)',
@@ -274,23 +306,23 @@ export default function AuthModal() {
       aria-labelledby="auth-modal-title"
     >
       <div
-        className="w-full max-w-sm bg-card rounded-2xl border border-border shadow-card p-6 animate-fade-in"
+        className={authModalPanel}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-start justify-between mb-5">
+        <div className={modalTitleRow}>
           <div>
-            <h2 id="auth-modal-title" className="text-base font-serif text-ink">
+            <h2 id="auth-modal-title" className={authTitle}>
               {tab === 'signin' ? 'Sign in' : 'Get started'}
             </h2>
             {prompt && (
-              <p className="text-[11px] text-ink-soft mt-1">{prompt}</p>
+              <p className={authHintSoft}>{prompt}</p>
             )}
           </div>
           <button
             onClick={handleClose}
             aria-label="Close"
-            className="w-7 h-7 flex items-center justify-center rounded-full text-ink-faint hover:text-ink hover:bg-black/[0.04] transition-colors -mt-1 -mr-1"
+            className={authCloseButton}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
               <line x1="6" y1="6" x2="18" y2="18"/>
@@ -300,27 +332,23 @@ export default function AuthModal() {
         </div>
 
         {/* Tabs */}
-        <div className="flex items-center gap-1 p-1 rounded-full bg-mist mb-5">
+        <div className={authTabRow}>
           <button
             onClick={() => { setTab('signin'); setError(''); }}
-            className={`flex-1 py-1.5 text-xs font-semibold rounded-full transition-colors ${
-              tab === 'signin' ? 'bg-card text-ink shadow-subtle' : 'text-ink-soft hover:text-ink'
-            }`}
+            className={`${authTabBase} ${tab === 'signin' ? authTabActive : authTabIdle}`}
           >
             Sign in
           </button>
           <button
             onClick={() => { setTab('register'); setError(''); }}
-            className={`flex-1 py-1.5 text-xs font-semibold rounded-full transition-colors ${
-              tab === 'register' ? 'bg-card text-ink shadow-subtle' : 'text-ink-soft hover:text-ink'
-            }`}
+            className={`${authTabBase} ${tab === 'register' ? authTabActive : authTabIdle}`}
           >
             Get started
           </button>
         </div>
 
         {tab === 'signin' ? (
-          <form onSubmit={handleLoginSubmit} className="space-y-4" noValidate>
+          <form onSubmit={handleLoginSubmit} className={stackMd} noValidate>
             <Input
               id="modal-login-email"
               name="email"
@@ -335,16 +363,30 @@ export default function AuthModal() {
             <Input
               id="modal-login-password"
               name="password"
-              type="password"
+              type={showLoginPwd ? 'text' : 'password'}
               label="Password"
               autoComplete="current-password"
               value={loginForm.password}
               onChange={handleLoginChange}
               placeholder="••••••••"
               disabled={loading}
+              iconRight={
+                <button
+                  type="button"
+                  onClick={() => setShowLoginPwd(!showLoginPwd)}
+                  className={authInputIcon}
+                  aria-label={showLoginPwd ? "Hide password" : "Show password"}
+                >
+                  {showLoginPwd ? (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                  ) : (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                  )}
+                </button>
+              }
             />
             {error && (
-              <p className="text-xs text-danger bg-danger-light border border-danger/15 rounded-xl px-3 py-2">
+              <p className={inlineDangerBanner}>
                 {error}
               </p>
             )}
@@ -353,7 +395,7 @@ export default function AuthModal() {
             </Button>
           </form>
         ) : (
-          <form onSubmit={handleRegisterSubmit} className="space-y-4" noValidate>
+          <form onSubmit={handleRegisterSubmit} className={stackMd} noValidate>
             {/* v1.7x — Registration-mode banner. Drives both the copy
                 and whether the submit button is enabled. The banner is
                 intentionally rendered above the inputs so a closed-mode
@@ -361,16 +403,15 @@ export default function AuthModal() {
                 a form that would 403. */}
             {regStatus && (
               <div
-                className={[
-                  'rounded-md px-3 py-2 text-[11px] border',
+                className={
                   !regStatus.enabled
-                    ? 'bg-red-50 border-red-200 text-red-900'
+                    ? dangerBorder
                     : regStatus.openForAll
-                      ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                      ? accentBorderMuted
                       : inviteToken
-                        ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
-                        : 'bg-amber-50 border-amber-200 text-amber-900',
-                ].join(' ')}
+                        ? accentBorderMuted
+                        : warningBorder
+                }
                 aria-live="polite"
               >
                 {!regStatus.enabled ? (
@@ -422,28 +463,56 @@ export default function AuthModal() {
             <Input
               id="modal-register-password"
               name="password"
-              type="password"
+              type={showRegPwd ? 'text' : 'password'}
               label="Password"
               autoComplete="new-password"
               value={registerForm.password}
               onChange={handleRegisterChange}
               placeholder="••••••••"
               disabled={loading}
+              iconRight={
+                <button
+                  type="button"
+                  onClick={() => setShowRegPwd(!showRegPwd)}
+                  className={authInputIcon}
+                  aria-label={showRegPwd ? "Hide password" : "Show password"}
+                >
+                  {showRegPwd ? (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                  ) : (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                  )}
+                </button>
+              }
             />
-            <p className="text-[10px] text-ink-faint -mt-2">At least 8 characters, including a letter and a number</p>
+            <p className={authHintFaint}>At least 8 characters, including a letter and a number</p>
             <Input
               id="modal-register-confirm"
               name="confirmPassword"
-              type="password"
+              type={showRegConfirmPwd ? 'text' : 'password'}
               label="Confirm Password"
               autoComplete="new-password"
               value={registerForm.confirmPassword}
               onChange={handleRegisterChange}
               placeholder="••••••••"
               disabled={loading}
+              iconRight={
+                <button
+                  type="button"
+                  onClick={() => setShowRegConfirmPwd(!showRegConfirmPwd)}
+                  className={authInputIcon}
+                  aria-label={showRegConfirmPwd ? "Hide password" : "Show password"}
+                >
+                  {showRegConfirmPwd ? (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                  ) : (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                  )}
+                </button>
+              }
             />
             {error && (
-              <p className="text-xs text-danger bg-danger-light border border-danger/15 rounded-xl px-3 py-2">
+              <p className={inlineDangerBanner}>
                 {error}
               </p>
             )}
@@ -463,6 +532,9 @@ export default function AuthModal() {
             >
               {regStatusLoading ? 'Loading…' : 'Create account'}
             </Button>
+            <div className={authInfoBox}>
+              If you are Unable to Register, please ensure that you have joined the whatsapp group sent to you via mail
+            </div>
           </form>
         )}
       </div>

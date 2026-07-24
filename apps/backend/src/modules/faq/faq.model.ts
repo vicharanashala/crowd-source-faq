@@ -271,6 +271,10 @@ const faqSchema = new MongooseSchema(
       index: true,
       default: null,
     },
+    // Phase 1 R8 — soft-delete fields. See community-post.model.ts.
+    deletedAt: { type: Date, default: null, index: true },
+    deletedBy: { type: MongooseSchema.Types.ObjectId, ref: 'User', default: null },
+    deletedReason: { type: String, default: null },
     // v1.69 — see interface. Indexes the (courseId, status) path
     // used by the public FAQs endpoint when the user picks a course.
     courseId: {

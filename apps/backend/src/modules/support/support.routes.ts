@@ -26,6 +26,9 @@ import {
   awardSpurtiPointsAdmin,
   getMySpurtiPoints,
   getGoldenQueue,
+  getMyGoldenHistory,
+  getMyGoldenTicket,
+  postGoldenDiscussion,
 } from './support-golden.controller.js';
 import { createIdentityLimiter } from '../../utils/auth/rateLimit.js';
 
@@ -89,6 +92,22 @@ router.delete('/requests/:id', selfDeleteSupportRequest);
 // inspect and convert tickets even when the user flow is off, same
 // as the category-CRUD pattern.
 router.get('/golden/queue',                       getGoldenQueue);
+// v1.73 — User Golden Ticket history (caller's own past tickets,
+// active ban window, activity log). Used by the History segment
+// rendered directly below the live Escalation Queue on /golden.
+router.get('/golden/history',                     getMyGoldenHistory);
+// v1.73 — User Golden Ticket thread (single ticket owned by the
+// caller). The in-app bell notification deep-links here when an
+// admin resolves a Golden ticket so the user can actually see the
+// admin answer — the generic /support/:id page does NOT render
+// goldenResolutions[]. MUST come AFTER /golden/queue + /golden/history
+// so those don't get swallowed by the `:id` param.
+router.get('/golden/:id',                         getMyGoldenTicket);
+// v1.74 — Discussion reply. Both the ticket owner and any admin
+// can post inside the 7-day window that opens with the first
+// admin answer. Role decides bubble style. Rate-limited at the
+// same 20/min as the generic follow-up so users can't spam.
+router.post('/golden/:id/discussion', replyLimiter, postGoldenDiscussion);
 
 // ─── Golden Ticket (v1.65, additive) ─────────────────────────────────────
 // Admin actions: convert existing ticket to Golden (debits SP if a

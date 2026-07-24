@@ -1,5 +1,19 @@
 import React from 'react';
 import { FAQItem, getCategoryIcon, formatCategoryName, getQuestionTitle, getAnswerText } from './faqUtils';
+import {
+  flexRowBetween,
+  searchListItemDefault,
+  searchListItemCompact,
+  searchListItemQuestionRow,
+  searchListItemResultBody,
+  searchPanel,
+  searchPanelHeader,
+  searchPanelListEmpty,
+  searchPanelLoadingSkeleton,
+  textXsFaint,
+  textXsLabel,
+  textLabelXsTop,
+} from '../../styles/style_config';
 
 interface SearchDropdownProps {
   query: string;
@@ -22,10 +36,10 @@ export default function SearchDropdown({
 }: SearchDropdownProps) {
   return (
     <div className="absolute left-0 right-0 top-full mt-3 z-40 animate-fade-in">
-      <div className="search-panel">
-        <div className="flex items-center justify-between px-4 pt-4 pb-2">
+      <div className={searchPanel}>
+        <div className={searchPanelHeader}>
           <div>
-            <p className="text-[11px] font-semibold text-ink-faint uppercase tracking-wide">
+            <p className={textLabelXsTop}>
               Search suggestions
             </p>
             <p className="text-sm text-ink mt-1">
@@ -42,20 +56,20 @@ export default function SearchDropdown({
 
         <div className="grid gap-4 px-4 pb-4 lg:grid-cols-[1.35fr_0.95fr]">
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-[11px] font-semibold text-ink-faint uppercase tracking-wide">
+            <div className={flexRowBetween + ' mb-2'}>
+              <p className={textXsLabel}>
                 Matching questions
               </p>
-              <span className="text-xs text-ink-faint">{items.length} found</span>
+              <span className={textXsFaint}>{items.length} found</span>
             </div>
             <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
               {loading && (
                 [1, 2, 3].map((i) => (
-                  <div key={i} className="h-[72px] rounded-2xl search-skeleton animate-pulse" />
+                  <div key={i} className={searchPanelLoadingSkeleton} />
                 ))
               )}
               {!loading && items.length === 0 && (
-                <div className="rounded-2xl border border-dashed border-border bg-transparent p-4">
+                <div className={searchPanelListEmpty}>
                   <p className="text-xs text-ink-soft">
                     No matches yet. Keep typing or browse a category.
                   </p>
@@ -65,12 +79,12 @@ export default function SearchDropdown({
                 <button
                   key={item._id || item.title || item.question || idx}
                   onClick={() => onSelectQuestion(item)}
-                  className="w-full text-left rounded-2xl border border-border/60 px-3 py-2 search-list-item"
+                  className={searchListItemDefault}
                 >
-                  <p className="text-sm font-semibold text-ink line-clamp-2">
+                  <p className={searchListItemQuestionRow}>
                     {getQuestionTitle(item)}
                   </p>
-                  <p className="text-xs text-ink-soft line-clamp-3 mt-1 leading-relaxed">
+                  <p className={searchListItemResultBody}>
                     {getAnswerText(item)}
                   </p>
                 </button>
@@ -79,21 +93,34 @@ export default function SearchDropdown({
           </div>
 
           <div>
-            <p className="text-[11px] font-semibold text-ink-faint uppercase tracking-wide">
+            {/* 1.12 (LOW) — empty-state for the categories column when
+                no categories are available. Merged with PR #144's
+                style_config.ts refactor: the `group` Tailwind class
+                on the button below is required for the icon's
+                `group-hover:opacity-100` to actually fire. */}
+            <p className={textXsLabel}>
               Categories
             </p>
-            <div className="mt-2 space-y-1">
-              {categories.slice(0, 7).map((name) => (
-                <button
-                  key={name}
-                  onClick={() => onSelectCategory(name)}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-2xl border border-border/60 text-left search-list-item"
-                >
-                  <span className="opacity-40 group-hover:opacity-100 transition-opacity">{getCategoryIcon(name)}</span>
-                  <span className="text-sm text-ink">{formatCategoryName(name)}</span>
-                </button>
-              ))}
-            </div>
+            {categories.length === 0 ? (
+              <div className="mt-2 rounded-2xl border border-dashed border-border bg-transparent p-4">
+                <p className="text-xs text-ink-soft">
+                  No categories to show yet.
+                </p>
+              </div>
+            ) : (
+              <div className="mt-2 space-y-1">
+                {categories.slice(0, 7).map((name) => (
+                  <button
+                    key={name}
+                    onClick={() => onSelectCategory(name)}
+                    className={`group ${searchListItemCompact}`}
+                  >
+                    <span className="opacity-40 group-hover:opacity-100 transition-opacity">{getCategoryIcon(name)}</span>
+                    <span className="text-sm text-ink">{formatCategoryName(name)}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

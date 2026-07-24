@@ -20,7 +20,13 @@ export async function getQueueStats(_req: Request, res: Response): Promise<void>
       },
     });
   } catch (err) {
-    res.status(500).json({ message: 'Failed to fetch queue stats', error: (err as Error).message });
+    // S5-M8 (MEDIUM) fix: previously this surfaced the raw
+    // exception.message to the admin client — which can include
+    // Mongo connection strings ("connection refused: mongo:27017"),
+    // JWT secret leak (rare), or internal class names. Sanitize:
+    // log full details server-side, return a generic message.
+    console.error('[queue.controller] getQueueStats failed:', (err as Error).message);
+    res.status(500).json({ message: 'Failed to fetch queue stats' });
   }
 }
 

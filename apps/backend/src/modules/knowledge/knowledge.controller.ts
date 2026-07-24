@@ -101,6 +101,11 @@ export const promoteToFAQ = async (req: Request, res: Response): Promise<void> =
   if (!req.user) { res.status(401).json({ message: 'Not authorized' }); return; }
   try {
     const id = String(req.params.id);
+    // Null-check before promoting — matches the pattern in approveKnowledge /
+    // rejectKnowledge. Without this, a bogus id hits the service's
+    // "Knowledge entry not found" throw and surfaces as a misleading 500.
+    const existing = await TranscriptKnowledge.findById(id).select('_id').lean();
+    if (!existing) { res.status(404).json({ message: 'Knowledge entry not found' }); return; }
     const faqId = await promoteKnowledgeToFAQ(id, req.user._id.toString());
     const entry = await TranscriptKnowledge.findById(id);
     res.json({ message: `Promoted to FAQ ${faqId}`, faqId, entry });
@@ -196,7 +201,7 @@ export const askAIController = async (req: Request, res: Response): Promise<void
     const DEFAULT_THRESHOLD = 0.05;
 
     const t0 = Date.now();
-    let result: { answer: string; sources: Array<{ id: string; type: string; title: string; snippet: string; url: string; score: number }>; model: string };
+    let result: { answer: string; sources: Array<{ id: string; type: string; title: string; snippet: string; url: string; score: number }>; modelName: string };
     let aiFailed = false;
     try {
       result = await runRag(question, attachments);
@@ -210,7 +215,7 @@ export const askAIController = async (req: Request, res: Response): Promise<void
       const kbMatches = await searchKnowledge(question, 6);
       result = {
         answer: '',
-        model: 'fallback',
+        modelName: 'fallback',
         sources: kbMatches.map((m) => ({
           id: m._id,
           type: 'knowledge',
@@ -267,7 +272,7 @@ export const askAIController = async (req: Request, res: Response): Promise<void
       }),
       relevantCount: ranked.length,
       sourceCount: sources.length,
-      model: result.model,
+      modelName: result.modelName,
       aiFailed,
     });
   } catch (err) {

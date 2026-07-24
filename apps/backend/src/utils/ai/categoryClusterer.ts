@@ -1,10 +1,25 @@
 /**
  * categoryClusterer — Dynamic Categories feature (v1.70)
  *
+ * ⚠️  v1.71 — DEPRECATED. Replaced by categoryAssigner.ts.
+ *
+ * The embedding-based clustering below required a running embedding
+ * server (ONNX local or HuggingFace API), which this deployment doesn't
+ * have configured. The cron spam "[categoryClusterer] embed failed for X:
+ * Connection error" was a symptom. The new LLM-based approach uses the
+ * existing AI provider chain (no embedding server needed) and writes
+ * directly to the Category collection instead of the CategoryCluster
+ * abstraction.
+ *
+ * This file is kept for reference and for any callers that still
+ * import `clusterCategoriesForBatch` (admin-category-cluster.controller.ts,
+ * backfillCategoryClusters.ts script). Those paths still work but are
+ * no longer invoked by the startup cron.
+ *
+ * Original algorithm preserved below for posterity:
+ *
  * Per-program clustering of FAQ `category` strings. Driven by the
  * 24h cron in utils/jobs/categoryClusterCron.ts.
- *
- * Algorithm (deliberately simple, no AI/ML framework dependency):
  *
  *   1. Pull all FAQs in the batch that have embeddings. Group by
  *      `category`. For each group, compute the centroid of the
@@ -13,28 +28,11 @@
  *      existing cluster whose centroid has the highest dot-product
  *      similarity. If the similarity ≥ CLUSTER_THRESHOLD, add the
  *      category to that cluster. Otherwise, start a new cluster.
- *      This is O(N^2) but N is the number of unique categories
- *      (typically 10-30 per program), so the cost is negligible.
  *   3. For each cluster with ≥ 1 member, ask Anthropic to suggest a
- *      clean canonical name from the member aliases. The AI is asked
- *      to (a) keep names short, (b) use Title Case, (c) drop
- *      parentheticals when the parent term already implies them.
- *   4. Upsert into CategoryCluster. The cron first deletes all
- *      UNLOCKED rows for the batch, then inserts the new clusters.
- *      Locked rows are preserved as-is (admins have curated them).
+ *      clean canonical name from the member aliases.
+ *   4. Upsert into CategoryCluster. Locked rows are preserved.
  *
- * Dot product vs cosine: the FAQ embeddings are unit-normalized
- * at write time (see utils/ai/embeddings.ts → `normalize: true`),
- * so dot product IS cosine similarity. We use the same metric the
- * Atlas Vector Search index uses, which means cluster results
- * match what users see as "similar" in search.
- *
- * Failure modes (handled):
- *   - No AI key: skip the naming step, use the highest-faqCount
- *     alias as the canonical name.
- *   - AI call fails: same fallback.
- *   - No embeddings yet: return an empty result; the next refresh
- *     (after backfillEmbeddings runs) will pick them up.
+ * Replacement: see utils/ai/categoryAssigner.ts.
  */
 
 import FAQ from '../../modules/faq/faq.model.js';

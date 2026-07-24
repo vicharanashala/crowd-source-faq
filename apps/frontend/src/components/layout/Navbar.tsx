@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { useAuthModal, useAuthGate } from '../../context/AuthModalContext';
+import { useAuthModal } from '../../context/AuthModalContext';
 
 import { buildGcsTransformedUrl } from '../../utils/gcsTransform';
 import NotificationBell from '../../components/notifications/NotificationBell';
@@ -9,16 +9,36 @@ import SpurtiChip from './SpurtiChip';
 import ZoomBubble from '../welcome/ZoomBubble';
 import { BatchSwitcher } from './BatchSwitcher';
 import { NavPills, useNavItems } from './NavPills';
+import { useTeeEligibility } from '../../hooks/useTeeEligibility';
 import logoWide from '../../assets/logo-wide.png';
+import {
+  avatarColorDefault,
+  avatarColorPalette,
+  btnBase,
+  btnPrimary,
+  dropdownRowDivider,
+  dropdownRowHover,
+  glassPanelStrong,
+  mobileSheetPanel,
+  navbarGlass,
+  navbarGlassResting,
+  navHamburger,
+  navMobileLinkActive,
+  navMobileLinkBase,
+  navMobileLinkIdle,
+  navSecondaryLinkBase,
+  themePickerActive,
+  themePickerButtonBase,
+  themePickerIdle,
+} from '../../styles/style_config';
 
 function getAvatarColor(name?: string): string {
-  if (!name) return '#6b92e0';
+  if (!name) return avatarColorDefault;
   let hash = 0;
   for (let i = 0; i < name.length; i++) {
     hash = name.charCodeAt(i) + ((hash << 5) - hash);
   }
-  const colors = ['#6b92e0', '#5a9a6b', '#c4943a', '#e07c6b', '#7c6be0', '#e06ba8'];
-  return colors[Math.abs(hash) % colors.length];
+  return avatarColorPalette[Math.abs(hash) % avatarColorPalette.length];
 }
 
 
@@ -73,14 +93,17 @@ export default function Navbar({ showProgramSwitcher: _showProgramSwitcher = fal
 
   const { user, isAuthenticated, logout } = useAuth();
   const { openModal } = useAuthModal();
+ feat/aichatbot
   const gate = useAuthGate();
+
+  const teeEligibility = useTeeEligibility();
+  main
   const navigate = useNavigate();
   const location = useLocation();
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
-  
 
 
   useEffect(() => {
@@ -126,15 +149,11 @@ export default function Navbar({ showProgramSwitcher: _showProgramSwitcher = fal
 
   return (
     <header className={`fixed top-2 sm:top-4 left-0 right-0 z-50 px-4 transition-all duration-[400ms] ease-smooth flex flex-col items-center ${isAdminView ? 'top-20 sm:top-24' : ''}`}>
-      <div className={`w-full max-w-[1200px] px-4 sm:px-6 h-14 sm:h-16 grid grid-cols-[1fr_auto_1fr] gap-3 sm:gap-4 items-center relative rounded-full transition-all duration-[400ms]
-        ${scrolled
-          ? 'bg-[rgb(var(--bg-card-rgb)_/_0.75)] backdrop-blur-[24px] shadow-[0_8px_30px_rgba(0,0,0,0.08)] border border-[rgb(var(--border-rgb)_/_0.5)] saturate-[1.5]'
-          : 'bg-[rgb(var(--bg-card-rgb)_/_0.4)] backdrop-blur-[12px] border border-[rgb(var(--border-rgb)_/_0.2)] shadow-[0_4px_20px_rgba(0,0,0,0.03)]'
-        }`}
+      <div className={`w-full max-w-[1200px] px-4 sm:px-6 h-14 sm:h-16 grid grid-cols-[1fr_auto_1fr] gap-3 sm:gap-4 items-center relative rounded-full transition-all duration-[400ms] ${scrolled ? navbarGlass : navbarGlassResting}`}
       >
 
         {/* Logo */}
-        <div className="flex items-center justify-self-start">
+        <div className="flex items-center justify-self-start min-w-[140px] flex-shrink-0">
           <NavLink to="/" className="flex items-center gap-2.5 group w-fit">
             <img
               src={logoWide}
@@ -165,7 +184,7 @@ export default function Navbar({ showProgramSwitcher: _showProgramSwitcher = fal
                   </button>
                   <button
                     onClick={() => openModal('register')}
-                    className="btn-base btn-primary text-sm"
+                    className={`${btnBase} ${btnPrimary} text-sm`}
                   >
                     Get started
                   </button>
@@ -182,10 +201,48 @@ export default function Navbar({ showProgramSwitcher: _showProgramSwitcher = fal
                     <BatchSwitcher showCreateLink={user?.role === 'admin'} className="hidden md:inline-flex" />
                   )}
 
+                  {/* v1.87 — Sign My Tee pill. Shown ONLY when the
+                      BE says the user is inside the rolling 3-day
+                      window around their internship end date. Outside
+                      the window, the pill is hidden (and stays
+                      hidden — re-renders on every page navigate
+                      because eligibility is fetched per-mount).
+                      We route to /tee/share/<id> if they've already
+                      configured a tee, /tee otherwise.
+
+                      v1.87.2 — shortened label from "Sign My Tee" to
+                      "My Tee" + an icon-only fallback at <sm to keep
+                      the chip group from wrapping when the navbar is
+                      crowded (BatchSwitcher + SpurtiChip + bell +
+                      avatar already uses a lot of room). */}
+                  {(teeEligibility.eligible || teeEligibility.hasConfiguredTee) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (teeEligibility.shareId) {
+                          navigate(`/tee/share/${teeEligibility.shareId}`);
+                        } else {
+                          navigate('/tee');
+                        }
+                      }}
+                      className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-gradient-to-r from-accent to-accent-hover text-accent-text text-xs font-semibold whitespace-nowrap shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+                      aria-label="My Tee"
+                      title={teeEligibility.eligible ? "Sign My Tee" : "View My Tee"}
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z" />
+                      </svg>
+                      <span className="hidden xl:inline">
+                        {teeEligibility.eligible ? "Sign My Tee" : "My Tee"}
+                      </span>
+                      <span className="xl:hidden">My Tee</span>
+                    </button>
+                  )}
+
                   <NotificationBell />
 
                   {/* User Avatar + Dropdown */}
-                  <div className="relative" ref={profileRef}>
+                  <div data-tour="user-profile" className="relative" ref={profileRef}>
                       <button
                         onClick={(e) => { e.stopPropagation(); setProfileOpen(!profileOpen); }}
                         className="flex items-center gap-1.5 cursor-pointer group"
@@ -215,7 +272,7 @@ export default function Navbar({ showProgramSwitcher: _showProgramSwitcher = fal
                       </button>
 
                       {profileOpen && (
-                        <div className="absolute right-0 top-[3.25rem] w-56 bg-[rgb(var(--bg-card-rgb)_/_0.85)] backdrop-blur-[24px] rounded-2xl border border-[rgb(var(--border-rgb)_/_0.5)] shadow-[0_8px_30px_rgba(0,0,0,0.12)] py-2 animate-fade-in z-50">
+                        <div className={`absolute right-0 top-[3.25rem] w-56 ${glassPanelStrong} rounded-2xl py-2 animate-fade-in z-50`}>
                           <div className="px-4 py-2 border-b border-border/50">
                             <p className="text-sm font-medium text-ink">{user?.name || 'User'}</p>
                             <p className="text-xs text-ink-faint">{user?.email || ''}</p>
@@ -223,7 +280,7 @@ export default function Navbar({ showProgramSwitcher: _showProgramSwitcher = fal
                           {user?.role === 'admin' && (
                             <button
                               onClick={() => { navigate('/admin'); setProfileOpen(false); }}
-                              className="w-full text-left px-4 py-2.5 text-sm font-medium text-ink-soft hover:bg-[rgb(var(--bg-card-rgb)_/_0.5)] hover:text-ink transition-colors border-b border-[rgb(var(--border-rgb)_/_0.3)]"
+                              className={`w-full text-left px-4 py-2.5 text-sm font-medium text-ink-soft ${dropdownRowHover} transition-colors border-b ${dropdownRowDivider}`}
                             >
                               Admin Panel
                             </button>
@@ -231,21 +288,21 @@ export default function Navbar({ showProgramSwitcher: _showProgramSwitcher = fal
                           {user?.role === 'moderator' && (
                             <button
                               onClick={() => { navigate('/admin/moderation'); setProfileOpen(false); }}
-                              className="w-full text-left px-4 py-2.5 text-sm font-medium text-ink-soft hover:bg-[rgb(var(--bg-card-rgb)_/_0.5)] hover:text-ink transition-colors border-b border-[rgb(var(--border-rgb)_/_0.3)]"
+                              className={`w-full text-left px-4 py-2.5 text-sm font-medium text-ink-soft ${dropdownRowHover} transition-colors border-b ${dropdownRowDivider}`}
                             >
                               Moderation Panel
                             </button>
                           )}
                           <button
                             onClick={() => { navigate('/account'); setProfileOpen(false); }}
-                            className="w-full text-left px-4 py-2.5 text-sm font-medium text-ink-soft hover:bg-[rgb(var(--bg-card-rgb)_/_0.5)] hover:text-ink transition-colors border-b border-[rgb(var(--border-rgb)_/_0.3)]"
+                            className={`w-full text-left px-4 py-2.5 text-sm font-medium text-ink-soft ${dropdownRowHover} transition-colors border-b ${dropdownRowDivider}`}
                           >
                             Account
                           </button>
                           
                           <button
                             onClick={() => { navigate('/saved'); setProfileOpen(false); }}
-                            className="w-full text-left px-4 py-2.5 text-sm font-medium text-ink-soft hover:bg-[rgb(var(--bg-card-rgb)_/_0.5)] hover:text-ink transition-colors border-b border-[rgb(var(--border-rgb)_/_0.3)]"
+                            className={`w-full text-left px-4 py-2.5 text-sm font-medium text-ink-soft ${dropdownRowHover} transition-colors border-b ${dropdownRowDivider}`}
                           >
                             Saved
                           </button>
@@ -255,21 +312,21 @@ export default function Navbar({ showProgramSwitcher: _showProgramSwitcher = fal
                             <div className="flex bg-mist rounded-lg p-1 gap-1">
                               <button
                                 onClick={() => handleThemeChange('light')}
-                                className={`flex-1 flex flex-col items-center justify-center gap-1 py-1.5 text-[10px] font-medium rounded-md transition-colors ${theme === 'light' ? 'bg-card text-ink shadow-sm' : 'text-ink-soft hover:text-ink'}`}
+                                className={`${themePickerButtonBase} ${theme === 'light' ? themePickerActive : themePickerIdle}`}
                               >
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" /><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" /><line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" /><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" /></svg>
                                 Light
                               </button>
                               <button
                                 onClick={() => handleThemeChange('dark')}
-                                className={`flex-1 flex flex-col items-center justify-center gap-1 py-1.5 text-[10px] font-medium rounded-md transition-colors ${theme === 'dark' ? 'bg-card text-ink shadow-sm' : 'text-ink-soft hover:text-ink'}`}
+                                className={`${themePickerButtonBase} ${theme === 'dark' ? themePickerActive : themePickerIdle}`}
                               >
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z" /></svg>
                                 Dark
                               </button>
                               <button
                                 onClick={() => handleThemeChange('system')}
-                                className={`flex-1 flex flex-col items-center justify-center gap-1 py-1.5 text-[10px] font-medium rounded-md transition-colors ${theme === 'system' ? 'bg-card text-ink shadow-sm' : 'text-ink-soft hover:text-ink'}`}
+                                className={`${themePickerButtonBase} ${theme === 'system' ? themePickerActive : themePickerIdle}`}
                               >
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
                                 System
@@ -279,7 +336,7 @@ export default function Navbar({ showProgramSwitcher: _showProgramSwitcher = fal
 
                           <button
                             onClick={handleLogout}
-                            className="w-full text-left px-4 py-2.5 text-sm font-medium text-ink-soft hover:bg-[rgb(var(--bg-card-rgb)_/_0.5)] hover:text-ink transition-colors mt-1"
+                            className={`w-full text-left px-4 py-2.5 text-sm font-medium text-ink-soft ${dropdownRowHover} transition-colors mt-1`}
                           >
                             Sign out
                           </button>
@@ -294,7 +351,7 @@ export default function Navbar({ showProgramSwitcher: _showProgramSwitcher = fal
           {/* Mobile hamburger */}
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
-            className="lg:hidden flex w-9 h-9 items-center justify-center rounded-[10px] hover:bg-black/[0.04] transition-colors"
+            className={navHamburger}
             aria-label="Toggle menu"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -317,14 +374,9 @@ export default function Navbar({ showProgramSwitcher: _showProgramSwitcher = fal
 
       {/* Mobile Dropdown */}
       <div
-        className={`lg:hidden w-full max-w-[1200px] mt-2 overflow-hidden rounded-[24px] border border-[rgb(var(--border-rgb)_/_0.5)] shadow-[0_8px_30px_rgba(0,0,0,0.12)] transition-all duration-[350ms] ease-smooth ${
+        className={`lg:hidden w-full max-w-[1200px] mt-2 overflow-hidden rounded-[24px] ${mobileSheetPanel} transition-all duration-[350ms] ease-smooth ${
           mobileOpen ? 'max-h-[32rem] opacity-100' : 'max-h-0 opacity-0 pointer-events-none'
         }`}
-        style={{
-          backgroundColor: 'rgb(var(--bg-card-rgb) / 0.95)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-        }}
       >
         <div className="px-6 py-4 flex flex-col gap-1">
           {isAuthenticated && (
@@ -335,6 +387,7 @@ export default function Navbar({ showProgramSwitcher: _showProgramSwitcher = fal
               <BatchSwitcher showCreateLink={user?.role === 'admin'} compact className="w-full" />
             </div>
           )}
+ feat/aichatbot
           {allNavItems.map(({ label, to }) => {
             const isWelcome = to === '/welcome';
             const handleMobileClick = (e: React.MouseEvent) => {
@@ -344,6 +397,20 @@ export default function Navbar({ showProgramSwitcher: _showProgramSwitcher = fal
                 gate(() => {
                   navigate('/welcome');
                 }, 'Sign in to access the Welcome Package.')();
+
+          {allNavItems.map(({ label, to }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={to === '/'}
+              onClick={() => setMobileOpen(false)}
+              className={({ isActive }) =>
+                `${navMobileLinkBase} ${
+                  isActive
+                    ? navMobileLinkActive
+                    : navMobileLinkIdle
+                }`
+ main
               }
             };
             return (
@@ -376,7 +443,7 @@ export default function Navbar({ showProgramSwitcher: _showProgramSwitcher = fal
               </button>
               <button
                 onClick={() => { openModal('register'); setMobileOpen(false); }}
-                className="btn-base btn-primary flex-1 text-sm"
+                className={`${btnBase} ${btnPrimary} flex-1 text-sm`}
               >
                 Get started
               </button>
@@ -389,9 +456,7 @@ export default function Navbar({ showProgramSwitcher: _showProgramSwitcher = fal
                 end
                 onClick={() => setMobileOpen(false)}
                 className={({ isActive }) =>
-                  `block px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
-                    isActive ? 'bg-accent-light text-accent' : 'text-ink-soft hover:text-ink hover:bg-black/[0.03]'
-                  }`
+                  `${navSecondaryLinkBase} ${isActive ? navMobileLinkActive : navMobileLinkIdle}`
                 }
               >
                 Saved

@@ -301,7 +301,7 @@ export default function AskAIButton() {
 
   if (panel === 'collapsed') {
     return (
-      <button onClick={() => setPanel('minimized')} className="fixed z-50 right-6 bottom-6 group" aria-label="Open FAQ Assistant" title="Ask the FAQ Assistant">
+      <button data-tour="ask-ai-button" onClick={() => setPanel('minimized')} className="fixed z-50 right-6 bottom-6 group" aria-label="Open FAQ Assistant" title="Ask the FAQ Assistant">
         <div className="absolute inset-0 rounded-full bg-accent/20 animate-ping opacity-30 pointer-events-none" style={{ animationDuration: '3s' }} />
         <div className="relative w-14 h-14 rounded-full bg-gradient-to-br from-accent to-accent-dark shadow-lg shadow-accent/30 flex items-center justify-center transition-transform duration-200 group-hover:scale-110 group-active:scale-95">
           <SparkleIcon size={24} />

@@ -17,6 +17,7 @@
 
 import { Router } from 'express';
 import { protect, authorize } from '../../middleware/auth.js';
+import { validateObjectId } from '../../middleware/validateObjectId.js';
 import {
   uploadDocument,
   uploadMiddleware,
@@ -45,8 +46,11 @@ router.use(protect);
 router.post('/upload', authorize('admin', 'moderator'), ...uploadMiddleware, uploadDocument);
 
 router.get('/my',           protect, listMyDocuments);
-router.get('/:id/insights', protect, listDocumentInsights);
-router.get('/:id',          protect, getDocument);
+// M4-3 (cross-cutting Pattern A) fix: validate `:id` so a
+// malformed id returns 400 instead of triggering a CastError
+// → 500 inside `getDocument` / `listDocumentInsights`.
+router.get('/:id/insights', protect, validateObjectId('id'), listDocumentInsights);
+router.get('/:id',          protect, validateObjectId('id'), getDocument);
 
 // ─── Admin-facing ─────────────────────────────────────────────────────────────
 
@@ -55,7 +59,7 @@ const adminRouter = Router();
 adminRouter.use(protect, authorize('admin', 'moderator'));
 
 adminRouter.get('/insights',                         listPendingInsights);
-adminRouter.patch('/insights/:id',                   reviewInsight);
+adminRouter.patch('/insights/:id',                   validateObjectId('id'), reviewInsight);
 adminRouter.post('/insights/promote-popular',       promotePopularNow);
 
 export { router as documentRouter, adminRouter as documentAdminRouter };

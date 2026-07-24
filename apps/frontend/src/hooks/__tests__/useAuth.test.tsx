@@ -135,8 +135,9 @@ describe('useAuth', () => {
       await new Promise((r) => setTimeout(r, 0));
     });
 
-    // The /me call should succeed and keep the user
-    expect(mockApi.get).toHaveBeenCalledWith('/auth/me');
+    // The /me call should succeed and keep the user. v1.71 — also pass
+    // an AbortSignal so the in-flight fetch is cancelled on unmount.
+    expect(mockApi.get).toHaveBeenCalledWith('/auth/me', expect.objectContaining({ signal: expect.anything() }));
     expect(result.current.user).toMatchObject({ name: 'Carol' });
     expect(result.current.isAuthenticated).toBe(true);
   });

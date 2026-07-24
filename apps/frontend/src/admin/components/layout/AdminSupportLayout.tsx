@@ -7,6 +7,9 @@ const SUPPORT_NAV_ITEMS = [
   { to: '/admin/support/categories', label: 'Schemas' },
   { to: '/admin/support/guidance', label: 'Checklists' },
   { to: '/admin/golden-tickets', label: 'Golden Queue' },
+  // v1.71 — companion page to Golden Queue. Resolved tickets live
+  // here so the queue page can stay focused on Pending work.
+  { to: '/admin/golden-logs', label: 'Golden Logs' },
 ];
 
 export default function AdminSupportLayout() {
@@ -19,8 +22,8 @@ export default function AdminSupportLayout() {
         <nav className="flex items-center gap-1 overflow-x-auto custom-scrollbar pb-[-1px]">
           {SUPPORT_NAV_ITEMS.map((item) => {
             // Support Inbox is at exactly /admin/support. Since other routes start with it, we need `end: true` for exact matching if it's the root.
-            const isActive = item.end 
-              ? location.pathname === item.to 
+            const isActive = item.end
+              ? location.pathname === item.to
               : location.pathname.startsWith(item.to);
 
             return (

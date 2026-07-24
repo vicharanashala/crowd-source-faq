@@ -15,6 +15,12 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import adminApi from '../../utils/adminApi';
+import {
+  inlineDangerBanner,
+  dangerBannerExtended,
+  dangerPillLight,
+  dangerHoverChipSubtle,
+} from '../../../styles/style_config';
 
 interface FlagRow {
   key: string;
@@ -64,7 +70,7 @@ function FeatureFlagRow({
         </div>
         <p className="text-[11px] text-ink-soft">{desc}</p>
         <p className="text-[10px] text-ink-faint mt-1">
-          Currently: <span className={row.enabled ? 'text-emerald-700 font-semibold' : 'text-ink-soft font-semibold'}>
+          Currently: <span className={row.enabled ? 'text-accent font-semibold' : 'text-ink-soft font-semibold'}>
             {row.enabled ? 'Enabled' : 'Disabled'}
           </span>
           {' · '}
@@ -173,7 +179,7 @@ export default function ProgramFeatureFlagsTab({ programId }: { programId: strin
   }
   if (error || !flags) {
     return (
-      <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700">
+      <div className={dangerBannerExtended}>
         {error ?? 'Failed to load feature flags.'}{' '}
         <button type="button" onClick={() => { void load(); }} className="underline">Retry</button>
       </div>
@@ -185,11 +191,7 @@ export default function ProgramFeatureFlagsTab({ programId }: { programId: strin
       {toast && (
         <motion.div
           initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-          className={`px-4 py-2.5 rounded-lg text-xs font-medium border ${
-            toast.type === 'error'
-              ? 'bg-rose-50 text-rose-700 border-rose-200'
-              : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-          }`}
+          className={`${toast.type === 'error' ? dangerPillLight : 'bg-accent/10 text-accent border-accent/30 px-4 py-2.5 rounded-lg text-xs font-medium border'}`}
         >
           {toast.msg}
         </motion.div>
@@ -243,7 +245,7 @@ export default function ProgramFeatureFlagsTab({ programId }: { programId: strin
                 type="button"
                 onClick={() => void handleClearOverride(f.key)}
                 disabled={savingKey === f.key}
-                className="text-[10px] font-medium uppercase tracking-wider text-ink-soft bg-mist border border-border/60 rounded-md px-2 py-1 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 disabled:opacity-40 transition-colors"
+                className={dangerHoverChipSubtle}
               >
                 Clear {FLAG_LABELS[f.key] ?? f.key} override
               </button>

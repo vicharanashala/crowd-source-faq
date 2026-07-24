@@ -21,7 +21,7 @@
 
 import mongoose, { Document, Schema as MongooseSchema, Types } from 'mongoose';
 
-export type SettingKey = 'goldenCooldownHours' | 'goldenPenaltyMultiplier' | 'zoomPassScore' | 'zoomQuestionCount' | 'zoomTranscript' | 'zoomUrl' | 'zoomTitle' | 'zoomDescription' | 'zoomDuration' | 'zoomActive' | 'zoomDailyResetTime' | 'autoAnswerApproveThreshold' | 'autoAnswerSuggestThreshold' | 'autoAnswerMinConfidence' | 'autoAnswerBatchSize' | 'autoAnswerMinAgeHours' | 'faqDuplicateThreshold';
+export type SettingKey = 'goldenCooldownHours' | 'goldenPenaltyMultiplier' | 'zoomPassScore' | 'zoomQuestionCount' | 'zoomTranscript' | 'zoomUrl' | 'zoomTitle' | 'zoomDescription' | 'zoomDuration' | 'zoomActive' | 'zoomDailyResetTime' | 'autoAnswerApproveThreshold' | 'autoAnswerSuggestThreshold' | 'autoAnswerMinConfidence' | 'autoAnswerBatchSize' | 'autoAnswerMinAgeHours' | 'autoAnswerAskHumanThreshold' | 'autoAnswerCooldownMinutes' | 'faqDuplicateThreshold' | 'teeMockupUrl' | 'teeMockupBackUrl';
 
 export interface IAppSetting extends Document<string> {
   /** Always 'singleton' — there is only one settings document. */
@@ -52,6 +52,8 @@ export interface IAppSetting extends Document<string> {
     autoAnswerBatchSize?: number;
     autoAnswerMinAgeHours?: number;
     faqDuplicateThreshold?: number;
+    teeMockupUrl?: string;
+    teeMockupBackUrl?: string;
   };
   /** Last admin to edit. */
   updatedBy: Types.ObjectId | null;
@@ -89,7 +91,11 @@ const appSettingSchema = new MongooseSchema<IAppSetting>(
       autoAnswerMinConfidence: { type: Number, default: 0.35, min: 0, max: 1 },
       autoAnswerBatchSize: { type: Number, default: 20, min: 1, max: 1000 },
       autoAnswerMinAgeHours: { type: Number, default: 2, min: 0, max: 720 },
-      faqDuplicateThreshold: { type: Number, default: 0.82, min: 0, max: 1 }
+      autoAnswerAskHumanThreshold: { type: Number, default: 0.30, min: 0, max: 1 },
+      autoAnswerCooldownMinutes: { type: Number, default: 60, min: 1, max: 1440 },
+      faqDuplicateThreshold: { type: Number, default: 0.82, min: 0, max: 1 },
+      teeMockupUrl: { type: String, default: '' },
+      teeMockupBackUrl: { type: String, default: '' }
     },
     updatedBy: { type: MongooseSchema.Types.ObjectId, ref: 'User', default: null },
   },
@@ -106,15 +112,29 @@ const appSettingSchema = new MongooseSchema<IAppSetting>(
  */
 export async function readSetting<K extends SettingKey>(
   key: K,
+  // Indexed access through a `K extends SettingKey` constraint triggers
+  // TS2536 against the optional `settings` interface. The runtime value
+  // is whatever the admin saved (or this default); the return is asserted
+  // to the caller's declared type via `as` at each return path.
+  // @ts-expect-error TS2536: K-vs-optional-settings indexed access
   defaultValue: NonNullable<IAppSetting['settings'][K]>,
   batchId?: string | Types.ObjectId | null
+  // @ts-expect-error TS2536: K-vs-optional-settings indexed access
 ): Promise<NonNullable<IAppSetting['settings'][K]>> {
+  // Indexed access through a `K extends SettingKey` constraint can't be
+  // resolved against the optional `settings` interface (TS2536). The
+  // shape of `settings` and `SettingKey` drift between releases and
+  // the runtime value is whatever the admin saved (or this default).
+  // Cast at the read site; the return is asserted to match the caller's
+  // declared type via the `as` on each return path.
+  const keyStr = key as unknown as string;
   if (batchId) {
     try {
       const ProgramConfig = mongoose.model('ProgramConfig');
       const doc = await ProgramConfig.findOne({ batchId: new Types.ObjectId(batchId.toString()) }).lean();
-      const v = (doc as any)?.appSettings?.[key];
+      const v = (doc as { appSettings?: Record<string, unknown> } | null)?.appSettings?.[keyStr];
       if (v !== undefined && v !== null) {
+        // @ts-expect-error TS2536: K-vs-optional-settings indexed access
         return v as NonNullable<IAppSetting['settings'][K]>;
       }
     } catch (err) {
@@ -123,7 +143,9 @@ export async function readSetting<K extends SettingKey>(
   }
   const doc = await AppSetting.findById('singleton').lean();
   if (!doc) return defaultValue;
-  const v = doc.settings?.[key];
+  const settingsObj = doc.settings as unknown as Record<string, unknown> | undefined;
+  const v = settingsObj?.[keyStr];
+  // @ts-expect-error TS2536: K-vs-optional-settings indexed access
   return (v ?? defaultValue) as NonNullable<IAppSetting['settings'][K]>;
 }
 

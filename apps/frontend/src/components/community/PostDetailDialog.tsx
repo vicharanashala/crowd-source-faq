@@ -9,6 +9,11 @@ import type { GcsAsset } from '../../hooks/useGcsUpload';
 import type { Post, Comment } from '../../types/ui';
 import { idMatches } from '../../utils/idMatch';
 import ThreadBookmarkButton from './ThreadBookmarkButton';
+import {
+  communityDifficultyEasy,
+  communityDifficultyHard,
+  communityDifficultyModerate,
+} from '../../styles/style_config';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const formatDate = (d: string | undefined) =>
@@ -126,10 +131,12 @@ function DnaStrip({ dna }: { dna: NonNullable<Post['dna']> }) {
         </span>
       )}
       {dna.difficulty && (
-        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
-          dna.difficulty === 'Easy' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' :
-          dna.difficulty === 'Moderate' ? 'bg-yellow-100 text-yellow-700 border border-yellow-200' :
-          'bg-red-100 text-red-600 border border-red-200'
+        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${
+          dna.difficulty === 'Easy'
+            ? communityDifficultyEasy
+            : dna.difficulty === 'Moderate'
+            ? communityDifficultyModerate
+            : communityDifficultyHard
         }`}>{dna.difficulty}</span>
       )}
     </div>
@@ -347,10 +354,10 @@ function CommentItem({ comment, post, currentUserId, userRole, onUpdate }: {
 
   const handleAccept = async () => {
     try {
-      const res = await api.patch<{ post: Post }>(
+      const res = await api.patch<{ post: Post; comments?: unknown[] }>(
         `/community/${post._id}/comments/${comment._id}/accept-answer`
       );
-      onUpdate((res.data as any).comments || []);
+      onUpdate((res.data.comments || []) as unknown as import('../../types/ui').Comment[]);
     } catch (e) {
       const msg = friendlyError(e, 'Failed to accept answer.');
       setActionError(msg);
@@ -586,7 +593,7 @@ export default function PostDetailDialog({ post: initialPost, onClose, currentUs
       setShowReportModal(false);
       setReportReason('');
       const banner = document.createElement('div');
-      banner.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] px-5 py-3 bg-emerald-50 border border-emerald-200 rounded-xl text-sm text-emerald-700 font-medium shadow-lg';
+      banner.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] px-5 py-3 bg-accent/10 border border-accent/30 rounded-xl text-sm text-accent font-medium shadow-lg';
       banner.textContent = 'Report submitted. Thank you.';
       document.body.appendChild(banner);
       setTimeout(() => banner.remove(), 3000);
@@ -640,18 +647,18 @@ export default function PostDetailDialog({ post: initialPost, onClose, currentUs
   };
 
   const LIFECYCLE_CONFIG: Record<string, { label: string; cls: string }> = {
-    open:               { label: 'Open',              cls: 'bg-gray-100 text-gray-600 border-gray-200' },
-    answered:           { label: 'Solved',            cls: 'bg-blue-50 text-blue-700 border-blue-200' },
-    community_accepted: { label: 'Community ✓',       cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-    ai_validated:       { label: 'AI Validated',      cls: 'bg-purple-50 text-purple-700 border-purple-200' },
-    admin_accepted:     { label: 'Admin Approved',    cls: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
-    converted_to_faq:   { label: 'Official FAQ',      cls: 'bg-stone-100 text-stone-700 border-stone-300' },
+    open:               { label: 'Open',              cls: 'bg-mist text-ink-soft border-border' },
+    answered:           { label: 'Solved',            cls: 'bg-accent/10 text-accent border-accent/30' },
+    community_accepted: { label: 'Community ✓',       cls: 'bg-accent/10 text-accent border-accent/30' },
+    ai_validated:       { label: 'AI Validated',      cls: 'bg-info/10 text-info border-info/30' },
+    admin_accepted:     { label: 'Admin Approved',    cls: 'bg-accent/10 text-accent border-accent/30' },
+    converted_to_faq:   { label: 'Official FAQ',      cls: 'bg-mist text-ink-soft border-border' },
   };
 
   return (
     <>
       <dialog ref={dialogRef} closedby="any" aria-labelledby="post-dialog-title"
-        className="dialog-shell dialog-panel rounded-2xl border border-border shadow-2xl bg-card p-0 backdrop:bg-ink/30 backdrop:backdrop-blur-sm max-w-2xl w-[95vw] max-h-[90vh]">
+        className="dialog-shell dialog-panel rounded-2xl border border-border shadow-2xl bg-card p-0 backdrop:bg-ink/30 backdrop:backdrop-blur-sm max-w-2xl w-[95vw] max-h-[85vh]">
         {/* Fixed Header */}
         <div className="flex items-start justify-between gap-3 p-6 pb-4 border-b border-border flex-shrink-0">
           <div className="flex items-start gap-3 flex-1 min-w-0">
@@ -767,7 +774,7 @@ export default function PostDetailDialog({ post: initialPost, onClose, currentUs
             )}
             {currentUserId && post.author?._id !== currentUserId && (
               <button onClick={() => setShowReportModal(true)}
-                className="ml-auto inline-flex items-center gap-1 px-2 py-1.5 rounded-xl text-xs text-red-400/70 hover:text-red-500 transition-colors">
+                className="ml-auto inline-flex items-center gap-1 px-2 py-1.5 rounded-xl text-xs text-danger/70 hover:text-danger transition-colors">
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M6 1L7.5 4.5H11.5L8.5 7.5L9.5 11L6 8.5L2.5 11L3.5 7.5L0.5 4.5H4.5L6 1Z"/></svg>
                 Report
               </button>
@@ -776,12 +783,12 @@ export default function PostDetailDialog({ post: initialPost, onClose, currentUs
 
           {/* Time-Trial Banner */}
           {post.timeTrialStatus === 'pending' && (
-            <div className="mt-3 px-4 py-2.5 rounded-xl bg-amber-light border border-amber/20 flex items-center gap-2">
+            <div className="mt-3 px-4 py-2.5 rounded-xl bg-warning/10 border border-warning/30 flex items-center gap-2">
               <span className="text-sm">⏱ First Responder active</span>
             </div>
           )}
           {post.timeTrialStatus === 'awarded' && (
-            <div className="mt-3 px-4 py-2.5 rounded-xl bg-yellow-light border border-yellow/20 flex items-center gap-2">
+            <div className="mt-3 px-4 py-2.5 rounded-xl bg-warning/10 border border-warning/30 flex items-center gap-2">
               <span className="text-sm">🏅 Awarded to First Responder</span>
             </div>
           )}

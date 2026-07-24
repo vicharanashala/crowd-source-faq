@@ -39,7 +39,7 @@ export async function aiChat(
   const cfg = await resolveProviderAsync();
 
   const body: Record<string, unknown> = {
-    model: cfg.model,
+    model: cfg.modelName,
     messages,
     max_tokens: maxTokens,
   };
@@ -400,12 +400,22 @@ export async function searchRelevantCommunityPosts(query: string, topK = 5): Pro
 
 export async function searchKnowledge(
   query: string,
-  topK = 5
+  topK = 5,
+  options: { embedQuery?: boolean } = { embedQuery: false }
 ): Promise<KnowledgeMatch[]> {
-  const qEmb = await generateQueryEmbedding(query).catch((err) => {
-    logger.warn(`[knowledgeBase] Failed to generate embedding for query '${query}': ${(err as Error).message}`);
-    return null;
-  });
+  // v1.71 — Phase 8 R3: callers can opt out of the per-request embed
+  // by passing `{ embedQuery: false }`. Default is `true` (preserves
+  // existing RAG / auto-answer behaviour). The hot search path in
+  // `search.controller.ts` opts out so the user's search never blocks
+  // on the embedder — embedding failures against the Hugging Face /
+  // local model endpoint are now only logged once an hour by the
+  // `embedding-warm` cron (see `bootstrap/startup.ts`).
+  const qEmb = options.embedQuery !== false
+    ? await generateQueryEmbedding(query).catch((err) => {
+        logger.warn(`[knowledgeBase] Failed to generate embedding for query '${query}': ${(err as Error).message}`);
+        return null;
+      })
+    : null;
 
   const queryWords = query
     .toLowerCase()

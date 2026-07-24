@@ -1,6 +1,6 @@
 import express, { Express, Request, Response, NextFunction } from 'express';
 import * as Sentry from '@sentry/node';
-import { expressIntegration } from '@sentry/node';
+import { setupExpressErrorHandler } from '@sentry/node';
 import mongoose from 'mongoose';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -10,19 +10,13 @@ import { getMetrics } from '../utils/http/metrics.js';
 import { logger } from '../utils/http/logger.js';
 import { internalApiKeyOrAdmin } from '../middleware/internalApiKeyOrAdmin.js';
 import { getContext } from '../utils/http/requestContext.js';
+import { sentryRequestTagsMiddleware } from '../utils/sentryTags.js';
 
 export function createApp(config: any): Express {
-  // Initialize Sentry
-  if (config.observability.sentry.enabled) {
-    Sentry.init({
-      dsn: process.env.SENTRY_DSN,
-      environment: config.server.env,
-      integrations: [
-        expressIntegration(),
-      ],
-      tracesSampleRate: config.observability.sentry.tracesSampleRate,
-    });
-  }
+  // Sentry.init() runs in src/instrument.ts (loaded via `tsx --import`),
+  // so by the time we get here, Express + Mongoose are already patched.
+  const sentryEnabled = config.observability.sentry.enabled;
+  const sentryDsn = process.env.SENTRY_DSN;
 
   // Track unhandled promise rejections
   process.on('unhandledRejection', (reason) => {
@@ -87,6 +81,24 @@ export function createApp(config: any): Express {
 
   // Register all middlewares
   registerMiddleware(app, config);
+
+  // Sentry request-context tagger — sets batchId/userId/route as tags on the
+  // current Sentry scope so events/transaction traces can be filtered in the
+  // dashboard by program, user, or endpoint.
+  app.use(sentryRequestTagsMiddleware);
+
+  // NOTE: bridge-cookie auth on the backend is intentionally NOT installed.
+  // The samagama.in bridge flow is:
+  //   1. samagama.in hits /api/auth/bridge/exchange → gets JWT
+  //   2. samagama.in stores JWT in yaksha_session cookie (Domain=.samagama.in)
+  //   3. User navigates to /csfaq — browser sends the cookie
+  //   4. Frontend (cookieBridge.ts) reads the cookie on app boot and
+  //      mirrors it into localStorage.yaksha_token
+  //   5. All subsequent requests go through the existing
+  //      Authorization: Bearer <jwt> path via authShared.ts
+  // This means the frontend cookie bridge is enough; we don't need a
+  // backend middleware that hydrates req.user from the cookie. Keeping
+  // the bridge endpoint + frontend bridge is the minimal surface area.
 
   // Register all routes
   registerRoutes(app);
@@ -156,7 +168,25 @@ export function createApp(config: any): Express {
   app.get('/', (req, res) => res.redirect('/csfaq/'));
   app.get('/csfaq', (req, res) => res.redirect('/csfaq/'));
 
-  // Global Error Handler
+  // Global Error Handler — Sentry captures the exception, then we log + respond.
+  // setupExpressErrorHandler installs the Express-aware Sentry error handler
+  // (handles setting transaction status, attaching request context, etc.).
+  if (sentryEnabled && sentryDsn) {
+    // v1.81 — also fire Sentry on 4xx, not just 5xx. The skill's
+    // default is 5xx-only, which means auth failures, 422s from
+    // validations, and 404s from mistyped URLs never reach
+    // Sentry. For an admin tool we want to see those too — they
+    // are useful signals during rollout. Sample rate is
+    // unchanged; Sentry will still group by endpoint+status.
+    setupExpressErrorHandler(app, {
+      shouldHandleError: (error) => {
+        const status = (error as { status?: number; statusCode?: number }).status
+          ?? (error as { statusCode?: number }).statusCode
+          ?? 500;
+        return status >= 400;
+      },
+    });
+  }
   app.use((err: { status?: number; message?: string; stack?: string }, req: Request, res: Response, next: NextFunction) => {
     const requestId: string = (req as Request & { id: string }).id || '-';
     Sentry.captureException(err);

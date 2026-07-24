@@ -25,11 +25,14 @@ import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-do
 import { useAuth } from '../hooks/useAuth';
 import {
   fetchGoldenQueue,
+  fetchGoldenHistory,
   fetchSpurtiStatus,
   submitGoldenTicket,
   type GoldenQueueItem,
   type SpurtiStatus,
 } from '../components/support/api';
+import type { GoldenHistoryResponse } from '../components/support/types';
+import GoldenHistorySection from '../components/support/GoldenHistorySection';
 
 const MIN_SP = 1;
 const MAX_SP = 100;
@@ -120,6 +123,12 @@ export default function GoldenTicketPage(): React.ReactElement {
   const [mySpCost, setMySpCost] = useState<number | null>(null);
   const [queueLoading, setQueueLoading] = useState(false);
 
+  // v1.73 — User Golden History segment. The page renders
+  // GoldenHistorySection directly below the live grid; this state
+  // is the response payload from GET /api/support/golden/history.
+  const [historyData, setHistoryData] = useState<GoldenHistoryResponse | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
   // Live "now" for countdown text. Refetched every second for smooth timer.
   const [now, setNow] = useState<number>(Date.now());
   useEffect(() => {
@@ -174,8 +183,27 @@ export default function GoldenTicketPage(): React.ReactElement {
     }
   }, [isAuthed, q]);
 
+  const reloadHistory = useCallback(async () => {
+    if (!isAuthed) return;
+    setHistoryLoading(true);
+    // Don't clobber the live-queue error state on a history fetch
+    // miss — that would override the more urgent "+ new ticket"
+    // surface message. The section renders its own skeleton when
+    // historyData is null, so an empty/null response is fine.
+    try {
+      const data = await fetchGoldenHistory(1, 25);
+      setHistoryData(data);
+    } catch {
+      // Silent fail — the section falls back to its empty states.
+      setHistoryData(null);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [isAuthed]);
+
   useEffect(() => { void reloadStatus(); }, [reloadStatus]);
   useEffect(() => { void reloadQueue(); }, [reloadQueue]);
+  useEffect(() => { void reloadHistory(); }, [reloadHistory]);
 
   const cooldownEndsAt = status?.cooldownEndsAt ?? null;
   const cooldownMsLeft = cooldownEndsAt ? Math.max(0, new Date(cooldownEndsAt).getTime() - now) : 0;
@@ -200,7 +228,7 @@ export default function GoldenTicketPage(): React.ReactElement {
       setTitle('');
       setDetails('');
       setSpCost(1);
-      await Promise.all([reloadStatus(), reloadQueue()]);
+      await Promise.all([reloadStatus(), reloadQueue(), reloadHistory()]);
     } catch (err) {
       setSubmitError(friendlyError(err, 'Failed to submit Golden ticket.'));
     } finally {
@@ -225,7 +253,7 @@ export default function GoldenTicketPage(): React.ReactElement {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-28 sm:pt-32 pb-8">
+    <div data-tour="golden-page-content" className="max-w-6xl mx-auto px-4 sm:px-6 pt-20 sm:pt-24 pb-8">
       {/* v1.66 anti-pattern: never use navigate(-1) for back. */}
       <button
         type="button"
@@ -271,7 +299,7 @@ export default function GoldenTicketPage(): React.ReactElement {
             aria-live="polite"
             className="bg-card border border-border rounded-2xl px-6 py-16 shadow-sm flex flex-col items-center justify-center text-center min-h-[420px]"
           >
-            <div className="w-16 h-16 rounded-full bg-amber-100 border-2 border-amber-300 flex items-center justify-center text-amber-700 mb-4">
+            <div className="w-16 h-16 rounded-full bg-warning/10 border-2 border-warning/30 flex items-center justify-center text-warning mb-4">
               <svg
                 width="28"
                 height="28"
@@ -336,7 +364,7 @@ export default function GoldenTicketPage(): React.ReactElement {
 
             <div>
               <label className="block text-sm font-semibold text-ink mb-1">
-                Urgent Query <span className="text-red-500">*</span>
+                Urgent Query <span className="text-danger">*</span>
               </label>
               <input
                 type="text"
@@ -350,7 +378,7 @@ export default function GoldenTicketPage(): React.ReactElement {
 
             <div>
               <label className="block text-sm font-semibold text-ink mb-1">
-                Full Context <span className="text-red-500">*</span>
+                Full Context <span className="text-danger">*</span>
               </label>
               <textarea
                 value={details}
@@ -366,7 +394,7 @@ export default function GoldenTicketPage(): React.ReactElement {
             </div>
 
             {submitError && (
-              <div className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-900">
+              <div className="rounded-lg border border-danger/30 bg-danger-light px-3 py-2 text-sm text-danger">
                 {submitError}
               </div>
             )}
@@ -375,7 +403,7 @@ export default function GoldenTicketPage(): React.ReactElement {
               <button
                 type="submit"
                 disabled={!canSubmit}
-                className="px-5 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-600 disabled:bg-orange-300 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
+                className="px-5 py-2.5 rounded-lg bg-accent hover:bg-accent-hover disabled:bg-accent/40 disabled:cursor-not-allowed text-accent-text text-sm font-semibold transition-colors"
               >
                 {submitting ? 'Submitting…' : 'Submit Escalation'}
               </button>
@@ -462,10 +490,22 @@ export default function GoldenTicketPage(): React.ReactElement {
       )}
 
       {loadError && (
-        <div className="max-w-2xl mx-auto mt-6 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900">
+        <div className="max-w-2xl mx-auto mt-6 rounded-lg border border-danger/30 bg-danger-light px-4 py-3 text-sm text-danger">
           {loadError}
         </div>
       )}
+
+      {/* v1.73 — Golden History segment below the live grid.
+          This is the user's own view of past resolved/rejected
+          tickets, ban windows, and the chronological activity
+          log. Hidden from admins — they have /admin/golden-logs
+          instead. */}
+      <GoldenHistorySection
+        history={historyData?.history ?? []}
+        banned={historyData?.banned ?? []}
+        activity={historyData?.activity ?? []}
+        loading={historyLoading}
+      />
     </div>
   );
 }

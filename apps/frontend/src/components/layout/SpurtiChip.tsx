@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../hooks/useAuth';
+import { accentChip, accentDot, accentTextMuted } from '../../styles/style_config';
 
 /**
  * SpurtiChip — v1.65, additive.
@@ -21,7 +22,11 @@ import { useAuth } from '../../hooks/useAuth';
  */
 export default function SpurtiChip(): React.ReactElement | null {
   const { user } = useAuth();
-  const userId = user?.id ?? null;
+  // 1.1 (HIGH) — User shape uses `_id`, never `id`. Reading `user?.id`
+  // returns undefined for every real user, so the early-return below
+  // hid the chip (and the v1.65 SP currency system / Golden Ticket
+  // funder) entirely. Fix: read `_id`.
+  const userId = user?._id ?? null;
   const [sp, setSp] = useState<number | null>(null);
 
   useEffect(() => {
@@ -45,7 +50,8 @@ export default function SpurtiChip(): React.ReactElement | null {
 
   return (
     <div
-      className="hidden md:inline-flex items-center gap-1.5 h-9 px-3 rounded-full bg-accent/10 border border-accent/20 text-accent text-xs font-semibold shadow-sm"
+      data-tour="spurti-chip"
+      className={`hidden md:${accentChip}`}
       title="Spurti Points — Golden Ticket currency"
       aria-label={`Spurti Points balance: ${sp}`}
     >
@@ -63,7 +69,7 @@ export default function SpurtiChip(): React.ReactElement | null {
         <path d="M12 2 c 0 6 -6 6 -6 12 a 6 6 0 0 0 12 0 c 0 -3 -2 -5 -3 -7 c -1 2 -3 3 -3 -5 z" />
       </svg>
       <span className="tabular-nums">{sp}</span>
-      <span className="text-accent/70 font-medium">SP</span>
+      <span className={accentTextMuted}>SP</span>
     </div>
   );
 }

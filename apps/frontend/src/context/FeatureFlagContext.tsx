@@ -2,35 +2,51 @@
 // feature so the navbar / sidebar / page guards can hide or show
 // affordances without each page making its own API call.
 //
-// v1.69 — multi-program scoping: every fetch passes the active
-// program's batchId as a query param so the backend resolves the
-// correct per-program override. Switching the active program via
-// ProgramContext automatically re-fetches the flag list because
-// `activeProgramId` is in the useEffect dependency array.
+// Phase 1 R1: typed `FeatureFlagKey` union, `useFeatureFlag` returns
+// `{ enabled, source, loading }` instead of `boolean | null | undefined`,
+// and admin consumers can read the full map via `useFeatureFlags()`.
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import api from '../utils/api';
 import { useAuth } from '../hooks/useAuth';
 import { useCurrentProgramId } from '../hooks/useProgramScopedApi';
+import { isKnownFeatureFlag, type FeatureFlagKey } from '../ds/featureFlags';
 
-export interface FeatureFlag {
+export type FeatureFlagSource = 'global' | 'override' | 'default' | 'unknown';
+
+export interface ResolvedFeatureFlag {
+  key: FeatureFlagKey;
+  enabled: boolean;
+  source: FeatureFlagSource;
+  lastChangedAt: Date | null;
+  lastChangedBy: { _id: string; name?: string; email?: string } | null;
+}
+
+/** Wire shape from the backend `listFeatureFlags` endpoint. */
+interface BackendFeatureFlag {
   key: string;
   enabled: boolean;
-  label: string;
-  description: string;
-  // v1.69 — surfaced from the backend so the admin UI can show
-  // whether a flag's value comes from a per-program override or
-  // the global default. Frontend renderers can ignore it.
   overridden?: boolean;
-  firstEnabledAt: string | null;
-  lastDisabledAt: string | null;
+  updatedAt?: string | Date | null;
+  firstEnabledAt?: string | null;
+  lastDisabledAt?: string | null;
+  // Per-program branch (post-Phase 1 R1) returns a different shape — the
+  // controller has been updated to return a consistent shape, so this
+  // interface will tighten in a follow-up.
+}
+
+export interface UseFeatureFlagResult {
+  enabled: boolean;
+  source: FeatureFlagSource;
+  loading: boolean;
 }
 
 interface FeatureFlagContextValue {
-  flags: Record<string, FeatureFlag>;
+  flags: Record<string, ResolvedFeatureFlag>;
   loading: boolean;
   error: string | null;
-  /** True if the named feature is currently enabled. */
+  /** True if the named feature is currently enabled. Convenience wrapper
+   *  for `useFeatureFlag(key).enabled` — kept for backward compat. */
   isEnabled: (key: string) => boolean;
   /** Re-fetch the flag list (e.g. after the admin toggles one). */
   refresh: () => Promise<void>;
@@ -48,30 +64,70 @@ export function useFeatureFlags(): FeatureFlagContextValue {
   return ctx;
 }
 
-/** Convenience: a hook for one specific flag. Returns:
- *  - `undefined` while the flag list is still loading
- *  - `null` when the key is not found in the map (unknown flag)
- *  - `true` / `false` when the flag exists and has a known enabled state
+/**
+ * Hook for one specific flag. Returns:
+ *  - `loading: true, enabled: false, source: 'default'` while the list is loading
+ *  - `enabled: <resolved>, source: 'global' | 'override' | 'default'` once loaded
+ *  - `enabled: false, source: 'unknown'` if the key is not in the registry
+ *
+ * Dev mode (import.meta.env.DEV === true) throws on unknown keys so
+ * typos surface immediately. Prod mode logs a warning and returns
+ * the safe `unknown` shape.
  */
-export function useFeatureFlag(key: string): boolean | null | undefined {
+export function useFeatureFlag(key: FeatureFlagKey): UseFeatureFlagResult {
   const { flags, loading } = useFeatureFlags();
-  if (loading) return undefined;
-  return flags[key]?.enabled ?? null;
+  if (!isKnownFeatureFlag(key)) {
+    if (import.meta.env.DEV) {
+      throw new Error(
+        `useFeatureFlag: unknown feature flag "${String(key)}". ` +
+        `Add it to apps/frontend/src/ds/featureFlags.ts to fix.`,
+      );
+    }
+    // eslint-disable-next-line no-console
+    console.warn(`[featureFlags] unknown key: ${String(key)}`);
+    return { enabled: false, source: 'unknown', loading: false };
+  }
+  if (loading) {
+    return { enabled: false, source: 'default', loading: true };
+  }
+  const resolved = flags[key];
+  if (!resolved) {
+    return { enabled: false, source: 'default', loading: false };
+  }
+  return {
+    enabled: resolved.enabled,
+    source: resolved.source,
+    loading: false,
+  };
 }
 
 interface ProviderProps { children: React.ReactNode }
 
+function backendFlagToResolved(raw: BackendFeatureFlag): ResolvedFeatureFlag | null {
+  if (!isKnownFeatureFlag(raw.key)) {
+    // Defensive: backend has a flag we don't know about. Skip rather
+    // than fail loud at runtime.
+    return null;
+  }
+  const source: FeatureFlagSource = raw.overridden ? 'override' : 'global';
+  const updatedAt = raw.updatedAt ? new Date(raw.updatedAt) : null;
+  return {
+    key: raw.key,
+    enabled: !!raw.enabled,
+    source,
+    lastChangedAt: updatedAt,
+    lastChangedBy: null,
+  };
+}
+
 export function FeatureFlagProvider({ children }: ProviderProps): React.ReactElement {
   const { isAuthenticated } = useAuth();
   const activeProgramId = useCurrentProgramId();
-  const [flags, setFlags] = useState<Record<string, FeatureFlag>>({});
+  const [flags, setFlags] = useState<Record<string, ResolvedFeatureFlag>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    // H6 fix: reset error at start so a transient failure doesn't permanently
-    // brick every FeatureGate. L7 fix: keep loading=true for guests so the
-    // loading skeleton shows instead of silently rendering all-off.
     setError(null);
     setLoading(true);
     if (!isAuthenticated) {
@@ -97,21 +153,27 @@ export function FeatureFlagProvider({ children }: ProviderProps): React.ReactEle
       return;
     }
     try {
-      // v1.69 — pass the active program so the backend resolves
-      // per-program overrides. Without batchId the endpoint falls
-      // back to global defaults only, which would mean switching
-      // programs doesn't update feature flags until full reload.
       const params = activeProgramId ? { batchId: activeProgramId } : {};
-      const res = await api.get<{ flags: FeatureFlag[] }>('/feature-flags', { params });
-      const map: Record<string, FeatureFlag> = {};
-      for (const f of res.data.flags ?? []) {
-        map[f.key] = f;
+      const res = await api.get<{ flags?: BackendFeatureFlag[] } | BackendFeatureFlag[]>(
+        '/feature-flags',
+        { params },
+      );
+      // Defensive: backend currently returns different shapes per query
+      // (see feature-flag.controller.ts). Normalise here until the
+      // controller is unified (Phase 1 R1 follow-up).
+      const raw: BackendFeatureFlag[] = Array.isArray(res.data)
+        ? res.data
+        : res.data.flags ?? [];
+      const map: Record<string, ResolvedFeatureFlag> = {};
+      for (const f of raw) {
+        const resolved = backendFlagToResolved(f);
+        if (resolved) {
+          map[resolved.key] = resolved;
+        }
       }
       setFlags(map);
       setError(null);
-    } catch (err) {
-      // Non-fatal — pages will treat unknown features as "off" and
-      // show a "not available" message if the user navigates directly.
+    } catch {
       setError('Could not load feature flags.');
     } finally {
       setLoading(false);
@@ -132,7 +194,7 @@ export function FeatureFlagProvider({ children }: ProviderProps): React.ReactEle
       await api.patch(`/feature-flags/${key}`, { enabled });
       await load();
       return { ok: true };
-    } catch (err) {
+    } catch {
       const message = 'Failed to update feature flag.';
       setError(message);
       return { ok: false, error: message };

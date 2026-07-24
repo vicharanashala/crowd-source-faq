@@ -1,7 +1,8 @@
 import { Request, Response } from 'express';
 import mongoose, { Types } from 'mongoose';
 import FAQ, { type IFAQ } from './faq.model.js';
-import { generateEmbedding, generateQueryEmbedding } from '../../utils/ai/embeddings.js';
+import CommunityPost from '../community/community-post.model.js';
+import { generateQueryEmbedding } from '../../utils/ai/embeddings.js';
 import { adminLog } from '../../utils/http/logger.js';
 import { invalidateCache } from '../../utils/http/cache.js';
 import { createTeaDropsForFAQ } from '../notification/tea-notification.controller.js';
@@ -346,8 +347,8 @@ export const createFAQ = async (req: Request, res: Response): Promise<void> => {
     const answer_ = sanitizeHtml(answer);
     const category_ = sanitizeHtml(category);
 
-    // Generate vector embedding for semantic search
-    const embedding = await generateEmbedding(`Section: ${category_}. Question: ${question_}. Answer: ${answer_}`);
+    // Skip live embedding on create. Weekly batch cron handles it offline.
+    // See apps/backend/src/utils/ai/embeddings.ts for context.
 
     const now = new Date();
     const tier = freshnessTier ?? 'evergreen';
@@ -362,7 +363,7 @@ export const createFAQ = async (req: Request, res: Response): Promise<void> => {
       answer: answer_,
       category: category_,
       batchId: new Types.ObjectId(batchId),
-      embedding,
+      // embedding omitted — assigned offline by weekly batch cron
       freshnessTier: tier,
       reviewIntervalDays: interval,
       reviewStatus: 'verified',
@@ -423,12 +424,7 @@ export const updateFAQ = async (req: Request<{ id: string }>, res: Response): Pr
       faq.status = status;
     }
 
-    // Recalculate embedding if any key field is updated
-    if (question || answer || category) {
-      faq.embedding = await generateEmbedding(
-        `Section: ${faq.category}. Question: ${faq.question}. Answer: ${faq.answer}`
-      );
-    }
+    // Embedding recalculation skipped — handled by weekly batch cron.
 
     // Admin edit while under review = re-verification
     if (faq.reviewStatus === 'pending_review' || faq.reviewStatus === 'update_requested') {
@@ -446,6 +442,24 @@ export const updateFAQ = async (req: Request<{ id: string }>, res: Response): Pr
 
     await faq.save();
 
+    // ── Phase 3 R12 auto-answer hook ─────────────────────────────────────
+    // When an admin edits a FAQ, find any community posts that quoted
+    // this FAQ as the source of their AI-suggested answer and flag them
+    // for re-evaluation. Fire-and-forget.
+    if (question || answer || category) {
+      CommunityPost.updateMany(
+        {
+          aiAnswerSource: `faq:${String(faq._id)}`,
+          aiAnswerStatus: { $in: ['suggested', 'ask_human'] },
+        },
+        { $set: { pendingReviews: true } },
+      ).catch((err: Error) => {
+        // Best-effort — log but don't fail the FAQ edit.
+        // eslint-disable-next-line no-console
+        console.warn(`[updateFAQ] pendingReviews flag failed: ${err.message}`);
+      });
+    }
+
     // Invalidate search cache so updated FAQ reflects immediately
     await invalidateCache();
     invalidatePublicCaches();
@@ -453,6 +467,18 @@ export const updateFAQ = async (req: Request<{ id: string }>, res: Response): Pr
     res.json({ message: 'FAQ updated successfully.', faq });
   } catch (error) {
     res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
+  }
+};
+
+// GET /api/faq/categories — list distinct categories for approved FAQs
+// Audit fix (2026-07-02): frontend called `/faq/faq-categories` which
+// didn't exist; this is the canonical route + handler.
+export const getFAQCategories = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const cats = await FAQ.distinct('category', { status: 'approved' });
+    res.json(cats.filter((c) => typeof c === 'string' && c.length > 0).sort());
+  } catch (err) {
+    res.status(500).json({ message: 'categories fetch failed' });
   }
 };
 
@@ -481,15 +507,41 @@ export const deleteFAQ = async (req: Request<{ id: string }>, res: Response): Pr
 // Used by the community board to prevent duplicate questions
 export const checkFAQMatch = async (req: Request<Record<string, never>, Record<string, never>, CheckFAQMatchBody>, res: Response): Promise<void> => {
   try {
-    const { query } = req.body;
+    // Audit fix (2026-07-02): accept either `query` (spec) OR `question` /
+    // `body` (what the frontend actually sends) so the route doesn't 500.
+    const body = req.body as { query?: string; question?: string; body?: string };
+    const query = (body.query || body.question || body.body || '').trim();
 
-    if (!query || !query.trim()) {
-      res.status(400).json({ message: 'query string is required.' });
+    if (!query) {
+      res.status(400).json({ message: 'query (or question) is required.' });
       return;
     }
 
-    // Generate embedding for the user's question
-    const embedding = await generateQueryEmbedding(query.trim());
+    // v1.71 — Phase 8 R3: do NOT 500 on a flaky embedder during
+    // duplicate-check. Previously `checkFAQMatch` was the most visible
+    // offender: every community "post a question" attempt called
+    // `generateQueryEmbedding` and 500ed on a connection error, so the
+    // user couldn't even submit their question. Now: try the embed;
+    // if it fails, return `{ matched: false, faq: null }` so the post
+    // goes through (the post-create endpoint still gates on
+    // `checkDuplicate` which itself already has a graceful
+    // `.catch` around its own embed call). The hourly `embedding-warm`
+    // cron back-fills embeddings in the background.
+    let embedding: number[] | null = null;
+    try {
+      embedding = await generateQueryEmbedding(query.trim());
+    } catch (embErr) {
+      adminLog.warn(
+        `[checkFAQMatch] Failed to generate embedding for query '${query}': ${(embErr as Error).message}. Returning no-match.`,
+      );
+    }
+
+    if (embedding == null) {
+      // Degrade gracefully — no embedding means no vector match,
+      // which we surface to the caller as "no match" rather than a 500.
+      res.json({ matched: false, faq: null });
+      return;
+    }
 
     // Run vector search against the FAQ collection
     const mongoose = (await import('mongoose')).default;

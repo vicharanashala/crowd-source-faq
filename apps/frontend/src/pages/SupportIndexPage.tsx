@@ -7,13 +7,7 @@ import { listSupportRequests, SUPPORT_ISSUE_OPTIONS } from '../components/suppor
 import { getIssueIcon } from '../components/support/icons';
 import type { SupportListResponse, SupportStatus } from '../components/support/types';
 import Spinner from '../components/ui/Spinner';
-
-const STATUS_STYLES: Record<SupportStatus, string> = {
-  'Pending':   'bg-warning/15 text-warning border-warning/30',
-  'In Review': 'bg-admin-blue/15 text-admin-blue border-admin-blue/30',
-  'Resolved':  'bg-success/15 text-success border-success/30',
-  'Rejected':  'bg-danger/15 text-danger border-danger/30',
-};
+import { STATUS_STYLES } from '../styles/style_config';
 
 function SupportIndexInner(): React.ReactElement {
   const [data, setData] = useState<SupportListResponse | null>(null);
@@ -42,7 +36,13 @@ function SupportIndexInner(): React.ReactElement {
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [navigate]);
+    // 2-A (MEDIUM) fix: previously the dep array was just `[navigate]`,
+    // omitting `q`. The effect fired once on mount and never re-ran
+    // when the URL's `?q=...` changed — so navigating to
+    // `/support?q=foo` and then changing the URL's q to `?q=bar`
+    // silently kept the old query results. Add `q` to the deps so the
+    // search-filter re-fires on URL changes.
+  }, [navigate, q]);
 
   if (loading) {
     return (
@@ -69,8 +69,8 @@ function SupportIndexInner(): React.ReactElement {
   );
 
   return (
-    <div className="min-h-screen bg-bg">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+    <div data-tour="support-page-content" className="min-h-screen bg-bg">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 pt-20 sm:pt-24 pb-8 sm:pb-10">
         <div className="mb-6">
           <button
             onClick={() => navigate('/home')}

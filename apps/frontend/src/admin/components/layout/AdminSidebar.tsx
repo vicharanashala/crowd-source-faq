@@ -61,15 +61,21 @@ const NAV: NavGroup[] = [
   {
     label: 'Data Sources',
     items: [
-      { to: '/admin/zoom-meetings',  label: 'Zoom Meetings', icon: VideoIcon },
-      { to: '/admin/document-insights', label: 'Document Insights', icon: DocIcon, featureFlag: 'documentPipeline' },
+      // v1.83 — collapsed 4 pages (Zoom Meetings, Zoom Insights,
+      // Document Insights, Context Sources) into a single tabbed
+      // `/admin/knowledge` route. Old entries still resolve via
+      // `<Navigate>` redirects in AppRoutes.tsx for bookmarks.
+      { to: '/admin/knowledge',     label: 'Knowledge',    icon: DocIcon, featureFlag: 'documentPipeline' },
+      { to: '/admin/train',         label: 'Train',         icon: SparkleIcon },
     ],
   },
   {
     label: 'System',
     items: [
       { to: '/admin/settings/ai',    label: 'AI Settings',   icon: BrainIcon },
+      { to: '/admin/ai-logs',       label: 'AI API Logs',    icon: ActivityIcon },
       { to: '/admin/features',      label: 'Feature Flags', icon: FlagIcon },
+      { to: '/admin/schedule',      label: 'Schedule',      icon: ClockIcon },
       { to: '/admin/settings',       label: 'Settings',      icon: SettingsIcon },
     ],
   },
@@ -92,7 +98,10 @@ function SupportIcon()   { return <svg width="15" height="15" viewBox="0 0 24 24
 
 
 function FlagIcon()      { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>; }
+function ClockIcon()    { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>; }
 function ListIcon()      { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>; }
+function LinkIcon()      { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>; }
+function ActivityIcon()  { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>; }
 
 
 

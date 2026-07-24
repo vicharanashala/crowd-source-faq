@@ -1,0 +1,9 @@
+# .nojekyll
+#
+# Tells GitHub Pages to skip Jekyll processing for the /docs site.
+# Without this file, Jekyll would process the docs/ directory and could
+# mangle files starting with underscores (_next/, _astro/, etc.) and apply
+# Liquid template tags to anything that looks like {{ ... }}.
+#
+# The docs site is markdown files served as static content — no Jekyll
+# processing needed.

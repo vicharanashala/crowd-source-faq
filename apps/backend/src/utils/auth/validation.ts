@@ -36,9 +36,45 @@ export const changePasswordSchema = z.object({
   newPassword:     passwordPolicy,
 });
 
+// v1.85 — admin-initiated password reset for any non-admin user.
+// Body is just the new password (no currentPassword — admin
+// doesn't know it). Reuses the same passwordPolicy as the
+// user-self-change path so the bar is consistent.
+export const adminResetPasswordSchema = z.object({
+  newPassword: passwordPolicy,
+});
+
 export const updateProfileSchema = z.object({
   name:  z.string().min(2).max(100).optional(),
   email: z.string().email().optional(),
+  guidedTourCompleted: z.boolean().optional(),
+  // v1.87 — Sign My Tee. Accepts either an ISO 8601 string
+  // (`2026-07-14T00:00:00.000Z`) from JSON callers OR a
+  // date-only `YYYY-MM-DD` shape from the FE's `<input type="date">`
+  // (which never emits time components). We normalise to a Date,
+  // anchored to UTC midnight for the date-only variant, so the
+  // canonical storage value is timezone-agnostic. Setting `null`
+  // clears the date (e.g. if an admin ever needs to reset it).
+  internshipEndDate: z
+    .union([
+      z.string().datetime({ offset: true }),
+      z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD'),
+    ])
+    .transform((v) => {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return new Date(`${v}T00:00:00.000Z`);
+      return new Date(v);
+    })
+    .nullable()
+    .optional(),
+  avatar: z
+    .object({
+      url: z.string().url().max(1000),
+      publicId: z.string().max(200).optional(),
+      gcsUri: z.string().max(1000).optional(),
+      objectPath: z.string().max(1000).optional(),
+    })
+    .nullable()
+    .optional(),
 });
 
 // ─── FAQ ────────────────────────────────────────────────────────────────────────
@@ -76,6 +112,19 @@ export const voteReviewSchema = z.object({
 export const createPostSchema = z.object({
   title: z.string().min(10, 'Title must be at least 10 characters').max(300),
   body:  z.string().min(20, 'Body must be at least 20 characters').max(5000),
+  tags:  z.array(z.string()).min(1, 'At least one category tag is required').max(3),
+  attachments: z.array(
+    z.object({
+      url: z.string(),
+      publicId: z.string().optional(),
+      gcsUri: z.string().optional(),
+      objectPath: z.string().optional(),
+      width: z.number().optional(),
+      height: z.number().optional(),
+      format: z.string().optional(),
+      bytes: z.number().optional(),
+    })
+  ).optional(),
 });
 
 export const checkDuplicateSchema = z.object({
@@ -96,17 +145,37 @@ export const reportPostSchema = z.object({
   reason: z.string().min(3).max(300),
 });
 
-// ─── Search ─────────────────────────────────────────────────────────────────────
-export const searchSchema = z.object({
-  q:      z.string().min(1),
-  page:   z.coerce.number().int().min(1).default(1),
-  limit:  z.coerce.number().int().min(1).max(50).default(10),
-  source: z.enum(['all', 'faq', 'community']).optional(),
+// H4-2 (HIGH) fix: refresh token Zod schema. The previous
+// `refresh` controller read `req.body.refreshToken` raw — a 10MB
+// string would hit `jwt.verify` and exhaust memory. Bound it
+// between min 20 chars (longest reasonable JWT) and max 2048 chars
+// (plenty for a JWT + a few bytes of padding). The controller
+// already handles the `refreshToken: undefined` case (returns 400
+// 'Refresh token is required') so a missing field doesn't need a
+// separate Zod error.
+export const refreshSchema = z.object({
+  refreshToken: z.string().min(20).max(2048),
 });
 
+// ─── Search ─────────────────────────────────────────────────────────────────────
+// v1.79.1 (HOTFIX) — schema renamed `q` → `query` so it matches the
+// shape the frontend POSTs (`SearchBar.tsx`, `InteractiveSearchOverlay.tsx`).
+// Previously every request returned 400 with `{ field: 'q', message: 'Required' }`
+// even though the body contained `query`. The `limit`/`page`/`source` fields
+// are dropped because the controller doesn't use them — keeping them
+// required-as-defaults would silently bind the controller to unused knobs.
+export const searchSchema = z.object({
+  query: z.string().min(1).max(200),
+  batchId: z.string().regex(/^[0-9a-fA-F]{24}$/).optional(),
+});
+
+// v1.79.1 (HOTFIX) — `feedback` was being POSTed by `SearchFeedback.tsx`
+// but the schema didn't declare it, so Zod's `.object()` rejected the
+// unknown key → 400. Added as optional to match the controller's read.
 export const submitUnresolvedSchema = z.object({
-  query:  z.string().min(1).max(500),
-  faqId:  z.string().regex(/^[0-9a-fA-F]{24}$/).nullish(),
+  query:    z.string().min(1).max(500),
+  faqId:    z.string().regex(/^[0-9a-fA-F]{24}$/).nullish(),
+  feedback: z.string().max(2000).optional(),
 });
 
 export const resolveUnresolvedSchema = z.object({
@@ -121,9 +190,17 @@ export const warnUserSchema = z.object({
 
 export const suspendUserSchema = z.object({
   userId:   z.string().regex(/^[0-9a-fA-F]{24}$/),
-  days:     z.coerce.number().int().min(1).max(365),
+  // 5.1 fix: the controller reads `duration` as a string like `"24h"` or `"7d"`,
+  // not a `days: number`. We accept BOTH for backward compat — `days` is
+  // still honored by the controller (converted internally to `${days}d`),
+  // but new callers should prefer `duration`.
+  duration: z.string().regex(/^\d+(h|d)$/).optional(),
+  days:     z.coerce.number().int().min(1).max(365).optional(),
   reason:   z.string().min(3).max(500),
-});
+}).refine(
+  (data) => data.duration !== undefined || data.days !== undefined,
+  { message: 'Either duration (e.g. "24h", "7d") or days (1-365) is required.' },
+);
 
 export const banUserSchema = z.object({
   userId: z.string().regex(/^[0-9a-fA-F]{24}$/),

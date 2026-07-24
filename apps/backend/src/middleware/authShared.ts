@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import { Types } from 'mongoose';
 import { type Request, type Response, type NextFunction } from 'express';
 import User, { type IUser, type UserRole } from '../modules/auth/user.model.js';
 import RevokedToken from '../modules/auth/revoked-token.model.js';
@@ -8,6 +9,12 @@ interface VerifiedToken {
   id: string;
   jti?: string;
   exp?: number;
+  // v1.70 — service-role JWT marker. Tokens minted by
+  // `integrations/discord/admin/serviceJwt.ts` set `kind: 'service'`
+  // so the bot can hit /api/admin/* without a real user row.
+  // Real-user tokens do NOT have this field (default = undefined).
+  kind?: string;
+  role?: string;
 }
 
 export interface AuthedRequest extends Request {
@@ -64,6 +71,59 @@ export async function verifyAndLoadUser(
       res.status(401).json({ message: 'Session has been revoked. Please log in again.' });
       return null;
     }
+  }
+
+  // v1.70 — Service-role JWT bypass.
+  // Tokens minted by `integrations/discord/admin/serviceJwt.ts`
+  // carry `kind: 'service'`. The JWT is signed with the same
+  // JWT_SECRET, so verifying it is equivalent to trusting whoever
+  // owns that secret — there's no real user row to look up. We
+  // synthesise a minimal admin user so downstream `authorize('admin')`
+  // checks pass. `isServiceAccount: true` lets audit logs tell
+  // these requests apart from real-user admin actions.
+  if (decoded.kind === 'service') {
+    const role: UserRole = (decoded.role as UserRole) || 'admin';
+    const syntheticId = Types.ObjectId.isValid(decoded.id ?? '')
+      ? new Types.ObjectId(decoded.id as string)
+      : new Types.ObjectId();
+    const syntheticUser = {
+      _id: syntheticId,
+      name: 'Service Account',
+      email: 'service-account@internal',
+      password: '',
+      role,
+      reputation: 0,
+      points: 0,
+      tier: 'knowledge_master' as const,
+      sp: 0,
+      positiveBadges: [],
+      negativeBadges: [],
+      isBanned: false,
+      isDeleted: false,
+      zoomConnected: false,
+      totpEnabled: false,
+      bookmarks: [],
+      acceptedAnswers: 0,
+      faqContributions: 0,
+      welcomePackageOnboarded: false,
+      zoomAssessmentPassed: false,
+      seenAssessmentQuestions: [],
+      orientationCompleted: false,
+      projectSelectionLocked: false,
+      onboardingAuditLog: [],
+      lastGoldenTicketAt: null,
+      lastGoldenRejectionAt: null,
+      goldenBannedUntil: null,
+      goldenBanReason: '',
+      goldenBannedBy: null,
+      goldenBannedAt: null,
+      isServiceAccount: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as unknown as IUser;
+    req.user = syntheticUser;
+    req.auth = decoded;
+    return syntheticUser;
   }
 
   const user = await User.findById(decoded.id).select('-password');

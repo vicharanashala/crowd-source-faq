@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api, { friendlyError } from '../../utils/api';
+import api from '../../utils/api';
 import { useAuth } from '../../hooks/useAuth';
+import { communityCloseButton } from '../../styles/style_config';
 
 type TeaEventType = 'faq_published' | 'post_answered' | 'post_deleted' | 'post_answered_user';
 
@@ -23,10 +24,10 @@ interface TeaDrop {
 }
 
 const EVENT_META: Record<TeaEventType, { label: string; icon: string; color: string; bgColor: string }> = {
-  faq_published:     { label: 'new faq',        icon: '📋', color: 'text-purple-600',   bgColor: 'bg-purple-50' },
-  post_answered:     { label: 'resolved',        icon: '✅', color: 'text-emerald-600',   bgColor: 'bg-emerald-50' },
-  post_deleted:      { label: 'removed',         icon: '🗑',  color: 'text-red-500',       bgColor: 'bg-red-50' },
-  post_answered_user:{ label: 'new answer',      icon: '💡', color: 'text-amber-600',     bgColor: 'bg-amber-50' },
+  faq_published:     { label: 'new faq',        icon: '📋', color: 'text-accent',  bgColor: 'bg-accent' },
+  post_answered:     { label: 'resolved',        icon: '✅', color: 'text-accent',  bgColor: 'bg-accent' },
+  post_deleted:      { label: 'removed',         icon: '🗑',  color: 'text-danger',  bgColor: 'bg-danger' },
+  post_answered_user:{ label: 'new answer',      icon: '💡', color: 'text-warning', bgColor: 'bg-warning' },
 };
 
 function timeAgo(dateStr: string): string {
@@ -65,11 +66,17 @@ export default function SpillTheTea() {
       );
       const newDrops = res.data.drops;
 
-      // Background poll (dropdown closed): detect new post_answered events and toast
-      if (!open && newDrops.length > 0) {
-        const latestDrop = newDrops[0];
-        // Only toast for post_answered (Admin/AI resolved) and only if it's a new drop
+      // 2-H (LOW) — previously lastSeenIdRef was only updated in the
+      // !open branch, so when the user opened the dropdown, fetchTea
+      // still compared against a possibly-stale ref on the next close.
+      // Now we always advance the ref to the most recent drop we just
+      // saw, regardless of open/closed state — that's what "last seen"
+      // semantically means.
+      const latestDrop = newDrops[0];
+      if (latestDrop) {
+        // Background poll (dropdown closed): detect new post_answered events and toast
         if (
+          !open &&
           latestDrop.eventType === 'post_answered' &&
           lastSeenIdRef.current !== null &&
           latestDrop._id !== lastSeenIdRef.current
@@ -88,7 +95,7 @@ export default function SpillTheTea() {
       setHasMore(res.data.hasMore);
       setPage(pageNum);
     } catch (e) {
-      console.error(friendlyError(e, 'Failed to load notifications.'));
+      console.error('Failed to load notifications:', e);
     } finally {
       setLoading(false);
     }
@@ -138,7 +145,7 @@ export default function SpillTheTea() {
       await api.patch('/notifications/tea/read-all');
       setDrops((prev) => prev.map((d) => ({ ...d, read: true })));
       setUnread(0);
-    } catch (e) { console.error(friendlyError(e, 'Failed to mark notifications read.')); }
+    } catch (e) { console.error('Failed to mark notifications read:', e); }
   };
 
   const handleMarkOneRead = async (id: string) => {
@@ -146,7 +153,7 @@ export default function SpillTheTea() {
       await api.patch(`/notifications/tea/${id}/read`);
       setDrops((prev) => prev.map((d) => (d._id === id ? { ...d, read: true } : d)));
       setUnread((u) => Math.max(0, u - 1));
-    } catch (e) { console.error(friendlyError(e, 'Failed to mark notification read.')); }
+    } catch (e) { console.error('Failed to mark notification read:', e); }
   };
 
   const handleDropClick = (drop: TeaDrop) => {
@@ -167,7 +174,7 @@ export default function SpillTheTea() {
       {/* Trigger */}
       <button
         onClick={() => setOpen((v) => !v)}
-        className="relative flex items-center justify-center w-9 h-9 rounded-full hover:bg-black/[0.04] transition-colors"
+        className={communityCloseButton}
         title="Spill the Tea ☕"
       >
         <span className="text-lg" style={{ fontSize: '1.15rem' }}>☕</span>

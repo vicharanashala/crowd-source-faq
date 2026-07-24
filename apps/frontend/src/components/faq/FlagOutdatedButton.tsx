@@ -1,5 +1,18 @@
 import React, { useState, useRef } from 'react';
 import api from '../../utils/api';
+import {
+  dialogBody,
+  dialogLabel,
+  dialogLabelFaint,
+  dialogShell,
+  dialogTitleSm,
+  flagButtonDisabled,
+  flagButtonIdle,
+  flagCancelButton,
+  flagErrorBanner,
+  flagSubmitButton,
+  textAreaBase,
+} from '../../styles/style_config';
 
 interface FlagOutdatedButtonProps {
   faqId: string;
@@ -50,11 +63,7 @@ export default function FlagOutdatedButton({ faqId, reviewStatus, onFlagged }: F
         onClick={openModal}
         disabled={isAlreadyUnderReview}
         title={isAlreadyUnderReview ? 'This FAQ is already under review' : 'Flag as outdated'}
-        className={`text-xs px-2 py-1 rounded border transition-colors
-          ${isAlreadyUnderReview
-            ? 'border-border text-ink-faint cursor-not-allowed'
-            : 'border-border text-ink-soft hover:border-orange-300 hover:text-orange-600'
-          }`}
+        className={isAlreadyUnderReview ? flagButtonDisabled : flagButtonIdle}
       >
         🚩 {isAlreadyUnderReview ? 'Under review' : 'Flag outdated'}
       </button>
@@ -63,38 +72,38 @@ export default function FlagOutdatedButton({ faqId, reviewStatus, onFlagged }: F
         <dialog
           ref={dialogRef}
           onClose={() => setShowModal(false)}
-          className="m-auto rounded-2xl border border-border shadow-2xl bg-card p-0 backdrop:bg-ink/30 backdrop:backdrop-blur-sm"
+          className={dialogShell}
         >
-          <form onSubmit={handleSubmit} className="p-6 space-y-4 min-w-72">
-            <h3 className="text-sm font-semibold text-ink">Flag as Outdated</h3>
-            <p className="text-xs text-ink-soft">
+          <form onSubmit={handleSubmit} className={dialogBody}>
+            <h3 className={dialogTitleSm}>Flag as Outdated</h3>
+            <p className={dialogLabel}>
               Why do you think this answer needs updating?
-              <span className="block mt-1 text-ink-faint">(optional — max 200 chars)</span>
+              <span className={dialogLabelFaint}>(optional — max 200 chars)</span>
             </p>
             <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value.slice(0, 200))}
               placeholder="E.g. The process changed last week..."
               rows={3}
-              className="w-full rounded-xl border border-border bg-mist px-3 py-2 text-sm text-ink placeholder-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/25 resize-none"
+              className={textAreaBase}
             />
             <div className="flex justify-end gap-2">
               <button
                 type="button"
                 onClick={() => { dialogRef.current?.close(); setShowModal(false); }}
-                className="px-4 py-2 text-xs rounded-xl border border-border text-ink-soft hover:bg-mist transition-colors"
+                className={flagCancelButton}
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="px-4 py-2 text-xs rounded-xl bg-orange-500 text-accent-text hover:bg-orange-600 transition-colors disabled:opacity-50"
+                className={flagSubmitButton}
               >
                 {loading ? 'Sending…' : 'Submit Flag'}
               </button>
             </div>
-            {error && <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
+            {error && <p className={flagErrorBanner}>{error}</p>}
           </form>
         </dialog>
       )}

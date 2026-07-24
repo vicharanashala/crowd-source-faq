@@ -51,9 +51,9 @@ rateLimiting:
     windowMs: 900000                   # 15 minutes
     maxRequests: 100
   auth:
-    loginWindowMs: 900000
+    loginWindowMs: 120000
     loginMaxAttempts: 5
-    registerWindowMs: 3600000
+    registerWindowMs: 900000
     registerMaxAttempts: 3
   search:
     windowMs: 60000
@@ -231,13 +231,13 @@ reputation:
 # ── Cron Schedules ────────────────────────────────────────────────
 cron:
   timezone: "UTC"
-  promotionCycleIntervalMs: 900000     # 15 min
-  freshnessCheckIntervalMs: 86400000   # 24 hours
-  categoryClusterIntervalMs: 86400000  # 24 hours
-  popularityRecomputeIntervalMs: 300000 # 5 min
-  retentionPolicyIntervalMs: 86400000  # 24 hours
-  zoomRetryIntervalMs: 300000          # 5 min
-  searchLogFlushIntervalMs: 30000      # 30 sec
+  promotionCycleIntervalMs: 900000        # 15 min
+  freshnessCheckIntervalMs: 86400000      # 24 hours
+  categoryClusterIntervalMs: 172800000    # 48 hours — v1.71 LLM recategorize
+  popularityRecomputeIntervalMs: 300000   # 5 min
+  retentionPolicyIntervalMs: 86400000     # 24 hours
+  zoomRetryIntervalMs: 300000             # 5 min
+  searchLogFlushIntervalMs: 30000         # 30 sec
 
 # ── Data Retention ────────────────────────────────────────────────
 retention:
@@ -258,7 +258,13 @@ retention:
 observability:
   sentry:
     enabled: true
-    tracesSampleRate: 0.1
+    tracesSampleRate: 0.1              # 10% of transactions traced (free-tier friendly)
+  # DSN, release, env, debug come from process.env (see apps/backend/.env):
+  #   SENTRY_DSN        — backend Express project DSN
+  #   SENTRY_DB_DSN     — separate DB project DSN for Mongoose spans (optional)
+  #   SENTRY_RELEASE    — e.g. v1.0.0+1 (set manually per deploy)
+  #   SENTRY_ENV        — environment label in Sentry UI
+  #   SENTRY_DEBUG      — verbose SDK logs (true/false)
   logging:
     level: info                        # debug | info | warn | error
     colorize: true

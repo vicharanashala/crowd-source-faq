@@ -5,6 +5,7 @@ import {
   changePasswordSchema,
   passwordPolicy,
   warnUserSchema,
+  updateProfileSchema,
 } from '../validation.js';
 
 /**
@@ -118,3 +119,75 @@ describe('moderation validation — ObjectId guards reject injection payloads', 
     ).toBe(true);
   });
 });
+
+describe('profile update validation', () => {
+  it('accepts a valid updateProfile payload with name, email, and avatar', () => {
+    const res = updateProfileSchema.safeParse({
+      name: 'Ada Lovelace',
+      email: 'ada@example.com',
+      avatar: {
+        url: 'https://res.cloudinary.com/mycloud/image/upload/v123/profile.png',
+        publicId: 'profile',
+      },
+    });
+    expect(res.success).toBe(true);
+  });
+
+  it('rejects NoSQL injection attempts in updates', () => {
+    const res = updateProfileSchema.safeParse({
+      email: { $gt: '' } as any,
+      avatar: {
+        url: { $ne: null } as any,
+      },
+    });
+    expect(res.success).toBe(false);
+  });
+
+  // v1.87 — Sign My Tee: mandatory internshipEndDate. Pin the
+  // contract so the FE's <input type="date"> (which emits YYYY-MM-DD
+  // with no time component) can't be silently rejected by a future
+  // refactor that "tightens" the date validator.
+  it('accepts a YYYY-MM-DD date-only string for internshipEndDate (HTML date input shape)', () => {
+    const res = updateProfileSchema.safeParse({
+      internshipEndDate: '2026-07-15',
+    });
+    expect(res.success).toBe(true);
+    if (res.success) {
+      expect(res.data.internshipEndDate instanceof Date).toBe(true);
+      expect((res.data.internshipEndDate as Date).toISOString().slice(0, 10)).toBe('2026-07-15');
+    }
+  });
+  it('accepts an ISO 8601 datetime with offset for internshipEndDate (JSON callers)', () => {
+    const res = updateProfileSchema.safeParse({
+      internshipEndDate: '2026-07-15T00:00:00.000Z',
+    });
+    expect(res.success).toBe(true);
+  });
+  it('rejects a non-date garbage string for internshipEndDate', () => {
+    const res = updateProfileSchema.safeParse({
+      internshipEndDate: 'tomorrow',
+    });
+    expect(res.success).toBe(false);
+  });
+  it('accepts null to clear internshipEndDate', () => {
+    const res = updateProfileSchema.safeParse({
+      internshipEndDate: null,
+    });
+    expect(res.success).toBe(true);
+  });
+
+  it('strips unknown fields / prevents mass assignment', () => {
+    const parsed = updateProfileSchema.parse({
+      name: 'Ada',
+      role: 'admin',
+      avatar: {
+        url: 'https://res.cloudinary.com/mycloud/image/upload/v123/profile.png',
+        isAdmin: true,
+      },
+    } as any);
+    expect(parsed).not.toHaveProperty('role');
+    expect(parsed.avatar).not.toHaveProperty('isAdmin');
+    expect(parsed.avatar?.url).toBe('https://res.cloudinary.com/mycloud/image/upload/v123/profile.png');
+  });
+});
+

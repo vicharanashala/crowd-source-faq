@@ -1,4 +1,5 @@
 import React from 'react';
+import { btnPrimary, btnSecondary, btnGhost } from '../../styles/style_config';
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'accent' | 'danger';
 type ButtonSize = 'sm' | 'md' | 'lg';
@@ -19,12 +20,9 @@ const variantStyles: Record<ButtonVariant, React.CSSProperties> = {
 };
 
 const variantClasses: Record<ButtonVariant, string> = {
-  primary:
-    'btn-primary shadow-sm',
-  secondary:
-    'btn-secondary',
-  ghost:
-    'btn-ghost',
+  primary: `${btnPrimary} shadow-sm`,
+  secondary: btnSecondary,
+  ghost: btnGhost,
   accent:
     'bg-accent/10 text-accent hover:bg-accent/15 active:bg-accent/20',
   danger:

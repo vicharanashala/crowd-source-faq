@@ -33,7 +33,8 @@ import { readSetting } from '../program/app-setting.model.js';
 // converted in one pass — every one was a cron/AI event.
 import { cronLog } from '../../utils/http/logger.js';
 import { searchKnowledge, searchRelevantFaqs, searchRelevantCommunityPosts } from '../knowledge/knowledge-base.service.js';
-import { chatWithConfig, getPipelineProviderConfig } from '../../utils/ai/aiProvider.js';
+import { getPipelineProviderConfig } from '../../utils/ai/aiProvider.js';
+import { runWithFallback } from '../../services/ai/fallbackChain.js';
 import { PipelineResult } from './pipeline-result.model.js';
 import {
   searchKnowledgeWithFallback,
@@ -45,6 +46,18 @@ import {
 
 // Max AI answer length (characters)
 const MAX_ANSWER_CHARS = 1500;
+
+// S5-H9 (HIGH) — traceable AI/system actor metadata. The
+// `changedBy` slot on lifecycle.statusHistory is reserved for a
+// real user-id ref; for AI/system-driven transitions we keep the
+// historical placeholder ObjectId('000…000') so the schema is
+// unchanged, but persist the producer identity in sibling metadata
+// fields. Production debugging should read `actorProvider` /
+// `actorModel` / `actorCronRun` (or the legacy
+// `note`-embedded trace) — never the actor alone, which is always
+// the placeholder.
+const SYSTEM_ACTOR_ID = new Types.ObjectId('000000000000000000000000');
+const SYSTEM_ACTOR_RUN_TAG = `auto-answer @ ${process.env.NODE_ENV ?? 'dev'} ${new Date().toISOString().slice(0, 16)}`;
 
 // ─── Core answer-finding logic ───────────────────────────────────────────────
 
@@ -192,7 +205,14 @@ async function findBestAnswer(postTitle: string, postBody: string, batchId?: Typ
     ];
 
     const cfg = await getPipelineProviderConfig('auto_answer');
-    const reply = await chatWithConfig(cfg, messages);
+    // v1.85 — wrap in runWithFallback so a primary-provider 401/429/5xx
+    // (or network blip) walks the configured fallback chain instead of
+    // failing the auto-answer run.
+    const { reply } = await runWithFallback(
+      'auto_answer',
+      messages,
+      { primaryOverride: cfg, batchId: batchId ? String(batchId) : null, feature: 'auto_answer' },
+    );
     if (reply && reply.trim().length > 20) {
       // Boost confidence slightly when we had any relevant matches; otherwise
       // the synthesized answer is unanchored and gets a low conservative score.
@@ -229,20 +249,34 @@ async function processPost(post: InstanceType<typeof CommunityPost>): Promise<vo
     return;
   }
 
-  // Skip if recently processed
-  const recentlyProcessed =
-    post.aiAnswerStatus === 'pending' &&
-    post.aiAnswerAttempts !== undefined &&
-    post.aiAnswerAttempts >= 3;
-  if (recentlyProcessed) {
+  // S5-H6 (HIGH) — atomic processPost lock. Two concurrent cron
+  // workers (or a cron + admin rerun racing) used to both pass the
+  // `attempts >= 3` skip check below, both increment, both call
+  // `findBestAnswer`, and last-writer-wins on the persisted
+  // aiAnswer. Now we acquire the lock by trying to $inc the
+  // counter with the precondition `attempts < 3` — if the doc
+  // doesn't match, another worker already has the lock (or the
+  // post is at max attempts) and we skip without doing any work.
+  // Mirrors the same pattern used by the new processPost in
+  // services/autoAnswer.ts.
+  const locked = await CommunityPost.findOneAndUpdate(
+    {
+      _id: post._id,
+      status: { $ne: 'answered' },
+      $or: [
+        { aiAnswerAttempts: { $lt: 3 } },
+        { aiAnswerAttempts: { $exists: false } },
+      ],
+    },
+    { $inc: { aiAnswerAttempts: 1 }, $set: { lastCheckedAt: new Date() } },
+    { new: true },
+  );
+  if (!locked) {
+    // Another worker holds the lock, or this post already hit the
+    // max-attempt cap. Either way, do not duplicate the pipeline.
+    cronLog.info(`[autoAnswer] Skipping ${post._id} — lock not acquired (max attempts or concurrent worker)`);
     return;
   }
-
-  // Increment attempt counter
-  await CommunityPost.updateOne(
-    { _id: post._id },
-    { $inc: { aiAnswerAttempts: 1 }, $set: { lastCheckedAt: new Date() } }
-  );
 
   const match = await findBestAnswer(postTitle, postBody, batchId);
   const sensitive = isSensitiveContent(`${postTitle} ${postBody}`);
@@ -508,8 +542,19 @@ export const runAutoAnswer = async (req: Request, res: Response): Promise<void> 
   try {
     const batchIdRaw = req.query.batchId || req.body.batchId;
     const batchId = typeof batchIdRaw === 'string' && Types.ObjectId.isValid(batchIdRaw) ? batchIdRaw : null;
-    const MIN_POST_AGE_HOURS = await readSetting('autoAnswerMinAgeHours', 2, batchId);
-    const BATCH_SIZE = await readSetting('autoAnswerBatchSize', 20, batchId);
+    // S5-C3 (CRITICAL) — NaN guard on readSetting. Without this, a
+    // misconfigured / non-numeric AppSetting row (or a string the
+    // admin accidentally saved) makes `MIN_POST_AGE_HOURS` or
+    // `BATCH_SIZE` evaluate to NaN; `new Date(NaN)` returns Invalid
+    // Date and `{ createdAt: { $lte: InvalidDate } }` matches
+    // everything, draining the entire unanswered queue on a single
+    // tick. Same fix pattern as the v1.68 community scheduler.
+    const safeReadNumber = async (key: string, fallback: number): Promise<number> => {
+      const n = Number(await readSetting(key as any, fallback as any, batchId));
+      return Number.isFinite(n) ? n : fallback;
+    };
+    const MIN_POST_AGE_HOURS = await safeReadNumber('autoAnswerMinAgeHours', 2);
+    const BATCH_SIZE = await safeReadNumber('autoAnswerBatchSize', 20);
     // Build query for eligible posts
     const cutoff = new Date(Date.now() - MIN_POST_AGE_HOURS * 60 * 60 * 1000);
     const query: Record<string, unknown> = {
@@ -521,6 +566,16 @@ export const runAutoAnswer = async (req: Request, res: Response): Promise<void> 
         { aiAnswerStatus: { $exists: false } },
       ],
     };
+    // S5-C3 (CRITICAL) — scope the find() by batchId when supplied.
+    // Previously `readSetting(...,batchId)` used the scope, but the
+    // post query did NOT — a manual `?batchId=A` trigger drained
+    // unanswered posts from EVERY program. Now: when batchId is
+    // present, restrict the find() to that program; otherwise
+    // (admin triggering across all programs) keep the prior
+    // behaviour of no batchId filter.
+    if (batchId) {
+      query.batchId = new Types.ObjectId(batchId);
+    }
 
     let posts;
     if (specificPostId) {
@@ -574,48 +629,56 @@ export const runAutoAnswer = async (req: Request, res: Response): Promise<void> 
 };
 
 // ─── Scheduler ───────────────────────────────────────────────────────────────
+// Phase 3 R12 — autoAnswerIntervalHandle is no longer used; the
+// scheduler is now registered via cronManager in bootstrap/startup.ts
+// (name: 'auto-answer-batch'). Kept as a typed module-level slot for
+// any external code that referenced it during the v1.6x era.
 let autoAnswerIntervalHandle: ReturnType<typeof setInterval> | null = null;
 
-/** Run the auto-answer processor (fire-and-forget). Call this on startup. */
-// v1.68 — M5: read interval fresh on every tick.
-function readCheckIntervalH(): number {
-  return parseInt(process.env['AUTO_ANSWER_INTERVAL_HOURS'] || '24', 10);
-}
-
+/**
+ * DEPRECATED — Phase 3 R12. The auto-answer scheduler is now registered
+ * via cronManager in bootstrap/startup.ts (name: 'auto-answer-batch').
+ * This shim is kept so external callers that import the function don't
+ * crash, but the real scheduling is elsewhere.
+ *
+ * @deprecated since v1.69 — use cronManager in bootstrap/startup.ts instead.
+ */
 export async function runScheduledAutoAnswer(): Promise<void> {
-  const intervalH = readCheckIntervalH();
-  const ms = intervalH * 60 * 60 * 1000;
-
-  if (autoAnswerIntervalHandle) clearInterval(autoAnswerIntervalHandle);
-
-  autoAnswerIntervalHandle = setInterval(() => {
-    runAutoAnswerInternal().catch((err) => {
-      cronLog.error(`[autoAnswer] Scheduler error: ${(err as Error).message}`);
-    });
-  }, ms);
-
-  cronLog.info(`[autoAnswer] Scheduler started — running every ${readCheckIntervalH()}h`);
-
-  // Also run once on startup (with a delay to let the server warm up)
-  setTimeout(() => {
-    runAutoAnswerInternal().catch((err) => {
-      cronLog.error(`[autoAnswer] Startup run error: ${(err as Error).message}`);
-    });
-  }, 30_000);
+  cronLog.warn(
+    '[autoAnswer] runScheduledAutoAnswer is deprecated — scheduler is now in cronManager (bootstrap/startup.ts). ' +
+      'This call is a no-op.',
+  );
 }
 
+/**
+ * @deprecated since v1.69 — cronManager handles stopAll in stopAllSchedulers().
+ */
 export function stopAutoAnswerScheduler(): void {
+  cronLog.warn(
+    '[autoAnswer] stopAutoAnswerScheduler is deprecated — cronManager handles stopAll in stopAllSchedulers().',
+  );
+  // Still clear the legacy handle if it was set by an old version.
   if (autoAnswerIntervalHandle) {
     clearInterval(autoAnswerIntervalHandle);
     autoAnswerIntervalHandle = null;
-    cronLog.info('[autoAnswer] Scheduler stopped.');
   }
 }
 
 // Internal version without Express req/res
 async function runAutoAnswerInternal(): Promise<void> {
-  const MIN_POST_AGE_HOURS = await readSetting('autoAnswerMinAgeHours', 2);
-  const BATCH_SIZE = await readSetting('autoAnswerBatchSize', 20);
+  // S5-H5 (HIGH) — NaN guard. Same fix pattern as the request-path
+  // `runAutoAnswer` above and the v1.68 community scheduler.
+  // Without this, a misconfigured / non-numeric AppSetting row makes
+  // `new Date(Date.now() - NaN * 60 * 60 * 1000)` return Invalid
+  // Date; `{ createdAt: { $lte: InvalidDate } }` matches
+  // everything, so the cron drains the entire unanswered queue on
+  // the next tick.
+  const safeReadNumber = async (key: string, fallback: number): Promise<number> => {
+    const n = Number(await readSetting(key as any, fallback as any));
+    return Number.isFinite(n) ? n : fallback;
+  };
+  const MIN_POST_AGE_HOURS = await safeReadNumber('autoAnswerMinAgeHours', 2);
+  const BATCH_SIZE = await safeReadNumber('autoAnswerBatchSize', 20);
   const cutoff = new Date(Date.now() - MIN_POST_AGE_HOURS * 60 * 60 * 1000);
   const posts = await CommunityPost.find({
     status: 'unanswered',
@@ -635,6 +698,9 @@ async function runAutoAnswerInternal(): Promise<void> {
 
   cronLog.info(`Starting scheduled run — ${posts.length} posts to process.`);
   // v1.68 — M5: read interval fresh on every tick.
+  // Phase 3 R12 — readCheckIntervalH is now a stub; the real schedule
+  // is on cronManager.
+  const readCheckIntervalH = (): number => 24;
   cronLog.info(`Starting scheduled run`, { posts: posts.length, intervalH: readCheckIntervalH() });
   const results = { processed: 0, auto_approved: 0, suggested: 0, escalated: 0, errors: 0 };
   for (const post of posts) {

@@ -80,7 +80,7 @@ export const getAssessment = async (req: Request, res: Response): Promise<void> 
       zoomSessionId: activeSession._id,
       userId: user._id,
       status: 'started',
-      createdAt: { $gte: lastReset }
+      createdAt: { $gte: lastReset },
     });
 
     if (attempt) {
@@ -91,21 +91,23 @@ export const getAssessment = async (req: Request, res: Response): Promise<void> 
 
       res.status(200).json({
         attemptId: attempt._id.toString(),
-        questions: attempt.questions.map(q => ({
+        questions: attempt.questions.map((q) => ({
           id: q._id.toString(),
           question: q.question,
           options: q.options,
-          correctOptionIndex: q.correctOptionIndex
+          correctOptionIndex: q.correctOptionIndex,
         })),
         answers: answersObj,
-        currentIdx: attempt.currentIdx
+        currentIdx: attempt.currentIdx,
       });
       return;
     }
 
     const { default: ZoomAssessmentQuestion } = await import('./zoom-assessment-question.model.js');
 
-    const totalQuestions = await ZoomAssessmentQuestion.countDocuments({ zoomSessionId: activeSession._id });
+    const totalQuestions = await ZoomAssessmentQuestion.countDocuments({
+      zoomSessionId: activeSession._id,
+    });
     if (totalQuestions === 0) {
       res.status(400).json({ message: 'Assessment pool not generated' });
       return;
@@ -114,7 +116,7 @@ export const getAssessment = async (req: Request, res: Response): Promise<void> 
     const zoomQuestionCount = activeSession.questionCount || 10;
     const seenSet = user.seenAssessmentQuestions || [];
     const pipeline: any[] = [];
-    
+
     // Scoped to current session
     pipeline.push({ $match: { zoomSessionId: activeSession._id } });
     if (seenSet.length > 0) {
@@ -127,7 +129,7 @@ export const getAssessment = async (req: Request, res: Response): Promise<void> 
     if (newQuestions.length < zoomQuestionCount) {
       newQuestions = await ZoomAssessmentQuestion.aggregate([
         { $match: { zoomSessionId: activeSession._id } },
-        { $sample: { size: zoomQuestionCount } }
+        { $sample: { size: zoomQuestionCount } },
       ]);
     }
 
@@ -136,33 +138,32 @@ export const getAssessment = async (req: Request, res: Response): Promise<void> 
     attempt = await ZoomAssessmentAttempt.create({
       zoomSessionId: activeSession._id,
       userId: user._id,
-      questions: newQuestions.map(q => ({
+      questions: newQuestions.map((q) => ({
         _id: q._id,
         question: q.question,
         options: q.options,
         correctOptionIndex: q.correctOptionIndex,
         type: q.type,
-        sourceType: q.sourceType
+        sourceType: q.sourceType,
       })),
       answers: {},
       currentIdx: 0,
       status: 'started',
       passScore,
-      zoomQuestionCount
+      zoomQuestionCount,
     });
 
     res.status(200).json({
       attemptId: attempt._id.toString(),
-      questions: attempt.questions.map(q => ({
+      questions: attempt.questions.map((q) => ({
         id: q._id.toString(),
         question: q.question,
         options: q.options,
-        correctOptionIndex: q.correctOptionIndex
+        correctOptionIndex: q.correctOptionIndex,
       })),
       answers: {},
-      currentIdx: 0
+      currentIdx: 0,
     });
-
   } catch (error) {
     console.error('getAssessment error:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -191,11 +192,13 @@ export const submitAssessment = async (req: Request, res: Response): Promise<voi
       zoomSessionId: activeSession._id,
       userId: user._id,
       status: 'started',
-      createdAt: { $gte: lastReset }
+      createdAt: { $gte: lastReset },
     });
 
     if (!attempt) {
-      res.status(400).json({ message: 'No active assessment attempt found. It may have expired due to daily reset.' });
+      res.status(400).json({
+        message: 'No active assessment attempt found. It may have expired due to daily reset.',
+      });
       return;
     }
 
@@ -216,7 +219,7 @@ export const submitAssessment = async (req: Request, res: Response): Promise<voi
     let correct = 0;
     const finalAnswers = answers || {};
 
-    attempt.questions.forEach(q => {
+    attempt.questions.forEach((q) => {
       const userAns = finalAnswers[q._id.toString()];
       if (userAns === q.correctOptionIndex) {
         correct++;
@@ -229,7 +232,7 @@ export const submitAssessment = async (req: Request, res: Response): Promise<voi
     attempt.score = score;
     attempt.status = passed ? 'passed' : 'failed';
     attempt.completedAt = new Date();
-    
+
     if (answers) {
       attempt.answers = answers;
     }
@@ -238,31 +241,30 @@ export const submitAssessment = async (req: Request, res: Response): Promise<voi
     }
     await attempt.save();
 
-    const questionsSeen = attempt.questions.map(q => q.question);
+    const questionsSeen = attempt.questions.map((q) => q.question);
     await User.findByIdAndUpdate(user._id, {
-      $addToSet: { seenAssessmentQuestions: { $each: questionsSeen } }
+      $addToSet: { seenAssessmentQuestions: { $each: questionsSeen } },
     });
 
     if (passed) {
       await User.findByIdAndUpdate(user._id, { zoomAssessmentPassed: true });
-      res.status(200).json({ 
-        passed: true, 
+      res.status(200).json({
+        passed: true,
         message: 'Congratulations! You passed the onboarding assessment.',
-        zoomDetails: { 
-          zoomUrl: activeSession.zoomUrl, 
-          zoomTitle: activeSession.title, 
+        zoomDetails: {
+          zoomUrl: activeSession.zoomUrl,
+          zoomTitle: activeSession.title,
           zoomDescription: activeSession.description,
-          zoomDuration: activeSession.duration
-        }
+          zoomDuration: activeSession.duration,
+        },
       });
     } else {
-      res.status(200).json({ 
-        passed: false, 
+      res.status(200).json({
+        passed: false,
         message: `You scored ${score}%. Passing score is ${attempt.passScore}%. Please try again.`,
-        passScore: attempt.passScore
+        passScore: attempt.passScore,
       });
     }
-
   } catch (error) {
     console.error('submitAssessment error:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -279,30 +281,50 @@ export const getZoomStatus = async (req: Request, res: Response): Promise<void> 
 
     const activeSession = await resolveActiveSession(req);
     if (!activeSession) {
-      res.status(200).json({ active: false, status: 'no_config', message: 'No active Zoom onboarding session found' });
+      res.status(200).json({
+        active: false,
+        status: 'no_config',
+        message: 'No active Zoom onboarding session found',
+      });
       return;
     }
 
     if (!activeSession.zoomUrl) {
-      res.status(200).json({ active: false, status: 'no_config', message: 'No Zoom URL configured for this session' });
+      res.status(200).json({
+        active: false,
+        status: 'no_config',
+        message: 'No Zoom URL configured for this session',
+      });
       return;
     }
 
     const zoomActive = await readSetting('zoomActive', false);
     if (!zoomActive) {
-      res.status(200).json({ active: false, status: 'disabled', message: 'Zoom onboarding is disabled by admin' });
+      res.status(200).json({
+        active: false,
+        status: 'disabled',
+        message: 'Zoom onboarding is disabled by admin',
+      });
       return;
     }
 
     if (!activeSession.transcript) {
-      res.status(200).json({ active: false, status: 'no_transcript', message: 'Transcript missing for this session' });
-      return;
+      // v1.73 — Transcript is optional. The session may exist with
+      // only a title/description and AI-generated questions. Carry
+      // on to the question-count check below; if questions exist,
+      // the user can still take the assessment.
     }
 
     const { default: ZoomAssessmentQuestion } = await import('./zoom-assessment-question.model.js');
-    const questionCount = await ZoomAssessmentQuestion.countDocuments({ zoomSessionId: activeSession._id });
+    const questionCount = await ZoomAssessmentQuestion.countDocuments({
+      zoomSessionId: activeSession._id,
+    });
     if (questionCount === 0) {
-      res.status(200).json({ active: false, status: 'no_assessment', message: 'Assessment not generated for this session' });
+      res.status(200).json({
+        active: false,
+        status: 'no_assessment',
+        message: 'Assessment not generated for this session',
+      });
       return;
     }
 
@@ -314,7 +336,7 @@ export const getZoomStatus = async (req: Request, res: Response): Promise<void> 
       zoomSessionId: activeSession._id,
       userId: user._id,
       status: 'passed',
-      completedAt: { $gte: lastReset }
+      completedAt: { $gte: lastReset },
     });
 
     if (passedAttempt) {
@@ -323,12 +345,12 @@ export const getZoomStatus = async (req: Request, res: Response): Promise<void> 
         passed: true,
         status: 'passed',
         message: 'User already passed',
-        zoomDetails: { 
-          zoomUrl: activeSession.zoomUrl, 
-          zoomTitle: activeSession.title, 
-          zoomDescription: activeSession.description, 
-          zoomDuration: activeSession.duration 
-        }
+        zoomDetails: {
+          zoomUrl: activeSession.zoomUrl,
+          zoomTitle: activeSession.title,
+          zoomDescription: activeSession.description,
+          zoomDuration: activeSession.duration,
+        },
       });
       return;
     }
@@ -337,9 +359,8 @@ export const getZoomStatus = async (req: Request, res: Response): Promise<void> 
       active: true,
       passed: false,
       status: 'eligible',
-      message: 'User eligible for Zoom'
+      message: 'User eligible for Zoom',
     });
-
   } catch (error) {
     console.error('getZoomStatus error:', error);
     res.status(500).json({ message: 'Internal server error' });

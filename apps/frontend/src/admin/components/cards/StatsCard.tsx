@@ -81,7 +81,7 @@ export default function StatsCard({ label, value, icon: Icon, theme = 'purple', 
             <Icon size={16} />
           </div>
           {trend !== undefined && (
-            <div className="flex items-center gap-1 text-[11px] font-medium" style={{ color: trendUp ? '#34d399' : '#f87171' }}>
+            <div className="flex items-center gap-1 text-[11px] font-medium" style={{ color: trendUp ? 'rgb(var(--accent-rgb))' : '#f87171' }}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 {trendUp
                   ? <polyline points="18 15 12 9 6 15"/>

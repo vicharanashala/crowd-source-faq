@@ -148,8 +148,8 @@ export async function createSupportRequest(req: Request, res: Response): Promise
     // a user could keep creating Golden tickets through the regular
     // support flow (which only checks sessionSupport) even after the
     // admin disabled the Golden feature.
-    const { isFeatureEnabled } = await import('../program/feature-flag.controller.js');
-    const goldenOn = await isFeatureEnabled('goldenTicket');
+    const { featureFlags } = await import('../program/feature-flag.controller.js');
+    const goldenOn = await featureFlags.isEnabled('goldenTicket');
     if (!goldenOn) {
       res.status(404).json({ message: 'This feature is not available.' });
       return;

@@ -6,6 +6,13 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import './styles/index.css';
 
+// samagama.in SSO bridge: mirror the yaksha_session cookie (set by
+// samagama.in's auth flow after they hit /api/auth/bridge/exchange)
+// into localStorage so the existing AuthContext picks it up. Runs
+// before React renders so the first AuthContext read is hydrated.
+import { syncBridgeCookieToLocalStorage } from './auth/cookieBridge';
+syncBridgeCookieToLocalStorage();
+
 // 1. Locate the empty '<div id="root"></div>' in your public/index.html file
 // 2. Initialize the modern React 18 concurrent rendering engine
 ReactDOM.createRoot(document.getElementById('root')!).render(

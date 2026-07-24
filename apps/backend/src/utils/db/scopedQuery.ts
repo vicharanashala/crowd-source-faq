@@ -81,9 +81,16 @@ export async function findScoped<M extends Model<any>>(
 export function assertSameProgram(
   doc: { batchId?: unknown } | null,
   programContext: { batchId: string } | null | undefined,
-  res: { status: (code: number) => { json: (body: unknown) => void } }
+  res: { status: (code: number) => { json: (body: unknown) => void } },
 ): boolean {
-  if (!programContext) return false;
+  // Phase 1 R7 — strict by default. When there's no program context
+  // the caller MUST be in a program-aware route. Refusing with 404
+  // matches the existing semantics (don't leak existence) and closes
+  // the cross-tenant write gap flagged in the audit.
+  if (!programContext) {
+    res.status(404).json({ message: 'Not found.' });
+    return true;
+  }
   const docBatch = (doc as { batchId?: { toString: () => string } | string | null } | null)?.batchId;
   if (!docBatch || docBatch.toString() !== programContext.batchId) {
     res.status(404).json({ message: 'Not found.' });

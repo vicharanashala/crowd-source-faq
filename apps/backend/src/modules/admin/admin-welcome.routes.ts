@@ -1,8 +1,8 @@
 import express from 'express';
-import { 
-  getProjects, 
-  createProject, 
-  updateProject, 
+import {
+  getProjects,
+  createProject,
+  updateProject,
   deleteProject,
   getOrientations,
   uploadOrientation,
@@ -32,6 +32,33 @@ import {
   // Mounted at GET /admin/welcome/zoom-sessions/:id/activity.
   getZoomSessionActivity,
 } from './admin-welcome.controller.js';
+
+// v1.76 — Welcome Package: Journey Tracks. Re-export the admin
+// controller handlers so the routes file mounts them under
+// /admin/welcome/tracks. New file, additive — no existing route
+// touched.
+import {
+  listTracks,
+  createTrack,
+  getTrack,
+  updateTrack,
+  deleteTrack,
+  duplicateTrack,
+  updateTrackStatus,
+  replaceCheckpoints,
+  appendCheckpoint,
+  updateCheckpoint,
+  deleteCheckpoint,
+  replaceItems,
+  appendItem,
+  updateItem,
+  deleteItem,
+  listAssignments,
+  createAssignments,
+  deleteAssignment,
+  getTrackProgress,
+  getCrossProgress,
+} from './admin-journey.controller.js';
 
 // v1.69 — Welcome Package Management: re-export the additive
 // resource + knowledge controller surface from a dedicated file
@@ -164,5 +191,37 @@ router.post('/knowledge', knowledgeUpload.single('file'), createKnowledgeSource)
 router.delete('/knowledge/:id', deleteKnowledgeSource);
 router.get('/knowledge/:id/chunks', getKnowledgeChunks);
 router.post('/knowledge/:id/generate', generateFromKnowledge);
+
+// v1.76 — Journey Tracks (additive). Every route is brand-new.
+// No existing route was touched. The mount point /admin/welcome/tracks
+// follows the v1.69 /admin/welcome/resources pattern.
+//
+// Track CRUD
+router.get('/tracks', listTracks);
+router.post('/tracks', createTrack);
+router.get('/tracks/:id', getTrack);
+router.patch('/tracks/:id', updateTrack);
+router.delete('/tracks/:id', deleteTrack);
+router.post('/tracks/:id/duplicate', duplicateTrack);
+router.patch('/tracks/:id/status', updateTrackStatus);
+
+// Checkpoint CRUD
+router.put('/tracks/:id/checkpoints', replaceCheckpoints);
+router.post('/tracks/:id/checkpoints', appendCheckpoint);
+router.patch('/tracks/:id/checkpoints/:cpId', updateCheckpoint);
+router.delete('/tracks/:id/checkpoints/:cpId', deleteCheckpoint);
+
+// Item CRUD
+router.put('/tracks/:id/checkpoints/:cpId/items', replaceItems);
+router.post('/tracks/:id/checkpoints/:cpId/items', appendItem);
+router.patch('/tracks/:id/checkpoints/:cpId/items/:itemId', updateItem);
+router.delete('/tracks/:id/checkpoints/:cpId/items/:itemId', deleteItem);
+
+// Assignments + progress monitoring
+router.get('/tracks/:id/assignments', listAssignments);
+router.post('/tracks/:id/assignments', createAssignments);
+router.delete('/tracks/:id/assignments/:assignmentId', deleteAssignment);
+router.get('/tracks/:id/progress', getTrackProgress);
+router.get('/tracks/progress', getCrossProgress);
 
 export default router;

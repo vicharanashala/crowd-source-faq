@@ -19,6 +19,7 @@ import mongoose from 'mongoose';
 import { generateQueryEmbedding } from '../../utils/ai/embeddings.js';
 import { resolveProviderAsync } from '../../utils/ai/aiProvider.js';
 import { searchKnowledge } from '../knowledge/knowledge-base.service.js';
+import { getAssistantPersona } from '../../utils/ai/assistantPersona.js';
 import { logger } from '../../utils/http/logger.js';
 
 export interface RagSource {
@@ -40,7 +41,7 @@ export interface RagResult {
   answer: string;
   sources: RagSource[];
   /** The model that produced the answer (e.g. "gpt-4o-mini"). */
-  model: string;
+  modelName: string;
 }
 
 const TOP_K_PER_SOURCE = 4;
@@ -202,7 +203,16 @@ function buildContext(sources: RagSource[]): string {
 }
 
 function buildPrompt(question: string, context: string): string {
-  return `You are the Yaksha FAQ assistant. Answer the user's question using ONLY the sources provided below. Be honest about uncertainty — if the sources don't contain the answer, say so plainly and suggest they ask the community.
+  // Persona + task instructions prepended as a single text block. The
+  // chatCompletion helper here uses a custom HTTP request shape, not
+  // chatWithConfig, so we don't have a separate system-message field.
+  // Persona is at the top so it dominates the model's voice; task
+  // instructions are specific to RAG synthesis.
+  return `${getAssistantPersona()}
+
+---
+
+You are answering a user question using ONLY the sources provided below. Be honest about uncertainty — if the sources don't contain the answer, say so plainly and suggest they ask the community.
 
 Cite sources inline by their bracketed index, e.g. "The NOC is required by your HOD before you sign it [1][3]." Use one citation per fact, multiple citations are fine when sources agree.
 
@@ -252,7 +262,7 @@ export async function runRag(question: string, attachments: RagAttachment[] = []
       logger.warn('rag.community.search.failed', { error: (e as Error).message });
       return [] as PostHit[];
     }),
-    searchKnowledge(question, TOP_K_PER_SOURCE).catch((e) => {
+    searchKnowledge(question, TOP_K_PER_SOURCE, { embedQuery: true }).catch((e) => {
       logger.warn('rag.knowledge.search.failed', { error: (e as Error).message });
       return [] as Awaited<ReturnType<typeof searchKnowledge>>;
     }),
@@ -297,7 +307,7 @@ export async function runRag(question: string, attachments: RagAttachment[] = []
     return {
       answer: "I couldn't find anything relevant in the FAQ, community, or your team's Zoom knowledge base. Try rephrasing, or post a new question to the community.",
       sources: [],
-      model: 'none',
+      modelName: 'none',
     };
   }
 
@@ -327,14 +337,14 @@ export async function runRag(question: string, attachments: RagAttachment[] = []
     const cfg = await resolveProviderAsync();
     const t1 = Date.now();
     answer = await chatCompletion(cfg, prompt + attachmentNote + textAttachments, imageAttachments);
-    model = cfg.model;
-    logger.info('rag.completion.done', { ms: Date.now() - t1, model: cfg.model, sources: sources.length, attachments: attachments.length });
+    model = cfg.modelName;
+    logger.info('rag.completion.done', { ms: Date.now() - t1, modelName: cfg.modelName, sources: sources.length, attachments: attachments.length });
   } catch (llmErr) {
     logger.warn('rag.completion.failed', { error: (llmErr as Error).message });
     answer = sources[0]?.snippet ?? '';
   }
 
-  return { answer, sources, model };
+  return { answer, sources, modelName: model };
 }
 
 /**
@@ -347,7 +357,7 @@ export async function runRag(question: string, attachments: RagAttachment[] = []
  * OpenAI-compatible uses `{type:'image_url', image_url:{url:'data:...'}}`.
  */
 async function chatCompletion(
-  cfg: { apiKey: string; baseURL: string; model: string; provider: string; needsAnthropicVersion: boolean; authHeader: 'x-api-key' | 'Authorization' },
+  cfg: { apiKey: string; baseURL: string; modelName: string; provider: string; needsAnthropicVersion: boolean; authHeader: 'x-api-key' | 'Authorization' },
   prompt: string,
   images: RagAttachment[] = []
 ): Promise<string> {
@@ -387,7 +397,7 @@ async function chatCompletion(
       method: 'POST',
       headers,
       body: JSON.stringify({
-        model: cfg.model,
+        model: cfg.modelName,
         messages: [{ role: 'user', content: buildContent() }],
         max_tokens: 800,
       }),
@@ -401,7 +411,7 @@ async function chatCompletion(
     method: 'POST',
     headers,
     body: JSON.stringify({
-      model: cfg.model,
+      model: cfg.modelName,
       messages: [{ role: 'user', content: buildContent() }],
       max_tokens: 800,
       temperature: 0.2,

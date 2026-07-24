@@ -25,6 +25,7 @@
  *   POST   /api/admin/golden-tickets/:id/resolve
  *   POST   /api/admin/golden-tickets/:id/reject
  *   POST   /api/admin/golden-tickets/:id/ban
+ *   POST   /api/admin/golden-tickets/:id/re-resolve
  *
  * NOTE: The existing convert-to-golden / unconvert-golden /
  * award-sp endpoints (in supportGoldenController.ts) are NOT
@@ -43,6 +44,7 @@ import {
   logAdminAction,
   notifyUser,
   isGoldenTicket,
+  computeDiscussionClosesAt,
 } from './support-core.controller.js';
 import { spendSpurtiPoints } from '../program/promotion.service.js';
 import { adminLog } from '../../utils/http/logger.js';
@@ -60,7 +62,10 @@ function asStringParam(v: string | string[] | undefined): string | undefined {
   return v;
 }
 
-function requireAdmin(req: Request, res: Response): { userId: Types.ObjectId; name: string } | null {
+function requireAdmin(
+  req: Request,
+  res: Response
+): { userId: Types.ObjectId; name: string } | null {
   const userId = getAuthedUserId(req);
   if (!userId) {
     res.status(401).json({ message: 'Authentication required.' });
@@ -80,7 +85,10 @@ function requireAdmin(req: Request, res: Response): { userId: Types.ObjectId; na
  * validity window. Returns "expired" if past, else "MM:HH:SS" or
  * "Xd Yh". Used in the admin list response.
  */
-function timeRemaining(createdAt: Date, now: Date = new Date()): {
+function timeRemaining(
+  createdAt: Date,
+  now: Date = new Date()
+): {
   ms: number;
   label: string;
   expired: boolean;
@@ -162,6 +170,9 @@ export async function listGoldenTickets(req: Request, res: Response): Promise<vo
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
+        // v1.70 — include the re-resolve trail so the queue card can
+        // render past bubbles inline. The full doc is still bounded
+        // by limit (default 25), so this is cheap.
         .select('-__v')
         .lean(),
     ]);
@@ -195,14 +206,21 @@ export async function listGoldenTickets(req: Request, res: Response): Promise<vo
             : null,
           spCost: t.spCost ?? 0,
           timeRemaining: tr,
+          // v1.70 — re-resolve trail. Default to [] for legacy rows
+          // that predate the field (Mongoose `.lean()` returns
+          // `undefined` for missing subdocs, which would break the
+          // frontend's .map).
+          goldenResolutions: Array.isArray(t.goldenResolutions) ? t.goldenResolutions : [],
         };
       })
       .sort((a, b) => {
         const aSp = a.user?.sp ?? 0;
         const bSp = b.user?.sp ?? 0;
         if (bSp !== aSp) return bSp - aSp; // SP desc
-        return new Date(a.createdAt as unknown as string).getTime()
-             - new Date(b.createdAt as unknown as string).getTime(); // oldest first
+        return (
+          new Date(a.createdAt as unknown as string).getTime() -
+          new Date(b.createdAt as unknown as string).getTime()
+        ); // oldest first
       });
 
     res.json({
@@ -223,6 +241,74 @@ export async function listGoldenTickets(req: Request, res: Response): Promise<vo
   }
 }
 
+// ─── §1.5 Logs / single-ticket detail ───────────────────────────────────
+
+/**
+ * GET /api/admin/golden-tickets/:id/logs
+ *
+ * Returns the full ticket record including the complete resolution
+ * thread (`goldenResolutions[]`), the original user query
+ * (`details`), the user record, status history, and the time-
+ * remaining / status fields the queue card already shows. Used by
+ * the dedicated /admin/golden-logs page so admins can scroll back
+ * through every answer an admin posted for one ticket.
+ */
+export async function getGoldenTicketLogs(req: Request, res: Response): Promise<void> {
+  const auth = requireAdmin(req, res);
+  if (!auth) return;
+
+  const id = asStringParam(req.params.id);
+  if (!id || !Types.ObjectId.isValid(id)) {
+    res.status(400).json({ message: 'Invalid ticket id.' });
+    return;
+  }
+
+  try {
+    const request = await SupportRequest.findById(id).select('-__v').lean();
+    if (!request) {
+      res.status(404).json({ message: 'Golden ticket not found.' });
+      return;
+    }
+    if (!isGoldenTicket(request)) {
+      res.status(409).json({ message: 'This ticket is not a Golden ticket.' });
+      return;
+    }
+
+    const user = await User.findById(request.userId)
+      .select('_id name email sp isBanned goldenBannedUntil')
+      .lean();
+    const tr = timeRemaining(new Date(request.createdAt as unknown as string));
+
+    res.json({
+      ticket: {
+        ...request,
+        // Defence-in-depth: always coerce to [] on the server so the
+        // frontend never has to special-case undefined.
+        goldenResolutions: Array.isArray(request.goldenResolutions)
+          ? request.goldenResolutions
+          : [],
+        user: user
+          ? {
+              _id: user._id,
+              name: user.name,
+              email: user.email,
+              sp: user.sp ?? 0,
+              isBanned: user.isBanned ?? false,
+              goldenBannedUntil: user.goldenBannedUntil ?? null,
+            }
+          : null,
+        spCost: request.spCost ?? 0,
+        timeRemaining: tr,
+      },
+      ticketValidityHours: TICKET_VALIDITY_HOURS,
+      banHours: BAN_HOURS,
+    });
+  } catch (err) {
+    adminLog.error(`[goldenTicketAdmin] getGoldenTicketLogs failed: ${(err as Error).message}`);
+    res.status(500).json({ message: 'Failed to load Golden ticket logs.' });
+  }
+}
+
 // ─── §4 Approve / Resolve ─────────────────────────────────────────────────
 
 /**
@@ -233,7 +319,14 @@ export async function listGoldenTickets(req: Request, res: Response): Promise<vo
  * The spCost that was debited at conversion is KEPT (user paid for
  * the premium service and received it).
  *
- * Body: { note?: string }
+ * Body: { note?: string, text?: string }
+ *   - `note` is the resolution summary shown in status history.
+ *   - `text` is the admin's ANSWER to the user. When provided, it's
+ *     stored as the FIRST entry in `goldenResolutions[]` so the
+ *     /admin/golden-logs page has something to render. If absent,
+ *     the ticket resolves with an empty resolutions array — that
+ *     matches legacy callers and admin who don't want to leave a
+ *     written answer. Either way SP is NOT debited again.
  */
 export async function resolveGoldenTicket(req: Request, res: Response): Promise<void> {
   const auth = requireAdmin(req, res);
@@ -245,7 +338,12 @@ export async function resolveGoldenTicket(req: Request, res: Response): Promise<
     return;
   }
 
-  const note = String((req.body ?? {}).note ?? '').trim().slice(0, 2000);
+  const note = String((req.body ?? {}).note ?? '')
+    .trim()
+    .slice(0, 2000);
+  const answerText = String((req.body ?? {}).text ?? '')
+    .trim()
+    .slice(0, 2000);
 
   try {
     const request = await SupportRequest.findById(id);
@@ -270,6 +368,45 @@ export async function resolveGoldenTicket(req: Request, res: Response): Promise<
 
     const now = new Date();
     const previousStatus = request.status;
+
+    // v1.71 — if the admin supplied a written answer at resolve-time,
+    // capture it as the first entry in goldenResolutions BEFORE we
+    // flip status. This is the "answer + resolve in one click" flow
+    // the admin UI expects. SP is not debited — the user paid once
+    // at raise-time.
+    //
+    // v1.74 — same answer also opens the Golden Ticket discussion
+    // thread. It is pushed to `goldenTicketDiscussion` with
+    // `isProminent: true` and stamps `firstAdminAnswerAt` +
+    // `discussionClosesAt` (now + 7d) so both sides can reply for
+    // a week. The legacy `goldenResolutions[]` keeps growing on
+    // every re-resolve; only the first answer opens the discussion.
+    if (answerText) {
+      request.goldenResolutions.push({
+        text: answerText,
+        adminId: auth.userId,
+        adminName: auth.name,
+        createdAt: now,
+        notificationSent: false,
+      });
+      // Discussion is opened by the FIRST admin answer, ever.
+      // Guard: if a previous resolve-with-text already opened the
+      // window, leave `firstAdminAnswerAt` and `discussionClosesAt`
+      // untouched so the 7-day window isn't reset.
+      if (!request.firstAdminAnswerAt) {
+        request.firstAdminAnswerAt = now;
+        request.discussionClosesAt = computeDiscussionClosesAt(now);
+        request.goldenTicketDiscussion.push({
+          text: answerText,
+          senderRole: 'admin',
+          senderId: auth.userId,
+          senderName: auth.name,
+          createdAt: now,
+          isProminent: true,
+        });
+      }
+    }
+
     request.status = 'Resolved';
     request.resolvedAt = now;
     request.statusHistory.push({
@@ -282,24 +419,43 @@ export async function resolveGoldenTicket(req: Request, res: Response): Promise<
     request.updatedAt = now;
     await request.save();
 
+    // Fire the in-app bell ONCE for the first answer. We do this even
+    // when there's no written text because the user still needs to
+    // know their ticket moved off the queue.
+    if (answerText) {
+      await notifyUser(request.userId, {
+        title: 'Your Golden ticket was resolved',
+        message: `An admin resolved your Golden ticket and posted an answer.`,
+        link: '/golden/ticket/' + request._id.toString(),
+        metadata: {
+          supportRequestId: request._id.toString(),
+          isGolden: true,
+          kind: 'resolved',
+          textPreview: answerText.slice(0, 120),
+        },
+      });
+      request.goldenResolutions[request.goldenResolutions.length - 1].notificationSent = true;
+      await request.save();
+    } else {
+      await notifyUser(request.userId, {
+        title: 'Your Golden ticket was resolved',
+        message: `An admin resolved your Golden ticket. Premium support complete.`,
+        link: '/golden/ticket/' + request._id.toString(),
+        metadata: {
+          supportRequestId: request._id.toString(),
+          status: 'Resolved',
+          isGolden: true,
+        },
+      });
+    }
+
     await logAdminAction(
       auth.userId,
       auth.name,
       'golden_resolved',
       request._id,
-      `Resolved Golden ticket (spCost=${request.spCost} retained; no payout per v1.66 OOB).${note ? ` | ${note.slice(0, 120)}` : ''}`,
+      `Resolved Golden ticket (spCost=${request.spCost} retained; no payout per v1.66 OOB).${note ? ` | ${note.slice(0, 120)}` : ''}`
     );
-
-    await notifyUser(request.userId, {
-      title: 'Your Golden ticket was resolved',
-      message: `An admin resolved your Golden ticket. Premium support complete.`,
-      link: '/support/' + request._id.toString(),
-      metadata: {
-        supportRequestId: request._id.toString(),
-        status: 'Resolved',
-        isGolden: true,
-      },
-    });
 
     res.json({ request: stripAdminOnlyFields(request.toObject(), true) });
   } catch (err) {
@@ -333,7 +489,9 @@ export async function rejectGoldenTicket(req: Request, res: Response): Promise<v
     res.status(400).json({ message: 'Invalid ticket id.' });
     return;
   }
-  const reason = String((req.body ?? {}).reason ?? '').trim().slice(0, 2000);
+  const reason = String((req.body ?? {}).reason ?? '')
+    .trim()
+    .slice(0, 2000);
 
   try {
     const request = await SupportRequest.findById(id);
@@ -367,7 +525,7 @@ export async function rejectGoldenTicket(req: Request, res: Response): Promise<v
           request.userId.toString(),
           penalty,
           `Golden Ticket rejection penalty by admin ${auth.name} (1.25x of ${request.spCost} SP)`,
-          request._id,
+          request._id
         );
       } catch (spErr) {
         res.status(402).json({
@@ -400,15 +558,16 @@ export async function rejectGoldenTicket(req: Request, res: Response): Promise<v
       auth.name,
       'golden_rejected',
       request._id,
-      `Rejected Golden ticket (no ban). Penalty: -${penalty} SP (1.25x of ${request.spCost}).${reason ? ` | ${reason.slice(0, 120)}` : ''}`,
+      `Rejected Golden ticket (no ban). Penalty: -${penalty} SP (1.25x of ${request.spCost}).${reason ? ` | ${reason.slice(0, 120)}` : ''}`
     );
 
     await notifyUser(request.userId, {
       title: 'Your Golden ticket was rejected',
-      message: penalty > 0
-        ? `An admin rejected your Golden ticket. A penalty of ${penalty} SP was applied.`
-        : `An admin rejected your Golden ticket.`,
-      link: '/support/' + request._id.toString(),
+      message:
+        penalty > 0
+          ? `An admin rejected your Golden ticket. A penalty of ${penalty} SP was applied.`
+          : `An admin rejected your Golden ticket.`,
+      link: '/golden/ticket/' + request._id.toString(),
       metadata: {
         supportRequestId: request._id.toString(),
         status: 'Rejected',
@@ -448,7 +607,9 @@ export async function banAndRejectGoldenTicket(req: Request, res: Response): Pro
     res.status(400).json({ message: 'Invalid ticket id.' });
     return;
   }
-  const reason = String((req.body ?? {}).reason ?? '').trim().slice(0, 2000);
+  const reason = String((req.body ?? {}).reason ?? '')
+    .trim()
+    .slice(0, 2000);
 
   try {
     const request = await SupportRequest.findById(id);
@@ -482,7 +643,7 @@ export async function banAndRejectGoldenTicket(req: Request, res: Response): Pro
           request.userId.toString(),
           penalty,
           `Golden Ticket ban+reject penalty by admin ${auth.name} (1.25x of ${request.spCost} SP)`,
-          request._id,
+          request._id
         );
       } catch (spErr) {
         res.status(402).json({
@@ -529,13 +690,13 @@ export async function banAndRejectGoldenTicket(req: Request, res: Response): Pro
       auth.name,
       'golden_banned_rejected',
       request._id,
-      `Ban+Reject Golden ticket. Penalty: -${penalty} SP (1.25x of ${request.spCost}). 72h ban until ${newExpiry.toISOString()}.${reason ? ` | ${reason.slice(0, 120)}` : ''}`,
+      `Ban+Reject Golden ticket. Penalty: -${penalty} SP (1.25x of ${request.spCost}). 72h ban until ${newExpiry.toISOString()}.${reason ? ` | ${reason.slice(0, 120)}` : ''}`
     );
 
     await notifyUser(request.userId, {
       title: 'Your Golden ticket was rejected — 72h restriction applied',
       message: `An admin rejected your Golden ticket and applied a 72-hour content-creation restriction (until ${newExpiry.toISOString()}). You can still browse the platform.`,
-      link: '/support/' + request._id.toString(),
+      link: '/golden/ticket/' + request._id.toString(),
       metadata: {
         supportRequestId: request._id.toString(),
         status: 'Rejected',
@@ -551,8 +712,326 @@ export async function banAndRejectGoldenTicket(req: Request, res: Response): Pro
       bannedUntil: user.goldenBannedUntil,
     });
   } catch (err) {
-    adminLog.error(`[goldenTicketAdmin] banAndRejectGoldenTicket failed: ${(err as Error).message}`);
+    adminLog.error(
+      `[goldenTicketAdmin] banAndRejectGoldenTicket failed: ${(err as Error).message}`
+    );
     res.status(500).json({ message: 'Failed to ban and reject Golden ticket.' });
+  }
+}
+
+// ─── §4 Re-resolve (additive, v1.70) ────────────────────────────────────────
+
+/**
+ * POST /api/admin/golden-tickets/:id/re-resolve
+ *
+ * Send an ADDITIONAL answer to an already-Resolved Golden ticket.
+ * This appends to `goldenResolutions[]` and notifies the user via
+ * the in-app bell ONLY (no email, no SMS). SP is NEVER debited —
+ * the user paid once at raise-time. Admins can call this endpoint
+ * any number of times on the same ticket, building a follow-up
+ * thread without re-charging the user.
+ *
+ * Only valid on tickets in status 'Resolved'. Rejected/closed
+ * tickets are terminal and immutable from this path. Pending /
+ * Open tickets should use the regular /resolve endpoint, not this
+ * one — the first resolution still flows through that.
+ *
+ * Body: { text: string }  (required, 1..2000 chars)
+ *
+ * Response: { ok: true, entry: { text, adminName, createdAt }, noSpCharged: true }
+ */
+export async function reResolveGoldenTicket(req: Request, res: Response): Promise<void> {
+  const auth = requireAdmin(req, res);
+  if (!auth) return;
+
+  const id = asStringParam(req.params.id);
+  if (!id || !Types.ObjectId.isValid(id)) {
+    res.status(400).json({ message: 'Invalid ticket id.' });
+    return;
+  }
+
+  const text = String((req.body ?? {}).text ?? '').trim();
+  if (text.length === 0) {
+    res.status(400).json({ message: 'Answer text is required.' });
+    return;
+  }
+  if (text.length > 2000) {
+    res.status(400).json({ message: 'Answer text is too long (max 2000 characters).' });
+    return;
+  }
+
+  try {
+    const request = await SupportRequest.findById(id);
+    if (!request) {
+      res.status(404).json({ message: 'Golden ticket not found.' });
+      return;
+    }
+    if (!isGoldenTicket(request)) {
+      res.status(409).json({ message: 'This ticket is not a Golden ticket.' });
+      return;
+    }
+    // Only already-Resolved tickets can be re-resolved. Pending/Open
+    // should use /resolve (the canonical first-resolution path).
+    // Rejected/closed are terminal by design — re-opening them would
+    // silently undermine the audit trail.
+    if (request.status !== 'Resolved') {
+      res.status(409).json({
+        message: `Re-resolve is only valid on 'Resolved' tickets; this ticket is '${request.status}'.`,
+      });
+      return;
+    }
+
+    const now = new Date();
+    const entry = {
+      text,
+      adminId: auth.userId,
+      adminName: auth.name,
+      createdAt: now,
+      notificationSent: false,
+    };
+    request.goldenResolutions.push(entry);
+    // v1.74 — also push to the discussion thread. If the ticket
+    // was resolved without text originally, this is the FIRST
+    // admin answer and opens the 7-day window. Otherwise it's a
+    // regular follow-up inside an already-open window.
+    if (!request.firstAdminAnswerAt) {
+      request.firstAdminAnswerAt = now;
+      request.discussionClosesAt = computeDiscussionClosesAt(now);
+    }
+    request.goldenTicketDiscussion.push({
+      text,
+      senderRole: 'admin',
+      senderId: auth.userId,
+      senderName: auth.name,
+      createdAt: now,
+      // Only the first admin answer of all time is prominent.
+      // `firstAdminAnswerAt` was just set above, so we check the
+      // array length: if it's the very first entry, mark it.
+      isProminent: request.goldenTicketDiscussion.length === 0,
+    });
+    request.updatedAt = now;
+
+    await request.save();
+
+    // In-app bell notification only — NO email, NO SMS. The user
+    // explicitly opted into this channel on first resolution and
+    // asked not to be spammed with further emails for every follow-up.
+    await notifyUser(request.userId, {
+      title: 'New answer on your Golden ticket',
+      message: `An admin posted another answer on your Golden ticket.`,
+      link: '/golden/ticket/' + request._id.toString(),
+      metadata: {
+        supportRequestId: request._id.toString(),
+        isGolden: true,
+        kind: 're_resolve',
+        textPreview: text.slice(0, 120),
+      },
+    });
+
+    // Flip the notificationSent flag now that the bell has fired.
+    // If notifyUser failed above, the entry stays at false and a
+    // future reconciliation pass could pick it up. We don't 500
+    // the whole request just because the bell failed.
+    request.goldenResolutions[request.goldenResolutions.length - 1].notificationSent = true;
+    await request.save();
+
+    await logAdminAction(
+      auth.userId,
+      auth.name,
+      'golden_re_resolved',
+      request._id,
+      `Posted additional answer on Resolved Golden ticket (no SP charged). Text length: ${text.length} chars.`
+    );
+
+    res.json({
+      ok: true,
+      noSpCharged: true,
+      entry: {
+        text: entry.text,
+        adminName: entry.adminName,
+        createdAt: entry.createdAt.toISOString(),
+      },
+    });
+  } catch (err) {
+    adminLog.error(`[goldenTicketAdmin] reResolveGoldenTicket failed: ${(err as Error).message}`);
+    res.status(500).json({ message: 'Failed to re-resolve Golden ticket.' });
+  }
+}
+
+// ─── §4 Reopen (additive, v1.72) ─────────────────────────────────────────
+
+/**
+ * POST /api/admin/golden-tickets/:id/reopen
+ *
+ * Flip a Resolved ticket back to Pending so it returns to the
+ * Golden Queue. SP is NEVER touched — the user paid once at
+ * raise-time, and reopening is purely an admin workflow decision
+ * (e.g. the original answer was incomplete or wrong). The user
+ * is NOT notified: this is an internal admin action; the next
+ * resolve (with a fresh answer) is what triggers the in-app bell.
+ *
+ * History policy: we preserve `goldenResolutions[]` so the thread
+ * stays intact for the audit trail. Admins who want to clear stale
+ * answers before the next resolve call
+ * DELETE /admin/golden-tickets/:id/resolutions/:resIdx per entry.
+ *
+ * Only valid on Resolved tickets. Rejected / closed remain
+ * terminal (use Ban User + Reject flow instead).
+ *
+ * Side effects:
+ *   - status: 'Resolved' → 'Pending'
+ *   - resolvedAt: cleared
+ *   - statusHistory: append 'reopened' entry (so the audit trail
+ *     is preserved even though the visible status rolls back)
+ *   - goldenResolutions[]: preserved as-is
+ *   - SP balance: NOT touched (no debit, no refund)
+ *   - notifyUser: NOT called (admin-only action)
+ */
+export async function reopenGoldenTicket(req: Request, res: Response): Promise<void> {
+  const auth = requireAdmin(req, res);
+  if (!auth) return;
+
+  const id = asStringParam(req.params.id);
+  if (!id || !Types.ObjectId.isValid(id)) {
+    res.status(400).json({ message: 'Invalid ticket id.' });
+    return;
+  }
+
+  try {
+    const request = await SupportRequest.findById(id);
+    if (!request) {
+      res.status(404).json({ message: 'Golden ticket not found.' });
+      return;
+    }
+    if (!isGoldenTicket(request)) {
+      res.status(409).json({ message: 'This ticket is not a Golden ticket.' });
+      return;
+    }
+    if (request.status !== 'Resolved') {
+      res.status(409).json({
+        message: `Reopen is only valid on 'Resolved' tickets; this ticket is '${request.status}'.`,
+      });
+      return;
+    }
+
+    const now = new Date();
+    request.status = 'Pending';
+    request.resolvedAt = null;
+    request.statusHistory.push({
+      status: 'Pending',
+      note: `Reopened by ${auth.name}. Resolution history preserved (${request.goldenResolutions.length} prior answer${
+        request.goldenResolutions.length === 1 ? '' : 's'
+      }). User not notified — admin workflow action.`,
+      updatedBy: auth.userId,
+      updatedByName: auth.name,
+      timestamp: now,
+    });
+    request.updatedAt = now;
+    await request.save();
+
+    await logAdminAction(
+      auth.userId,
+      auth.name,
+      'golden_reopened',
+      request._id,
+      `Reopened Golden ticket (spCost=${request.spCost} retained; no SP movement). ${request.goldenResolutions.length} prior answer(s) preserved.`
+    );
+
+    res.json({
+      ok: true,
+      noSpMovement: true,
+      ticket: stripAdminOnlyFields(request.toObject(), true),
+    });
+  } catch (err) {
+    adminLog.error(`[goldenTicketAdmin] reopenGoldenTicket failed: ${(err as Error).message}`);
+    res.status(500).json({ message: 'Failed to reopen Golden ticket.' });
+  }
+}
+
+// ─── §4 Delete one prior resolution (additive, v1.72) ──────────────────
+
+/**
+ * DELETE /api/admin/golden-tickets/:id/resolutions/:resIdx
+ *
+ * Remove a single entry from `goldenResolutions[]`. Admins use this
+ * after reopening a ticket to clear stale answers before posting
+ * a fresh take via /re-resolve. SP is not touched (this is a
+ * cleanup action, not a financial one). The user is NOT notified:
+ * deleting an answer never re-fires the in-app bell.
+ *
+ * Path params:
+ *   :id        — SupportRequest._id
+ *   :resIdx    — zero-based index into goldenResolutions[]
+ *
+ * Status: any ticket state is acceptable (the admin might want to
+ * remove a stale answer from a still-Resolved ticket too). The
+ * path is no-op on an empty array (200, count unchanged).
+ *
+ * Audit trail: we push a statusHistory entry noting which index was
+ * removed and by whom, so future audits can see what was redacted.
+ */
+export async function deleteGoldenResolution(req: Request, res: Response): Promise<void> {
+  const auth = requireAdmin(req, res);
+  if (!auth) return;
+
+  const id = asStringParam(req.params.id);
+  if (!id || !Types.ObjectId.isValid(id)) {
+    res.status(400).json({ message: 'Invalid ticket id.' });
+    return;
+  }
+  const resIdxRaw = asStringParam(req.params.resIdx);
+  const resIdx = Number.parseInt(resIdxRaw ?? '', 10);
+  if (!Number.isInteger(resIdx) || resIdx < 0) {
+    res.status(400).json({ message: 'Invalid resolution index.' });
+    return;
+  }
+
+  try {
+    const request = await SupportRequest.findById(id);
+    if (!request) {
+      res.status(404).json({ message: 'Golden ticket not found.' });
+      return;
+    }
+    if (!isGoldenTicket(request)) {
+      res.status(409).json({ message: 'This ticket is not a Golden ticket.' });
+      return;
+    }
+    if (!Array.isArray(request.goldenResolutions) || resIdx >= request.goldenResolutions.length) {
+      res.status(404).json({
+        message: `Resolution index ${resIdx} out of range (have ${request.goldenResolutions?.length ?? 0}).`,
+      });
+      return;
+    }
+
+    const removed = request.goldenResolutions[resIdx];
+    request.goldenResolutions.splice(resIdx, 1);
+    request.statusHistory.push({
+      status: request.status,
+      note: `Removed goldenResolutions[${resIdx}] by ${auth.name} (was: ${removed.adminName} · "${removed.text.slice(0, 80)}${removed.text.length > 80 ? '…' : ''}").`,
+      updatedBy: auth.userId,
+      updatedByName: auth.name,
+      timestamp: new Date(),
+    });
+    request.updatedAt = new Date();
+    await request.save();
+
+    await logAdminAction(
+      auth.userId,
+      auth.name,
+      'golden_resolution_deleted',
+      request._id,
+      `Removed resolution[${resIdx}] from Golden ticket (${removed.adminName}, ${removed.text.length} chars).`
+    );
+
+    res.json({
+      ok: true,
+      removedIndex: resIdx,
+      remaining: request.goldenResolutions.length,
+      ticket: stripAdminOnlyFields(request.toObject(), true),
+    });
+  } catch (err) {
+    adminLog.error(`[goldenTicketAdmin] deleteGoldenResolution failed: ${(err as Error).message}`);
+    res.status(500).json({ message: 'Failed to delete Golden resolution.' });
   }
 }
 
@@ -576,7 +1055,7 @@ export async function clearExpiredGoldenBans(now: Date = new Date()): Promise<{ 
         goldenBannedBy: null,
         goldenBannedAt: null,
       },
-    },
+    }
   );
   if (result.modifiedCount > 0) {
     adminLog.info(`[goldenTicketAdmin] cleared ${result.modifiedCount} expired Golden ban(s).`);

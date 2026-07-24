@@ -1,27 +1,34 @@
 /**
  * notificationDispatcher
  *
- * Text-bank driven notification factory.
- * Selects a random message string from the curated pool for the given event type
- * and persists it to MongoDB. Clients poll /api/notifications/tea (30s) and
- * /api/notifications to read state — there is no real-time push today.
+ * Text-bank driven notification factory. Selects a random message
+ * string from the curated pool for the given event type and dispatches
+ * via `services/notifications.service.ts` (which writes to Notification
+ * or, on failure, to the NotificationOutbox for retry).
+ *
+ * Phase 1 R3: the dispatcher now delegates to the service. The
+ * service handles durable outbox + drain. This file keeps the
+ * text-bank, default titles, and the `dispatchNotification` function
+ * signature for back-compat with the ~12 call sites in the codebase.
+ *
+ * Clients poll /api/notifications/tea (30s) and /api/notifications
+ * to read state — there is no real-time push today.
  */
 
 import { Types } from 'mongoose';
-import Notification, { NotificationType } from '../../modules/notification/notification.model.js';
-import { logger } from './logger.js';
+import {
+  notificationsService,
+  type DispatchEventType,
+  type NotificationInput,
+} from '../../services/notifications.service.js';
 
-// Note: a previous version of this file attempted to emit a real-time Socket.io
-// event after persisting a notification. Socket.io is not installed and no
-// server is initialized anywhere, so the emit was a no-op. If real-time
-// notifications are ever needed, install `socket.io`, create a Server in
-// server.ts after `app.listen`, and reintroduce the emit here. For now the
-// notification is persisted to MongoDB only — clients poll
-// /api/notifications/tea (30s) and /api/notifications to read state.
+// Re-export so existing imports keep working.
+export { notificationsService };
+export type { DispatchEventType, NotificationInput } from '../../services/notifications.service.js';
 
-// ─── Text Bank ─────────────────────────────────────────────────────────────────
+// ─── Text Bank ─────────────────────────────────────────────────────────────
 
-const notificationTextBank: Record<string, string[]> = {
+const notificationTextBank: Record<DispatchEventType, string[]> = {
   question_answered: [
     'Unread Wisdom: 1 new response to your question.',
     'Console Log Update: A user has responded to your question.',
@@ -72,11 +79,11 @@ const notificationTextBank: Record<string, string[]> = {
   ],
 };
 
-// ─── Dispatcher ───────────────────────────────────────────────────────────────
+// ─── Dispatcher ──────────────────────────────────────────────────────────
 
 interface DispatchOptions {
   recipientId: Types.ObjectId;
-  eventType: Exclude<NotificationType, 'comment_replied' | 'mention' | 'expert_request'>;
+  eventType: DispatchEventType;
   /** Navigable URL — e.g. /community?post=<id> or /faq/<faqId> */
   link: string;
   /**
@@ -91,6 +98,9 @@ interface DispatchOptions {
  *
  * Usage in a controller:
  *   await dispatchNotification({ recipientId: post.author, eventType: 'upvote', link: `/community?post=${postId}` });
+ *
+ * Delegates to the notifications service which writes to Notification
+ * (or NotificationOutbox on failure). Never throws.
  */
 export const dispatchNotification = async ({
   recipientId,
@@ -103,29 +113,11 @@ export const dispatchNotification = async ({
 
   const message = bank[Math.floor(Math.random() * bank.length)];
 
-  const defaultTitles: Record<string, string> = {
-    question_answered: 'New Answer',
-    new_question: 'New Question',
-    upvote: 'Upvote Received',
-    downvote: 'Downvote Received',
-    accepted_answer: 'Answer Accepted',
-    post_resolved: 'Post Resolved',
-    faq_match_found: 'Matching FAQ Found',
-  };
-
-  try {
-    await Notification.create({
-      recipient: recipientId,
-      type: eventType,
-      title: title ?? defaultTitles[eventType] ?? eventType,
-      message,
-      link,
-      read: false,
-    });
-  } catch (err) {
-    // Notifications are best-effort; surface errors only in environments
-    // where you want alerting (staging / canary). In production the error is
-    // swallowed to avoid poisoning the parent operation, but we log a warning.
-    logger.warn(`[notificationDispatcher] Failed to create notification for ${recipientId}: ${(err as Error).message}`);
-  }
+  await notificationsService.dispatch({
+    recipientId,
+    eventType,
+    link,
+    title,
+    message,
+  });
 };

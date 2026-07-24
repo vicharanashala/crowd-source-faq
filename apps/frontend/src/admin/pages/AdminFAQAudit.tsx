@@ -42,7 +42,7 @@ export default function AdminFAQAuditPage() {
         setStats(s.data.results);
         setResults(r.data.results ?? []);
       })
-      .catch((e) => console.error(friendlyError(e, 'Failed to load')))
+      .catch((e) => console.error('Failed to load audit stats/results:', e))
       .finally(() => setLoading(false));
   };
 

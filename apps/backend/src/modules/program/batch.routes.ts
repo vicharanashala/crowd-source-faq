@@ -11,6 +11,7 @@ import {
   updateBatch,
   archiveBatch,
   deleteBatch,
+  getActiveBatch,
 } from './batch.controller.js';
 
 const router = Router();
@@ -31,6 +32,9 @@ router.get('/', listLimiter, listPublicBatches);
 // `name` (see Batch.slugifyProgramName). Mounted BEFORE the `/:id`
 // route so it isn't shadowed.
 router.get('/by-slug/:slug', listLimiter, getBatchBySlug);
+// GET /api/batches/active — the "current" / default batch.
+// Audit fix (2026-07-02): registered before /:id to avoid shadowing.
+router.get('/active', listLimiter, getActiveBatch);
 
 // ─── Admin (guarded) ───────────────────────────────────────────────────────
 

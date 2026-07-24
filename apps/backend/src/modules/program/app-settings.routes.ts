@@ -29,7 +29,8 @@ adminRouter.use(protect);
 adminRouter.get('/',    authorize('admin', 'moderator'), adminGetSettings);
 adminRouter.put('/',    authorize('admin', 'moderator'), adminUpdateSetting);
 
-// Public router — /api/public/settings (any authed user)
+// Public router — /api/public/settings (no auth — anonymous visitors
+// need the public-safe subset to render cooldown copy on the landing
+// page before logging in).
 export const publicRouter = Router();
-publicRouter.use(protect);
 publicRouter.get('/',   publicGetSettings);

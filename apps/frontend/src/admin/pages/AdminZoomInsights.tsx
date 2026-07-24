@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react'
+import { adminBtnDanger, adminBtnSuccess } from '../../styles/style_config';
 import adminApi from '../utils/adminApi';
 import { timeAgo } from '../../utils/time';
 
@@ -32,8 +33,8 @@ function TypeBadge({ type }: { type: ZoomInsight['type'] }) {
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold ${
       type === 'FAQ'
-        ? 'bg-blue-500/10 text-blue-400'
-        : 'bg-purple-500/10 text-purple-400'
+        ? 'bg-accent/10 text-accent'
+        : 'bg-accent/10 text-accent'
     }`}>
       {type}
     </span>
@@ -60,7 +61,7 @@ function StatusBadge({ status }: { status: ZoomInsight['status'] }) {
 
 function ConfidenceBar({ score }: { score: number }) {
   if (!score || score < 30) return null;
-  const color = score >= 80 ? 'bg-success' : score >= 60 ? 'bg-blue-400' : 'bg-warning';
+  const color = score >= 80 ? 'bg-success' : score >= 60 ? 'bg-accent' : 'bg-warning';
   return (
     <div className="inline-flex items-center gap-1.5" title={`AI confidence: ${Math.round(score)}%`}>
       <div className="h-1 w-12 bg-border rounded-full overflow-hidden">
@@ -85,7 +86,11 @@ function InsightCardSkeleton() {
   );
 }
 
-export default function AdminZoomInsights() {
+/**
+ * Named export — the inner tab content. Re-used by the unified
+ * `/admin/knowledge` tab page.
+ */
+export function ZoomInsightsView() {
   const [insights, setInsights] = useState<ZoomInsight[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -287,14 +292,14 @@ export default function AdminZoomInsights() {
                       <button
                         onClick={() => handleAction(insight._id, 'approve')}
                         disabled={actionLoading === insight._id}
-                        className="admin-btn-success text-xs px-3 py-1.5"
+                        className={`${adminBtnSuccess} text-xs px-3 py-1.5`}
                       >
                         Approve
                       </button>
                       <button
                         onClick={() => handleAction(insight._id, 'reject')}
                         disabled={actionLoading === insight._id}
-                        className="admin-btn-danger text-xs px-3 py-1.5"
+                        className={`${adminBtnDanger} text-xs px-3 py-1.5`}
                       >
                         Reject
                       </button>
@@ -304,7 +309,7 @@ export default function AdminZoomInsights() {
                     <button
                       onClick={() => handleConvertToFAQ(insight._id)}
                       disabled={actionLoading === insight._id}
-                      className="text-xs px-3 py-1.5 rounded-md font-medium text-white bg-blue-500 hover:bg-blue-400 disabled:opacity-50 transition-colors"
+                      className="text-xs px-3 py-1.5 rounded-md font-medium text-white bg-accent hover:bg-accent disabled:opacity-50 transition-colors"
                     >
                       Publish as FAQ
                     </button>
@@ -333,4 +338,12 @@ export default function AdminZoomInsights() {
       )}
     </div>
   );
+}
+
+/**
+ * Default export kept for the legacy `/admin/zoom-insights` route —
+ * thin wrapper. Can be deleted once that route is removed.
+ */
+export default function AdminZoomInsights() {
+  return <ZoomInsightsView />;
 }

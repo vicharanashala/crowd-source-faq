@@ -27,6 +27,8 @@
  *      just no Discord ping.
  */
 
+import * as Sentry from '@sentry/node';
+
 type LogLevel = 'info' | 'warn' | 'error' | 'alert';
 
 interface LogInput {
@@ -113,6 +115,11 @@ const CATEGORY_COLORS: Record<string, (s: string) => string> = {
   audit:      C.boldRed,
   community:  C.green,
   support:    C.yellow,
+  // v1.79 — AI subsystem logger. Used by utils/ai/* and
+  // modules/ai/* to log every external API call (inference +
+  // embeddings) for auditability. Magenta makes it pop next
+  // to the green/yellow subsystem loggers.
+  ai:         C.magenta,
 };
 
 function coloredCategory(text: string, rawCategory: string): string {
@@ -162,6 +169,23 @@ function emit(entry: LogInput): void {
   // Forward alerts, errors, and warnings to Discord (best-effort, fire-and-forget).
   if (entry.level === 'alert' || entry.level === 'error' || entry.level === 'warn') {
     notifyDiscord(entry.message, entry.meta, entry.category, entry.level).catch(() => { /* swallow */ });
+  }
+  // Forward errors and alerts to Sentry (info-level logs are too noisy for the
+  // error stream). `error` calls become captureException; `alert` and `audit`
+  // become captureMessage at 'error' severity so they show up in the Issues
+  // feed tagged with the subsystem category. Safe to call when Sentry is
+  // disabled — the SDK no-ops in that case.
+  if (entry.level === 'error') {
+    // Reconstruct an Error so Sentry gets a real stack trace in the dashboard.
+    const err = new Error(entry.message);
+    if (entry.meta) err.stack = `${err.stack}\n${JSON.stringify(entry.meta, null, 2)}`;
+    Sentry.captureException(err);
+  } else if (entry.level === 'alert') {
+    Sentry.captureMessage(entry.message, {
+      level: 'error',
+      tags: { loggerCategory: entry.category },
+      extra: entry.meta as Record<string, unknown>,
+    });
   }
 }
 
@@ -231,6 +255,14 @@ export const securityLog = createLogger('security');
 // covers the BullMQ job worker.
 export const communityLog = createLogger('community');
 export const supportLog   = createLogger('support');
+// v1.79 — AI subsystem logger. Used to log every external AI
+// API call (inference + embeddings) so admins can audit spend,
+// per-call model/feature, and failures. Goes through the
+// standard named-logger pipeline: console + (warn+) Discord +
+// (error+) Sentry. Replaces the ad-hoc `console.log('--- AI
+// Request Configuration ---')` block that used to live in
+// ai-client.service.ts.
+export const aiLog        = createLogger('ai');
 
 // ─── Generic logger (for one-off use; consider createLogger instead) ────────
 

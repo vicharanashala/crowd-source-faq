@@ -25,6 +25,7 @@ import RegistrationConfig, {
 import AdminLog from '../admin/admin-log.model.js';
 import User from '../auth/user.model.js';
 import { adminLog } from '../../utils/http/logger.js';
+import { publicBasePath } from '../../utils/publicBasePath.js';
 
 /**
  * Pull the admin id off the request. Routes mounted with
@@ -38,17 +39,42 @@ function adminIdFromReq(req: Request): Types.ObjectId | null {
 
 /**
  * Build the full invite-link URL for display. Uses PUBLIC_BASE_URL
- * if set (recommended for production), falls back to the request's
- * own host header so the admin always sees a usable URL even in dev.
+ * if set (recommended for production), otherwise falls back to the
+ * request's host header so the admin always sees a usable URL even
+ * in dev. The invite always lands on the frontend root — which on
+ * share-the-link visit fires the AuthModalContext mount-time effect
+ * that opens the register tab automatically. The path follows the
+ * app's public mount point (PUBLIC_BASE_PATH, defaulting to /csfaq),
+ * so the link works under both domain-rooted and subpath deploys
+ * without admin config. PUBLIC_INVITE_PATH lets ops override the
+ * landing path (e.g. '/' for a custom landing page).
  */
 function buildInviteLink(req: Request, token: string): string {
   const configured = (process.env.PUBLIC_BASE_URL ?? '').trim().replace(/\/$/, '');
-  if (configured) return `${configured}/?token=${token}`;
+  // Resolve the path: explicit override wins, else mount prefix + "/".
+  let pathPart: string;
+  const override = process.env.PUBLIC_INVITE_PATH?.trim();
+  if (override && override !== '') {
+    pathPart = override.endsWith('/') ? override : `${override}/`;
+  } else {
+    const base = publicBasePath(); // '' when mounted at root, '/csfaq' otherwise
+    pathPart = base === '' ? '/' : `${base}/`;
+  }
+  const query = `?token=${token}`;
+  if (configured) return `${configured}${pathPart}${query}`;
   // Fallback: derive from the request so the admin gets a working link
-  // in dev without needing to configure PUBLIC_BASE_URL.
+  // in dev without needing to configure PUBLIC_BASE_URL. The request host
+  // is the backend in this app (admin page hits /csfaq/api/...), but the
+  // link must point at the FRONTEND. Prefer FRONTEND_BASE_URL (set in
+  // dev to e.g. http://localhost:5173) so the admin sees a clickable
+  // invite link. When unset, fall back to the request host — same
+  // behaviour we had before, which works when reverse-proxied under a
+  // single host.
+  const frontendBase = (process.env.FRONTEND_BASE_URL ?? '').trim().replace(/\/$/, '');
+  if (frontendBase) return `${frontendBase}${pathPart}${query}`;
   const proto = (req.headers['x-forwarded-proto'] as string) || req.protocol || 'http';
   const host = req.headers['x-forwarded-host'] || req.headers.host || 'localhost';
-  return `${proto}://${host}/?token=${token}`;
+  return `${proto}://${host}${pathPart}${query}`;
 }
 
 /**

@@ -25,6 +25,7 @@
  */
 
 import React from 'react';
+import { btnBase, btnPrimary, btnSecondary } from '../../styles/style_config';
 import Spinner from './Spinner';
 
 type Level = 'top' | 'section';
@@ -223,14 +224,14 @@ function TopFallback(props: {
           <button
             type="button"
             onClick={props.onReload}
-            className="btn-base btn-primary text-sm"
+            className={`${btnBase} ${btnPrimary} text-sm`}
           >
             Reload page
           </button>
           <button
             type="button"
             onClick={props.onHome}
-            className="btn-base btn-secondary text-sm"
+            className={`${btnBase} ${btnSecondary} text-sm`}
           >
             Go home
           </button>
@@ -238,7 +239,7 @@ function TopFallback(props: {
             type="button"
             onClick={props.onReport}
             disabled={props.reported}
-            className="btn-base btn-secondary text-sm"
+            className={`${btnBase} ${btnSecondary} text-sm`}
           >
             {props.reported ? 'Reported' : 'Report issue'}
           </button>

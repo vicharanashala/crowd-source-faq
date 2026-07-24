@@ -18,6 +18,7 @@ import { executeResolve } from '../commands/resolve.js';
 import { executeBan } from '../commands/ban.js';
 import { executeBroadcast } from '../commands/broadcast.js';
 import { executeAdmin } from '../commands/admin.js';
+import { executeCrud } from '../commands/crud.js';
 import { executeHealth } from '../commands/health.js';
 import { executeSetupAdmin } from '../commands/setupadmin.js';
 import {
@@ -58,6 +59,7 @@ export async function handleInteraction(
         case 'ban':       return await executeBan(cmd, runtime.config, runtime.batchId);
         case 'broadcast': return await executeBroadcast(cmd, runtime.config, runtime.batchId);
         case 'admin':     return await executeAdmin(cmd, runtime.config, runtime.batchId);
+        case 'crud':      return await executeCrud(cmd, runtime.config, runtime.batchId);
         case 'health':    return await executeHealth(cmd, runtime.config, runtime.batchId);
         case 'setupadmin': return await executeSetupAdmin(cmd, runtime.config, runtime.batchId);
         default:

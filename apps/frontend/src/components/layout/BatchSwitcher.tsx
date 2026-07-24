@@ -9,6 +9,22 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBatch } from '../../context/BatchContext';
+import {
+  topbarCreateButton,
+  topbarDropdown,
+  topbarDropdownFooter,
+  topbarDropdownHeader,
+  topbarDropdownItem,
+  topbarDropdownItemIcon,
+  topbarDropdownItemIconAccent,
+  topbarDropdownItemSelected,
+  topbarPill,
+  topbarPillCompact,
+  topbarPillDot,
+  textXs,
+  textXsFaint,
+  textXsLabel,
+} from '../../styles/style_config';
 
 interface BatchSwitcherProps {
   /** When true, shows a "Create new" link that goes to /admin/batches. */
@@ -50,10 +66,10 @@ export function BatchSwitcher({
   if (loading && !currentBatch) {
     return (
       <div
-        className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-card border border-border/70 text-xs text-ink-soft ${className}`}
+        className={`${topbarPillCompact} ${className}`}
         aria-busy="true"
       >
-        <span className="w-3 h-3 rounded-full bg-mist animate-pulse" />
+        <span className={topbarPillDot} />
         <span>Loading programs…</span>
       </div>
     );
@@ -65,7 +81,7 @@ export function BatchSwitcher({
     return (
       <a
         href="/explore/select"
-        className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-card border border-border/70 text-xs text-ink hover:border-accent/60 hover:text-accent transition-colors ${className}`}
+        className={`${topbarPill} ${className}`}
       >
         <LayersIcon className="text-accent" />
         <span>Pick a program</span>
@@ -86,21 +102,17 @@ export function BatchSwitcher({
   };
 
   return (
-    <div ref={containerRef} className={`relative ${className}`}>
+    <div data-tour="program-selector" ref={containerRef} className={`relative ${className}`}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className={`inline-flex items-center gap-2 ${
-          compact ? 'px-2.5 py-1 text-[11px]' : 'h-9 px-3 text-xs'
-        } rounded-full bg-card border border-border/70 text-ink font-medium hover:border-accent/60 transition-colors shadow-sm`}
+        className={compact ? topbarPillCompact : topbarPill}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={`Current program: ${currentBatch.name}. Click to switch.`}
       >
         <LayersIcon className="text-accent" />
         <span className="truncate max-w-[140px] sm:max-w-[200px]">{currentBatch.name}</span>
-        <span className="text-ink-faint">·</span>
-        <span className="text-ink-faint text-[10px] tabular-nums">{currentBatch.faqCount}</span>
         <svg
           className={`text-ink-faint transition-transform ${open ? 'rotate-180' : ''}`}
           width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -114,13 +126,13 @@ export function BatchSwitcher({
         <div
           role="listbox"
           aria-label="Switch program"
-          className="absolute right-0 top-full mt-2 z-40 w-72 max-w-[calc(100vw-2rem)] bg-card border border-border rounded-2xl shadow-float overflow-hidden animate-fade-in"
+          className={topbarDropdown}
         >
-          <div className="px-4 py-3 border-b border-border/60">
-            <p className="text-[10px] uppercase tracking-wider font-semibold text-ink-faint">
+          <div className={topbarDropdownHeader}>
+            <p className={textXsLabel}>
               Switch program
             </p>
-            <p className="text-xs text-ink-soft mt-1">
+            <p className={`${textXs} text-ink-soft mt-1`}>
               Only FAQs and analytics for the selected program are shown.
             </p>
           </div>
@@ -140,16 +152,10 @@ export function BatchSwitcher({
                     role="option"
                     aria-selected={selected}
                     onClick={() => handlePick(b._id)}
-                    className={`group w-full text-left px-4 py-2.5 hover:bg-cream/60 transition-colors flex items-start gap-3 ${
-                      selected ? 'bg-cream/40' : ''
-                    }`}
+                    className={`group ${selected ? topbarDropdownItemSelected : topbarDropdownItem}`}
                   >
                     <span
-                      className={`shrink-0 mt-0.5 w-7 h-7 rounded-lg flex items-center justify-center ${
-                        selected
-                          ? 'bg-accent text-accent-text'
-                          : 'bg-cream text-ink-soft group-hover:text-accent'
-                      }`}
+                      className={selected ? topbarDropdownItemIconAccent : topbarDropdownItemIcon}
                     >
                       <LayersIcon compact />
                     </span>
@@ -157,7 +163,7 @@ export function BatchSwitcher({
                       <span className="block text-sm font-medium text-ink truncate">
                         {b.name}
                       </span>
-                      <span className="flex items-center gap-2 text-[11px] text-ink-faint mt-0.5">
+                      <span className={`flex items-center gap-2 text-[11px] ${textXsFaint} mt-0.5`}>
                         <span>{b.faqCount} {b.faqCount === 1 ? 'FAQ' : 'FAQs'}</span>
                         {b.startDate && (
                           <>
@@ -181,11 +187,11 @@ export function BatchSwitcher({
           </ul>
 
           {showCreateLink && (
-            <div className="border-t border-border/60 p-1.5">
+            <div className={topbarDropdownFooter}>
               <button
                 type="button"
                 onClick={handleCreate}
-                className="w-full text-left px-3 py-2 rounded-xl hover:bg-cream/60 text-xs font-medium text-accent flex items-center gap-2"
+                className={topbarCreateButton}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                   strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

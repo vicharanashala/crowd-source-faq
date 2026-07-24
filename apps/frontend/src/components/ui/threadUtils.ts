@@ -10,30 +10,32 @@ export const formatDate = (d: string | undefined) =>
     year: 'numeric',
   });
 
-// Reddit-style depth colors — each nesting level gets a distinct accent
+// Reddit-style depth colours — each nesting level gets the
+// same accent token at decreasing opacity so deeper replies are
+// visually de-emphasised without leaving the warm-sand palette.
 export const DEPTH_COLORS = [
   'border-accent',
-  'border-emerald-400',
-  'border-amber-400',
-  'border-rose-400',
-  'border-violet-400',
+  'border-accent/40',
+  'border-accent/30',
+  'border-accent/20',
+  'border-accent/10',
 ];
 
 export const DEPTH_BARS = [
   'bg-accent',
-  'bg-emerald-400',
-  'bg-amber-400',
-  'bg-rose-400',
-  'bg-violet-400',
+  'bg-accent/80',
+  'bg-accent/60',
+  'bg-accent/40',
+  'bg-accent/20',
 ];
 
 export const LIFECYCLE_CONFIG: Record<string, { label: string; cls: string }> = {
-  open:               { label: 'Open',              cls: 'bg-gray-100 text-gray-600 border-gray-200' },
-  answered:           { label: 'Solved',            cls: 'bg-blue-50 text-blue-700 border-blue-200' },
-  community_accepted: { label: 'Community ✓',       cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-  ai_validated:       { label: 'AI Validated',      cls: 'bg-purple-50 text-purple-700 border-purple-200' },
-  admin_accepted:     { label: 'Admin Approved',    cls: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
-  converted_to_faq:   { label: 'Official FAQ',      cls: 'bg-stone-100 text-stone-700 border-stone-300' },
+  open:               { label: 'Open',              cls: 'bg-mist text-ink-soft border-border' },
+  answered:           { label: 'Solved',            cls: 'bg-accent/10 text-accent border-accent/30' },
+  community_accepted: { label: 'Community ✓',       cls: 'bg-accent/10 text-accent border-accent/30' },
+  ai_validated:       { label: 'AI Validated',      cls: 'bg-info/10 text-info border-info/30' },
+  admin_accepted:     { label: 'Admin Approved',    cls: 'bg-accent/10 text-accent border-accent/30' },
+  converted_to_faq:   { label: 'Official FAQ',      cls: 'bg-mist text-ink-soft border-border' },
 };
 
 // Count total descendants recursively

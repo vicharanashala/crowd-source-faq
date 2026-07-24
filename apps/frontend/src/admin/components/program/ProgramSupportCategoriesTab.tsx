@@ -15,8 +15,10 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion'
+import { adminBtnGhost, adminBtnPrimary, adminInput, adminSelect, dangerBorder } from '../../../styles/style_config';
 import adminApi from '../../utils/adminApi';
+
 
 interface SupportCategory {
   _id: string;
@@ -113,7 +115,7 @@ function CategoryRow({
           type="button"
           onClick={onDelete}
           disabled={saving}
-          className="px-2 py-0.5 rounded text-rose-700/80 hover:text-rose-700 hover:bg-rose-50 disabled:opacity-40"
+          className="px-2 py-0.5 rounded text-danger/80 hover:text-danger hover:bg-danger-light disabled:opacity-40"
         >
           Delete
         </button>
@@ -181,7 +183,7 @@ function CategoryForm({
             onChange={(e) => setIssueType(e.target.value)}
             disabled={isEdit}
             placeholder="e.g. stipend-issue"
-            className="admin-input w-full"
+            className={`${adminInput} w-full`}
             required
           />
         </div>
@@ -190,7 +192,7 @@ function CategoryForm({
           <select
             value={iconKey}
             onChange={(e) => setIconKey(e.target.value as IconKey)}
-            className="admin-select w-full"
+            className={`${adminSelect} w-full`}
           >
             {ICON_KEYS.map((k) => (
               <option key={k} value={k}>{k}</option>
@@ -204,7 +206,7 @@ function CategoryForm({
             value={label}
             onChange={(e) => setLabel(e.target.value)}
             placeholder="e.g. Stipend Issue"
-            className="admin-input w-full"
+            className={`${adminInput} w-full`}
             required
           />
         </div>
@@ -215,7 +217,7 @@ function CategoryForm({
             value={shortLabel}
             onChange={(e) => setShortLabel(e.target.value)}
             placeholder="e.g. Stipend"
-            className="admin-input w-full"
+            className={`${adminInput} w-full`}
             required
           />
         </div>
@@ -228,7 +230,7 @@ function CategoryForm({
             onChange={(e) => setDescription(e.target.value)}
             rows={2}
             placeholder="What this issue type covers, who it affects, etc."
-            className="admin-input w-full resize-none"
+            className={`${adminInput} w-full resize-none`}
           />
         </div>
         <div className="sm:col-span-2">
@@ -240,13 +242,13 @@ function CategoryForm({
             onChange={(e) => setStepsText(e.target.value)}
             rows={4}
             placeholder={'Restart the device\nCheck your network\nReinstall the app'}
-            className="admin-input w-full resize-none font-mono text-xs"
+            className={`${adminInput} w-full resize-none font-mono text-xs`}
           />
         </div>
       </div>
       <div className="flex items-center justify-end gap-2 pt-1">
-        <button type="button" onClick={onCancel} className="admin-btn-ghost">Cancel</button>
-        <button type="submit" disabled={saving} className="admin-btn-primary">
+        <button type="button" onClick={onCancel} className={`${adminBtnGhost}`}>Cancel</button>
+        <button type="submit" disabled={saving} className={`${adminBtnPrimary}`}>
           {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Create category'}
         </button>
       </div>
@@ -357,7 +359,7 @@ export default function ProgramSupportCategoriesTab({ programId }: { programId: 
   }
   if (error || !categories) {
     return (
-      <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700">
+      <div className={`${dangerBorder} rounded-2xl p-6 text-sm`}>
         {error ?? 'Failed to load categories.'}{' '}
         <button type="button" onClick={() => { void load(); }} className="underline">Retry</button>
       </div>
@@ -371,8 +373,8 @@ export default function ProgramSupportCategoriesTab({ programId }: { programId: 
           initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
           className={`px-4 py-2.5 rounded-lg text-xs font-medium border ${
             toast.type === 'error'
-              ? 'bg-rose-50 text-rose-700 border-rose-200'
-              : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+              ? dangerBorder
+              : 'bg-accent/10 text-accent border-accent/30'
           }`}
         >
           {toast.msg}
@@ -397,7 +399,7 @@ export default function ProgramSupportCategoriesTab({ programId }: { programId: 
               <button
                 type="button"
                 onClick={() => setCreating(true)}
-                className="admin-btn-primary"
+                className={`${adminBtnPrimary}`}
               >
                 + New category
               </button>

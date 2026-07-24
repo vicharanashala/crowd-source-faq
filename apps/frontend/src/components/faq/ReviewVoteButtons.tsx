@@ -1,5 +1,16 @@
 import React, { useState } from 'react';
-import api, { friendlyError } from '../../utils/api';
+import api from '../../utils/api';
+import {
+  stackXs,
+  submitBtnDanger,
+  submitBtnGhost,
+  textAreaBase,
+  votePillAccent,
+  votePillAccentIdle,
+  votePillDanger,
+  votePillDangerIdle,
+  votePillSingle,
+} from '../../styles/style_config';
 
 interface ReviewVoteButtonsProps {
   faqId: string;
@@ -39,7 +50,7 @@ export default function ReviewVoteButtons({
       setNeedsUpdate(needsUpdateVotes);
       onVoteUpdate?.(accurateVotes, needsUpdateVotes);
     } catch (e) {
-      console.error(friendlyError(e, 'Vote failed.'));
+      console.error('Vote failed:', e);
     } finally {
       setLoading(false);
     }
@@ -79,16 +90,14 @@ export default function ReviewVoteButtons({
   };
 
   return (
-    <div className="space-y-2">
+    <div className={stackXs}>
       <div className="flex gap-2">
         <button
           onClick={handleAccurate}
           disabled={loading}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border text-xs font-medium transition-all
-            ${myVote === 'still_accurate'
-              ? 'border-green-400 bg-green-50 text-green-700'
-              : 'border-border text-ink-soft hover:border-green-300 hover:text-green-600'
-            }`}
+          className={`${votePillSingle} ${
+            myVote === 'still_accurate' ? votePillAccent : votePillAccentIdle
+          }`}
         >
           <span>👍</span>
           <span>Still Accurate</span>
@@ -98,11 +107,9 @@ export default function ReviewVoteButtons({
         <button
           onClick={handleNeedsUpdate}
           disabled={loading}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border text-xs font-medium transition-all
-            ${myVote === 'needs_update'
-              ? 'border-red-400 bg-red-50 text-red-700'
-              : 'border-border text-ink-soft hover:border-red-300 hover:text-red-600'
-            }`}
+          className={`${votePillSingle} ${
+            myVote === 'needs_update' ? votePillDanger : votePillDangerIdle
+          }`}
         >
           <span>🔄</span>
           <span>Needs Update</span>
@@ -117,19 +124,19 @@ export default function ReviewVoteButtons({
             onChange={(e) => setSuggestion(e.target.value.slice(0, 300))}
             placeholder="What's wrong with this answer? (optional, max 300 chars)"
             rows={2}
-            className="w-full rounded-xl border border-border bg-mist px-3 py-2 text-xs text-ink placeholder-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/25 resize-none"
+            className={textAreaBase}
           />
           <div className="flex gap-2">
             <button
               onClick={() => { setShowSuggestion(false); setMyVote(null); }}
-              className="flex-1 py-1.5 text-xs rounded-lg border border-border text-ink-soft hover:bg-mist transition-colors"
+              className={submitBtnGhost}
             >
               Cancel
             </button>
             <button
               onClick={handleSubmitNeedsUpdate}
               disabled={loading}
-              className="flex-1 py-1.5 text-xs rounded-lg bg-red-500 text-accent-text hover:bg-red-600 transition-colors disabled:opacity-50"
+              className={submitBtnDanger}
             >
               Submit
             </button>

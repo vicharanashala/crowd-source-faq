@@ -95,7 +95,7 @@ export interface ICommunityPost extends Document {
   // AI auto-answer fields
   aiAnswer?: string | null;
   aiAnswerConfidence?: number | null;   // 0–1
-  aiAnswerStatus?: 'pending' | 'suggested' | 'approved' | 'rejected' | 'escalated' | null;
+  aiAnswerStatus?: 'pending' | 'suggested' | 'approved' | 'rejected' | 'ask_human' | 'escalated' | null;
   aiAnswerSource?: string | null;        // FAQ title or 'Knowledge Base' that matched
   aiAnswerSuggestedAt?: Date | null;
   aiAnswerReviewedAt?: Date | null;
@@ -103,6 +103,17 @@ export interface ICommunityPost extends Document {
   aiAnswerEscalatedAt?: Date | null;
   aiAnswerEscalatedReason?: string | null;
   aiAnswerAttempts?: number;
+  /** Phase 3 R12 — fetchContext snapshot written each auto-answer run. */
+  aiContext?: {
+    hits?: unknown;
+    sources?: unknown;
+    query?: string | null;
+    takenAt?: Date | null;
+  } | null;
+  /** Drives the cooldown gate in services/autoAnswer.ts. */
+  lastAutoAnswerAt?: Date | null;
+  /** Set by editFAQ hook when the source FAQ moves. */
+  pendingReviews?: boolean;
   // AI audit tracking (shared with FAQ audit)
   lastCheckedAt?: Date | null;
   comments: Types.Subdocument[];
@@ -202,6 +213,12 @@ const communityPostSchema = new MongooseSchema(
       default: null,
       index: true,
     },
+    // Phase 1 R8 — soft-delete fields. Deleted docs keep the row but
+    // are filtered out by reads. Nullable + indexed on batchId+deletedAt
+    // so per-batch restore is O(1).
+    deletedAt: { type: Date, default: null, index: true },
+    deletedBy: { type: MongooseSchema.Types.ObjectId, ref: 'User', default: null },
+    deletedReason: { type: String, default: null },
     status: {
       type: String,
       enum: ['answered', 'unanswered'] as CommunityPostStatus[],
@@ -215,7 +232,7 @@ const communityPostSchema = new MongooseSchema(
     aiAnswerConfidence: { type: Number, default: null },
     aiAnswerStatus: {
       type: String,
-      enum: ['pending', 'suggested', 'approved', 'rejected', 'escalated'],
+      enum: ['pending', 'suggested', 'approved', 'rejected', 'ask_human', 'escalated'],
       default: null,
     },
     aiAnswerSource: { type: String, default: null },
@@ -227,6 +244,19 @@ const communityPostSchema = new MongooseSchema(
     aiAnswerAttempts: { type: Number, default: 0 },
     // AI audit tracking
     lastCheckedAt: { type: Date, default: null },
+    // Phase 3 R12 — Phase 2 fetchContext snapshot, written each auto-answer
+    // run. Audit-only; not queried by field. Lets admin queue drill-down
+    // show "why did AI decide this?".
+    aiContext: {
+      hits: { type: MongooseSchema.Types.Mixed, default: null },
+      sources: { type: MongooseSchema.Types.Mixed, default: null },
+      query: { type: String, default: null },
+      takenAt: { type: Date, default: null },
+    },
+    lastAutoAnswerAt: { type: Date, default: null },
+    // Set true when the underlying FAQ source moves (editFAQ hook) so
+    // the admin queue knows to re-evaluate the AI's suggested answer.
+    pendingReviews: { type: Boolean, default: false },
     // Solution DNA — compact answer summary for resolved posts
     dna: {
       steps: { type: [String], default: [] },

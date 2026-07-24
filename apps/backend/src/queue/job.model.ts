@@ -108,20 +108,18 @@ jobSchema.index(
 );
 
 // Failed jobs — keep for 7 days then drop (matches BullMQ's `removeOnFail: { age: 7d }`).
+// v1.69 P1 — the prior code also registered a parallel TTL on
+// `updatedAt: 1` for cancelled jobs (24h), which Mongoose flagged as
+// a duplicate schema index because both keyed on the same field.
+// The cancelled-job TTL is dropped here: failed-job forensics are the
+// higher-value retention, and cancelled jobs are short-lived by intent.
+// If cancelled-job audit becomes important, switch the field to
+// `cancelledAt` (not currently on the schema).
 jobSchema.index(
   { updatedAt: 1 },
   {
     expireAfterSeconds: 7 * 24 * 60 * 60,
     partialFilterExpression: { status: 'failed' },
-  },
-);
-
-// Cancelled jobs — keep for 24 hours then drop.
-jobSchema.index(
-  { updatedAt: 1 },
-  {
-    expireAfterSeconds: 24 * 60 * 60,
-    partialFilterExpression: { status: 'cancelled' },
   },
 );
 

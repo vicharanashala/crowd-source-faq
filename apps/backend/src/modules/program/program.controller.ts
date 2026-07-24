@@ -50,3 +50,21 @@ export async function getProgramBySlug(req: Request, res: Response): Promise<voi
     res.status(500).json({ message: 'Failed to load program.' });
   }
 }
+
+// GET /api/programs/active — the most recently created active Batch
+// (audit fix 2026-07-02). Public. Returns 404 if no active batch.
+export async function getActiveProgram(_req: Request, res: Response): Promise<void> {
+  try {
+    const batch = await Batch.findOne({ isActive: true })
+      .sort({ createdAt: -1 })
+      .lean();
+    if (!batch) {
+      res.status(404).json({ message: 'no active program' });
+      return;
+    }
+    res.json(batch);
+  } catch (err) {
+    httpLog.warn(`[program] getActiveProgram failed: ${(err as Error).message}`);
+    res.status(500).json({ message: 'fetch failed' });
+  }
+}

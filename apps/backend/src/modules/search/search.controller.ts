@@ -271,25 +271,39 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
       return;
     }
 
-    // 2. Compute AI Embedding for the search term. If the embedding service
-    //    is unreachable (e.g. local model/endpoint down), DON'T fail the whole
-    //    request — degrade gracefully to keyword-only search. The hybrid
-    //    pipeline already runs a $text ranker, so results still come back.
-    let embedding: number[] | null = null;
-    try {
-      embedding = await generateQueryEmbedding(query);
-    } catch (embErr) {
-      httpLog.warn('search.embedding.failed — falling back to keyword-only search', {
-        error: embErr instanceof Error ? embErr.message : String(embErr),
-      });
-    }
+    // 2. Compute AI Embedding for the search term.
+    //
+    // v1.71 — Phase 8 R3: NO LONGER compute the embed on every search
+    // request. The audit showed repeated
+    // `[knowledgeBase] Failed to generate embedding for query '...':
+    //  Connection error.` log lines because every POST /api/search
+    // hit the Hugging Face / local-Ollama embedder, which is
+    // routinely unreachable. Now the embedding-warm cron
+    // (`bootstrap/startup.ts`, every 60 minutes) is the ONLY thing
+    // that calls the embedder on the search service. The search
+    // itself stays text-only; the vector branch of the hybrid pipeline
+    // is temporarily disabled because we have no query embedding.
+    //
+    // The OLD code path (kept here as a commented recipe, so future
+    // maintainers can re-enable it once the embedder is reliably up):
+    //
+    //   try {
+    //     embedding = await generateQueryEmbedding(query);
+    //   } catch (embErr) {
+    //     httpLog.warn('search.embedding.failed — falling back to keyword-only search', { error: embErr.message });
+    //   }
+    const embedding: number[] | null = null;
 
     // 3. Execute Vector (when an embedding is available) + Text searches in
     //    parallel across both collections for maximum speed.
     const empty = Promise.resolve([] as SearchResultItem[]);
     const [faqVec, commVec, faqTxt, commTxt] = await Promise.all([
-      embedding ? runVectorSearch('yaksha_faq_faqs', embedding, 5, batchIdObjectId) : empty,
-      embedding ? runVectorSearch('yaksha_faq_communityposts', embedding, 5, batchIdObjectId) : empty,
+      // Vector search is currently disabled on the per-request path
+      // (see v1.71 above). Embedding here would always be null.
+      // We keep the helper + call structure in place so re-enabling
+      // is a one-line change: `embedding ? runVectorSearch(...) : empty`.
+      empty,
+      empty,
       runTextSearch('yaksha_faq_faqs', query, 5, batchIdObjectId),
       runTextSearch('yaksha_faq_communityposts', query, 5, batchIdObjectId)
     ]);
@@ -311,9 +325,15 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
     // Zoom transcript → processZoomMeetingForKnowledge → inline embed →
     // available for this exact query. Tagged source: 'knowledge' so the
     // frontend can render with a "from meeting" badge.
+    //
+    // v1.71 — Phase 8 R3: pass `{ embedQuery: false }` to skip the
+    // per-request embed. The embedding-warm cron (hourly, see
+    // `bootstrap/startup.ts`) is now responsible for keeping the
+    // TranscriptKnowledge.embedding vectors fresh; the user's search
+    // hits the text index only.
     if (filtered.length === 0) {
       try {
-        const knowledgeHits = await searchKnowledge(query, 5);
+        const knowledgeHits = await searchKnowledge(query, 5, { embedQuery: false });
         if (knowledgeHits.length > 0) {
           const knowledgeResults: SearchResultItem[] = knowledgeHits.map((k) => ({
             _id: new Types.ObjectId(k._id),

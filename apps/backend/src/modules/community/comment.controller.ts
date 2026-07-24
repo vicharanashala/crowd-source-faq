@@ -126,6 +126,29 @@ export const addComment = async (req: Request, res: Response): Promise<void> => 
     await post.populate('comments.author', 'name');
     const newComment = post.comments[post.comments.length - 1];
 
+    // ── Phase 3 R12 auto-answer hook ─────────────────────────────────────
+    // If the post is currently in 'suggested' state and this comment's
+    // net score (upvotes) exceeds the AI's confidence × 10, fire a
+    // processPost rerun. Fire-and-forget — failures logged in autoAnswer.
+    if (
+      post.aiAnswerStatus === 'suggested' &&
+      typeof post.aiAnswerConfidence === 'number'
+    ) {
+      const newCommentAny = newComment as unknown as { upvotes?: unknown[] };
+      const upvotes = Array.isArray(newCommentAny?.upvotes)
+        ? newCommentAny!.upvotes!.length
+        : 0;
+      if (upvotes > (post.aiAnswerConfidence as number) * 10) {
+        const { processPost } = await import('../../services/autoAnswer.js');
+        // Don't await — the user shouldn't wait for the auto-answer rerun.
+        processPost(post._id).catch((err: Error) => {
+          communityLog.warn(
+            `[addComment] autoAnswer processPost failed for ${String(post._id)}: ${err.message}`,
+          );
+        });
+      }
+    }
+
     // ── First Responder award (atomic) ─────────────────────────────────────────
     // Only the very first top-level comment (depth=0) on a 'pending' Time-Trial
     // post wins. Replies (depth > 0) are excluded.

@@ -41,9 +41,9 @@ export const ConfigSchema = z.object({
       maxRequests: z.number().default(100),
     }),
     auth: z.object({
-      loginWindowMs: z.number().default(900000),
+      loginWindowMs: z.number().default(120000),
       loginMaxAttempts: z.number().default(5),
-      registerWindowMs: z.number().default(3600000),
+      registerWindowMs: z.number().default(900000),
       registerMaxAttempts: z.number().default(3),
     }),
     search: z.object({
@@ -238,7 +238,7 @@ export const ConfigSchema = z.object({
     timezone: z.string().default('UTC'),
     promotionCycleIntervalMs: z.number().default(900000),
     freshnessCheckIntervalMs: z.number().default(86400000),
-    categoryClusterIntervalMs: z.number().default(86400000),
+    categoryClusterIntervalMs: z.number().default(172800000), // 2 days — v1.71 LLM recategorize
     popularityRecomputeIntervalMs: z.number().default(300000),
     retentionPolicyIntervalMs: z.number().default(86400000),
     zoomRetryIntervalMs: z.number().default(300000),
@@ -256,6 +256,9 @@ export const ConfigSchema = z.object({
     sentry: z.object({
       enabled: z.boolean().default(true),
       tracesSampleRate: z.number().default(0.1),
+      // SENTRY_DSN, SENTRY_DB_DSN, SENTRY_RELEASE, SENTRY_ENV, SENTRY_DEBUG
+      // are read from process.env directly (see bootstrap/app.ts). The schema
+      // only owns the sample rate + on/off toggle.
     }),
     logging: z.object({
       level: z.string().default('info'),

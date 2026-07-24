@@ -6,11 +6,35 @@ import Badge from './badge.model.js';
 import { awardToUser } from './program-reputation.model.js';
 import { adminLog } from '../../utils/http/logger.js';
 
+// S5-C5 fix: the route middleware permits admin / moderator / ai_moderator;
+// the controller previously required `role === 'admin'`, which silently 403'd
+// the other two roles. Now we accept any of the three for admin-tier reputation
+// actions (awardPoints / issueBadge / revokeBadge). The route middleware is the
+// authoritative gate; per-action business rules (e.g. cannot ban an admin)
+// are enforced below.
+const ADMIN_ROLES = new Set(['admin', 'moderator', 'ai_moderator']);
+
+function requireAdminRole(req: Request, res: Response): string | null {
+  const role = (req as any).user?.role as string | undefined;
+  if (!req.user || !role) {
+    res.status(401).json({ message: 'Not authorized' });
+    return null;
+  }
+  if (!ADMIN_ROLES.has(role)) {
+    res.status(403).json({ message: 'Admin role required (admin, moderator, or ai_moderator).' });
+    return null;
+  }
+  return (req as any).user.id as string;
+}
+
 // ─── Auto Badge Awarder ─────────────────────────────────────────────────────
 
 export const autoAwardBadges = async (userId: string): Promise<void> => {
   try {
-    const user = await User.findById(userId);
+    // S5-M5 fix: drop the upfront `User.findById` for points. The atomic
+    // findOneAndUpdate now filters by `points >= badge.pointsRequired`, so
+    // a deduction between read and write can no longer cause a phantom award.
+    const user = await User.findById(userId).select('_id');
     if (!user) return;
 
     const allBadges = await Badge.find({ active: true, actionTrigger: 'auto' });
@@ -25,16 +49,19 @@ export const autoAwardBadges = async (userId: string): Promise<void> => {
     // either succeeds (badge added) or no-ops (already had it).
     for (const badge of allBadges) {
       if (badge.pointsRequired === undefined || badge.pointsRequired === null) continue;
-      if (user.points < badge.pointsRequired) continue;
 
       const list = badge.type === 'positive' ? 'positiveBadges' : 'negativeBadges';
+      // S5-M5: include `points: { $gte: badge.pointsRequired }` in the
+      // filter — the atomic update only fires if the user still meets the
+      // threshold. Combined with the dedupe filter below, this is the
+      // single read+write atomic op.
       await User.findOneAndUpdate(
-        { _id: userId, [`${list}.badgeId`]: { $ne: badge._id } },
+        { _id: userId, points: { $gte: badge.pointsRequired }, [`${list}.badgeId`]: { $ne: badge._id } },
         {
           $push: {
             [list]: {
               badgeId: badge._id,
-              reason: `Auto-awarded: reached ${user.points} points`,
+              reason: `Auto-awarded: reached threshold`,
               awardedAt: new Date(),
             },
           },
@@ -50,10 +77,9 @@ export const autoAwardBadges = async (userId: string): Promise<void> => {
 // ─── Award / Deduct Points ───────────────────────────────────────────────
 
 export const awardPoints = async (req: Request, res: Response): Promise<void> => {
-  if (!req.user || (req.user as any).role !== 'admin') {
-    res.status(403).json({ message: 'Admin access required' });
-    return;
-  }
+  // S5-C5 fix: accept moderator/ai_moderator (route middleware permits them).
+  const adminId = requireAdminRole(req, res);
+  if (!adminId) return;
   try {
     // v1.69 — Phase 7: admin award points is now batchId-scoped.
     // The body's batchId drives where the per-program write lands.
@@ -77,17 +103,33 @@ export const awardPoints = async (req: Request, res: Response): Promise<void> =>
       res.status(400).json({ message: 'Invalid userId.' });
       return;
     }
+    if (!Number.isInteger(delta) || delta < -1000 || delta > 1000) {
+      res.status(400).json({ message: 'delta must be an integer between -1000 and 1000.' });
+      return;
+    }
 
-    const user = await User.findById(userId);
+    // S5-H13 fix: read-only load for current points + tier calc, then
+    // atomic findOneAndUpdate. This eliminates the lost-update race
+    // where two concurrent awards both load `points = N` and last save wins.
+    const user = await User.findById(userId).select('points tier');
     if (!user) { res.status(404).json({ message: 'User not found' }); return; }
 
     const prevPoints = user.points;
     const prevTier = user.tier;
-    user.points = Math.max(0, user.points + delta);
-    user.reputation = user.points; // reputation = points for now
-    user.tier = calculateTier(user.points);
+    const newPoints = Math.max(0, prevPoints + delta);
+    const newTier = calculateTier(newPoints);
 
-    await user.save();
+    // Atomic update — single round-trip, no in-memory mutation, no save().
+    // The filter `points: { $gte: -delta }` prevents the new total from going
+    // negative if delta is very large (caller-clamped above).
+    await User.findOneAndUpdate(
+      { _id: userId },
+      {
+        $inc: { points: delta, reputation: delta },
+        $set: { tier: newTier },
+      },
+      { new: true }
+    );
 
     // v1.69 — Phase 7: per-program write when a program is
     // specified. Dual-write with the global User aggregate.
@@ -104,15 +146,17 @@ export const awardPoints = async (req: Request, res: Response): Promise<void> =>
       action: action || (delta > 0 ? 'admin_point_award' : 'admin_point_deduct'),
       targetId, targetType,
       batchId: batchIdValid,
-      awardedBy: (req as any).user?.id,
+      awardedBy: new Types.ObjectId(adminId),
     });
 
     res.json({
-      userId, points: user.points, reputation: user.reputation, tier: user.tier,
+      userId, points: newPoints, reputation: newPoints, tier: newTier,
       prevPoints, prevTier, delta, batchId: batchIdValid,
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
+    if (!res.headersSent) {
+      res.status(500).json({ message: 'Server error' });
+    }
   }
 };
 
@@ -132,12 +176,11 @@ export const getUserReputation = async (req: Request, res: Response): Promise<vo
 };
 
 // ─── Issue Badge ────────────────────────────────────────────────────────
+// S5-C5 fix: accept moderator/ai_moderator via requireAdminRole.
 
 export const issueBadge = async (req: Request, res: Response): Promise<void> => {
-  if (!req.user || (req.user as any).role !== 'admin') {
-    res.status(403).json({ message: 'Admin access required' });
-    return;
-  }
+  const adminId = requireAdminRole(req, res);
+  if (!adminId) return;
   try {
     const { userId, badgeId, reason } = req.body;
     if (!userId || !badgeId) { res.status(400).json({ message: 'userId and badgeId required' }); return; }
@@ -194,12 +237,11 @@ export const issueBadge = async (req: Request, res: Response): Promise<void> => 
 };
 
 // ─── Revoke Badge ────────────────────────────────────────────────────────
+// S5-C5 fix: accept moderator/ai_moderator via requireAdminRole.
 
 export const revokeBadge = async (req: Request, res: Response): Promise<void> => {
-  if (!req.user || (req.user as any).role !== 'admin') {
-    res.status(403).json({ message: 'Admin access required' });
-    return;
-  }
+  const adminId = requireAdminRole(req, res);
+  if (!adminId) return;
   try {
     const { userId, badgeId } = req.body;
     if (!userId || !badgeId) { res.status(400).json({ message: 'userId and badgeId required' }); return; }

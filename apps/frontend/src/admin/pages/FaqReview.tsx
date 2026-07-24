@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react'
+import { adminBtnDanger, adminBtnGhost, adminBtnPrimary, adminBtnWarn, adminInput, adminLabel, adminSelect, adminTextarea } from '../../styles/style_config';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import adminApi from '../utils/adminApi';
 import { friendlyError } from '../../utils/api';
@@ -37,10 +38,10 @@ interface QueueItem {
 
 const lifecycleConfig: Record<string, { label: string; class: string }> = {
   open:               { label: 'Open',              class: 'bg-border/40 text-ink-faint border-border' },
-  answered:           { label: 'Answered',           class: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
+  answered:           { label: 'Answered',           class: 'bg-accent/10 text-accent border-accent/20' },
   community_accepted: { label: 'Community Approved', class: 'bg-success/10 text-success border-success/20' },
-  ai_validated:       { label: 'AI Validated',       class: 'bg-purple-500/10 text-purple-400 border-purple-500/20' },
-  admin_accepted:     { label: 'Admin Approved',     class: 'bg-[rgba(99,102,241,0.12)] text-[#a5b4fc] border-[rgba(99,102,241,0.2)]' },
+  ai_validated:       { label: 'AI Validated',       class: 'bg-accent/10 text-accent border-accent/20' },
+  admin_accepted:     { label: 'Admin Approved',     class: 'bg-accent/10 text-accent border-accent/30' },
   converted_to_faq:   { label: 'Official FAQ',       class: 'bg-accent/10 text-accent border-accent/20' },
   pending_review:     { label: 'Pending Review',     class: 'bg-warning/10 text-warning border-warning/20' },
   update_requested:   { label: 'Update Requested',   class: 'bg-danger/10 text-danger border-danger/20' },
@@ -48,7 +49,7 @@ const lifecycleConfig: Record<string, { label: string; class: string }> = {
 
 const trustConfig: Record<string, { label: string; class: string }> = {
   high:   { label: 'Official',           class: 'bg-accent/10 text-accent border-accent/20' },
-  expert: { label: 'Admin Approved',     class: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
+  expert: { label: 'Admin Approved',     class: 'bg-accent/10 text-accent border-accent/20' },
   medium: { label: 'Community Approved', class: 'bg-success/10 text-success border-success/20' },
   low:    { label: 'Community',          class: 'bg-warning/10 text-warning border-warning/20' },
 };
@@ -101,7 +102,13 @@ export default function FaqReview() {
     try {
       await adminApi.post('/admin/community-promotions/ai-review-batch');
       await loadQueue(page);
-    } catch (e) { console.warn(friendlyError(e, 'Batch review failed.')); }
+    } catch (e) {
+      // H43 mirror — log the raw error so devs can debug; the user-facing
+      // toast/banner above already shows what happened. Do NOT pipe
+      // friendlyError() into console.* (it returns UI copy, not debug info).
+      console.error('Batch review failed:', e);
+      setLoadError(friendlyError(e, 'Batch review failed.'));
+    }
     finally { setAiBatchLoading(false); }
   }
 
@@ -120,7 +127,10 @@ export default function FaqReview() {
         }
       }
       await loadQueue(page);
-    } catch (e) { console.warn(friendlyError(e, 'Approve failed.')); }
+    } catch (e) {
+      console.error('Approve failed:', e);
+      setLoadError(friendlyError(e, 'Approve failed.'));
+    }
     finally { setActioning(null); }
   }
 
@@ -135,7 +145,10 @@ export default function FaqReview() {
       setObjectModal(null);
       setObjectReason('');
       await loadQueue(page);
-    } catch (e) { console.warn(friendlyError(e, 'Reject failed.')); }
+    } catch (e) {
+      console.error('Reject failed:', e);
+      setLoadError(friendlyError(e, 'Reject failed.'));
+    }
     finally { setActioning(null); }
   }
 
@@ -147,7 +160,10 @@ export default function FaqReview() {
         tags: item.aiGeneratedFaq?.tags ?? item.tags,
       });
       await loadQueue(page);
-    } catch (e) { console.warn(friendlyError(e, 'Merge failed.')); }
+    } catch (e) {
+      console.error('Merge failed:', e);
+      setLoadError(friendlyError(e, 'Merge failed.'));
+    }
     finally { setActioning(null); setMergeTarget(''); }
   }
 
@@ -164,7 +180,10 @@ export default function FaqReview() {
       setViewItem(null);
       setEditData(null);
       await loadQueue(page);
-    } catch (e) { console.warn(friendlyError(e, 'Edit save failed.')); }
+    } catch (e) {
+      console.error('Edit save failed:', e);
+      setLoadError(friendlyError(e, 'Edit save failed.'));
+    }
     finally { setActioning(null); }
   }
 
@@ -185,7 +204,7 @@ export default function FaqReview() {
         <button
           onClick={handleAIReviewBatch}
           disabled={aiBatchLoading}
-          className="text-xs px-4 py-2 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/20 hover:bg-purple-500/20 disabled:opacity-50 transition-colors"
+          className="text-xs px-4 py-2 rounded-lg bg-accent/10 text-accent border border-accent/30 hover:bg-accent/20 disabled:opacity-50 transition-colors"
         >
           {aiBatchLoading ? 'Running AI...' : 'Run AI Batch Review'}
         </button>
@@ -230,7 +249,7 @@ export default function FaqReview() {
                           {ai && (
                             <div className="flex gap-1 mt-1 flex-wrap">
                               {(ai.tags ?? []).map(tag => (
-                                <span key={tag} className="text-[10px] px-1.5 py-0.5 bg-blue-500/10 text-blue-400 rounded border border-blue-500/20">{tag}</span>
+                                <span key={tag} className="text-[10px] px-1.5 py-0.5 bg-accent/10 text-accent rounded border border-accent/20">{tag}</span>
                               ))}
                             </div>
                           )}
@@ -251,7 +270,7 @@ export default function FaqReview() {
                           {ai && (
                             <div className="flex items-center gap-1">
                               <div className="w-12 h-1.5 bg-border rounded-full overflow-hidden">
-                                <div className="h-full bg-purple-400 rounded-full" style={{ width: `${ai.confidenceScore}%` }} />
+                                <div className="h-full bg-accent rounded-full" style={{ width: `${ai.confidenceScore}%` }} />
                               </div>
                               <span className="text-xs text-ink-faint">{ai.confidenceScore}%</span>
                             </div>
@@ -276,7 +295,7 @@ export default function FaqReview() {
                                 </button>
                                 <button
                                   onClick={() => { setViewItem(item); setEditData(ai ?? { question: item.title, answer: item.answer ?? '', category: (item as any).category || 'General', tags: item.tags || [], confidenceScore: 0, hallucinationFlags: [], grammarIssues: [] }); }}
-                                  className="text-xs px-3 py-1 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20 transition-colors"
+                                  className="text-xs px-3 py-1 rounded-lg bg-accent/10 text-accent border border-accent/20 hover:bg-accent/20 transition-colors"
                                 >
                                   Edit
                                 </button>
@@ -383,28 +402,28 @@ export default function FaqReview() {
                     <div className="text-xs font-semibold text-ink-faint uppercase tracking-wide">AI Generated FAQ</div>
                     <div className="flex items-center gap-1">
                       <div className="w-16 h-1.5 bg-border rounded-full overflow-hidden">
-                        <div className="h-full bg-purple-400 rounded-full" style={{ width: `${viewItem.aiGeneratedFaq.confidenceScore}%` }} />
+                        <div className="h-full bg-accent rounded-full" style={{ width: `${viewItem.aiGeneratedFaq.confidenceScore}%` }} />
                       </div>
                       <span className="text-xs text-ink-faint">{viewItem.aiGeneratedFaq.confidenceScore}% conf.</span>
                     </div>
                   </div>
                   {editData ? (
                     <div className="space-y-2">
-                      <input value={editData.question} onChange={e => setEditData({ ...editData, question: e.target.value })} className="admin-input" placeholder="Question..." />
-                      <textarea value={editData.answer} onChange={e => setEditData({ ...editData, answer: e.target.value })} className="admin-textarea" rows={4} placeholder="Answer..." />
-                      <select value={editData.category} onChange={e => setEditData({ ...editData, category: e.target.value })} className="admin-select w-full">
+                      <input value={editData.question} onChange={e => setEditData({ ...editData, question: e.target.value })} className={`${adminInput}`} placeholder="Question..." />
+                      <textarea value={editData.answer} onChange={e => setEditData({ ...editData, answer: e.target.value })} className={`${adminTextarea}`} rows={4} placeholder="Answer..." />
+                      <select value={editData.category} onChange={e => setEditData({ ...editData, category: e.target.value })} className={`${adminSelect} w-full`}>
                         {VALID_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
-                      <input value={editData.tags?.join(', ')} onChange={e => setEditData({ ...editData, tags: e.target.value.split(',').map(t => t.trim()).filter(Boolean) })} className="admin-input" placeholder="Tags (comma separated)..." />
+                      <input value={editData.tags?.join(', ')} onChange={e => setEditData({ ...editData, tags: e.target.value.split(',').map(t => t.trim()).filter(Boolean) })} className={`${adminInput}`} placeholder="Tags (comma separated)..." />
                       <div className="flex gap-2">
-                        <button onClick={() => setEditData(null)} className="admin-btn-ghost text-xs px-3 py-1.5">Cancel</button>
-                        <button onClick={() => handleEditSave(viewItem)} disabled={actioning === viewItem._id} className="admin-btn-primary text-xs px-3 py-1.5">
+                        <button onClick={() => setEditData(null)} className={`${adminBtnGhost} text-xs px-3 py-1.5`}>Cancel</button>
+                        <button onClick={() => handleEditSave(viewItem)} disabled={actioning === viewItem._id} className={`${adminBtnPrimary} text-xs px-3 py-1.5`}>
                           {actioning === viewItem._id ? '...' : 'Save Changes'}
                         </button>
                       </div>
                     </div>
                   ) : (
-                    <div className="bg-purple-500/10 rounded-xl p-3 border border-purple-500/20 space-y-2">
+                    <div className="bg-accent/10 rounded-xl p-3 border border-accent/30 space-y-2">
                       <div className="font-medium text-sm text-ink">{viewItem.aiGeneratedFaq.question}</div>
                       <div className="text-sm text-ink">{viewItem.aiGeneratedFaq.answer}</div>
                       <div className="text-xs text-ink-faint">{viewItem.aiGeneratedFaq.category} · {(viewItem.aiGeneratedFaq.tags ?? []).join(', ')}</div>
@@ -461,7 +480,7 @@ export default function FaqReview() {
               <div className="flex gap-2">
                 {viewItem.lifecycle?.status === 'ai_validated' && !editData && (
                   <>
-                    <button onClick={() => setEditData(viewItem.aiGeneratedFaq ?? { question: viewItem.title, answer: viewItem.answer ?? '', category: 'General', tags: viewItem.tags, confidenceScore: 0, hallucinationFlags: [], grammarIssues: [] })} className="text-xs px-3 py-1.5 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20 transition-colors">Edit</button>
+                    <button onClick={() => setEditData(viewItem.aiGeneratedFaq ?? { question: viewItem.title, answer: viewItem.answer ?? '', category: 'General', tags: viewItem.tags, confidenceScore: 0, hallucinationFlags: [], grammarIssues: [] })} className="text-xs px-3 py-1.5 rounded-lg bg-accent/10 text-accent border border-accent/20 hover:bg-accent/20 transition-colors">Edit</button>
                     <button onClick={() => handleApprove(viewItem)} disabled={actioning === viewItem._id} className="text-xs px-3 py-1.5 rounded-lg bg-success/10 text-success border border-success/20 hover:bg-success/20 disabled:opacity-50 transition-colors">
                       {actioning === viewItem._id ? '...' : '✓ Approve'}
                     </button>
@@ -471,7 +490,7 @@ export default function FaqReview() {
                   </>
                 )}
               </div>
-              <button onClick={() => { setViewItem(null); setEditData(null); }} className="admin-btn-ghost text-sm">Close</button>
+              <button onClick={() => { setViewItem(null); setEditData(null); }} className={`${adminBtnGhost} text-sm`}>Close</button>
             </div>
           </div>
         </div>
@@ -498,10 +517,10 @@ export default function FaqReview() {
                   </div>
                 )}
                 <div>
-                  <div className="admin-label">Tags to merge</div>
+                  <div className={`${adminLabel}`}>Tags to merge</div>
                   <div className="flex flex-wrap gap-1">
                     {(item.aiGeneratedFaq?.tags ?? item.tags ?? []).map(tag => (
-                      <span key={tag} className="text-[10px] px-1.5 py-0.5 bg-blue-500/10 text-blue-400 rounded border border-blue-500/20">{tag}</span>
+                      <span key={tag} className="text-[10px] px-1.5 py-0.5 bg-accent/10 text-accent rounded border border-accent/20">{tag}</span>
                     ))}
                   </div>
                 </div>
@@ -509,13 +528,13 @@ export default function FaqReview() {
                   value={objectReason}
                   onChange={e => setObjectReason(e.target.value)}
                   placeholder="Merge target FAQ ID (MongoDB ObjectId)..."
-                  className="admin-textarea font-mono"
+                  className={`${adminTextarea} font-mono`}
                   rows={2}
                 />
               </div>
               <div className="admin-modal-footer justify-end">
-                <button onClick={() => { setMergeTarget(''); setObjectReason(''); }} className="admin-btn-ghost">Cancel</button>
-                <button onClick={() => handleMerge(item)} disabled={!objectReason.trim() || actioning === item._id} className="admin-btn-warn">
+                <button onClick={() => { setMergeTarget(''); setObjectReason(''); }} className={`${adminBtnGhost}`}>Cancel</button>
+                <button onClick={() => handleMerge(item)} disabled={!objectReason.trim() || actioning === item._id} className={`${adminBtnWarn}`}>
                   {actioning === item._id ? '...' : 'Merge'}
                 </button>
               </div>
@@ -540,16 +559,16 @@ export default function FaqReview() {
                 value={objectReason}
                 onChange={e => setObjectReason(e.target.value)}
                 placeholder="Reason for objection..."
-                className="admin-textarea"
+                className={`${adminTextarea}`}
                 rows={3}
               />
             </div>
             <div className="admin-modal-footer justify-end">
-              <button onClick={() => { setObjectModal(null); setObjectReason(''); }} className="admin-btn-ghost">Cancel</button>
+              <button onClick={() => { setObjectModal(null); setObjectReason(''); }} className={`${adminBtnGhost}`}>Cancel</button>
               <button
                 onClick={() => handleReject(objectModal)}
                 disabled={!objectReason.trim() || actioning === objectModal}
-                className="admin-btn-danger"
+                className={`${adminBtnDanger}`}
               >
                 {actioning === objectModal ? '...' : 'Submit Objection'}
               </button>

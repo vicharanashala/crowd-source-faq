@@ -120,9 +120,15 @@ importers:
       openai:
         specifier: ^6.39.0
         version: 6.44.0(ws@8.21.0)(zod@4.4.3)
+      pdf-parse:
+        specifier: ^2.4.5
+        version: 2.4.5
       tesseract.js:
         specifier: ^7.0.0
         version: 7.0.0
+      undici:
+        specifier: ^6.24.1
+        version: 6.24.1
       uuid:
         specifier: ^14.0.0
         version: 14.0.1
@@ -139,6 +145,9 @@ importers:
       '@types/express':
         specifier: ^5.0.6
         version: 5.0.6
+      '@types/express-serve-static-core':
+        specifier: ^5.1.1
+        version: 5.1.1
       '@types/js-yaml':
         specifier: ^4.0.9
         version: 4.0.9
@@ -220,6 +229,9 @@ importers:
       framer-motion:
         specifier: ^12.40.0
         version: 12.40.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      html-to-image:
+        specifier: ^1.11.13
+        version: 1.11.13
       lucide-react:
         specifier: ^1.22.0
         version: 1.22.0(react@18.3.1)
@@ -2730,6 +2742,9 @@ packages:
 
   html-entities@2.6.0:
     resolution: {integrity: sha512-kig+rMn/QOVRvr7c86gQ8lWXq+Hkv6CbAH1hLu+RG338StTpE8Z0b44SDVaqVu7HGKf27frdmUYEs9hTUX/cLQ==}
+
+  html-to-image@1.11.13:
+    resolution: {integrity: sha512-cuOPoI7WApyhBElTTb9oqsawRvZ0rHhaHwghRLlTuffoD1B2aDemlCruLeZrUIIdvG7gs9xeELEPm6PhuASqrg==}
 
   http-errors@2.0.1:
     resolution: {integrity: sha512-4FbRdAX+bSdmo4AUFuS0WNiPz8NgFt+r8ThgNWmlrjQjt1Q7ZR9+zTlce2859x4KSXrwIsaeTqDoKQmtP8pLmQ==}
@@ -6653,6 +6668,8 @@ snapshots:
       whatwg-encoding: 3.1.1
 
   html-entities@2.6.0: {}
+
+  html-to-image@1.11.13: {}
 
   http-errors@2.0.1:
     dependencies:

@@ -19,13 +19,17 @@
  *   isolation guarantee end-to-end.
  *
  * Permissions:
- *   Admin routes live behind `protect` + `adminOnly` middleware at
- *   the route definition. User routes are `protect`-only.
+ * Admin routes live behind `protect` + `adminOnly` middleware at
+ * the route definition. User routes are `protect`-only.
  *
- * File uploads use multer's disk storage to
- *   `./uploads/onboarding-resources/`. Uploaded files are served
- *   by the existing static-file middleware that mounts the
- *   `uploads/` folder.
+ * File upload strategy:
+ *   - SVG flowcharts: browser uploads directly to Cloudinary using a
+ *     server-signed URL (GET /csfaq/api/upload/sign/cloudinary/svg).
+ *     The browser sends the resulting Cloudinary secure_url + public_id
+ *     as JSON body fields. The backend stores the URL directly in Mongo.
+ *   - All other file kinds (video/pdf/pptx/markdown/txt): multipart
+ *     upload via multer disk storage to ./uploads/onboarding-resources/.
+ *     Served by the static-file middleware.
  */
 
 import { Request, Response } from 'express';
@@ -36,6 +40,7 @@ import { fileURLToPath } from 'url';
 import multer from 'multer';
 import OnboardingResource, { OnboardingResourceKind } from './onboarding-resource.model.js';
 import { publicAssetUrl } from '../../utils/publicBasePath.js';
+import { PDFParse } from 'pdf-parse';
 import {
   default as OnboardingKnowledgeSource,
   OnboardingKnowledgeChunk,
@@ -199,9 +204,11 @@ export const createResource = async (req: Request, res: Response): Promise<void>
     const order = (last?.order ?? -1) + 1;
 
     let url = '';
+    let publicId: string | null = null;
     let filePath: string | null = null;
     let fileMime: string | null = null;
     let fileSizeBytes: number | null = null;
+    let pageCount = req.body?.pageCount ? Number(req.body.pageCount) : null;
 
     if (kind === 'link') {
       url = String(req.body?.url ?? '').trim();
@@ -209,7 +216,23 @@ export const createResource = async (req: Request, res: Response): Promise<void>
         res.status(400).json({ message: 'kind=link requires a URL starting with http:// or https://' });
         return;
       }
+    } else if (kind === 'svg' || (kind === 'pdf' && req.body?.url && String(req.body.url).startsWith('https://res.cloudinary.com/'))) {
+      // SVG flowcharts and Cloudinary-hosted PDFs are uploaded directly to Cloudinary by the browser.
+      // The admin POSTs the JSON metadata (url + publicId) instead of a
+      // multipart file. We validate the URL is from our Cloudinary account.
+      url = String(req.body?.url ?? '').trim();
+      publicId = req.body?.publicId ? String(req.body.publicId) : null;
+      if (!url) {
+        res.status(400).json({ message: `kind=${kind} requires a url (Cloudinary secure_url).` });
+        return;
+      }
+      if (!url.startsWith('https://res.cloudinary.com/')) {
+        res.status(400).json({ message: `kind=${kind} url must be a Cloudinary secure_url.` });
+        return;
+      }
+      // filePath / fileMime / fileSizeBytes stay null for Cloudinary assets.
     } else {
+      // All other file kinds (video/pdf/pptx/markdown/txt): multipart upload.
       const file = (req as unknown as { file?: Express.Multer.File }).file;
       if (!file) {
         res.status(400).json({ message: `kind=${kind} requires a file upload.` });
@@ -226,6 +249,25 @@ export const createResource = async (req: Request, res: Response): Promise<void>
       filePath = file.path;
       fileMime = file.mimetype;
       fileSizeBytes = file.size;
+
+      // Extract page count for local PDFs
+      if (kind === 'pdf') {
+        try {
+          const buffer = fs.readFileSync(file.path);
+          const parser = new PDFParse({ data: new Uint8Array(buffer) });
+          try {
+            const result = await parser.getText();
+            pageCount = result.total ?? result.pages ?? null;
+          } finally {
+            const destroy = (parser as unknown as { destroy?: () => Promise<void> }).destroy;
+            if (typeof destroy === 'function') {
+              try { await destroy.call(parser); } catch { /* ignore */ }
+            }
+          }
+        } catch (pdfErr) {
+          console.error('Failed to parse PDF pages:', pdfErr);
+        }
+      }
     }
 
     const doc = await OnboardingResource.create({
@@ -234,6 +276,7 @@ export const createResource = async (req: Request, res: Response): Promise<void>
       title,
       description,
       url,
+      publicId,
       filePath,
       fileMime,
       fileSizeBytes,
@@ -241,6 +284,7 @@ export const createResource = async (req: Request, res: Response): Promise<void>
       order,
       visible,
       tags,
+      pageCount,
     });
     res.status(201).json(doc);
   } catch (error) {

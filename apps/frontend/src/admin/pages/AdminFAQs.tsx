@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion'
+import { adminBtnGhost, adminBtnPrimary, adminInput, adminLabel, adminSearchInput, adminSelect, adminTextarea } from '../../styles/style_config';
 import FreshnessTierSelector from '../../components/faq/FreshnessTierSelector';
 import adminApi from '../utils/adminApi';
 import Badge from '../components/common/Badge';
 import Modal from '../components/common/Modal';
 import { TableSkeleton } from '../components/common/SkeletonLoader';
 import { useDebounce } from '../../hooks/useDebounce';
+import { useCategories } from '../../components/explore/usePublicFaqApi';
 
 
 interface FAQ {
@@ -155,6 +157,12 @@ export default function AdminFAQs() {
   const [editCategoryOption, setEditCategoryOption] = useState<string>('');
   const debouncedSearch = useDebounce(search, 350);
 
+  const { data: addCategoriesData } = useCategories(newFaq.batchId || null, null);
+  const addCategories = addCategoriesData?.categories.map(c => c.name) ?? [];
+
+  const { data: editCategoriesData } = useCategories(editFaq?.batchId || null, null);
+  const editCategories = editCategoriesData?.categories.map(c => c.name) ?? [];
+
   // Batches for the selectors and list filter
   const [batches, setBatches] = useState<AdminBatch[]>([]);
   const [batchesLoading, setBatchesLoading] = useState(true);
@@ -270,7 +278,7 @@ export default function AdminFAQs() {
             setAddCategoryOption('');
             setAddModal(true);
           }}
-          className="admin-btn-primary"
+          className={`${adminBtnPrimary}`}
           disabled={batchesLoading}
           title={batchesLoading ? 'Loading programs…' : ''}
         >
@@ -282,16 +290,16 @@ export default function AdminFAQs() {
       <div className="flex flex-wrap gap-2">
         <div className="relative flex-1 min-w-[160px]">
           <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-faint" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" placeholder="Search…" value={search} onChange={e => setSearch(e.target.value)} className="admin-search-input" />
+          <input type="text" placeholder="Search…" value={search} onChange={e => setSearch(e.target.value)} className={`${adminSearchInput}`} />
         </div>
-        <select value={batchFilter} onChange={e => setBatchFilter(e.target.value)} className="admin-select" title="Filter by program">
+        <select value={batchFilter} onChange={e => setBatchFilter(e.target.value)} className={`${adminSelect}`} title="Filter by program">
           <option value="">All Programs</option>
           {batches.map(b => <option key={b._id} value={b._id}>{b.name}</option>)}
         </select>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="admin-select">
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className={`${adminSelect}`}>
           <option value="">All Status</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option>
         </select>
-        <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} className="admin-select">
+        <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} className={`${adminSelect}`}>
           <option value="">All Categories</option>
           {categories.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
@@ -336,7 +344,7 @@ export default function AdminFAQs() {
                       {faq.status !== 'approved' && <button onClick={() => handleApprove(faq._id)} className="w-6 h-6 flex items-center justify-center rounded text-ink-faint hover:text-success hover:bg-success/10 transition-colors" title="Approve"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg></button>}
                       {faq.status !== 'rejected' && <button onClick={() => handleReject(faq._id)} className="w-6 h-6 flex items-center justify-center rounded text-ink-faint hover:text-warning hover:bg-warning/10 transition-colors" title="Reject"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>}
                       <button onClick={() => {
-                        setEditFaq({ ...faq, batchId: faq.batchId ?? '', freshnessTier: (faq as any).freshnessTier ?? 'evergreen', reviewIntervalDays: (faq as any).reviewIntervalDays ?? 0 });
+                        setEditFaq({ ...faq, batchId: faq.batchId ?? '', freshnessTier: (faq as { freshnessTier?: 'evergreen' | 'seasonal' | 'volatile' }).freshnessTier ?? 'evergreen', reviewIntervalDays: (faq as { reviewIntervalDays?: number }).reviewIntervalDays ?? 0 });
                         setEditCategoryOption(categories.includes(faq.category) ? faq.category : (faq.category ? '__other__' : ''));
                         setEditModal(true);
                       }} className="w-6 h-6 flex items-center justify-center rounded text-ink-faint hover:text-ink hover:bg-mist transition-colors" title="Edit"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
@@ -364,30 +372,30 @@ export default function AdminFAQs() {
         {editFaq && (
           <div className="space-y-3">
             <div>
-              <label className="admin-label">Question</label>
-              <input value={editFaq.question} onChange={e => setEditFaq(f => f ? { ...f, question: e.target.value } : null)} className="admin-input" />
+              <label className={`${adminLabel}`}>Question</label>
+              <input value={editFaq.question} onChange={e => setEditFaq(f => f ? { ...f, question: e.target.value } : null)} className={`${adminInput}`} />
             </div>
             <div>
-              <label className="admin-label">Answer</label>
-              <textarea rows={4} value={editFaq.answer} onChange={e => setEditFaq(f => f ? { ...f, answer: e.target.value } : null)} className="admin-textarea" />
+              <label className={`${adminLabel}`}>Answer</label>
+              <textarea rows={4} value={editFaq.answer} onChange={e => setEditFaq(f => f ? { ...f, answer: e.target.value } : null)} className={`${adminTextarea}`} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="admin-label">Program</label>
+                <label className={`${adminLabel}`}>Program</label>
                 <select
                   value={editFaq.batchId ?? ''}
                   onChange={e => setEditFaq(f => f ? { ...f, batchId: e.target.value } : null)}
-                  className="admin-select w-full"
+                  className={`${adminSelect} w-full`}
                 >
                   <option value="">— unassigned —</option>
                   {batches.map(b => <option key={b._id} value={b._id}>{b.name}</option>)}
                 </select>
               </div>
               <div>
-                <label className="admin-label">Category</label>
+                <label className={`${adminLabel}`}>Category</label>
                 <CategoryDropdown
                   value={editCategoryOption}
-                  categories={categories}
+                  categories={editCategories}
                   onChange={val => {
                     setEditCategoryOption(val);
                     if (val !== '__other__') {
@@ -402,21 +410,21 @@ export default function AdminFAQs() {
                     value={editFaq.category}
                     onChange={e => setEditFaq(f => f ? { ...f, category: e.target.value } : null)}
                     placeholder="Enter custom category..."
-                    className="admin-input mt-2"
+                    className={`${adminInput} mt-2`}
                   />
                 )}
               </div>
             </div>
             <div>
-              <label className="admin-label">Status</label>
-              <select value={editFaq.status} onChange={e => setEditFaq(f => f ? { ...f, status: e.target.value as FAQ['status'] } : null)} className="admin-select w-full">
+              <label className={`${adminLabel}`}>Status</label>
+              <select value={editFaq.status} onChange={e => setEditFaq(f => f ? { ...f, status: e.target.value as FAQ['status'] } : null)} className={`${adminSelect} w-full`}>
                 <option value="approved">Approved</option>
                 <option value="pending">Pending</option>
                 <option value="rejected">Rejected</option>
               </select>
             </div>
             <div>
-              <label className="admin-label">Freshness Tier</label>
+              <label className={`${adminLabel}`}>Freshness Tier</label>
               <FreshnessTierSelector
                 value={editFaq.freshnessTier ?? 'evergreen'}
                 onChange={t => setEditFaq(f => f ? { ...f, freshnessTier: t, reviewIntervalDays: t === 'evergreen' ? 0 : f.reviewIntervalDays || (t === 'seasonal' ? 15 : 4) } : null)}
@@ -425,8 +433,8 @@ export default function AdminFAQs() {
               />
             </div>
             <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setEditModal(false)} className="admin-btn-ghost">Cancel</button>
-              <button onClick={handleEdit} disabled={saving} className="admin-btn-primary">{saving ? 'Saving…' : 'Save'}</button>
+              <button onClick={() => setEditModal(false)} className={`${adminBtnGhost}`}>Cancel</button>
+              <button onClick={handleEdit} disabled={saving} className={`${adminBtnPrimary}`}>{saving ? 'Saving…' : 'Save'}</button>
             </div>
           </div>
         )}
@@ -441,20 +449,20 @@ export default function AdminFAQs() {
             </div>
           )}
           <div>
-            <label className="admin-label">Question</label>
-            <input value={newFaq.question} onChange={e => setNewFaq(f => ({ ...f, question: e.target.value }))} placeholder="Enter the question…" className="admin-input" />
+            <label className={`${adminLabel}`}>Question</label>
+            <input value={newFaq.question} onChange={e => setNewFaq(f => ({ ...f, question: e.target.value }))} placeholder="Enter the question…" className={`${adminInput}`} />
           </div>
           <div>
-            <label className="admin-label">Answer</label>
-            <textarea rows={4} value={newFaq.answer} onChange={e => setNewFaq(f => ({ ...f, answer: e.target.value }))} placeholder="Enter the answer…" className="admin-textarea" />
+            <label className={`${adminLabel}`}>Answer</label>
+            <textarea rows={4} value={newFaq.answer} onChange={e => setNewFaq(f => ({ ...f, answer: e.target.value }))} placeholder="Enter the answer…" className={`${adminTextarea}`} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="admin-label">Program <span className="text-danger">*</span></label>
+              <label className={`${adminLabel}`}>Program <span className="text-danger">*</span></label>
               <select
                 value={newFaq.batchId}
                 onChange={e => setNewFaq(f => ({ ...f, batchId: e.target.value }))}
-                className="admin-select w-full"
+                className={`${adminSelect} w-full`}
                 required
               >
                 <option value="">— Select a program —</option>
@@ -462,10 +470,10 @@ export default function AdminFAQs() {
               </select>
             </div>
             <div>
-              <label className="admin-label">Category</label>
+              <label className={`${adminLabel}`}>Category</label>
               <CategoryDropdown
                 value={addCategoryOption}
-                categories={categories}
+                categories={addCategories}
                 onChange={val => {
                   setAddCategoryOption(val);
                   if (val !== '__other__') {
@@ -480,20 +488,20 @@ export default function AdminFAQs() {
                   value={newFaq.category}
                   onChange={e => setNewFaq(f => ({ ...f, category: e.target.value }))}
                   placeholder="Enter custom category..."
-                  className="admin-input mt-2"
+                  className={`${adminInput} mt-2`}
                 />
               )}
             </div>
           </div>
           <div>
-            <label className="admin-label">Status</label>
-            <select value={newFaq.status} onChange={e => setNewFaq(f => ({ ...f, status: e.target.value as typeof newFaq.status }))} className="admin-select w-full">
+            <label className={`${adminLabel}`}>Status</label>
+            <select value={newFaq.status} onChange={e => setNewFaq(f => ({ ...f, status: e.target.value as typeof newFaq.status }))} className={`${adminSelect} w-full`}>
               <option value="approved">Approved</option>
               <option value="pending">Pending</option>
             </select>
           </div>
           <div>
-            <label className="admin-label">Freshness Tier</label>
+            <label className={`${adminLabel}`}>Freshness Tier</label>
             <FreshnessTierSelector
               value={newFaq.freshnessTier}
               onChange={t => setNewFaq(f => ({ ...f, freshnessTier: t, reviewIntervalDays: t === 'evergreen' ? 0 : f.reviewIntervalDays || (t === 'seasonal' ? 15 : 4) }))}
@@ -502,8 +510,8 @@ export default function AdminFAQs() {
             />
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <button onClick={() => setAddModal(false)} className="admin-btn-ghost">Cancel</button>
-            <button onClick={handleAdd} disabled={saving || !newFaq.question || !newFaq.answer || !newFaq.category || !newFaq.batchId} className="admin-btn-primary">{saving ? 'Creating…' : 'Create FAQ'}</button>
+            <button onClick={() => setAddModal(false)} className={`${adminBtnGhost}`}>Cancel</button>
+            <button onClick={handleAdd} disabled={saving || !newFaq.question || !newFaq.answer || !newFaq.category || !newFaq.batchId} className={`${adminBtnPrimary}`}>{saving ? 'Creating…' : 'Create FAQ'}</button>
           </div>
         </div>
       </Modal>

@@ -2,7 +2,11 @@ import { Router, type Request, type Response, type NextFunction } from 'express'
 import { rateLimit, ipKeyGenerator } from 'express-rate-limit';
 import multer from 'multer';
 import { protect } from '../../middleware/auth.js';
+import { authorize } from '../../middleware/authShared.js';
+import CommunityPost from '../community/community-post.model.js';
 import { askAIController } from '../knowledge/knowledge.controller.js';
+import { fetchContext } from '../../services/contextRetriever.js';
+import { adminLog } from '../../utils/http/logger.js';
 
 const router = Router();
 
@@ -95,6 +99,69 @@ router.post(
     next();
   },
   askAIController
+);
+
+/**
+ * Phase 2 R10 smoke-test endpoint — admin / ai_moderator only.
+ *
+ * `GET /preview-context/:postId?topK=N&maxHits=N&includeComments=true|false`
+ * runs the new `fetchContext` pipeline against a community post and returns
+ * the assembled `FetchContextResult` JSON. Useful for verifying Phase 2
+ * end-to-end without going through auto-answer.
+ *
+ * Phase 3 will retire this — by then auto-answer.controller.ts itself
+ * will call fetchContext directly.
+ */
+router.get(
+  '/preview-context/:postId',
+  protect,
+  authorize('admin', 'ai_moderator'),
+  async (req: Request, res: Response) => {
+    try {
+      // S5-M1 (MEDIUM) fix: previously any admin from any program
+      // could preview any post — exposing raw post content + persisted
+      // aiContext across programs. Now: if the post has a batchId
+      // AND the calling admin's `adminPrograms` includes it, allow;
+      // otherwise 404 (do not leak existence).
+      const post = await CommunityPost.findById(req.params.postId).lean();
+      if (!post) {
+        return res.status(404).json({ message: 'Post not found' });
+      }
+      const postBatchId = (post.batchId as { toString(): string } | undefined)?.toString() ?? null;
+      const userPrograms: string[] = ((req as any).user?.adminPrograms ?? []) as string[];
+      const isGlobalAdmin = userPrograms.length === 0 && (req as any).user?.role === 'admin';
+      if (postBatchId && !isGlobalAdmin && !userPrograms.includes(postBatchId)) {
+        adminLog.warn(`[previewContext] post=${req.params.postId} outside admin's programs — denied`);
+        return res.status(404).json({ message: 'Post not found' });
+      }
+      const queryText = `${post.title ?? ''} ${post.body ?? ''}`.trim();
+      const topK = Number(req.query.topK) || 3;
+      const maxHits = Number(req.query.maxHits) || 15;
+      const includeComments =
+        req.query.includeComments === undefined
+          ? true
+          : req.query.includeComments !== 'false';
+      const batchId = postBatchId;
+
+      adminLog.info(
+        `[previewContext] post=${req.params.postId} batch=${batchId} queryLen=${queryText.length}`,
+      );
+      const result = await fetchContext(queryText, {
+        topK,
+        maxHits,
+        batchId,
+        includeComments,
+      });
+      return res.json(result);
+    } catch (err) {
+      adminLog.warn(
+        `[previewContext] failed: ${(err as Error).message}`,
+      );
+      return res
+        .status(500)
+        .json({ message: 'preview-context failed', error: (err as Error).message });
+    }
+  },
 );
 
 export default router;
