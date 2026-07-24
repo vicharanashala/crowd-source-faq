@@ -14,6 +14,8 @@ import User from '../modules/auth/user.model.js';
 import { generateEmbedding } from '../utils/ai/embeddings.js';
 import readline from 'readline';
 
+import Batch from '../modules/program/batch.model.js';
+
 interface SamplePost { title: string; body: string; status: string; answer: string | null; }
 
 const samplePosts: SamplePost[] = [
@@ -41,10 +43,13 @@ async function seedPosts() {
   }
 
   await mongoose.connect(process.env.MONGODB_URI);
-  const author = await User.findOne({ email: 'reg@yaksha.com' }) ?? (await User.findOne());
+  const author = await User.findOne({ email: 'admin@yaksha.com' }) ?? (await User.findOne());
   if (!author) { console.error('No user found. Run seed.ts first.'); process.exit(1); }
 
-  if (!process.argv.includes('--keep')) {
+  const defaultBatch = await Batch.findOne({ isDefault: true }) ?? (await Batch.findOne());
+  const batchId = defaultBatch?._id ?? null;
+
+  if (!process.argv.includes('--keep') && process.stdin.isTTY) {
     const count = await CommunityPost.countDocuments();
     if (count > 0) {
       console.log(`WARNING: Will delete ${count} existing posts. Use --keep to skip clearing.`);
@@ -53,13 +58,15 @@ async function seedPosts() {
       await CommunityPost.deleteMany({});
       console.log('Cleared existing posts.');
     }
+  } else if (!process.argv.includes('--keep')) {
+    await CommunityPost.deleteMany({});
   }
 
   let inserted = 0;
   for (const post of samplePosts) {
     try {
       const embedding = await generateEmbedding(`Question: ${post.title}. Description: ${post.body}. Answer: ${post.answer ?? ''}`);
-      await CommunityPost.create({ ...post, author: author._id, embedding });
+      await CommunityPost.create({ ...post, author: author._id, batchId, embedding });
       inserted++;
       console.log(`  + ${post.title}`);
     } catch (err) {

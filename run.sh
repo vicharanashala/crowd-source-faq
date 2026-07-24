@@ -9,8 +9,8 @@
 # ============================================================
 
 set -e
-
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+export PATH="/usr/bin:$PATH"
+SCRIPT_DIR="$(pwd)"
 ROOT="$SCRIPT_DIR"
 BACKEND="$ROOT/apps/backend"
 FRONTEND="$ROOT/apps/frontend"

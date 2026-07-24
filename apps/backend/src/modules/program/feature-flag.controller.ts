@@ -24,10 +24,74 @@ import {
   type ResolvedFeatureFlag,
 } from '../../services/featureFlags.js';
 
+ feat/aichatbot
+// Known flag keys — the canonical list. Anything else posted to the
+// PUT endpoint is rejected (closed allow-list). Adding a new flag
+// means adding a key here + a one-line seed in ensureFlag().
+export const FEATURE_FLAGS = {
+  sessionSupport: {
+    label: 'Session Support Tickets',
+    description:
+      "Lets students report issues that prevented them from attending a " +
+      "session (internet outage, device failure, etc.) with a guided " +
+      "troubleshooting checklist and proof upload. Admins get a unified " +
+      "inbox to triage and reply. Experimental — toggle off if it's not " +
+      "earning its keep.",
+    defaultEnabled: false,
+  },
+  goldenTicket: {
+    label: 'Golden Ticket (Spurti Points escalation)',
+    description:
+      "A premium escalation channel where students spend Spurti Points (SP) " +
+      "to bump a time-sensitive query to the top of the admin queue. Higher " +
+      "SP = higher leaderboard priority. Includes a 48h cooldown between " +
+      "submissions (configurable from /admin/settings). No ban, no penalty " +
+      "beyond the SP spend — admins resolve or reject, the user always " +
+      "gets an answer. Experimental — toggle off to hide the /golden page " +
+      "and gate the backend endpoints.",
+    defaultEnabled: false,
+  },
+  documentPipeline: {
+    label: 'Document Processing Pipeline',
+    description:
+      'Enables the Redis-backed background worker (BullMQ) for document insight processing and OCR. ' +
+      'When disabled, document uploads are gated and the worker is stopped to free up resources.',
+    defaultEnabled: true,
+  },
+  welcomePackage: {
+    label: 'Welcome Package',
+    description:
+      'The student onboarding / orientation hub at /welcome (project discovery, ' +
+      'getting-started checklist, etc.). When disabled, the nav link is hidden and ' +
+      'the page shows the unavailable panel.',
+    defaultEnabled: true,
+  },
+  askAiChatbot: {
+    label: 'Ask AI Chatbot',
+    description:
+      'The floating AskAI assistant button shown on non-admin pages. When disabled, ' +
+      'the button is hidden from the UI. Toggle on to re-enable the chatbot for users.',
+    defaultEnabled: true,
+  },
+  aiAutoAnswer: {
+    label: 'AI Auto-Answer Queue',
+    description: 'Enables the AI Auto-Answer review queue.',
+    defaultEnabled: true,
+  },
+  faqFreshness: {
+    label: 'FAQ Freshness Review',
+    description: 'Enables the FAQ freshness report and review system.',
+    defaultEnabled: true,
+  },
+} as const;
+
+export type FeatureFlagKey = keyof typeof FEATURE_FLAGS;
+
 // Re-exports so existing imports keep working.
 export { FEATURE_FLAGS, featureFlags };
 export type { FeatureFlagKey, ResolvedFeatureFlag };
 export { UnknownFeatureFlagError };
+ main
 
 /** Lazily seed known flags so admins see them in the UI even if no
  *  one has ever toggled them. Idempotent. */

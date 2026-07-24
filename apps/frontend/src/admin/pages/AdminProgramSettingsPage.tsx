@@ -67,7 +67,7 @@ export default function AdminProgramSettingsPage() {
           setForm(res.data.settings);
         }
       } catch (e: unknown) {
-        if (e instanceof Error && e.name === 'CanceledError') return;
+        if (e instanceof Error && (e.name === 'CanceledError' || (e as any).code === 'ERR_CANCELED')) return;
         setError('Could not load program settings.');
       } finally {
         setLoading(false);

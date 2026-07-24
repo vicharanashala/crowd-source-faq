@@ -99,6 +99,9 @@ const seed = async () => {
       console.log(`  ✓ Default batch already exists: "${defaultBatch.name}" (${defaultBatch._id})`);
     }
 
+    // Clear existing FAQs to ensure a clean seed with the correct live FAQs
+    await FAQ.deleteMany({});
+
     // Upsert FAQs from faqs.json
     console.log('[3/3] Seeding FAQs...');
     const faqPath = path.join(__dirname, '..', 'faqs.json');

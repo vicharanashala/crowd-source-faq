@@ -29,6 +29,7 @@ import { Client, GatewayIntentBits, Events, Partials } from 'discord.js';
 import { Types } from 'mongoose';
 import { registerCommands } from './registerCommands.js';
 import { handleInteraction } from './events/interactionCreate.js';
+import { handleMessageReaction } from './discordIngestionService.js';
 import { logger } from '../../utils/http/logger.js';
 import { decrypt } from '../../utils/auth/crypto.js';
 
@@ -105,8 +106,13 @@ class BotManager {
       return null;
     }
     const client = new Client({
-      intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages],
-      partials: [Partials.Channel],
+      intents: [
+        GatewayIntentBits.Guilds, 
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildMessageReactions
+      ],
+      partials: [Partials.Channel, Partials.Message, Partials.Reaction],
     });
     return { batchId, client, config: cfg, startedAt: new Date() };
   }
@@ -153,6 +159,9 @@ class BotManager {
         // For now, every per-program bot serves the same
         // command set. Phase 6+ adds per-guild→batchId routing.
         void handleInteraction(interaction, instance!.config);
+      });
+      instance.client.on(Events.MessageReactionAdd, (reaction, user) => {
+        void handleMessageReaction(reaction, user, instance!.config);
       });
       await instance.client.login(instance.config.botToken);
       this.bots.set(batchId, instance);

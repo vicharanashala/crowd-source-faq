@@ -82,7 +82,13 @@ export function programScope(opts: { required?: boolean } = {}) {
     }
 
     try {
-      const batch = await Batch.findById(batchId).select('_id name isActive').lean();
+      let batch = await Batch.findById(batchId).select('_id name isActive').lean();
+      if (!batch) {
+        batch = await Batch.findOne({ isDefault: true }).select('_id name isActive').lean();
+      }
+      if (!batch) {
+        batch = await Batch.findOne({ isActive: true }).select('_id name isActive').lean();
+      }
       if (!batch) {
         res.status(404).json({ message: 'Program not found.' });
         return;

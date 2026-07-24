@@ -76,7 +76,9 @@
     "@types/node": "^25.9.1",
     "@types/range-parser": "^1.2.7",
     "@types/uuid": "^10.0.0",
+    "canvas": "^3.2.3",
     "nodemon": "^3.0.2",
+    "playwright": "^1.61.1",
     "tsx": "^4.22.3",
     "typescript": "^6.0.3",
     "vitest": "^1.6.0"

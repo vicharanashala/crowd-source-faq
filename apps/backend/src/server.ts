@@ -1,3 +1,7 @@
+import crypto from 'node:crypto';
+if (typeof globalThis.crypto === 'undefined') {
+  globalThis.crypto = crypto.webcrypto as any;
+}
 import './env.js';
 import { validateEnv } from './config/envValidator.js';
 import { loadConfig } from './config/loader.js';

@@ -61,7 +61,7 @@ export default function Yaksha2026_27ProgramPage() {
         for (const k of sorted) ordered[k] = next[k];
         setGrouped(ordered);
       } catch (e: unknown) {
-        if (e instanceof Error && e.name === 'CanceledError') return;
+        if (e instanceof Error && (e.name === 'CanceledError' || (e as any).code === 'ERR_CANCELED')) return;
         setError('Could not load the full FAQ list right now.');
       } finally {
         setLoading(false);

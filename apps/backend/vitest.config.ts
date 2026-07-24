@@ -6,6 +6,7 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     fileParallelism: false,
+    setupFiles: ['./src/vitest.setup.ts'],
     include: ['**/__tests__/**/*.ts', '**/*.test.ts'],
     coverage: {
       provider: 'v8',

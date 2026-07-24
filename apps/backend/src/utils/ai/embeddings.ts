@@ -224,9 +224,15 @@ export const warmEmbedder = async (): Promise<void> => {
  * Generate an embedding for a DOCUMENT (FAQ, post, etc.).
  */
 export const generateEmbedding = async (text: string, options?: { batchId?: string | null }): Promise<number[]> => {
+ feat/aichatbot
+  const { dimensions, model, baseURL, apiKey } = await getActiveEmbeddingConfig(options?.batchId);
+  if (process.env.FAST_SEED === 'true' || apiKey === 'ollama') {
+    return new Array(dimensions).fill(0);
+  }
+
   const { dimensions } = await getActiveEmbeddingConfig(options?.batchId);
+ main
   try {
-    const { model, baseURL, apiKey } = await getActiveEmbeddingConfig(options?.batchId);
     return await callCustomEmbedding(text, apiKey, model, baseURL);
   } catch (err) {
     // No embedding infrastructure configured → silently return a zero
@@ -236,11 +242,15 @@ export const generateEmbedding = async (text: string, options?: { batchId?: stri
     //
     // In dev/test, surface the failure so missing config is loud.
     if (process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'development') {
+feat/aichatbot
+      return new Array(dimensions).fill(0);
+
       logger.warn(`[embeddings] Custom embedding API failed, falling back to zero vector: ${(err as Error).message}`);
     } else {
       // Production: don't spam Discord. info-level so it lands in
       // logs but not the alert channel. Sentry still gets it.
       logger.info(`[embeddings] API unavailable, returning zero vector (dim=${dimensions})`);
+ main
     }
     return new Array(dimensions).fill(0);
   }

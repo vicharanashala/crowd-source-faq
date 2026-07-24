@@ -47,11 +47,78 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the architecture deep-dive 
 
 ## Quick Start
 
+### 🚀 One-Command Local Development (In-Memory MongoDB)
+
+Run the local dev stack with zero setup required (starts an in-memory MongoDB, seeds 165 FAQs + 5 Community Posts, launches backend on port 6767, and frontend on port 5173):
+
+```bash
+node start-local.mjs
+```
+
+Or from the `crowd-source-faq` directory in PowerShell:
+```powershell
+cd crowd-source-faq
+node start-local.mjs
+```
+
+---
+
+### 💻 Terminal Access & CLI Commands
+
+You can interact with and query the live portal directly through your terminal:
+
+#### 🤖 Ask the AI Chatbot:
+```powershell
+Invoke-RestMethod -Uri 'http://localhost:5173/csfaq/api/ask-ai' -Method Post -Body '{"question":"What are Spurti points?"}' -ContentType 'application/json' | Select-Object -ExpandProperty answer
+```
+
+#### 📚 Browse FAQs:
+```powershell
+(Invoke-RestMethod -Uri 'http://localhost:5173/csfaq/api/faq?limit=5').faqs | Select-Object question, category
+```
+
+#### 💬 Browse Community Threads:
+```powershell
+(Invoke-RestMethod -Uri 'http://localhost:5173/csfaq/api/community/').posts | Select-Object title, status
+```
+
+#### 🗂️ Check Active Programs:
+```powershell
+(Invoke-RestMethod -Uri 'http://localhost:5173/csfaq/api/batches').batches | Select-Object name, isActive, isDefault, faqCount
+```
+
+#### 🏥 System Health Audit:
+```powershell
+Invoke-RestMethod -Uri 'http://localhost:5173/csfaq/api/health'
+```
+
+---
+
+### 🛠️ Production / Full-Stack Runner (`run.sh`)
+
 ```bash
 ./run.sh        # Full-stack runner: env setup, ngrok, backend + frontend
 ```
 
 `run.sh` prompts for `MONGODB_URI` and `JWT_SECRET` on first run, then saves them to `apps/backend/.env.local`. The script will not overwrite existing values. Session logs are written to `logs/session_*.txt`.
+
+---
+
+## Push to GitHub
+
+To push this project to your own GitHub repository, follow these steps:
+
+1. Create a new empty repository on GitHub.
+2. Open your terminal in the project root (`crowd-source-faq`).
+3. Run the following commands:
+   ```bash
+   git init
+   git add .
+   git commit -m "Initial commit"
+   git branch -M main
+   git remote add origin <your-github-repo-url>
+   git push -u origin main
+   ```
 
 ---
 

@@ -12,7 +12,7 @@ import ZoomSession from '../zoom/zoom-session.model.js';
 import FAQ from '../faq/faq.model.js';
 import AiClient from '../ai/ai-client.service.js';
 import { generateEmbedding } from '../../utils/ai/embeddings.js';
-import { MarkItDown } from 'markitdown-ts';
+// MarkItDown is imported lazily to avoid pdfjs-dist loading at startup (DOMMatrix crash on Node 18)
 import path from 'path';
 import os from 'os';
 import { publicAssetUrl, publicBasePath } from '../../utils/publicBasePath.js';
@@ -872,6 +872,7 @@ export const uploadZoomSessionTranscript = async (req: Request, res: Response): 
     let textContent = '';
 
     if (originalname.endsWith('.pdf') || mimetype === 'application/pdf') {
+      const { MarkItDown } = await import('markitdown-ts');
       const md = new MarkItDown();
       const tempPath = path.join(os.tmpdir(), `transcript-${Date.now()}.pdf`);
       fs.writeFileSync(tempPath, buffer);

@@ -65,7 +65,7 @@ export default function ProgramPage() {
         setData(res.data);
         setCurrentBatch(res.data.program._id);
       } catch (e: unknown) {
-        if (e instanceof Error && e.name === 'CanceledError') return;
+        if (e instanceof Error && (e.name === 'CanceledError' || (e as any).code === 'ERR_CANCELED')) return;
         setError('This program is unavailable or has been archived.');
       } finally {
         setLoading(false);
@@ -102,7 +102,7 @@ export default function ProgramPage() {
         for (const k of sorted) ordered[k] = next[k];
         setGrouped(ordered);
       } catch (e: unknown) {
-        if (e instanceof Error && e.name === 'CanceledError') return;
+        if (e instanceof Error && (e.name === 'CanceledError' || (e as any).code === 'ERR_CANCELED')) return;
       } finally {
         setFaqsLoading(false);
       }
