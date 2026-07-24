@@ -6,6 +6,34 @@
       "question": "What is the Yaksha research internship?",
       "answer": "Yaksha is a two-month research internship program.",
       "category": "General Info"
+    },
+    {
+      "id": "2",
+      "section": "Internship",
+      "category": "Monsoonship Restart",
+      "question": "If I am restarting the internship and completed the CSFAQ project with a team previously, do I need to redo it?",
+      "answer": "Yes, you must complete the CSFAQ project again. For the Monsoonship restart, the CSFAQ project is an individual assignment, so you do not need to form a team. If you have any questions regarding project requirements or the submission process, you can join the Samagama Support Zoom breakout session daily at 4:00 PM for clarification."
+    },
+    {
+      "id": "3",
+      "section": "Community",
+      "category": "CodersHigh",
+      "question": "What is CodersHigh?",
+      "answer": "CodersHigh is a community where members practice coding and occasionally study linear algebra together during evening Zoom meetings. The meeting link is shared through the official CodersHigh WhatsApp group and is distinct from the daily standup Zoom link. Participation in these sessions is completely optional."
+    },
+    {
+      "id": "4",
+      "section": "Community",
+      "category": "CodersHigh",
+      "question": "How can I join the CodersHigh community?",
+      "answer": "To join CodersHigh, you can contact Jatin or the CliqMe team on Discourse to request an invite link to the official WhatsApp channel."
+    },
+    {
+      "id": "5",
+      "section": "Endorsements",
+      "category": "Verification",
+      "question": "What should I do if I have lost my previous project endorsements?",
+      "answer": "To regain your endorsements up to Module 5, you must attend a Zoom breakout room and complete a viva (oral examination). Due to issues with inauthentic verifications, only Jatin and designated mentors explicitly selected by him are authorized to verify your work and re-endorse you."
     }
   ]
 }
