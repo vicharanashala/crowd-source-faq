@@ -610,7 +610,6 @@ export default function InternshipRoadmapPage() {
                   </tbody>
                 </table>
               </div>
-              <PortalLink href={portalLinks.phase2} color={colors.slateDeep} label="Mentor project repo" />
             </Card>
           </div>
 
@@ -637,10 +636,7 @@ export default function InternshipRoadmapPage() {
                   </li>
                 ))}
               </ul>
-              <div className="flex flex-wrap gap-3">
-                <PortalLink href={portalLinks.completion} color="#8B94A0" label="Completion portal" />
-                <PortalLink href={portalLinks.discussion} color="#8B94A0" label="Discussion Forum" />
-              </div>
+              <PortalLink href={portalLinks.discussion} color="#8B94A0" label="Discussion Forum" />
             </Card>
           </div>
         </div>
