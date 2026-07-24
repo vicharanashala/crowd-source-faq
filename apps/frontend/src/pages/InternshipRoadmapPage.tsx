@@ -20,15 +20,12 @@ const colors = {
 
 // Drop each portal's URL in here — leave "" until you have the link.
 const portalLinks = {
-  start: "",
   registration: "https://samagama.in",
-  standup: "",
+  discussion: "https://vicharanashala.discourse.group/",
   vibe: "https://vibe.vicharanashala.ai/student/course-registration/6a14258a4fa5339bade5d733",
   matrix: "https://sudarshansudarshan.github.io/codershigh/matrixmystics/",
   matrixEndorsement: "https://samagama.in/spa",
   phase1: "https://github.com/vicharanashala/crowd-source-faq",
-  phase2: "",
-  completion: "",
 };
 
 const registrationChecklist = [
@@ -71,10 +68,12 @@ const phase1Steps = [
 ];
 
 const phase2Mentors = [
-  { project: "PyBe", mentor: "Prakash Hegade" },
-  { project: "FLN", mentor: "Pavani Ma'am" },
+  { project: "ViBe", mentor: "Minakshi Madam" },
   { project: "Spandan", mentor: "Rohit Sir" },
-  { project: "Tenali", mentor: "Jinal Ma'am" },
+  { project: "PyBe", mentor: "Prakash Sir" },
+  { project: "Tenali", mentor: "Jinal Madam" },
+  { project: "Spurti", mentor: "Sakshi Madam" },
+  { project: "FLN", mentor: "Pavani Madam" },
 ];
 
 const completionSteps = [
@@ -96,10 +95,46 @@ const overviewStops = [
   { label: "Delivery", dot: "#8B94A0", seg: colors.slate },
 ];
 
+function initials(name: string) {
+  return name
+    .replace(/madam|sir/gi, "")
+    .trim()
+    .split(/\s+/)
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase();
+}
+
 function CheckIcon({ color }: { color: string }) {
   return (
     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={3}>
       <path d="M4 12l5 5L20 6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function LinkIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+      <path d="M10 13a5 5 0 0 0 7.07 0l1.93-1.93a5 5 0 0 0-7.07-7.07L10.5 5.5" />
+      <path d="M14 11a5 5 0 0 0-7.07 0L4.99 12.93a5 5 0 0 0 7.07 7.07L13.5 18.5" />
+    </svg>
+  );
+}
+
+function MailIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="m3 7 9 6 9-6" />
+    </svg>
+  );
+}
+
+function ChatIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z" />
     </svg>
   );
 }
@@ -122,11 +157,11 @@ function Marker({
       : {};
   const bg = shape === "solid" ? colors.board : "#ffffff";
   return (
-    <div
-      className={`${base} ${shapeClass}`}
-      style={{ borderColor: color, background: bg, ...clip }}
-    >
-      <span className="font-mono font-semibold text-[11px]" style={{ color: shape === "solid" ? "#F4F6F7" : color }}>
+    <div className={`${base} ${shapeClass}`} style={{ borderColor: color, background: bg, ...clip }}>
+      <span
+        className="font-mono font-semibold text-[11px]"
+        style={{ color: shape === "solid" ? "#F4F6F7" : color }}
+      >
         {code}
       </span>
     </div>
@@ -171,10 +206,7 @@ function PortalLink({ href, color, label = "Portal link" }: { href?: string; col
         className="mt-4 flex items-center gap-2 rounded-lg border border-dashed px-3.5 py-2.5 font-mono text-[12.5px] opacity-70"
         style={{ borderColor: color, color }}
       >
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-          <path d="M10 13a5 5 0 0 0 7.07 0l1.93-1.93a5 5 0 0 0-7.07-7.07L10.5 5.5" />
-          <path d="M14 11a5 5 0 0 0-7.07 0L4.99 12.93a5 5 0 0 0 7.07 7.07L13.5 18.5" />
-        </svg>
+        <LinkIcon />
         {label} — paste URL here
       </div>
     );
@@ -187,10 +219,7 @@ function PortalLink({ href, color, label = "Portal link" }: { href?: string; col
       className="mt-4 inline-flex items-center gap-2 rounded-lg border px-3.5 py-2.5 font-mono text-[12.5px] transition-opacity hover:opacity-75"
       style={{ borderColor: color, color }}
     >
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-        <path d="M10 13a5 5 0 0 0 7.07 0l1.93-1.93a5 5 0 0 0-7.07-7.07L10.5 5.5" />
-        <path d="M14 11a5 5 0 0 0-7.07 0L4.99 12.93a5 5 0 0 0 7.07 7.07L13.5 18.5" />
-      </svg>
+      <LinkIcon />
       {label} ↗
     </a>
   );
@@ -215,10 +244,21 @@ export default function InternshipRoadmapPage() {
           <h1 className="mb-1 text-3xl font-bold uppercase tracking-wide text-[#F4F6F7] md:text-4xl">
             The Internship Express
           </h1>
-          <p className="mb-6 font-mono text-[12.5px] text-[#7C8590]">
+          <p className="mb-4 font-mono text-[12.5px] text-[#7C8590]">
             ORIGIN <span className="text-[#C9D0D6]">Registration</span> &nbsp;→&nbsp; TERMINUS{" "}
             <span className="text-[#C9D0D6]">Internship Completion</span>
           </p>
+
+          <a
+            href={portalLinks.discussion}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mb-6 inline-flex items-center gap-2 rounded-lg border px-3.5 py-2 font-mono text-[12px] transition-colors hover:bg-white/5"
+            style={{ borderColor: "rgba(201,130,30,0.5)", color: colors.amber }}
+          >
+            <ChatIcon />
+            Discussion Forum ↗
+          </a>
 
           <div className="mb-6 flex items-center gap-3 font-mono text-[11.5px] text-[#8B94A0]">
             <span>PROGRESS</span>
@@ -258,8 +298,7 @@ export default function InternshipRoadmapPage() {
             <div
               className="absolute inset-0"
               style={{
-                background:
-                  "repeating-linear-gradient(to bottom, rgba(255,255,255,0.55) 0 2px, transparent 2px 11px)",
+                background: "repeating-linear-gradient(to bottom, rgba(255,255,255,0.55) 0 2px, transparent 2px 11px)",
               }}
             />
           </div>
@@ -291,7 +330,7 @@ export default function InternshipRoadmapPage() {
                 Welcome to the AI Internship. Complete the following steps in order to successfully
                 finish your internship.
               </p>
-              <PortalLink href={portalLinks.start} color={colors.emerald} label="Internship overview" />
+              <PortalLink href={portalLinks.discussion} color={colors.emerald} label="Discussion Forum" />
             </Card>
           </div>
 
@@ -371,16 +410,31 @@ export default function InternshipRoadmapPage() {
                 ))}
               </div>
               <p
-                className="m-0 flex items-start gap-2 rounded-lg border bg-white px-3 py-2.5 text-[13.5px]"
+                className="mb-4 flex items-start gap-2 rounded-lg border bg-white px-3 py-2.5 text-[13.5px]"
                 style={{ color: colors.crimsonDeep, borderColor: "#EFC4BB" }}
               >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="mt-0.5 flex-none">
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  className="mt-0.5 flex-none"
+                >
                   <path d="M12 2 22 20H2Z" strokeLinejoin="round" />
                   <path d="M12 9v5M12 17h.01" />
                 </svg>
                 Students who do not meet these requirements may be removed from the internship.
               </p>
-              <PortalLink href={portalLinks.standup} color={colors.crimsonDeep} label="Daily Zoom link" />
+
+              <div
+                className="flex items-center gap-2 rounded-lg border px-3.5 py-2.5 font-mono text-[12.5px]"
+                style={{ background: colors.crimsonSoft, borderColor: "#EFC4BB", color: colors.crimsonDeep }}
+              >
+                <MailIcon />
+                Daily Zoom link is sent to your registered email every morning
+              </div>
             </Card>
           </div>
 
@@ -405,9 +459,7 @@ export default function InternshipRoadmapPage() {
                 ))}
               </div>
 
-              <p className="mb-3 font-mono text-[11px] uppercase tracking-wider text-[#98A1A9]">
-                Week-wise plan
-              </p>
+              <p className="mb-3 font-mono text-[11px] uppercase tracking-wider text-[#98A1A9]">Week-wise plan</p>
               <div className="flex flex-col gap-3">
                 {vibeWeeks.map((w) => (
                   <div
@@ -454,10 +506,8 @@ export default function InternshipRoadmapPage() {
                   Time limit
                 </div>
               </div>
-              <p className="mb-2 font-mono text-[11px] uppercase tracking-wider text-[#98A1A9]">
-                Endorsement rule
-              </p>
-              <p className="text-[14.5px] leading-relaxed text-[#5C6670]">
+              <p className="mb-2 font-mono text-[11px] uppercase tracking-wider text-[#98A1A9]">Endorsement rule</p>
+              <p className="mb-4 text-[14.5px] leading-relaxed text-[#5C6670]">
                 Students who already solved a question will conduct a viva for another student. If the
                 student answers correctly, they receive an endorsement, and can then conduct vivas for
                 other students and endorse them — creating a peer-learning cycle.
@@ -535,9 +585,26 @@ export default function InternshipRoadmapPage() {
                   </thead>
                   <tbody>
                     {phase2Mentors.map((row, i) => (
-                      <tr key={row.project} className={i % 2 === 0 ? "bg-white" : "bg-[#F5F7F8]"}>
+                      <tr
+                        key={row.project}
+                        className={`transition-colors hover:bg-slate-50 ${i % 2 === 0 ? "bg-white" : "bg-[#F5F7F8]"}`}
+                      >
                         <td className="px-4 py-2.5 font-semibold text-[#12181F]">{row.project}</td>
-                        <td className="px-4 py-2.5 text-[#5C6670]">{row.mentor}</td>
+                        <td className="px-4 py-2.5">
+                          <div className="flex items-center gap-2.5">
+                            <span
+                              className="flex h-7 w-7 flex-none items-center justify-center rounded-full border font-mono text-[11px] font-semibold"
+                              style={{
+                                background: colors.slateSoft,
+                                borderColor: colors.slate,
+                                color: colors.slateDeep,
+                              }}
+                            >
+                              {initials(row.mentor)}
+                            </span>
+                            <span className="text-[#5C6670]">{row.mentor}</span>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -562,18 +629,18 @@ export default function InternshipRoadmapPage() {
               <h2 className="mb-2 text-xl font-bold uppercase tracking-wide text-[#F4F6F7]">
                 Internship Completion
               </h2>
-              <ul className="flex flex-col gap-2">
+              <ul className="mb-2 flex flex-col gap-2">
                 {completionSteps.map((step) => (
-                  <li
-                    key={step}
-                    className="flex items-start gap-2.5 text-[14.5px] leading-relaxed text-[#C9D0D6]"
-                  >
+                  <li key={step} className="flex items-start gap-2.5 text-[14.5px] leading-relaxed text-[#C9D0D6]">
                     <span className="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-[#8B94A0]" />
                     {step}
                   </li>
                 ))}
               </ul>
-              <PortalLink href={portalLinks.completion} color="#8B94A0" label="Completion portal" />
+              <div className="flex flex-wrap gap-3">
+                <PortalLink href={portalLinks.completion} color="#8B94A0" label="Completion portal" />
+                <PortalLink href={portalLinks.discussion} color="#8B94A0" label="Discussion Forum" />
+              </div>
             </Card>
           </div>
         </div>
