@@ -28,6 +28,10 @@ export interface IFAQ extends Document {
   views: number;
   helpfulVotes: number;
   unhelpfulVotes: number;
+  
+  satisfactionAvg: number | null;
+  satisfactionCount: number;
+
   createdBy: Types.ObjectId | null;
   reports: Array<{
     reportedBy: Types.ObjectId;
@@ -139,6 +143,14 @@ const faqSchema = new MongooseSchema(
       default: 0,
     },
     unhelpfulVotes: {
+      type: Number,
+      default: 0,
+    },
+    satisfactionAvg: {
+      type: Number,
+      default: null,
+    },
+    satisfactionCount: {
       type: Number,
       default: 0,
     },
