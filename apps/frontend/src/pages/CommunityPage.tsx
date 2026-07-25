@@ -45,6 +45,40 @@ export default function CommunityPage() {
   const [sort, setSort] = useState('newest');
   const [showAllPrograms, setShowAllPrograms] = useState(false);
   const [search, setSearch] = useState(() => {
+    // ── Keyboard Shortcut & Recent Searches ──────────────────────────────────
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const [recentSearches, setRecentSearches] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('csfaq_recent_searches') || '[]');
+    } catch {
+      return [];
+    }
+  });
+
+  const saveToRecent = (term: string) => {
+    const q = term.trim();
+    if (!q || q.length < 2) return;
+    setRecentSearches((prev) => {
+      const updated = [q, ...prev.filter((item) => item.toLowerCase() !== q.toLowerCase())].slice(0, 4);
+      localStorage.setItem('csfaq_recent_searches', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        (e.key === '/' || ((e.metaKey || e.ctrlKey) && e.key === 'k')) &&
+        document.activeElement?.tagName !== 'INPUT' &&
+        document.activeElement?.tagName !== 'TEXTAREA'
+      ) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
     const POPULAR_TAGS = ['Assignment', 'Deadline', 'Submission', 'React', 'Vite'];
     const params = new URLSearchParams(window.location.search);
     return params.get('search') || '';
@@ -363,6 +397,7 @@ const visible = (() => {
         <CommunityHealth />
 
         {/* Search Bar, Quick Tags, and Results Counter */}
+        {/* Search Bar, Quick Tags, Recent Searches, and Results Counter */}
         <div className="space-y-2 mb-4">
           <div className="relative">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint" width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -370,17 +405,26 @@ const visible = (() => {
               <path d="M10 10L12.5 12.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
             </svg>
             <input
+              ref={searchInputRef}
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey && search.trim().length >= 3) {
-                  runSemanticSearch(search.trim());
+                if (e.key === 'Enter' && search.trim()) {
+                  saveToRecent(search.trim());
+                  if (!e.shiftKey && search.trim().length >= 3) {
+                    runSemanticSearch(search.trim());
+                  }
                 }
               }}
               placeholder="Search community discussions..."
-              className="w-full pl-9 pr-10 py-2.5 rounded-xl border border-border bg-card text-sm text-ink placeholder-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/25 transition-all"
+              className="w-full pl-9 pr-16 py-2.5 rounded-xl border border-border bg-card text-sm text-ink placeholder-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/25 transition-all"
             />
+            {!search && (
+              <kbd className="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono font-medium text-ink-faint bg-mist border border-border/80 rounded pointer-events-none">
+                /
+              </kbd>
+            )}
             {search.trim() && (
               <button
                 onClick={() => setSearch('')}
@@ -396,6 +440,55 @@ const visible = (() => {
               </div>
             )}
           </div>
+
+          {/* Quick Clickable Search Tags */}
+          <div className="flex items-center gap-1.5 flex-wrap pt-1">
+            <span className="text-[11px] text-ink-faint font-medium mr-1">Popular searches:</span>
+            {POPULAR_TAGS.map((tag) => (
+              <button
+                key={tag}
+                onClick={() => {
+                  setSearch(tag);
+                  saveToRecent(tag);
+                }}
+                className="px-2.5 py-0.5 rounded-lg bg-mist/60 hover:bg-mist text-[11px] text-ink-soft hover:text-ink transition-all cursor-pointer"
+              >
+                #{tag}
+              </button>
+            ))}
+          </div>
+
+          {/* Recent Searches (persisted via localStorage) */}
+          {recentSearches.length > 0 && !search && (
+            <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+              <span className="text-[11px] text-ink-faint font-medium mr-1">Recent:</span>
+              {recentSearches.map((term) => (
+                <button
+                  key={term}
+                  onClick={() => setSearch(term)}
+                  className="px-2 py-0.5 rounded-lg bg-card border border-border/60 hover:border-accent/40 text-[11px] text-ink-soft hover:text-ink transition-all cursor-pointer"
+                >
+                  🕒 {term}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Search Results Counter & Clear Link */}
+          {search.trim() && (
+            <div className="flex items-center justify-between px-1 py-1 text-xs text-ink-soft border-b border-border/50">
+              <span>
+                Showing results for <strong className="text-ink">"{search.trim()}"</strong> ({displayedPosts.length} found)
+              </span>
+              <button
+                onClick={() => setSearch('')}
+                className="text-accent hover:underline text-xs font-medium cursor-pointer"
+              >
+                Clear filter
+              </button>
+            </div>
+          )}
+        </div>
 
           {/* Quick Clickable Search Tags */}
           <div className="flex items-center gap-1.5 flex-wrap pt-1">
