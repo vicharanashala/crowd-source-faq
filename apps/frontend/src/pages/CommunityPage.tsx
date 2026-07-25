@@ -16,6 +16,7 @@ import CreatePostDialog from '../components/community/CreatePostDialog';
 import { buttonCommunityAsk } from '../styles/style_config';
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
+const POPULAR_TAGS = ['Assignment', 'Deadline', 'Submission', 'React', 'Vite'];
 export default function CommunityPage() {
   const { user } = useAuth();
   // Active program from ProgramContext — used to scope the community feed
@@ -44,6 +45,7 @@ export default function CommunityPage() {
   const [sort, setSort] = useState('newest');
   const [showAllPrograms, setShowAllPrograms] = useState(false);
   const [search, setSearch] = useState(() => {
+    const POPULAR_TAGS = ['Assignment', 'Deadline', 'Submission', 'React', 'Vite'];
     const params = new URLSearchParams(window.location.search);
     return params.get('search') || '';
   });
@@ -360,35 +362,67 @@ const visible = (() => {
 
         <CommunityHealth />
 
-        <div className="relative mb-4">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint" width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.4"/>
-            <path d="M10 10L12.5 12.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-          </svg>
-          <input
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey && search.trim().length >= 3) {
-                runSemanticSearch(search.trim());
-              }
-            }}
-            placeholder="Search community discussions..."
-            className="w-full pl-9 pr-10 py-2.5 rounded-xl border border-border bg-card text-sm text-ink placeholder-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/25 transition-all"
-          />
+        {/* Search Bar, Quick Tags, and Results Counter */}
+        <div className="space-y-2 mb-4">
+          <div className="relative">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint" width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.4"/>
+              <path d="M10 10L12.5 12.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+            </svg>
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey && search.trim().length >= 3) {
+                  runSemanticSearch(search.trim());
+                }
+              }}
+              placeholder="Search community discussions..."
+              className="w-full pl-9 pr-10 py-2.5 rounded-xl border border-border bg-card text-sm text-ink placeholder-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/25 transition-all"
+            />
+            {search.trim() && (
+              <button
+                onClick={() => setSearch('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-faint hover:text-ink text-xs font-semibold px-1"
+                aria-label="Clear search"
+              >
+                ✕
+              </button>
+            )}
+            {searchLoading && (
+              <div className="absolute right-8 top-1/2 -translate-y-1/2">
+                <div className="w-4 h-4 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+              </div>
+            )}
+          </div>
+
+          {/* Quick Clickable Search Tags */}
+          <div className="flex items-center gap-1.5 flex-wrap pt-1">
+            <span className="text-[11px] text-ink-faint font-medium mr-1">Popular searches:</span>
+            {POPULAR_TAGS.map((tag) => (
+              <button
+                key={tag}
+                onClick={() => setSearch(tag)}
+                className="px-2.5 py-0.5 rounded-lg bg-mist/60 hover:bg-mist text-[11px] text-ink-soft hover:text-ink transition-all cursor-pointer"
+              >
+                #{tag}
+              </button>
+            ))}
+          </div>
+
+          {/* Search Results Counter & Clear Link */}
           {search.trim() && (
-            <button
-              onClick={() => setSearch('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-faint hover:text-ink text-xs font-semibold px-1"
-              aria-label="Clear search"
-            >
-              ✕
-            </button>
-          )}
-          {searchLoading && (
-            <div className="absolute right-8 top-1/2 -translate-y-1/2">
-              <div className="w-4 h-4 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+            <div className="flex items-center justify-between px-1 py-1 text-xs text-ink-soft border-b border-border/50">
+              <span>
+                Showing results for <strong className="text-ink">"{search.trim()}"</strong> ({displayedPosts.length} found)
+              </span>
+              <button
+                onClick={() => setSearch('')}
+                className="text-accent hover:underline text-xs font-medium cursor-pointer"
+              >
+                Clear filter
+              </button>
             </div>
           )}
         </div>
@@ -474,11 +508,29 @@ const visible = (() => {
           </div>
         )}
 
-        {!loading && !searchLoading && !error && total > 0 && displayedPosts.length === 0 && (
-          <p className="text-center text-sm text-ink-soft py-16">
-            No posts match your current filters.
-          </p>
-        )}
+        {!loading && !searchLoading && !error && displayedPosts.length === 0 && (
+  <div className="flex flex-col items-center justify-center py-12 text-center bg-card/40 rounded-2xl border border-border/60 p-6 my-4">
+    <div className="w-12 h-12 rounded-xl bg-mist flex items-center justify-center mb-3 text-ink-faint">
+      🔍
+    </div>
+    <p className="text-sm font-medium text-ink">
+      {search.trim() ? `No results found for "${search.trim()}"` : 'No posts match your current filters'}
+    </p>
+    <p className="text-xs text-ink-faint mt-1 max-w-sm">
+      {search.trim() 
+        ? 'Try checking for spelling errors, using different keywords, or clear the search query.' 
+        : 'Try switching your status filter or program feed.'}
+    </p>
+    {search.trim() && (
+      <button
+        onClick={() => setSearch('')}
+        className="mt-3 px-3 py-1.5 text-xs font-medium bg-mist hover:bg-mist/80 text-ink rounded-lg transition-all"
+      >
+        Clear Search Query
+      </button>
+    )}
+  </div>
+)}
 
         {!loading && !searchLoading && !error && displayedPosts.length > 0 && (
           <div className="space-y-3">
