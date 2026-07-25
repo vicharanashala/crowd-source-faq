@@ -254,10 +254,21 @@ export default function CommunityPage() {
     fetchPosts(true);
   };
 
-  const visible = (() => {
-    if (search.trim()) return searchResults;
+const visible = (() => {
+    let list = posts;
 
-    return [...posts].sort((a, b) => {
+    if (search.trim()) {
+      const q = search.toLowerCase().trim();
+      const localFiltered = posts.filter(
+        (p) =>
+          p.title?.toLowerCase().includes(q) ||
+          p.content?.toLowerCase().includes(q) ||
+          p.author?.name?.toLowerCase().includes(q)
+      );
+      list = searchResults.length > 0 ? searchResults : localFiltered;
+    }
+
+    return [...list].sort((a, b) => {
       if (sort === 'newest') return new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime();
       if (sort === 'oldest') return new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime();
       if (sort === 'popular') return ((b.upvotes?.length ?? 0)) - ((a.upvotes?.length ?? 0));
@@ -349,31 +360,38 @@ export default function CommunityPage() {
 
         <CommunityHealth />
 
-        {!loading && total > 0 && (
-          <div className="relative mb-4">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint" width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.4"/>
-              <path d="M10 10L12.5 12.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-            </svg>
-            <input
-              type="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey && search.trim().length >= 3) {
-                  runSemanticSearch(search.trim());
-                }
-              }}
-              placeholder="Search questions…"
-              className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-border bg-card text-sm text-ink placeholder-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/25 transition-all"
-            />
-            {searchLoading && (
-              <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                <div className="w-4 h-4 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
-              </div>
-            )}
-          </div>
-        )}
+        <div className="relative mb-4">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint" width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.4"/>
+            <path d="M10 10L12.5 12.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+          </svg>
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey && search.trim().length >= 3) {
+                runSemanticSearch(search.trim());
+              }
+            }}
+            placeholder="Search community discussions..."
+            className="w-full pl-9 pr-10 py-2.5 rounded-xl border border-border bg-card text-sm text-ink placeholder-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/25 transition-all"
+          />
+          {search.trim() && (
+            <button
+              onClick={() => setSearch('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-faint hover:text-ink text-xs font-semibold px-1"
+              aria-label="Clear search"
+            >
+              ✕
+            </button>
+          )}
+          {searchLoading && (
+            <div className="absolute right-8 top-1/2 -translate-y-1/2">
+              <div className="w-4 h-4 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
+            </div>
+          )}
+        </div>
 
         {!loading && !error && (
           <div className="flex items-center justify-between gap-3 mb-5 flex-wrap">
