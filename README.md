@@ -46,6 +46,12 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the architecture deep-dive 
 
 ---
 
+## Browser Compatibility
+
+For the best experience, use the latest version of a modern browser such as **Google Chrome**, **Microsoft Edge**.
+
+Some features, including Progressive Web App (PWA) support and Offline Mode, depend on browser capabilities such as Service Workers. Older browsers may not support these features completely.
+
 ## Key Features
 
 Eight flagship capabilities define this platform:
