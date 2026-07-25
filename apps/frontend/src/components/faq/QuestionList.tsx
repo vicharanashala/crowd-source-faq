@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useEffect, useCallback, useState } from 'react';
 import { FAQItem, getQuestionTitle, getAnswerText, formatDate, formatCategoryName, TrustBadge, SourceBadge } from './faqUtils';
 import FreshnessBadge from '../faq/FreshnessBadge';
+import SatisfactionSlider from '../faq/SatisfactionSlider';
 import {
   flexRowSm,
   skeletonLine,
@@ -88,6 +89,7 @@ export function QuestionItem({ item, isExpanded, onToggle }: QuestionItemProps) 
                 compact
               />
             )}
+            <SatisfactionSlider faqId={item._id} />
           </div>
         </div>
       </div>
