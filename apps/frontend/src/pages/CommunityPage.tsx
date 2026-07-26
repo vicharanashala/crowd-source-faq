@@ -16,7 +16,6 @@ import CreatePostDialog from '../components/community/CreatePostDialog';
 import { buttonCommunityAsk } from '../styles/style_config';
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
-const POPULAR_TAGS = ['Assignment', 'Deadline', 'Submission', 'React', 'Vite'];
 
 export default function CommunityPage() {
   const { user } = useAuth();
@@ -363,7 +362,7 @@ export default function CommunityPage() {
             </svg>
             <input
               ref={searchInputRef}
-              type="search"
+              type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => {
@@ -399,21 +398,7 @@ export default function CommunityPage() {
           </div>
 
           {/* Quick Clickable Search Tags */}
-          <div className="flex items-center gap-1.5 flex-wrap pt-1">
-            <span className="text-[11px] text-ink-faint font-medium mr-1">Popular searches:</span>
-            {POPULAR_TAGS.map((tag) => (
-              <button
-                key={tag}
-                onClick={() => {
-                  setSearch(tag);
-                  saveToRecent(tag);
-                }}
-                className="px-2.5 py-0.5 rounded-lg bg-mist/60 hover:bg-mist text-[11px] text-ink-soft hover:text-ink transition-all cursor-pointer"
-              >
-                #{tag}
-              </button>
-            ))}
-          </div>
+          
 
           {/* Recent Searches (persisted via localStorage) */}
           {recentSearches.length > 0 && !search && (
