@@ -32,8 +32,15 @@ function bumpAnonCount(): number {
 
 interface Source { kind: 'knowledge'|'faq'|'community'; title: string; snippet: string; score: number; href: string; id: string; aboveThreshold?: boolean; }
 interface AskResponse { question: string; answer: string; sources: Source[]; relevantCount: number; sourceCount: number; model: string; aiFailed: boolean; }
-interface ChatMessage { id: string; role: 'user'|'assistant'; content: string; sources?: Source[]; loading?: boolean; error?: string; }
-
+interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  sources?: Source[];
+  loading?: boolean;
+  error?: string;
+  isNew?: boolean;
+}
 /** File/image attachment queued in the chat composer. */
 interface PendingAttachment {
   /** Local object URL for previews (images only) — released on remove/send. */
@@ -82,42 +89,243 @@ function SourceRow({ s, i, onNav }: { s: Source; i: number; onNav: (href: string
   );
 }
 
-function MessageBubble({ m, onNav }: { m: ChatMessage; onNav: (href: string) => void }) {
+function MessageBubble({
+  m,
+  onNav,
+}: {
+  m: ChatMessage;
+  onNav: (href: string) => void;
+}) {
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+
+  // Automatically speak a newly received AI answer
+  useEffect(() => {
+    // Do not speak user messages, loading messages, or errors
+    if (
+      m.role !== 'assistant' ||
+      m.loading ||
+      m.error ||
+      !m.content.trim()
+    ) {
+      return;
+    }
+
+    // Stop any previous speech
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(m.content);
+
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+
+    utterance.onstart = () => {
+      setIsSpeaking(true);
+      setIsPaused(false);
+    };
+
+    utterance.onend = () => {
+      setIsSpeaking(false);
+      setIsPaused(false);
+    };
+
+    utterance.onerror = () => {
+      setIsSpeaking(false);
+      setIsPaused(false);
+    };
+
+    // Start speaking this particular answer
+    window.speechSynthesis.speak(utterance);
+  }, [m.content, m.loading, m.error, m.role]);
+
+  // Start/restart reading this particular answer
+  const speakAnswer = () => {
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(m.content);
+
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+
+    utterance.onstart = () => {
+      setIsSpeaking(true);
+      setIsPaused(false);
+    };
+
+    utterance.onend = () => {
+      setIsSpeaking(false);
+      setIsPaused(false);
+    };
+
+    utterance.onerror = () => {
+      setIsSpeaking(false);
+      setIsPaused(false);
+    };
+
+    window.speechSynthesis.speak(utterance);
+  };
+
+  // Pause
+  const pauseSpeech = () => {
+    if (
+      window.speechSynthesis.speaking &&
+      !window.speechSynthesis.paused
+    ) {
+      window.speechSynthesis.pause();
+      setIsPaused(true);
+    }
+  };
+
+  // Resume
+  const resumeSpeech = () => {
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+      setIsPaused(false);
+    }
+  };
+
+  // Stop
+  const stopSpeech = () => {
+    window.speechSynthesis.cancel();
+    setIsSpeaking(false);
+    setIsPaused(false);
+  };
+
   if (m.role === 'user') {
-    return (<div className="flex justify-end"><div className="max-w-[80%] px-3.5 py-2 rounded-2xl rounded-br-md bg-accent text-accent-text text-sm shadow-sm shadow-accent/20">{m.content}</div></div>);
+    return (
+      <div className="flex justify-end">
+        <div className="max-w-[80%] px-3.5 py-2 rounded-2xl rounded-br-md bg-accent text-accent-text text-sm shadow-sm shadow-accent/20">
+          {m.content}
+        </div>
+      </div>
+    );
   }
+
   if (m.loading) {
     return (
       <div className="flex justify-start">
         <div className="max-w-[80%] px-4 py-3 rounded-2xl rounded-bl-md bg-card border border-border flex items-center gap-2 text-ink-soft text-sm">
           <span className="flex gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-accent animate-bounce" style={{ animationDelay: '0ms' }} />
-            <span className="w-1.5 h-1.5 rounded-full bg-accent animate-bounce" style={{ animationDelay: '150ms' }} />
-            <span className="w-1.5 h-1.5 rounded-full bg-accent animate-bounce" style={{ animationDelay: '300ms' }} />
+            <span
+              className="w-1.5 h-1.5 rounded-full bg-accent animate-bounce"
+              style={{ animationDelay: '0ms' }}
+            />
+            <span
+              className="w-1.5 h-1.5 rounded-full bg-accent animate-bounce"
+              style={{ animationDelay: '150ms' }}
+            />
+            <span
+              className="w-1.5 h-1.5 rounded-full bg-accent animate-bounce"
+              style={{ animationDelay: '300ms' }}
+            />
           </span>
+
           Searching knowledge base...
         </div>
       </div>
     );
   }
+
   if (m.error) {
-    return (<div className="flex justify-start"><div className="max-w-[80%] px-3.5 py-2.5 rounded-2xl rounded-bl-md bg-danger-light border border-danger/30 text-danger text-sm">{m.error}</div></div>);
+    return (
+      <div className="flex justify-start">
+        <div className="max-w-[80%] px-3.5 py-2.5 rounded-2xl rounded-bl-md bg-danger-light border border-danger/30 text-danger text-sm">
+          {m.error}
+        </div>
+      </div>
+    );
   }
+
   return (
     <div className="flex justify-start">
       <div className="max-w-[85%] space-y-2">
-        <div className="px-3.5 py-2.5 rounded-2xl rounded-bl-md bg-card border border-border text-ink text-sm leading-relaxed whitespace-pre-wrap">{m.content}</div>
+
+        {/* AI Answer */}
+        <div className="px-3.5 py-2.5 rounded-2xl rounded-bl-md bg-card border border-border text-ink text-sm leading-relaxed whitespace-pre-wrap">
+          {m.content}
+
+          {/* Speech Controls */}
+          <div className="mt-2 flex items-center gap-1.5">
+
+            {/* Listen */}
+            {!isSpeaking && (
+              <button
+                type="button"
+                onClick={speakAnswer}
+                className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-ink-soft hover:text-accent hover:bg-mist transition-colors"
+                aria-label="Read answer aloud"
+                title="Read answer aloud"
+              >
+                🔊 Listen
+              </button>
+            )}
+
+            {/* Pause */}
+            {isSpeaking && !isPaused && (
+              <button
+                type="button"
+                onClick={pauseSpeech}
+                className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-ink-soft hover:text-accent hover:bg-mist transition-colors"
+                aria-label="Pause speech"
+                title="Pause speech"
+              >
+                ⏸️ Pause
+              </button>
+            )}
+
+            {/* Resume */}
+            {isSpeaking && isPaused && (
+              <button
+                type="button"
+                onClick={resumeSpeech}
+                className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-ink-soft hover:text-accent hover:bg-mist transition-colors"
+                aria-label="Resume speech"
+                title="Resume speech"
+              >
+                ▶️ Resume
+              </button>
+            )}
+
+            {/* Stop */}
+            {isSpeaking && (
+              <button
+                type="button"
+                onClick={stopSpeech}
+                className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-ink-soft hover:text-danger hover:bg-mist transition-colors"
+                aria-label="Stop speech"
+                title="Stop speech"
+              >
+                ⏹️ Stop
+              </button>
+            )}
+
+          </div>
+        </div>
+
+        {/* Sources */}
         {m.sources && m.sources.length > 0 && (
           <div className="space-y-1 pl-1">
-            <p className="text-[10px] uppercase tracking-wider text-ink-faint font-semibold pl-1">Sources ({m.sources.length})</p>
-            {m.sources.map((s, i) => <SourceRow key={`${s.id}-${i}`} s={s} i={i} onNav={onNav} />)}
+            <p className="text-[10px] uppercase tracking-wider text-ink-faint font-semibold pl-1">
+              Sources ({m.sources.length})
+            </p>
+
+            {m.sources.map((s, i) => (
+              <SourceRow
+                key={`${s.id}-${i}`}
+                s={s}
+                i={i}
+                onNav={onNav}
+              />
+            ))}
           </div>
         )}
+
       </div>
     </div>
   );
 }
-
 export default function AskAIButton() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
