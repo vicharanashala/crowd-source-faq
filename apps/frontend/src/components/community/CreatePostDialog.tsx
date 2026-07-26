@@ -103,7 +103,8 @@ interface CreatePostDialogProps {
   prefillTitle?: string;
 }
 
-export default function CreatePostDialog({ onClose, onCreated, prefillTitle = '' }: CreatePostDialogProps) {
+
+ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = '' }: CreatePostDialogProps) {
   const { user } = useAuth();
   const { openModal } = useAuthModal();
   // Guard: if rendered without an authenticated user, close the dialog and
@@ -150,27 +151,12 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
     setAttachments((prev) => prev.filter((a) => a.objectPath !== objectPath));
   };
 
-  // Restore draft from sessionStorage on mount
-  const [title, setTitle] = useState(() => {
-    try {
-      const draft = sessionStorage.getItem(DRAFT_KEY);
-      if (draft) {
-        const { t } = JSON.parse(draft);
-        return t || prefillTitle || '';
-      }
-    } catch { void 0 }
-    return prefillTitle || '';
-  });
-  const [body, setBody] = useState(() => {
-    try {
-      const draft = sessionStorage.getItem(DRAFT_KEY);
-      if (draft) {
-        const { b } = JSON.parse(draft);
-        return b || '';
-      }
-    } catch { void 0 }
-    return '';
-  });
+  // Restore draft from localStorage on mount
+  //My code Start 
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
+  console.log("Component rendered", title, body);
+  //My code end
   const [loading, setLoading] = useState(false);
   // Synchronous re-entry guard. The button's `disabled` prop already
   // prevents the second click once React re-renders, but between the
@@ -191,21 +177,54 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
 
   // Toast state
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'warn' | 'info' } | null>(null);
+// My code start
+  const [showDraftPrompt, setShowDraftPrompt] = useState(false);
+// My code end 
 
   const showToast = (msg: string, type: 'success' | 'warn' | 'info' = 'info') => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3500);
   };
+// My code start
+// Check for existing draft when dialog opens
+   useEffect(() => {
+  try {
+    const draft = localStorage.getItem(DRAFT_KEY);
 
+    if (draft) {
+      const parsed = JSON.parse(draft);
+
+      if (
+        (parsed.t && parsed.t.trim() !== '') ||
+        (parsed.b && parsed.b.trim() !== '')
+      ) {
+        setShowDraftPrompt(true);
+      }
+    }
+  } catch (err) {
+    console.error('Failed to load draft:', err);
+  }
+}, []);
+// My code end 
+  
   // Save draft on field changes
   const handleTitleChange = (val: string) => {
-    setTitle(val);
-    try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ t: val, b: body })); } catch { void 0 }
-  };
-  const handleBodyChange = (val: string) => {
-    setBody(val);
-    try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ t: title, b: val })); } catch { void 0 }
-  };
+  setTitle(val);
+   try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ t: val, b: body }));
+    } catch {}
+};
+
+const handleBodyChange = (val: string) => {
+  setBody(val);
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ t: title, b: val }));
+    } catch {}
+};
+   //My Code starts
+   // Auto-save draft whenever title or body changes
+    
+ //My Code End
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -232,6 +251,10 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
     }
     return () => dialog.removeEventListener('close', handleClose);
   }, [onClose]);
+  //My code Start
+   // Show draft prompt when dialog opens
+  
+  //MY code end
 
   useEffect(() => {
     if (duplicateCheckTimerRef.current) clearTimeout(duplicateCheckTimerRef.current);
@@ -308,7 +331,7 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
         { headers: { 'Idempotency-Key': idempotencyKey } },
       );
       // Clear draft on success
-      try { sessionStorage.removeItem(DRAFT_KEY); } catch { void 0 }
+      try { localStorage.removeItem(DRAFT_KEY); } catch { void 0 }
       // Show toast with duplicate check result
       const dupCount = duplicateMatch?.matches?.length ?? 0;
       if (dupCount > 0) {
@@ -349,15 +372,17 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
   // The "+" pick-file button is already disabled while attaching
   // (so the user can see the spinner), but the submit button was
   // not — this commit closes that gap.
-  const isSubmitDisabled =
-    !title.trim() ||
-    !body.trim() ||
-    tags.length === 0 ||
-    hasHighConfidenceFaqMatch ||
-    checkingDuplicates ||
-    loading ||
-    attaching;
+console.log("title =", title, typeof title);
+console.log("body =", body, typeof body);
 
+const isSubmitDisabled =
+  !(title ?? "").trim() ||
+  !(body ?? "").trim() ||
+  tags.length === 0 ||
+  hasHighConfidenceFaqMatch ||
+  checkingDuplicates ||
+  loading ||
+  attaching;
   return (
     <dialog
       ref={dialogRef}
@@ -571,7 +596,64 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
           {error && (
             <p className="text-xs text-danger bg-danger-light border border-danger/15 rounded-xl px-3 py-2">{error}</p>
           )}
+// My code Start
+{showDraftPrompt && (
+  <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40">
+    <div className="bg-white rounded-2xl shadow-xl p-6 w-[420px] max-w-[90%]">
+      <h3 className="text-lg font-semibold text-ink mb-2">
+        Keep this draft?
+      </h3>
 
+      <p className="text-sm text-ink-soft mb-6">
+        We saved your progress automatically.
+      </p>
+
+      <div className="flex justify-end gap-3">
+      
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => {
+            localStorage.removeItem(DRAFT_KEY);
+            setTitle('');
+            setBody('');
+            setShowDraftPrompt(false);
+            showToast('Draft discarded', 'info');
+          }}
+        >
+          Discard Draft
+        </Button>
+
+        <Button
+          type="button"
+          //My code Starts
+         onClick={() => {
+  try {
+    const draft = localStorage.getItem(DRAFT_KEY);
+
+    if (draft) {
+      const data = JSON.parse(draft);
+
+      setTitle(data.t ?? '');
+      setBody(data.b ?? '');
+    }
+
+    setShowDraftPrompt(false);
+    
+    showToast('Draft restored', 'success');
+  } catch{
+    showToast('Failed to restore draft', 'warn');
+  }
+}}
+    // My code End
+        >
+          Keep Draft
+        </Button>
+      </div>
+    </div>
+  </div>
+)}
+//My code ends
           {toast && (
             <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] px-5 py-3 rounded-xl text-sm font-medium shadow-float border animate-fade-in
               ${toast.type === 'success' ? 'bg-accent/10 border-accent/30 text-accent' :
