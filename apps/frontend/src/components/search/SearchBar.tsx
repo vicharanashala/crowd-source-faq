@@ -105,6 +105,10 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
       setSuggestions([]);
     }
   };
+// v2 — Suggestions stay live as the user types (250ms debounce). Search
+  // results also stream live as the user types (300ms debounce) — but they
+  // appear INSIDE the glassmorphic dropdown bubble on the host page, not as
+  // a page swap. Enter skips the wait and fires immediately.
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -139,7 +143,9 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
     e.preventDefault();
     runSearchNow();
   };
-
+    // 1.6 (LOW) — clear any stale suggestionError on every click so it
+    // doesn't linger indefinitely if the user stopped typing. The
+    // 4-second auto-dismiss below still applies for fresh errors.
   const handleSuggestionClick = async (faqId: string) => {
     setShowSuggestions(false);
     setSuggestions([]);
@@ -152,6 +158,8 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
       const res = await api.get<{ _id: string; question: string; answer: string; category: string }>(`/faq/${faqId}`);
       sessionStorage.setItem('yaksha_faq_highlight', JSON.stringify(res.data));
     } catch {
+      // 1.6 (LOW) — auto-dismiss after 4 seconds so the red banner
+      // doesn't linger until the next fetchSuggestions cycle.
       setSuggestionError('Could not load FAQ. Navigating anyway.');
       suggestErrorTimerRef.current = setTimeout(() => {
         setSuggestionError(null);

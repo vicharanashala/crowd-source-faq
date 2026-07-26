@@ -124,7 +124,11 @@ export default function SearchDropdown({
               ))}
             </div>
           </div>
-
+{/* 1.12 (LOW) — empty-state for the categories column when
+                no categories are available. Merged with PR #144's
+                style_config.ts refactor: the `group` Tailwind class
+                on the button below is required for the icon's
+                `group-hover:opacity-100` to actually fire. */}
           <div>
             <div className={flexRowBetween + ' mb-2'}>
               <p className={textXsLabel}>Categories</p>
