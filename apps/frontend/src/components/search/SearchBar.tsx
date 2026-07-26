@@ -31,6 +31,8 @@ interface SearchBarProps {
   className?: string;
   disableSuggestions?: boolean;
   variant?: 'default' | 'compact';
+  onSubmit?: (query: string) => void;
+  onClear?: () => void;
 }
 
 const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function SearchBar(
@@ -46,6 +48,8 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
     className = '',
     disableSuggestions = false,
     variant = 'default',
+    onSubmit,
+    onClear,
   },
   ref
 ) {
@@ -60,10 +64,7 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
   const query = isControlled ? (value ?? '') : internalQuery;
   const suggestDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // 1.6 — tracks the suggestionError auto-dismiss timer so we can
-  // clear it on the next click / unmount.
   const suggestErrorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   const handleSearch = async (searchQuery: string) => {
@@ -82,9 +83,7 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
       });
       onResults(res.data.results ?? null);
     } catch (err: any) {
-      if (axios.isCancel(err)) {
-        return; // Ignore cancelled requests
-      }
+      if (axios.isCancel(err)) return;
       onResults([]);
       onError?.('Search failed. Please check your connection and try again.');
     } finally {
@@ -107,10 +106,6 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
     }
   };
 
-  // v2 — Suggestions stay live as the user types (250ms debounce). Search
-  // results also stream live as the user types (300ms debounce) — but they
-  // appear INSIDE the glassmorphic dropdown bubble on the host page, not as
-  // a page swap. Enter skips the wait and fires immediately.
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     if (isControlled) {
@@ -119,19 +114,15 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
       setInternalQuery(val);
     }
 
-    // Live suggestions under the input.
     if (!disableSuggestions) {
       if (suggestDebounceRef.current) clearTimeout(suggestDebounceRef.current);
       suggestDebounceRef.current = setTimeout(() => fetchSuggestions(val), 250);
     }
 
-    // Live results — same source the post-Enter flow uses, so the
-    // dropdown and the in-page panel can never disagree on counts.
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     if (val.trim().length >= 3) {
       searchDebounceRef.current = setTimeout(() => handleSearch(val), 300);
     } else {
-      // Below threshold — wipe results so the dropdown's empty state shows.
       onResults(null);
       onError?.(null);
     }
@@ -141,6 +132,7 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     setShowSuggestions(false);
     handleSearch(query);
+    onSubmit?.(query);
   };
 
   const handleSubmit = (e: FormEvent) => {
@@ -152,9 +144,6 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
     setShowSuggestions(false);
     setSuggestions([]);
     setSuggestionError(null);
-    // 1.6 (LOW) — clear any stale suggestionError on every click so it
-    // doesn't linger indefinitely if the user stopped typing. The
-    // 4-second auto-dismiss below still applies for fresh errors.
     if (suggestErrorTimerRef.current) {
       clearTimeout(suggestErrorTimerRef.current);
       suggestErrorTimerRef.current = null;
@@ -163,8 +152,6 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
       const res = await api.get<{ _id: string; question: string; answer: string; category: string }>(`/faq/${faqId}`);
       sessionStorage.setItem('yaksha_faq_highlight', JSON.stringify(res.data));
     } catch {
-      // 1.6 (LOW) — auto-dismiss after 4 seconds so the red banner
-      // doesn't linger until the next fetchSuggestions cycle.
       setSuggestionError('Could not load FAQ. Navigating anyway.');
       suggestErrorTimerRef.current = setTimeout(() => {
         setSuggestionError(null);
@@ -174,8 +161,6 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
     navigate(`/faq/${faqId}`);
   };
 
-  // 1.6 — clear pending auto-dismiss timer on unmount so we don't
-  // try to setState after the component is gone.
   useEffect(() => {
     return () => {
       if (suggestErrorTimerRef.current) {
@@ -185,10 +170,8 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
     };
   }, []);
 
-  // Close suggestions on outside click
   const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     onBlur?.();
-    // Delay so click on suggestion registers first
     setTimeout(() => {
       if (wrapperRef.current && !wrapperRef.current.contains(document.activeElement)) {
         setShowSuggestions(false);
@@ -219,9 +202,34 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
           onFocus={onFocus}
           onBlur={handleBlur}
           placeholder={placeholder}
-          className={variant === 'compact' ? searchInputCompact : searchInputDefault}
+          className={`${variant === 'compact' ? searchInputCompact : searchInputDefault} ${variant === 'default' ? 'pr-36' : 'pr-10'}`}
           autoComplete="off"
         />
+
+        {/*Cross Mark (Clear Button) */}
+        {query.trim().length > 0 && (
+          <button
+            type="button"
+            onClick={() => {
+              if (isControlled) {
+                onQueryChange?.('');
+              } else {
+                setInternalQuery('');
+              }
+              onResults(null);
+              onClear?.();
+            }}
+            className={`absolute top-1/2 -translate-y-1/2 p-1.5 text-ink-faint hover:text-ink transition-colors rounded-full hover:bg-mist ${
+              variant === 'default' ? 'right-[110px]' : 'right-2.5'
+            }`}
+            aria-label="Clear search"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        )}
 
         {variant === 'default' && (
           <button
@@ -257,7 +265,6 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
             ))}
           </div>
         )}
-        {/* Suggestion click error */}
         {suggestionError && (
           <div className="absolute top-full left-0 right-0 mt-2 px-4 py-2 bg-danger-light border border-danger/20 rounded-xl text-xs text-danger">
             {suggestionError}
