@@ -16,13 +16,9 @@ import CreatePostDialog from '../components/community/CreatePostDialog';
 import { buttonCommunityAsk } from '../styles/style_config';
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
+
 export default function CommunityPage() {
   const { user } = useAuth();
-  // Active program from ProgramContext — used to scope the community feed
-  // to the chosen program so summership questions don't leak into
-  // winternship (and vice versa). Falls back to `undefined` when no
-  // program is selected yet, in which case we deliberately send NO
-  // batchId (matches previous behaviour while the picker takes over).
   const { currentBatch } = useBatch();
   const activeBatchId = currentBatch?._id ?? undefined;
   const gate = useAuthGate();
@@ -30,6 +26,7 @@ export default function CommunityPage() {
     () => setShowCreate(true),
     'Sign in to ask a question in the community.'
   );
+
   const [posts, setPosts] = useState<Post[]>([]);
   const [total, setTotal] = useState(0);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -43,6 +40,7 @@ export default function CommunityPage() {
   const [filter, setFilter] = useState('all');
   const [sort, setSort] = useState('newest');
   const [showAllPrograms, setShowAllPrograms] = useState(false);
+  
   const [search, setSearch] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     return params.get('search') || '';
@@ -55,14 +53,41 @@ export default function CommunityPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [createPrefillTitle, setCreatePrefillTitle] = useState('');
 
-  // Backend uses cursor-based pagination. The previous version sent `?page=2`
-  // which the backend silently ignored — so every "Load more" call returned
-  // the FIRST batch and we got duplicates. Send the cursor instead.
-  //
-  // v1.69 — program scoping: always send the active program's batchId
-  // when the user is NOT on "All Programs Feed". Without it, the
-  // backend returns every post across every program because the
-  // community routes don't have the programScope middleware attached
+  // ── Keyboard Shortcut & Recent Searches ──────────────────────────────────
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const [recentSearches, setRecentSearches] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('csfaq_recent_searches') || '[]');
+    } catch {
+      return [];
+    }
+  });
+
+  const saveToRecent = (term: string) => {
+    const q = term.trim();
+    if (!q || q.length < 2) return;
+    setRecentSearches((prev) => {
+      const updated = [q, ...prev.filter((item) => item.toLowerCase() !== q.toLowerCase())].slice(0, 4);
+      localStorage.setItem('csfaq_recent_searches', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        (e.key === '/' || ((e.metaKey || e.ctrlKey) && e.key === 'k')) &&
+        document.activeElement?.tagName !== 'INPUT' &&
+        document.activeElement?.tagName !== 'TEXTAREA'
+      ) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+// community routes don't have the programScope middleware attached
   // and the controllers fall back to "no batchId filter". The
   // explicit-`undefined`-when-no-program-selected case preserves the
   // legacy behaviour while the program picker takes over.
@@ -80,7 +105,7 @@ export default function CommunityPage() {
     })
       .then((res) => {
         const incoming = res.data.posts || [];
-        setPosts((prev) => reset ? incoming : [...prev, ...incoming]);
+        setPosts((prev) => (reset ? incoming : [...prev, ...incoming]));
         setTotal(res.data.total || 0);
         setHasMore(res.data.hasMore ?? false);
         setNextCursor(res.data.nextCursor ?? null);
@@ -101,10 +126,7 @@ export default function CommunityPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
 
-    // ?ask=true — open the create dialog. The navbar's "Ask Question" button
-    // already gates this behind the auth modal, so by the time we get here
-    // (after the gate's pending-action replay) the user is authenticated.
-    // We still double-check user here as a safety net.
+    // ?ask=true — open the create dialog.
     if (params.get('ask') === 'true') {
       if (user) {
         const prefilledTitle = params.get('title') || '';
@@ -112,8 +134,6 @@ export default function CommunityPage() {
         setShowCreate(true);
         window.history.replaceState({}, '', window.location.pathname);
       } else {
-        // Not authenticated — clear the param so the gate can re-trigger it
-        // after login if the user chooses to sign in.
         window.history.replaceState({}, '', window.location.pathname);
       }
     }
@@ -125,59 +145,45 @@ export default function CommunityPage() {
       if (found) {
         setSelectedPostId(postId);
       } else {
-        // Post not in list — fetch individually
         api.get(`/community/${postId}`)
           .then((res) => {
             const post = res.data;
             if (post && post._id) {
               setSelectedPostId(postId);
-              // Prepend to posts so it's in cache
-              setPosts(prev => [post, ...prev]);
+              setPosts((prev) => [post, ...prev]);
             }
           })
-          .catch(() => {
-            // Post not found or access denied — silently fail, don't open thread
-          });
+          .catch(() => {});
       }
       window.history.replaceState({}, '', window.location.pathname);
     }
-  }, [posts, user, window.location.search]);
+  }, [posts, user]);
 
-  // Reset cursor + posts when filter/sort changes so we paginate the
-  // newly-filtered set from the beginning. activeBatchId is also in this
-  // list — switching programs in the header must wipe the visible feed.
+  // Reset cursor + posts when filter/sort changes so we paginate the newly-filtered set
   useEffect(() => {
     setNextCursor(null);
     setPosts([]);
   }, [filter, sort, showAllPrograms, activeBatchId]);
 
-  // 2-D (MEDIUM) — previously this page had TWO effects both keyed on
-  // [filter, sort, ...] that each fired `fetchPosts(true)` in the same
-  // React commit, racing against each other. The earlier one (above)
-  // handled showAllPrograms, this one below handled the search-active
-  // branch. Merge them into one effect whose body is the union of
-  // both branches, removing the duplicate dispatch.
   // When filter or sort changes — refresh posts (if no search active) or re-filter existing results
   useEffect(() => {
     if (search.trim()) {
-      // Search is active — re-apply filter/sort client-side to existing searchResults
-      setSearchResults(prev => {
+      setSearchResults((prev) => {
         if (!prev.length) return prev;
         let filtered = [...prev];
-        if (filter === 'answered') filtered = filtered.filter(p => p.status === 'answered');
-        else if (filter === 'unanswered') filtered = filtered.filter(p => p.status === 'unanswered');
+        if (filter === 'answered') filtered = filtered.filter((p) => p.status === 'answered');
+        else if (filter === 'unanswered') filtered = filtered.filter((p) => p.status === 'unanswered');
         if (sort === 'newest') filtered.sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime());
         else if (sort === 'oldest') filtered.sort((a, b) => new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime());
-        else if (sort === 'popular') filtered.sort((a, b) => ((b.upvotes?.length ?? 0)) - ((a.upvotes?.length ?? 0)));
-        else if (sort === 'discussed') filtered.sort((a, b) => ((b.comments?.length ?? 0)) - ((a.comments?.length ?? 0)));
+        else if (sort === 'popular') filtered.sort((a, b) => (b.upvotes?.length ?? 0) - (a.upvotes?.length ?? 0));
+        else if (sort === 'discussed') filtered.sort((a, b) => (b.comments?.length ?? 0) - (a.comments?.length ?? 0));
         return filtered;
       });
       return;
     }
     fetchPosts(true);
   }, [filter, sort, showAllPrograms, activeBatchId]);
-
-  // ── Infinite scroll — fetch the next page when the sentinel enters view ────
+// ── Infinite scroll — fetch the next page when the sentinel enters view ────
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     if (!sentinelRef.current) return;
@@ -189,11 +195,11 @@ export default function CommunityPage() {
           fetchPosts(false);
         }
       },
-      { rootMargin: '300px 0px' } // start loading 300px before the sentinel
+      { rootMargin: '300px 0px' }
     );
     observer.observe(sentinelRef.current);
     return () => observer.disconnect();
-  }, [hasMore, loading, loadingMore, nextCursor, filter, sort, showAllPrograms, activeBatchId]);
+  }, [hasMore, loading, loadingMore, nextCursor, filter, sort, showAllPrograms, activeBatchId, fetchPosts]);
 
   const runSemanticSearch = useCallback(async (q: string) => {
     setSearchLoading(true);
@@ -210,10 +216,6 @@ export default function CommunityPage() {
     }
   }, [showAllPrograms, activeBatchId]);
 
-  // v2 — search is now Enter-only. We still keep the trimmed query handy
-  // for downstream effects (filter/sort re-apply on existing results).
-  // The auto-fire debounce was removed so results don't pop while the user
-  // is still typing.
   useEffect(() => {
     const q = search.trim();
     if (!q || q.length < 3) {
@@ -243,7 +245,7 @@ export default function CommunityPage() {
 
   const handleShareCommunity = async () => {
     const url = window.location.origin + '/csfaq/community';
-    try { await navigator.clipboard.writeText(url); } catch { /* ignore */ }
+    try { await navigator.clipboard.writeText(url); } catch {}
     setToast('Community link copied');
     setTimeout(() => setToast(''), 2500);
   };
@@ -255,13 +257,24 @@ export default function CommunityPage() {
   };
 
   const visible = (() => {
-    if (search.trim()) return searchResults;
+    let list = posts;
 
-    return [...posts].sort((a, b) => {
+    if (search.trim()) {
+      const q = search.toLowerCase().trim();
+      const localFiltered = posts.filter(
+        (p) =>
+          p.title?.toLowerCase().includes(q) ||
+          p.content?.toLowerCase().includes(q) ||
+          p.author?.name?.toLowerCase().includes(q)
+      );
+      list = searchResults.length > 0 ? searchResults : localFiltered;
+    }
+
+    return [...list].sort((a, b) => {
       if (sort === 'newest') return new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime();
-      if (sort === 'oldest') return new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime();
-      if (sort === 'popular') return ((b.upvotes?.length ?? 0)) - ((a.upvotes?.length ?? 0));
-      if (sort === 'discussed') return ((b.comments?.length ?? 0)) - ((a.comments?.length ?? 0));
+      if (sort === 'oldest') return new Date(a.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime();
+      if (sort === 'popular') return (b.upvotes?.length ?? 0) - (a.upvotes?.length ?? 0);
+      if (sort === 'discussed') return (b.comments?.length ?? 0) - (a.comments?.length ?? 0);
       return 0;
     });
   })();
@@ -272,19 +285,11 @@ export default function CommunityPage() {
 
   const answeredCount = posts.filter((p) => p.status === 'answered').length;
   const unansweredCount = posts.filter((p) => p.status !== 'answered').length;
-
   return (
     <div className="min-h-screen bg-bg grid-bg relative">
       <CommunityDoodles />
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 pt-20 sm:pt-24 pb-8 sm:pb-10 relative z-10">
-        {/* v1.69 — Phase 12: persistent "browsing program" pill
-            so the user always knows which program's community
-            feed they're scrolling. The pill reads from
-            BatchContext. The actual data fetch below already
-            uses currentBatch._id for the ?batchId=... filter
-            — this commit is a UX improvement, not a backend
-            change. */}
         <div className="flex justify-center mb-4">
           <UserActiveProgramIndicator />
         </div>
@@ -348,34 +353,86 @@ export default function CommunityPage() {
         </div>
 
         <CommunityHealth />
-
-        {!loading && total > 0 && (
-          <div className="relative mb-4">
+        {/* Search Bar, Quick Tags, Recent Searches, and Results Counter */}
+        <div className="space-y-2 mb-4">
+          <div className="relative">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint" width="14" height="14" viewBox="0 0 14 14" fill="none">
               <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.4"/>
               <path d="M10 10L12.5 12.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
             </svg>
             <input
-              type="search"
+              ref={searchInputRef}
+              type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey && search.trim().length >= 3) {
-                  runSemanticSearch(search.trim());
+                if (e.key === 'Enter' && search.trim()) {
+                  saveToRecent(search.trim());
+                  if (!e.shiftKey && search.trim().length >= 3) {
+                    runSemanticSearch(search.trim());
+                  }
                 }
               }}
-              placeholder="Search questions…"
-              className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-border bg-card text-sm text-ink placeholder-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/25 transition-all"
+              placeholder="Search community discussions..."
+              className="w-full pl-9 pr-16 py-2.5 rounded-xl border border-border bg-card text-sm text-ink placeholder-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/25 transition-all"
             />
+            {!search && (
+              <kbd className="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono font-medium text-ink-faint bg-mist border border-border/80 rounded pointer-events-none">
+                /
+              </kbd>
+            )}
+            {search.trim() && (
+              <button
+                onClick={() => setSearch('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-faint hover:text-ink text-xs font-semibold px-1"
+                aria-label="Clear search"
+              >
+                ✕
+              </button>
+            )}
             {searchLoading && (
-              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+              <div className="absolute right-8 top-1/2 -translate-y-1/2">
                 <div className="w-4 h-4 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
               </div>
             )}
           </div>
-        )}
 
-        {!loading && !error && (
+          {/* Quick Clickable Search Tags */}
+          
+
+          {/* Recent Searches (persisted via localStorage) */}
+          {recentSearches.length > 0 && !search && (
+            <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+              <span className="text-[11px] text-ink-faint font-medium mr-1">Recent:</span>
+              {recentSearches.map((term) => (
+                <button
+                  key={term}
+                  onClick={() => setSearch(term)}
+                  className="px-2 py-0.5 rounded-lg bg-card border border-border/60 hover:border-accent/40 text-[11px] text-ink-soft hover:text-ink transition-all cursor-pointer"
+                >
+                  🕒 {term}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Search Results Counter & Clear Link */}
+          {search.trim() && (
+            <div className="flex items-center justify-between px-1 py-1 text-xs text-ink-soft border-b border-border/50">
+              <span>
+                Showing results for <strong className="text-ink">"{search.trim()}"</strong> ({displayedPosts.length} found)
+              </span>
+              <button
+                onClick={() => setSearch('')}
+                className="text-accent hover:underline text-xs font-medium cursor-pointer"
+              >
+                Clear filter
+              </button>
+            </div>
+          )}
+        </div>
+
+          {!loading && !error && (
           <div className="flex items-center justify-between gap-3 mb-5 flex-wrap">
             <div className="flex items-center gap-2 flex-wrap">
               <div className="flex gap-1 p-1 bg-mist rounded-xl w-fit">
@@ -456,10 +513,28 @@ export default function CommunityPage() {
           </div>
         )}
 
-        {!loading && !searchLoading && !error && total > 0 && displayedPosts.length === 0 && (
-          <p className="text-center text-sm text-ink-soft py-16">
-            No posts match your current filters.
-          </p>
+        {!loading && !searchLoading && !error && displayedPosts.length === 0 && total > 0 && (
+          <div className="flex flex-col items-center justify-center py-12 text-center bg-card/40 rounded-2xl border border-border/60 p-6 my-4">
+            <div className="w-12 h-12 rounded-xl bg-mist flex items-center justify-center mb-3 text-ink-faint">
+              🔍
+            </div>
+            <p className="text-sm font-medium text-ink">
+              {search.trim() ? `No results found for "${search.trim()}"` : 'No posts match your current filters'}
+            </p>
+            <p className="text-xs text-ink-faint mt-1 max-w-sm">
+              {search.trim() 
+                ? 'Try checking for spelling errors, using different keywords, or clear the search query.' 
+                : 'Try switching your status filter or program feed.'}
+            </p>
+            {search.trim() && (
+              <button
+                onClick={() => setSearch('')}
+                className="mt-3 px-3 py-1.5 text-xs font-medium bg-mist hover:bg-mist/80 text-ink rounded-lg transition-all"
+              >
+                Clear Search Query
+              </button>
+            )}
+          </div>
         )}
 
         {!loading && !searchLoading && !error && displayedPosts.length > 0 && (
@@ -500,11 +575,6 @@ export default function CommunityPage() {
 
       <Footer />
 
-      {/* Thread detail — full-page overlay replaces the list view.
-          z-30 (below the navbar's z-50) so the navbar floats on top of
-          the page-cover background. The inner modal at z-[60] escapes
-          this stacking context via its higher z-index and sits above
-          the navbar. */}
       {selectedPostId && (
         <div className="fixed inset-0 z-30 bg-bg overflow-y-auto">
           <ThreadDetail
