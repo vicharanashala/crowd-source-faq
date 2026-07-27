@@ -43,11 +43,11 @@ SENTRY_DEBUG=false                     # set true in dev for verbose logs
 ### Frontend (apps/frontend/.env)
 
 ```bash
-VITE_SENTRY_DSN=https://<fe-key>@<org>.ingest.sentry.io/<fe-project-id>
+fefe-project-id>
 VITE_SENTRY_TRACES_SAMPLE_RATE=0.1
 VITE_SENTRY_ENV=development
-VITE_SENTRY_RELEASE=v1.0.0+1
-```
+VITE_SENTRY_RELEASE=v1.0.0-key>@<org>.ingest.sentry.io/<+1
+```VITE_SENTRY_DSN=https://<
 
 Both envs use `git rev-parse --short HEAD` for `SENTRY_RELEASE` if you want auto-versioning.
 
