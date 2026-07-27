@@ -17,6 +17,7 @@ import {
   getUserActivityChart,
   getCommunityPosts,
   deleteCommunityPost,
+  promoteCommunityPostToFAQ,
 } from './admin.controller.js';
 import {
   getCommunityPendingFAQs,
@@ -175,6 +176,10 @@ router.patch('/faq/:id', updateFAQ);
 router.patch('/faqs/:id', updateFAQ);
 router.delete('/faq/:id', deleteFAQ);
 router.delete('/community/:id', deleteCommunityPost);
+// Admin-discretion: instantly promote a community post's Q&A to FAQ,
+// no eligibility checks (contrast with /community-promotions/* below,
+// which is the gated auto-pipeline).
+router.post('/community/:id/promote-to-faq', promoteCommunityPostToFAQ);
 
 // FAQ promotion management (trust levels) — from promotionService
 router.get('/faqs/community-pending', getCommunityPendingFAQs);

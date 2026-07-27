@@ -678,6 +678,107 @@ export const getCommunityPosts = async (req: Request, res: Response): Promise<vo
   }
 };
 
+// POST /api/admin/community/:id/promote-to-faq
+//
+// Admin-discretion promotion: the admin looks at a community post's
+// question + answer and decides — on their own judgment alone — to
+// publish it as an FAQ, right now. Unlike the community-promotions
+// pipeline in promotion.service.ts (which requires quality/engagement
+// score gates, a review window, and AI validation), this path has
+// NO eligibility checks. The only hard requirement is that the post
+// actually has an answer to promote — there's nothing to publish
+// without one.
+export const promoteCommunityPostToFAQ = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const post = await CommunityPost.findById(req.params.id);
+    if (!post) {
+      res.status(404).json({ message: 'Post not found.' });
+      return;
+    }
+    // Per-program scope check — same pattern as deleteCommunityPost above.
+    if (post.batchId && req.programContext?.batchId &&
+        post.batchId.toString() !== req.programContext.batchId) {
+      res.status(404).json({ message: 'Post not found.' });
+      return;
+    }
+
+    const answer = (post.answer ?? '').trim();
+    if (!answer) {
+      res.status(400).json({ message: 'This post has no answer yet — nothing to promote.' });
+      return;
+    }
+
+    // Idempotent: don't create a duplicate FAQ if this post was already promoted.
+    const existing = await FAQ.findOne({ sourceCommunityPostId: post._id });
+    if (existing) {
+      res.status(409).json({ message: 'This post has already been promoted to an FAQ.', faq: existing });
+      return;
+    }
+
+    // Best-effort embedding — never block the promotion on it.
+    let embedding: number[] | undefined;
+    try {
+      const text = `Question: ${post.title}. Answer: ${answer}`;
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('generateEmbedding timeout (5s)')), 5000)
+      );
+      embedding = (await Promise.race([generateEmbedding(text), timeout])) as any;
+    } catch (embErr) {
+      console.warn('[admin] promoteCommunityPostToFAQ: embedding skipped:', (embErr as Error).message);
+    }
+
+    const now = new Date();
+    const faq = await FAQ.create({
+      question: sanitizeHtml(post.title),
+      answer: sanitizeHtml(answer),
+      category: 'Community',
+      tags: post.tags ?? [],
+      status: 'approved',
+      embedding,
+      batchId: post.batchId ?? null,
+      createdBy: post.author,
+      trustLevel: 'expert',              // straight to "Admin Approved" — an admin made the call directly
+      sourceType: 'community_promotion',
+      sourceCommunityPostId: post._id,
+      promotedAt: now,
+      objectionStatus: 'none',
+      promotionMetadata: {
+        upvotesAtPromotion: post.upvotes?.length ?? 0,
+        communityAnswerAuthorId: post.answerAuthorId ?? null,
+        promotedBy: req.user!._id,
+      },
+    });
+
+    // Fast-forward the post's lifecycle straight to converted_to_faq —
+    // skip the community_accepted / ai_validated / admin_accepted stages
+    // since none of those gates applied here.
+    post.lifecycle ??= { status: 'open', statusHistory: [] } as any;
+    const fromStatus = post.lifecycle.status ?? 'open';
+    post.lifecycle.statusHistory ??= [];
+    (post.lifecycle.statusHistory as any).push({
+      from: fromStatus,
+      to: 'converted_to_faq',
+      changedBy: req.user!._id,
+      changedAt: now,
+      note: 'Promoted directly to FAQ by admin (discretionary, no eligibility checks)',
+    });
+    post.lifecycle.status = 'converted_to_faq';
+    post.lifecycle.convertedToFaqAt = now;
+    await post.save();
+
+    await Promise.all([
+      invalidateCache().catch((e) => console.error('[admin] invalidateCache after promote:', e)),
+    ]);
+    invalidatePublicCaches();
+
+    await logAction(req.user!._id.toString(), 'promote_community_post_to_faq', faq._id.toString(), 'faq', faq.question);
+
+    res.json({ message: 'Post promoted to FAQ.', faq });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: (error as Error).message });
+  }
+};
+
 // DELETE /api/admin/community/:id
 export const deleteCommunityPost = async (req: Request, res: Response): Promise<void> => {
   try {
