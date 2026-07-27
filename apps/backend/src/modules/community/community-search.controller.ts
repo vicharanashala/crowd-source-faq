@@ -3,6 +3,7 @@ import CommunityPost, { ICommunityPost } from './community-post.model.js';
 import { generateQueryEmbedding } from '../../utils/ai/embeddings.js';
 import { Request, Response } from 'express';
 import { computeRRF, applySearchThreshold, type SearchResultItem } from '../../utils/http/search.js';
+import { readSetting } from '../program/app-setting.model.js';
 // v1.69 — Phase 3h: program-scope the community search.
 import { withProgramScope } from '../../utils/db/scopedQuery.js';
 import { communityLog } from '../../utils/http/logger.js';
@@ -124,7 +125,16 @@ export const searchCommunityPosts = async (req: Request, res: Response): Promise
 
     const merged = computeRRF(vectorResults, textResults);
 
-    const filtered = applySearchThreshold(merged)
+    // Read configured threshold (per-program override supported)
+    let configuredThreshold = 0.8;
+    try {
+      configuredThreshold = await readSetting('searchVectorThreshold', 0.8, batchIdParam);
+    } catch (err) {
+      communityLog.warn(`[communitySearch] Failed to read searchVectorThreshold setting: ${(err as Error).message}`);
+      configuredThreshold = 0.8;
+    }
+
+    const filtered = applySearchThreshold(merged, configuredThreshold)
       .slice(0, 20);
 
     const ids = filtered.map((d) => d._id);

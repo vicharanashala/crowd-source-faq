@@ -78,10 +78,13 @@ export function computeRRF(
 /**
  * Applies the platform's threshold filter to remove irrelevant results.
  * A document is kept if it has any keyword match (textScore > 0) OR
- * a strong semantic match (vectorScore > 0.80).
+ * a strong semantic match (vectorScore > configured threshold).
+ *
+ * @param results - array of SearchResultItem to filter
+ * @param vectorThreshold - optional numeric threshold in [0,1] to use for vectorScore comparison (default 0.80)
  */
-export function applySearchThreshold(results: SearchResultItem[]): SearchResultItem[] {
+export function applySearchThreshold(results: SearchResultItem[], vectorThreshold = 0.8): SearchResultItem[] {
   return results.filter(
-    (doc) => (doc.textScore && doc.textScore > 0) || (doc.vectorScore && doc.vectorScore > 0.80)
+    (doc) => (doc.textScore && doc.textScore > 0) || (doc.vectorScore && doc.vectorScore > vectorThreshold)
   );
 }

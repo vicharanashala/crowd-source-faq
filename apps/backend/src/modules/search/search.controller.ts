@@ -11,6 +11,7 @@ import {
   type SearchResultItem,
   type ResultSource,
 } from '../../utils/http/search.js';
+import { readSetting } from '../program/app-setting.model.js';
 import { searchRequests, searchResultsReturned, searchLogFlushActive, searchLogFlushes } from '../../utils/http/metrics.js';
 import { searchKnowledge } from '../knowledge/knowledge-base.service.js';
 
@@ -317,8 +318,17 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
     // 4. Merge results using Reciprocal Rank Fusion
     const merged = computeRRF(allVec, allTxt);
 
-    // 5. Apply threshold filters to remove irrelevant garbage results
-    const filtered = applySearchThreshold(merged).slice(0, 5); // Return only the absolute top 5 results
+    // 5. Read configured vector similarity threshold (per-program override supported)
+    let configuredThreshold = 0.8;
+    try {
+      configuredThreshold = await readSetting('searchVectorThreshold', 0.8, batchIdObjectId);
+    } catch (err) {
+      httpLog.warn(`[search] Failed to read searchVectorThreshold setting: ${(err as Error).message}`);
+      configuredThreshold = 0.8;
+    }
+
+    // 6. Apply threshold filters to remove irrelevant garbage results
+    const filtered = applySearchThreshold(merged, configuredThreshold).slice(0, 5); // Return only the absolute top 5 results
 
     // 5b. TranscriptKnowledge fallback — if FAQ + Community returned nothing,
     // try the auto-extracted Zoom knowledge base. Zero-human data path:
