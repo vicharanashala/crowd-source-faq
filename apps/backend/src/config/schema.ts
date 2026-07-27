@@ -66,7 +66,7 @@ export const ConfigSchema = z.object({
       keywordWeight: z.number().default(0.4),
       rrfK: z.number().default(60),
       maxResults: z.number().default(20),
-      minScore: z.number().default(0.3),
+      minScore: z.number().default(0.80),
     }),
     embedding: z.object({
       model: z.string().default('mixedbread-ai/mxbai-embed-large-v1'),
