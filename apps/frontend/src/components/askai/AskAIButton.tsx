@@ -30,9 +30,9 @@ function bumpAnonCount(): number {
   return next;
 }
 
-interface Source { kind: 'knowledge'|'faq'|'community'; title: string; snippet: string; score: number; href: string; id: string; aboveThreshold?: boolean; }
+interface Source { kind: 'knowledge' | 'faq' | 'community'; title: string; snippet: string; score: number; href: string; id: string; aboveThreshold?: boolean; }
 interface AskResponse { question: string; answer: string; sources: Source[]; relevantCount: number; sourceCount: number; model: string; aiFailed: boolean; }
-interface ChatMessage { id: string; role: 'user'|'assistant'; content: string; sources?: Source[]; loading?: boolean; error?: string; }
+interface ChatMessage { id: string; role: 'user' | 'assistant'; content: string; sources?: Source[]; loading?: boolean; error?: string; }
 
 /** File/image attachment queued in the chat composer. */
 interface PendingAttachment {
@@ -77,7 +77,7 @@ function SourceRow({ s, i, onNav }: { s: Source; i: number; onNav: (href: string
         </div>
         <p className="text-xs text-ink line-clamp-1">{s.title}</p>
       </div>
-      <svg className="w-3 h-3 text-ink-faint group-hover:text-accent group-hover:translate-x-0.5 transition-all shrink-0 mt-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+      <svg className="w-3 h-3 text-ink-faint group-hover:text-accent group-hover:translate-x-0.5 transition-all shrink-0 mt-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6" /></svg>
     </button>
   );
 }
@@ -131,8 +131,10 @@ export default function AskAIButton() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [attachError, setAttachError] = useState<string | null>(null);
+  const [isListening, setIsListening] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const recognitionRef = useRef<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   // H36 — ref-mirrored attachments so the unmount cleanup can revoke
@@ -294,6 +296,36 @@ export default function AskAIButton() {
   }, [query, isLoading, isAuthenticated, openModal, attachments]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } };
+
+  // ── Voice input (VoiceFAQ) ──────────────────────────────────────────────
+  // Uses the browser's built-in SpeechRecognition API (Chrome). Fills the
+  // same `query` state the textarea uses, so send/Enter behave unchanged.
+  const handleMicClick = () => {
+    if (isListening) {
+      recognitionRef.current?.stop();
+      return;
+    }
+    const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+    if (!SpeechRecognition) {
+      setAttachError('Voice input is not supported in this browser. Try Chrome.');
+      return;
+    }
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.lang = 'en-US';
+    recognitionRef.current = recognition;
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setQuery(transcript);
+    };
+    recognition.onerror = () => setIsListening(false);
+    recognition.onend = () => setIsListening(false);
+
+    recognition.start();
+  };
+
   const reset = () => { setMessages([]); setQuery(''); };
   const handleSourceNav = useCallback((href: string) => { setPanel('collapsed'); navigate(href); }, [navigate]);
   const isExpanded = panel === 'expanded';
@@ -334,20 +366,20 @@ export default function AskAIButton() {
           <div className="flex items-center gap-0.5">
             {!isAuthenticated && (<span className={`mr-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${quotaExhausted ? 'bg-danger/10 text-danger border-danger/20' : 'bg-mist text-ink-soft border-border'}`}>{Math.max(0, ANON_AI_LIMIT - anonCount)}/{ANON_AI_LIMIT}</span>)}
             {messages.length > 0 && (<button onClick={reset} title="Clear chat" className="px-2 py-1 rounded-md text-[10px] font-medium text-ink-faint hover:text-ink hover:bg-mist transition-colors">Clear</button>)}
-            <button onClick={() => setPanel(isExpanded ? 'minimized' : 'collapsed')} title={isExpanded ? 'Minimize' : 'Collapse'} className="w-7 h-7 rounded-md text-ink-faint hover:text-ink hover:bg-mist transition-colors flex items-center justify-center" aria-label="Minimize"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+            <button onClick={() => setPanel(isExpanded ? 'minimized' : 'collapsed')} title={isExpanded ? 'Minimize' : 'Collapse'} className="w-7 h-7 rounded-md text-ink-faint hover:text-ink hover:bg-mist transition-colors flex items-center justify-center" aria-label="Minimize"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12" /></svg></button>
             <button onClick={() => setPanel(isExpanded ? 'minimized' : 'expanded')} title={isExpanded ? 'Shrink' : 'Expand'} className="w-7 h-7 rounded-md text-ink-faint hover:text-ink hover:bg-mist transition-colors flex items-center justify-center" aria-label="Expand">
               {isExpanded
-                ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
-                : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+                ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" /><line x1="14" y1="10" x2="21" y2="3" /><line x1="3" y1="21" x2="10" y2="14" /></svg>
+                : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" /></svg>
               }
             </button>
-            <button onClick={() => setPanel('collapsed')} title="Close (Esc)" className="w-7 h-7 rounded-md text-ink-faint hover:text-danger hover:bg-danger/10 transition-colors flex items-center justify-center" aria-label="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+            <button onClick={() => setPanel('collapsed')} title="Close (Esc)" className="w-7 h-7 rounded-md text-ink-faint hover:text-danger hover:bg-danger/10 transition-colors flex items-center justify-center" aria-label="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg></button>
           </div>
         </div>
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-bg/40 min-h-0">
           {messages.length === 0 && quotaExhausted && (
             <div className="text-center py-8 space-y-3">
-              <div className="w-12 h-12 mx-auto rounded-2xl bg-accent/10 border border-accent/20 flex items-center justify-center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-accent"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+              <div className="w-12 h-12 mx-auto rounded-2xl bg-accent/10 border border-accent/20 flex items-center justify-center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-accent"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg></div>
               <p className="text-sm font-semibold text-ink">Sign in to continue</p>
               <p className="text-[11px] text-ink-soft max-w-xs mx-auto">You have used your {ANON_AI_LIMIT} free AI searches. Sign in for unlimited access.</p>
               <button onClick={() => openModal('signin')} className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-accent text-accent-text text-xs font-semibold hover:bg-accent-hover transition-colors">Sign in</button>
@@ -355,7 +387,7 @@ export default function AskAIButton() {
           )}
           {messages.length === 0 && !quotaExhausted && (
             <div className="text-center py-6 space-y-2.5">
-              <div className="w-12 h-12 mx-auto rounded-2xl bg-accent/10 border border-accent/20 flex items-center justify-center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-accent"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
+              <div className="w-12 h-12 mx-auto rounded-2xl bg-accent/10 border border-accent/20 flex items-center justify-center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-accent"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg></div>
               <p className="text-sm font-medium text-ink">How can I help?</p>
               <p className="text-[11px] text-ink-faint">I will search FAQs, Zoom transcripts, and community posts.</p>
               <div className="flex flex-wrap gap-1.5 justify-center pt-1">
@@ -407,6 +439,20 @@ export default function AskAIButton() {
             </div>
           )}
           <div className="flex items-end gap-2">
+            <button
+              type="button"
+              onClick={handleMicClick}
+              disabled={isLoading || quotaExhausted}
+              title={isListening ? 'Stop listening' : 'Ask by voice'}
+              aria-label="Voice input"
+              className={`shrink-0 w-9 h-9 rounded-full border transition-all flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed ${isListening ? 'bg-danger/10 border-danger/30 text-danger animate-pulse' : 'bg-accent/10 border-accent/20 text-accent hover:bg-accent/15'}`}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                <line x1="12" y1="19" x2="12" y2="23" />
+              </svg>
+            </button>
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
