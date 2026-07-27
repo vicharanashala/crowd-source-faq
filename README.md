@@ -74,6 +74,8 @@ The admin panel at `/admin` (mounted at `/api/admin/*`) provides telemetry, mode
 
 For the full admin route map and per-page behaviour, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
+
+
 ---
 ## User Experience
 
@@ -87,6 +89,7 @@ The user-facing app (`/`, `/faq`, `/community`, `/saved`, `/account`, `/leaderbo
 - **AI assistant** — RAG-powered `/ask-ai` (5/day anonymous quota via localStorage, unlimited for authenticated users), sources cited, **accepts file and image attachments (max 4 files, 10 MB each) — images sent as vision input, text files inlined into the prompt**
 - **Zoom integration** — per-user OAuth from `/account`, manual `.vtt` / `.txt` / raw-text upload, last-synced status card, no admin required
 - **Search feedback** — "Report missing FAQ" on zero results, admin-promotable to FAQ
+
 
 For per-route behaviour and field schemas, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
@@ -112,6 +115,7 @@ Optional: at least one AI provider key (`ANTHROPIC_API_KEY` / `OPENAI_API_KEY` /
 See [docs/ARCHITECTURE.md#10-env-variables-reference](docs/ARCHITECTURE.md#10-env-variables-reference) for the full list.
 
 ---
+
 
 ## License
 
