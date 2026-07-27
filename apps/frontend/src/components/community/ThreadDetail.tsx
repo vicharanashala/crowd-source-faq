@@ -96,7 +96,7 @@ export default function ThreadDetail({ postId, onClose }: ThreadDetailProps) {
   const { user } = useAuth();
   const gate = useAuthGate();
   const navigate = useNavigate();
-  const currentUserId = user?._id ?? '';
+  const currentUserId = user?._id || user?.id || '';
   const userRole = user?.role ?? '';
 
   const [post, setPost] = useState<ThreadPost | null>(null);
@@ -130,6 +130,9 @@ export default function ThreadDetail({ postId, onClose }: ThreadDetailProps) {
   const canResolve = userRole === 'admin' || userRole === 'moderator' || userRole === 'expert';
   const isPrivileged = userRole === 'admin' || userRole === 'moderator';
   const topLevelComments = post?.comments ?? [];
+
+  const postAuthorId = typeof post?.author === 'string' ? post.author : post?.author?._id;
+  const isPostAuthor = currentUserId !== '' && currentUserId === postAuthorId;
 
   /** Safe navigation: external URLs open in new tab, internal ones use SPA routing. */
   const navigateTo = (url: string) => {
@@ -429,9 +432,10 @@ export default function ThreadDetail({ postId, onClose }: ThreadDetailProps) {
               />
 
               {/* Author / privileged actions */}
-              {(currentUserId === post.author?._id || isPrivileged) && (
+              {(isPostAuthor || isPrivileged) && (
                 <>
                   <div className="w-px h-5 bg-border mx-1" />
+                  {isPrivileged && (
                   <button
                     onClick={() => { setShowResolveForm(true); }}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-accent/10 text-accent hover:bg-accent/20 text-xs font-semibold border border-accent/20 transition-all"
@@ -441,6 +445,7 @@ export default function ThreadDetail({ postId, onClose }: ThreadDetailProps) {
                     </svg>
                     {isAnswered ? 'Edit Answer' : 'Answer'}
                   </button>
+                  )}
                   {!isEditing && (
                     <button
                       onClick={() => {
@@ -461,7 +466,7 @@ export default function ThreadDetail({ postId, onClose }: ThreadDetailProps) {
               )}
 
               {/* Delete button (Author or Privileged) */}
-              {(currentUserId === post.author?._id || isPrivileged) && (
+              {(isPostAuthor || isPrivileged) && (
                 <button
                   onClick={async () => {
                     if (!confirm(`Delete post "${post.title}"? This cannot be undone.`)) return;
