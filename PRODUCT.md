@@ -50,6 +50,8 @@ The application supports Progressive Web App (PWA) functionality to improve usab
 | AI providers | Anthropic, OpenAI, XAI, MiniMax, Gemini, custom — admin-configurable per-pipeline |
 | Infra | Sentry, Ngrok (webhook dev tunnel), Twilio (SMS), SMTP, Helmet, express-rate-limit, JWT, bcryptjs |
 
+
+
 ---
 ## Recent changes (v1.68)
 
@@ -58,6 +60,8 @@ The application supports Progressive Web App (PWA) functionality to improve usab
 - **Race-condition sweep** — all 8 `findByIdAndUpdate` + `save()` anti-patterns in user-facing controllers (comments, bookmarks, FAQ, posts, golden tickets) replaced with atomic `$set` / `$addToSet` / `$pull`.
 - **Observability overhaul** — 11 named loggers (`authLog`, `adminLog`, `cronLog`, etc.), background-colored level tags (`[ INFO ]`, `[ WARN ]`, `[ ERR ]`, `[ ALRT ]`), glyph-prefixed lines, Discord webhook forwarder with exponential-backoff retry queue.
 - **Live-data seed** — `npm run seed:live` populates 20 community posts, 8 support tickets, 2 zoom meetings, badge awards, search logs, and a populated leaderboard. Idempotent.
+
+
 
 ---
 ## Reference docs
