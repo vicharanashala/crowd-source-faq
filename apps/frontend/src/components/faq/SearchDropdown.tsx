@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import SearchFeedback from './SearchFeedback';
 import { FAQItem, getCategoryIcon, formatCategoryName, getQuestionTitle, getAnswerText } from './faqUtils';
 import {
   flexRowBetween,
@@ -20,7 +21,7 @@ interface SearchDropdownProps {
   items: FAQItem[];
   categories: string[];
   onSelectQuestion: (item: FAQItem) => void;
-  onSelectCategory: (name: string) => void;
+  onSelectCategory: (name: string) => void; 
   onClear: () => void;
   loading: boolean;
 }
@@ -34,7 +35,34 @@ export default function SearchDropdown({
   onClear,
   loading,
 }: SearchDropdownProps) {
+  const [activeCategories, setActiveCategories] = useState<string[]>([]);
+
+  useEffect(() => {
+    setActiveCategories([]);
+  }, [query]);
+
+  const displayItems = activeCategories.length > 0
+    ? items.filter((item) => {
+        const activeLower = activeCategories.map(c => c.toLowerCase());
+        const matchCategory = item.category 
+          && activeLower.includes(item.category.toLowerCase());
+        const matchTags = item.tags && Array.isArray(item.tags) 
+          && item.tags.some((tag: string) => activeLower.includes(tag.toLowerCase()));
+
+        return matchCategory || matchTags;
+      })
+    : items;
+
+  const toggleCategory = (name: string) => {
+    setActiveCategories((prev) => 
+      prev.includes(name) 
+        ? prev.filter((c) => c !== name) 
+        : [...prev, name] 
+    );
+  };
+
   return (
+    <>
     <div className="absolute left-0 right-0 top-full mt-3 z-40 animate-fade-in">
       <div className={searchPanel}>
         <div className={searchPanelHeader}>
@@ -47,7 +75,10 @@ export default function SearchDropdown({
             </p>
           </div>
           <button
-            onClick={onClear}
+            onClick={() => {
+              setActiveCategories([]); 
+              onClear();
+            }}
             className="text-xs font-medium text-ink-soft hover:transition-colors"
           >
             Clear
@@ -60,7 +91,7 @@ export default function SearchDropdown({
               <p className={textXsLabel}>
                 Matching questions
               </p>
-              <span className={textXsFaint}>{items.length} found</span>
+              <span className={textXsFaint}>{displayItems.length} found</span>
             </div>
             <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
               {loading && (
@@ -68,14 +99,16 @@ export default function SearchDropdown({
                   <div key={i} className={searchPanelLoadingSkeleton} />
                 ))
               )}
-              {!loading && items.length === 0 && (
+              {!loading && displayItems.length === 0 && (
                 <div className={searchPanelListEmpty}>
                   <p className="text-xs text-ink-soft">
-                    No matches yet. Keep typing or browse a category.
+                    {activeCategories.length > 0
+                      ? "No matches found in the selected categories." 
+                      : "No matches yet. Keep typing or browse a category."}
                   </p>
                 </div>
               )}
-              {!loading && items.map((item, idx) => (
+              {!loading && displayItems.map((item, idx) => (
                 <button
                   key={item._id || item.title || item.question || idx}
                   onClick={() => onSelectQuestion(item)}
@@ -91,16 +124,24 @@ export default function SearchDropdown({
               ))}
             </div>
           </div>
-
-          <div>
-            {/* 1.12 (LOW) — empty-state for the categories column when
+{/* 1.12 (LOW) — empty-state for the categories column when
                 no categories are available. Merged with PR #144's
                 style_config.ts refactor: the `group` Tailwind class
                 on the button below is required for the icon's
                 `group-hover:opacity-100` to actually fire. */}
-            <p className={textXsLabel}>
-              Categories
-            </p>
+          <div>
+            <div className={flexRowBetween + ' mb-2'}>
+              <p className={textXsLabel}>Categories</p>
+              {activeCategories.length > 0 && (
+                <button 
+                  onClick={() => setActiveCategories([])}
+                  className={textXsFaint + " hover:text-ink transition-colors"}
+                >
+                  Clear filters
+                </button>
+              )}
+            </div>
+            
             {categories.length === 0 ? (
               <div className="mt-2 rounded-2xl border border-dashed border-border bg-transparent p-4">
                 <p className="text-xs text-ink-soft">
@@ -109,21 +150,42 @@ export default function SearchDropdown({
               </div>
             ) : (
               <div className="mt-2 space-y-1">
-                {categories.slice(0, 7).map((name) => (
-                  <button
-                    key={name}
-                    onClick={() => onSelectCategory(name)}
-                    className={`group ${searchListItemCompact}`}
-                  >
-                    <span className="opacity-40 group-hover:opacity-100 transition-opacity">{getCategoryIcon(name)}</span>
-                    <span className="text-sm text-ink">{formatCategoryName(name)}</span>
-                  </button>
-                ))}
+                {categories.slice(0, 7).map((name) => {
+                  const isActive = activeCategories.includes(name);
+                  
+                  return (
+                    <button
+                      key={name}
+                      onClick={() => toggleCategory(name)}
+                      className={`group ${searchListItemCompact} ${isActive ? 'bg-mist shadow-subtle' : ''}`}
+                    >
+                      <span className={`transition-opacity ${isActive ? 'opacity-100 text-accent' : 'opacity-40 group-hover:opacity-100'}`}>
+                        {getCategoryIcon(name)}
+                      </span>
+                      <span className={`text-sm ${isActive ? 'text-accent font-medium' : 'text-ink'}`}>
+                        {formatCategoryName(name)}
+                      </span>
+                      
+                      {isActive && (
+                        <span className="ml-auto text-xs text-ink-faint">Active</span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
         </div>
       </div>
     </div>
+    {!loading && displayItems.length > 0 && (
+      <div className='max-w-2xl mx-auto mt-4'>
+        <SearchFeedback 
+          searchQuery={query} 
+          resultFaqId={displayItems[0]?._id} 
+        />
+      </div>
+    )}
+    </>
   );
 }

@@ -11,7 +11,7 @@ import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import Footer from '../components/layout/Footer';
 import UserActiveProgramIndicator from '../components/layout/UserActiveProgramIndicator';
-import SearchBar from '../components/search/SearchBar';
+import SearchArea from '@/components/search/SearchArea';
 import { HomeDoodles } from '../components/ui/PageDoodles';
 import api from '../utils/api';
 import type { TrendingQuery } from '../types/ui';
@@ -320,31 +320,21 @@ export default function FAQPage() {
         </section>
 
         {/* ─── SEARCH BAR ───────────────────────────────────────────── */}
-        <section className="relative max-w-2xl mx-auto mt-8 mb-4">
-          <div className={`relative ${showDropdown ? 'z-40' : 'z-20'}`}>
-            <SearchBar
-              ref={searchBarRef}
-              value={searchQuery}
-              onQueryChange={handleSearchChange}
-              onResults={(res) => setSearchResults(res as unknown as FAQItem[])}
-              onLoading={setSearchLoading}
-              onError={(err) => setError(err || '')}
-              placeholder="Ask anything about your internship..."
-              disableSuggestions={true}
-            />
-
-            {showDropdown && (
-              <SearchDropdown
-                query={searchQuery}
-                items={dropdownItems}
-                categories={categories}
-                onSelectQuestion={handleQuestionOpen}
-                onSelectCategory={handleCategoryOpen}
-                onClear={handleClearSearch}
-                loading={searchLoading}
-              />
-            )}
-          </div>
+        <section className="relative max-w-4xl mx-auto px-2 mt-8 mb-4">
+          <SearchArea
+            searchQuery={searchQuery}
+            onSearchChange={handleSearchChange}
+            onResults={(res) => setSearchResults(res as unknown as FAQItem[])}
+            onLoading={setSearchLoading}
+            onError={(err) => setError(err || '')}
+            onClear={handleClearSearch}
+            dropdownItems={dropdownItems}
+            categories={categories}
+            onSelectQuestion={handleQuestionOpen}
+            onSelectCategory={handleCategoryOpen}
+            searchLoading={searchLoading}
+          >
+          </SearchArea>
         </section>
 
         {/* ─── CATEGORY FILTER PILLS ─────────────────────────────────── */}
@@ -607,9 +597,6 @@ export default function FAQPage() {
 
       <Footer />
 
-      {searchActive && searchResults && searchResults.length > 0 && (
-        <SearchFeedback searchQuery={searchQuery} resultFaqId={resultFaqId} />
-      )}
     </div>
   );
 }
