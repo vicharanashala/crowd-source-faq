@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { useAuthModal, useAuthGate } from '../../context/AuthModalContext';
+import { useAuthModal } from '../../context/AuthModalContext';
 
 import { buildGcsTransformedUrl } from '../../utils/gcsTransform';
 import NotificationBell from '../../components/notifications/NotificationBell';
@@ -9,6 +9,7 @@ import SpurtiChip from './SpurtiChip';
 import ZoomBubble from '../welcome/ZoomBubble';
 import { BatchSwitcher } from './BatchSwitcher';
 import { NavPills, useNavItems } from './NavPills';
+import { useTeeEligibility } from '../../hooks/useTeeEligibility';
 import logoWide from '../../assets/logo-wide.png';
 import {
   avatarColorDefault,
@@ -92,13 +93,13 @@ export default function Navbar({ showProgramSwitcher: _showProgramSwitcher = fal
 
   const { user, isAuthenticated, logout } = useAuth();
   const { openModal } = useAuthModal();
+  const teeEligibility = useTeeEligibility();
   const navigate = useNavigate();
   const location = useLocation();
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
-  
 
 
   useEffect(() => {
@@ -194,6 +195,44 @@ export default function Navbar({ showProgramSwitcher: _showProgramSwitcher = fal
                   <SpurtiChip />
                   {isAuthenticated && (
                     <BatchSwitcher showCreateLink={user?.role === 'admin'} className="hidden md:inline-flex" />
+                  )}
+
+                  {/* v1.87 — Sign My Tee pill. Shown ONLY when the
+                      BE says the user is inside the rolling 3-day
+                      window around their internship end date. Outside
+                      the window, the pill is hidden (and stays
+                      hidden — re-renders on every page navigate
+                      because eligibility is fetched per-mount).
+                      We route to /tee/share/<id> if they've already
+                      configured a tee, /tee otherwise.
+
+                      v1.87.2 — shortened label from "Sign My Tee" to
+                      "My Tee" + an icon-only fallback at <sm to keep
+                      the chip group from wrapping when the navbar is
+                      crowded (BatchSwitcher + SpurtiChip + bell +
+                      avatar already uses a lot of room). */}
+                  {(teeEligibility.eligible || teeEligibility.hasConfiguredTee) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (teeEligibility.shareId) {
+                          navigate(`/tee/share/${teeEligibility.shareId}`);
+                        } else {
+                          navigate('/tee');
+                        }
+                      }}
+                      className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-gradient-to-r from-accent to-accent-hover text-accent-text text-xs font-semibold whitespace-nowrap shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+                      aria-label="My Tee"
+                      title={teeEligibility.eligible ? "Sign My Tee" : "View My Tee"}
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z" />
+                      </svg>
+                      <span className="hidden xl:inline">
+                        {teeEligibility.eligible ? "Sign My Tee" : "My Tee"}
+                      </span>
+                      <span className="xl:hidden">My Tee</span>
+                    </button>
                   )}
 
                   <NotificationBell />

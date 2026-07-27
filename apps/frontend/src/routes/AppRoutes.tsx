@@ -43,6 +43,10 @@ const GoldenTicketDetailPage = lazy(() => import('../pages/GoldenTicketDetailPag
 const WelcomePackagePage = lazy(() => import('../pages/WelcomePackagePage'));
 const ProgramPortalPage = lazy(() => import('../pages/ProgramPortalPage'));
 const ProgramPage = lazy(() => import('../pages/ProgramPage'));
+// v1.87 — Sign My Tee: designer wizard + share + public sign pages.
+const TeeDesignerPage = lazy(() => import('../pages/TeeDesignerPage'));
+const TeeSharePage = lazy(() => import('../pages/TeeSharePage'));
+const TeeSignPage = lazy(() => import('../pages/TeeSignPage'));
 
 // Admin pages
 const AdminLogin = lazy(() => import('../admin/pages/AdminLogin'));
@@ -186,15 +190,35 @@ export default function AppRoutes() {
                   </FeatureGate>
                 </AccountRoute></RouteElement>}
             />
+
+            {/* Uses MainLayout like the rest of the site */}
+            <Route
+              path="/internship-roadmap"
+              element={
+                <RouteElement name="internship-roadmap">
+                  <InternshipRoadmapPage />
+                </RouteElement>
+              }
+            />
+
+            {/* v1.87 — Sign My Tee. The wizard + share page are auth-protected
+                (they're the owner's surface). The sign-page is public so a
+                non-logged-in visitor can also sign via a typed signerName. */}
+            <Route
+              path="/tee"
+              element={<RouteElement name="tee"><AccountRoute>
+                  <TeeDesignerPage />
+                </AccountRoute></RouteElement>}
+            />
+            <Route
+              path="/tee/share/:shareId"
+              element={<RouteElement name="tee-share-:shareId"><TeeSharePage /></RouteElement>}
+            />
+            <Route
+              path="/tee/sign/:shareId"
+              element={<RouteElement name="tee-sign-:shareId"><TeeSignPage /></RouteElement>}
+            />
           </Route>
-          <Route
-  path="/internship-roadmap"
-  element={
-    <RouteElement name="internship-roadmap">
-      <InternshipRoadmapPage />
-    </RouteElement>
-  }
-/>
 
           <Route
             path="/admin/login"

@@ -48,6 +48,24 @@ export const updateProfileSchema = z.object({
   name:  z.string().min(2).max(100).optional(),
   email: z.string().email().optional(),
   guidedTourCompleted: z.boolean().optional(),
+  // v1.87 — Sign My Tee. Accepts either an ISO 8601 string
+  // (`2026-07-14T00:00:00.000Z`) from JSON callers OR a
+  // date-only `YYYY-MM-DD` shape from the FE's `<input type="date">`
+  // (which never emits time components). We normalise to a Date,
+  // anchored to UTC midnight for the date-only variant, so the
+  // canonical storage value is timezone-agnostic. Setting `null`
+  // clears the date (e.g. if an admin ever needs to reset it).
+  internshipEndDate: z
+    .union([
+      z.string().datetime({ offset: true }),
+      z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD'),
+    ])
+    .transform((v) => {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return new Date(`${v}T00:00:00.000Z`);
+      return new Date(v);
+    })
+    .nullable()
+    .optional(),
   avatar: z
     .object({
       url: z.string().url().max(1000),

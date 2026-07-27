@@ -66,13 +66,17 @@ export default function CommunityPage() {
   // and the controllers fall back to "no batchId filter". The
   // explicit-`undefined`-when-no-program-selected case preserves the
   // legacy behaviour while the program picker takes over.
+  //
+  // "mine" is a client-only filter value (see displayedPosts below) —
+  // the backend only understands all/answered/unanswered/open, so we
+  // translate it to 'all' before sending and filter by author locally.
   const fetchPosts = useCallback((reset = false) => {
     if (reset) setLoading(true);
     else setLoadingMore(true);
     api.get('/community', {
       params: {
         limit: 20,
-        filter,
+        filter: filter === 'mine' ? 'all' : filter,
         sort,
         batchId: showAllPrograms ? 'all' : activeBatchId,
         ...(reset ? {} : nextCursor ? { cursor: nextCursor } : {}),
@@ -266,15 +270,41 @@ export default function CommunityPage() {
     });
   })();
 
+  // "My Questions" — client-side filter matched against the logged-in
+  // user's id. Post shape isn't fully known here, so check a few common
+  // author-field names defensively. Confirm the real field against your
+  // Post type / API response and trim this down to the one that's real.
+  const isMyPost = (p: Post) =>
+    !!user && (
+      (p as any).authorId === user._id ||
+      (p as any).userId === user._id ||
+      (p as any).author?._id === user._id
+    );
+
   const displayedPosts = filter === 'all'
     ? visible
-    : visible.filter((p) => p.status === filter);
+    : filter === 'mine'
+      ? visible.filter(isMyPost)
+      : visible.filter((p) => p.status === filter);
 
   const answeredCount = posts.filter((p) => p.status === 'answered').length;
   const unansweredCount = posts.filter((p) => p.status !== 'answered').length;
 
   return (
     <div className="min-h-screen bg-bg grid-bg relative">
+      {/* Small drop-in keyframe for the post-list fade/slide-in.
+          Scoped with a unique class name so it can't clash with
+          anything else in the app; no tailwind.config changes needed. */}
+      <style>{`
+        @keyframes communityPostListFadeSlideIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .community-post-list-anim {
+          animation: communityPostListFadeSlideIn 0.35s ease-out;
+        }
+      `}</style>
+
       <CommunityDoodles />
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 pt-20 sm:pt-24 pb-8 sm:pb-10 relative z-10">
@@ -383,6 +413,7 @@ export default function CommunityPage() {
                   { key: 'all', label: 'All' },
                   { key: 'unanswered', label: 'Unanswered' },
                   { key: 'open', label: 'Open' },
+                  ...(user ? [{ key: 'mine', label: 'My Questions' }] : []),
                 ].map(({ key, label }) => (
                   <button
                     key={key}
@@ -463,7 +494,7 @@ export default function CommunityPage() {
         )}
 
         {!loading && !searchLoading && !error && displayedPosts.length > 0 && (
-          <div className="space-y-3">
+          <div key={filter} className="space-y-3 community-post-list-anim">
             {displayedPosts.map((post) => (
               <CommunityPostCard
                 key={post._id}

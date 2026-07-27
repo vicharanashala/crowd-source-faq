@@ -36,6 +36,7 @@ import adminConfigRoutes from '../modules/admin/admin.config.routes.js';
 import { documentRouter, documentAdminRouter } from '../modules/knowledge/documents.routes.js';
 import welcomeRoutes from '../modules/program/welcome.routes.js';
 import adminWelcomeRoutes from '../modules/admin/admin-welcome.routes.js';
+import teeRoutes from '../modules/tee/tee.routes.js';
 import adminMentorRoutes from '../modules/admin/admin-mentor.routes.js';
 import adminTimelineRoutes from '../modules/admin/admin-timeline.routes.js';
 import { adminRouter as appSettingsAdminRouter, publicRouter as appSettingsPublicRouter } from '../modules/program/app-settings.routes.js';
@@ -88,6 +89,7 @@ export function registerRoutes(app: Express): void {
   router.use('/admin/documents', documentAdminRouter);
   router.use('/welcome', welcomeRoutes);
   router.use('/admin/welcome', adminWelcomeRoutes);
+  router.use('/tee', teeRoutes);
   router.use('/admin/mentors', adminMentorRoutes);
   router.use('/admin/timeline-steps', adminTimelineRoutes);
   router.use('/admin/settings',  appSettingsAdminRouter);

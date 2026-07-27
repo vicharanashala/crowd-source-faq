@@ -65,6 +65,10 @@ interface UserResponse {
   projectAssignedAt?: Date;
   projectSelectionLocked?: boolean;
   guidedTourCompleted?: boolean;
+  // v1.87 — Sign My Tee: mandatory internship end date.
+  // Sent on /auth/me and /auth/profile responses so the FE
+  // gate provider can re-evaluate without an extra round-trip.
+  internshipEndDate?: Date | null;
 }
 
 // POST /api/auth/register
@@ -205,8 +209,19 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
     res.json({ token, refreshToken, user: userResponse });
   } catch (error) {
-    authLog.error('login failed', { error: (error as Error).message });
-    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
+    // v1.87.4 — log the full stack, not just the message. The earlier
+    // `authLog.error('login failed', { error: (error as Error).message })`
+    // dropped the stack, which made 5xx root-cause hunting impossible —
+    // a developer had nothing to grep for beyond the bare message.
+    // Now: stack goes to the meta so console + Discord + Sentry all
+    // get a usable trace.
+    const err = error as Error;
+    authLog.error('login failed', {
+      error: err?.message,
+      stack: err?.stack,
+      name: err?.name,
+    });
+    res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? err?.message : undefined */ });
   }
 };
 
@@ -232,6 +247,9 @@ export const getMe = async (req: Request, res: Response): Promise<void> => {
     projectAssignedAt: (req.user as any).projectAssignedAt,
     projectSelectionLocked: (req.user as any).projectSelectionLocked,
     guidedTourCompleted: (req.user as any).guidedTourCompleted,
+    // v1.87 — Sign My Tee: surface on every /auth/me response so
+    // the FE gate provider can pick it up.
+    internshipEndDate: (req.user as any).internshipEndDate ?? null,
   };
 
   res.json({ user: userResponse });
@@ -252,6 +270,24 @@ export const getAllUsers = async (req: Request, res: Response): Promise<void> =>
 };
 
 // PATCH /api/auth/profile (Protected)
+//
+// v1.87 — IMPORTANT: `validateBody(updateProfileSchema)` is the FIRST
+// middleware on this route and has already (a) parsed `req.body`
+// against the schema and (b) replaced `req.body` with the parsed
+// value (including `.transform()` results — so the
+// `internshipEndDate` field is now a JS Date, not a string).
+//
+// Historically this controller ALSO called
+// `updateProfileSchema.safeParse(req.body)` to handle its own
+// validation. That's wrong now: the second pass sees the
+// *transformed* body where `internshipEndDate` is already a Date
+// object — so Zod reports "expected string, received Date". We
+// keep the safeParse call for legacy routes where the validator
+// isn't mounted, but when `req.body` already came through
+// `validateBody`, we trust it and read fields directly.
+//
+// The branching preserves the existing route shape; newer routes
+// in this codebase (e.g. the tee module) use only the middleware.
 export const updateProfile = async (req: Request, res: Response): Promise<void> => {
   try {
     if (!req.user) {
@@ -259,16 +295,35 @@ export const updateProfile = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const parsed = updateProfileSchema.safeParse(req.body);
-    if (!parsed.success) {
-      authLog.warn('profile update validation failed', { errors: parsed.error.issues.length });
-      res.status(400).json({ message: 'Validation failed', errors: parsed.error.issues });
-      return;
-    }
-    const { name, email, avatar, guidedTourCompleted } = parsed.data;
+    // Read fields directly off `req.body` — validation already ran
+    // upstream via `validateBody(updateProfileSchema)`. The
+    // `.transform()` on `internshipEndDate` has converted the string
+    // into a Date, which is what we want to persist.
+    const name = typeof req.body.name === 'string' ? (req.body.name as string).trim() : undefined;
+    const email = typeof req.body.email === 'string' ? (req.body.email as string).trim().toLowerCase() : undefined;
+    const avatar = req.body.avatar as
+      | { url: string; publicId?: string; gcsUri?: string; objectPath?: string }
+      | null
+      | undefined;
+    const guidedTourCompleted = typeof req.body.guidedTourCompleted === 'boolean'
+      ? (req.body.guidedTourCompleted as boolean)
+      : undefined;
+    const internshipEndDateRaw = req.body.internshipEndDate;
+    const internshipEndDate: Date | null | undefined =
+      internshipEndDateRaw instanceof Date
+        ? internshipEndDateRaw
+        : internshipEndDateRaw === null
+        ? null
+        : undefined;
 
-    if (!name && !email && avatar === undefined && guidedTourCompleted === undefined) {
-      res.status(400).json({ message: 'Provide at least one of: name, email, avatar, guidedTourCompleted.' });
+    if (
+      !name &&
+      !email &&
+      avatar === undefined &&
+      guidedTourCompleted === undefined &&
+      internshipEndDate === undefined
+    ) {
+      res.status(400).json({ message: 'Provide at least one of: name, email, avatar, guidedTourCompleted, internshipEndDate.' });
       return;
     }
 
@@ -277,6 +332,7 @@ export const updateProfile = async (req: Request, res: Response): Promise<void> 
       email: string;
       avatar: { url: string; publicId?: string; gcsUri?: string; objectPath?: string } | null;
       guidedTourCompleted: boolean;
+      internshipEndDate: Date | null;
     }> = {};
     if (name) updates.name = name;
     if (email) {
@@ -356,6 +412,29 @@ export const updateProfile = async (req: Request, res: Response): Promise<void> 
       updates.guidedTourCompleted = guidedTourCompleted;
     }
 
+    // v1.87 — Sign My Tee: persist the mandatory internship end
+    // date and append an audit entry. We touch the audit log on
+    // this one because it's a compliance-relevant field that admins
+    // may need to retracing later ("who set this user's date?").
+    if (internshipEndDate !== undefined) {
+      const previous = (await User.findById(req.user._id).select('internshipEndDate').lean()) as
+        | { internshipEndDate?: Date | null }
+        | null;
+      updates.internshipEndDate = internshipEndDate ?? null;
+      const auditEntry = {
+        changedBy: req.user._id.toString(),
+        changedAt: new Date(),
+        oldValue: previous?.internshipEndDate
+          ? new Date(previous.internshipEndDate).toISOString()
+          : null,
+        newValue: internshipEndDate ? internshipEndDate.toISOString() : null,
+      };
+      await User.updateOne(
+        { _id: req.user._id },
+        { $push: { onboardingAuditLog: auditEntry } },
+      );
+    }
+
     const updated = await User.findByIdAndUpdate(req.user._id, updates, { new: true, runValidators: true });
     if (!updated) {
       res.status(404).json({ message: 'User not found.' });
@@ -375,6 +454,10 @@ export const updateProfile = async (req: Request, res: Response): Promise<void> 
       projectAssignedAt: (updated as any).projectAssignedAt,
       projectSelectionLocked: (updated as any).projectSelectionLocked,
       guidedTourCompleted: (updated as any).guidedTourCompleted,
+      // v1.87 — Sign My Tee: propagate so the FE's gate
+      // provider can re-evaluate eligibility without a second
+      // `/auth/me` round-trip.
+      internshipEndDate: (updated as any).internshipEndDate ?? null,
     };
 
     res.json({ message: 'Profile updated.', user: userResponse });

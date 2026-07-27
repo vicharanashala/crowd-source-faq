@@ -109,3 +109,58 @@ export function isOurCloudinaryAsset(secureUrl: string, cloudName: string): bool
     return false;
   }
 }
+
+/**
+ * Upload a base64 signature image directly to Cloudinary.
+ */
+export async function uploadSignatureToCloudinary(
+  ownerId: string,
+  sigId: string,
+  dataUrl: string,
+): Promise<{ secure_url: string; public_id: string }> {
+  const cfg = getCloudinaryConfig();
+  const timestamp = Math.floor(Date.now() / 1000);
+  const folder = `${cfg.folder}/tee-signatures/${ownerId}`;
+  const publicId = sigId;
+
+  // Parameters to sign (alphabetical order)
+  const params: Record<string, string | number> = {
+    folder,
+    public_id: publicId,
+    timestamp,
+  };
+
+  const toSign = Object.keys(params)
+    .sort()
+    .map((k) => `${k}=${params[k]}`)
+    .join('&');
+  const signature = crypto.createHash('sha1').update(toSign + cfg.apiSecret).digest('hex');
+
+  const body = new URLSearchParams();
+  body.append('file', dataUrl);
+  body.append('folder', folder);
+  body.append('public_id', publicId);
+  body.append('timestamp', String(timestamp));
+  body.append('api_key', cfg.apiKey);
+  body.append('signature', signature);
+
+  const url = `https://api.cloudinary.com/v1_1/${cfg.cloudName}/image/upload`;
+  const response = await fetch(url, {
+    method: 'POST',
+    body,
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Cloudinary upload failed: ${response.status} - ${errText}`);
+  }
+
+  const data = (await response.json()) as { secure_url: string; public_id: string };
+  return {
+    secure_url: data.secure_url,
+    public_id: data.public_id,
+  };
+}
