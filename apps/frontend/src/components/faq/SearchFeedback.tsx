@@ -86,24 +86,40 @@ export default function SearchFeedback({ searchQuery, resultFaqId }: SearchFeedb
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-4">
       <div className={cardSectionPad}>
         {phase === 'prompt' ? (
-          <div className="flex items-center gap-3">
-            <p className={`${flexGrow} ${textBody}`}>Did this answer your question?</p>
-            <button
-              onClick={handleYes}
-              className={buttonPrimary}
-            >
-              <span>👍</span> Yes, I am good
-            </button>
-            <button
-              onClick={handleNo}
-              className={buttonGhost}
-            >
-              No, I need more help
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
-            </button>
-          </div>
+          <div className="flex flex-col gap-4">
+  <p className={`${textBody} text-center w-full text-lg`}>
+  Did this answer your question?
+</p>
+
+  <div className="flex items-center gap-3">
+    <button
+      onClick={handleYes}
+      className={`${buttonPrimary} flex-1 h-12`}
+    >
+      <span>👍</span>
+      Yes, I am good
+    </button>
+
+    <button
+      onClick={handleNo}
+      className={`${buttonGhost} flex-1 h-12`}
+    >
+      No, I need more help
+      <svg
+        width="12"
+        height="12"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <polyline points="9 18 15 12 9 6" />
+      </svg>
+    </button>
+  </div>
+</div>
         ) : (
           <form onSubmit={handleSubmit} className={stackMd}>
             <div className="flex items-center justify-between">

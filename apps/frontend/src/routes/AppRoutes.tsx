@@ -6,6 +6,7 @@ import Spinner from '../components/ui/Spinner';
 import ErrorBoundary from '../components/ui/ErrorBoundary';
 import { FeatureGate } from '../components/support/FeatureGate';
 
+
 /**
  * Per-route error boundary. Without this, a single page crash unmounts
  * the whole React tree and leaves a blank SPA. Phase 4 §4.5 outstanding
@@ -26,6 +27,7 @@ import MainLayout from '../components/layout/MainLayout';
 import AskAIButton from '../components/askai/AskAIButton';
 import AccountRoute from './guards/AccountRoute';
 import AdminRoute from './guards/AdminRoute';
+import InternshipRoadmapPage from "../pages/InternshipRoadmapPage";
 
 // User pages
 const AccountPage = lazy(() => import('../pages/AccountPage'));
@@ -188,6 +190,17 @@ export default function AppRoutes() {
                   </FeatureGate>
                 </AccountRoute></RouteElement>}
             />
+
+            {/* Uses MainLayout like the rest of the site */}
+            <Route
+              path="/internship-roadmap"
+              element={
+                <RouteElement name="internship-roadmap">
+                  <InternshipRoadmapPage />
+                </RouteElement>
+              }
+            />
+
             {/* v1.87 — Sign My Tee. The wizard + share page are auth-protected
                 (they're the owner's surface). The sign-page is public so a
                 non-logged-in visitor can also sign via a typed signerName. */}
@@ -205,7 +218,7 @@ export default function AppRoutes() {
               path="/tee/sign/:shareId"
               element={<RouteElement name="tee-sign-:shareId"><TeeSignPage /></RouteElement>}
             />
-            </Route>
+          </Route>
 
           <Route
             path="/admin/login"

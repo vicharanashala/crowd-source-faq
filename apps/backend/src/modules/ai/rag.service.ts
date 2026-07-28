@@ -33,7 +33,12 @@ export interface RagSource {
   snippet: string;
   /** URL the client can deep-link to. */
   url: string;
-  /** Confidence in [0, 1] (vector cosine + keyword overlap). */
+  /**
+   * Confidence in [0, 1], normalized across sources so scores are
+   * comparable for merged sort/truncation (see normalizeRrfScore()
+   * below for how FAQ/Community RRF scores are rescaled onto this
+   * same ceiling as the Knowledge cosine-based score).
+   */
   score: number;
 }
 
@@ -45,6 +50,20 @@ export interface RagResult {
 }
 
 const TOP_K_PER_SOURCE = 4;
+
+/**
+ * FAQ/Community hits are scored via Reciprocal Rank Fusion — the sum of
+ * 1/(60+rank) across the vector-search and text-search result lists. Its
+ * theoretical ceiling is 1/60 + 1/60 = 1/30 (a document ranked #1 in both
+ * lists). Knowledge hits (see scoreAndSort() in knowledge-base.service.ts)
+ * are scored on an independent, already-normalized [0, 1] cosine-similarity
+ * scale. Exported as a pure function so the rescaling can be unit tested
+ * without standing up Mongo/Atlas Search.
+ */
+export const RRF_SCORE_CEILING = 2 / 60; // = 1/30
+export function normalizeRrfScore(raw: number): number {
+  return Math.min(1, raw / RRF_SCORE_CEILING);
+}
 const MAX_CONTEXT_CHARS = 14000; // leave headroom under typical 16k context windows
 
 interface FaqHit { _id: unknown; question: string; answer: string; category?: string; trustLevel?: string; score: number }
@@ -269,6 +288,20 @@ export async function runRag(question: string, attachments: RagAttachment[] = []
   ]);
 
   // Normalize each source into the common shape.
+  //
+  // IMPORTANT: faqHits/postHits carry a Reciprocal Rank Fusion score
+  // (sum of 1/(60+rank) across vector+text search) whose theoretical
+  // ceiling is 1/60 + 1/60 = 1/30 ≈ 0.033. knowledgeHits carry a
+  // cosine-similarity-based score already normalized to [0, 1]
+  // (see scoreAndSort() in knowledge-base.service.ts). Sorting these
+  // scores together unmodified means a barely-relevant Knowledge hit
+  // (score just over its 0.05 floor) always outranks even a
+  // rank-1-in-both-searches FAQ/Community hit (score capped at 0.033) —
+  // silently degrading citation order and, worse, causing strong
+  // FAQ/Community sources to be dropped first by the MAX_CONTEXT_CHARS
+  // truncation in buildContext(). Rescale RRF scores onto the same
+  // [0, 1] ceiling as the knowledge score so all three sources are
+  // comparable before the merged sort (see normalizeRrfScore() above).
   const sources: RagSource[] = [
     ...faqHits.map((h) => ({
       id: `faq:${String(h._id)}`,
@@ -276,7 +309,7 @@ export async function runRag(question: string, attachments: RagAttachment[] = []
       title: h.question,
       snippet: h.answer.slice(0, 600),
       url: `/faq/${String(h._id)}`,
-      score: h.score,
+      score: normalizeRrfScore(h.score),
     })),
     ...postHits.map((h) => ({
       id: `community:${String(h._id)}`,
@@ -284,7 +317,7 @@ export async function runRag(question: string, attachments: RagAttachment[] = []
       title: h.title,
       snippet: h.body.slice(0, 600),
       url: `/community?post=${String(h._id)}`,
-      score: h.score,
+      score: normalizeRrfScore(h.score),
     })),
     ...knowledgeHits.map((h) => ({
       id: `knowledge:${h._id}`,
@@ -295,11 +328,11 @@ export async function runRag(question: string, attachments: RagAttachment[] = []
       // or to the admin KB if we know the meeting. For now, a stable
       // deep-link to a future /knowledge/:id is best-effort.
       url: `/community?post=${h._id}`,
-      score: h.score,
+      score: h.score, // already normalized to [0, 1] in scoreAndSort()
     })),
   ];
 
-  // Re-rank by score so the LLM sees the strongest sources first.
+  // Re-rank by (now comparable) score so the LLM sees the strongest sources first.
   sources.sort((a, b) => b.score - a.score);
 
   // If we found nothing at all, skip the LLM call — just say "no answer".

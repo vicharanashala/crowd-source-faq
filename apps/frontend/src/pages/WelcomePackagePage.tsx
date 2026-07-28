@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import OrientationTab from '../components/welcome/OrientationTab';
 import ProjectTimelineTab from '../components/welcome/ProjectTimelineTab';
@@ -25,6 +25,7 @@ import { spatialNavPill } from '../styles/style_config';
 export default function WelcomePackagePage() {
   const { user } = useAuth();
   const { currentProgram } = useProgram();
+  const navigate = useNavigate();
 
   // v1.69 — Conditional layout state: WelcomePackagePage fetches
   // orientation + resources in parallel and uses the loaded state
@@ -193,6 +194,19 @@ export default function WelcomePackagePage() {
             ))}
           </div>
         </div>
+        <div className="mb-8 rounded-xl border p-6">
+  <h2 className="text-2xl font-bold">🚀 Internship Roadmap</h2>
+  <p className="mt-2">
+    Start your internship journey with a step-by-step roadmap.
+  </p>
+
+  <button
+  onClick={() => navigate("/internship-roadmap")}
+  className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-white"
+>
+  View Roadmap
+</button>
+</div>
 
         <div className="relative z-10">
           <AnimatePresence mode="wait">

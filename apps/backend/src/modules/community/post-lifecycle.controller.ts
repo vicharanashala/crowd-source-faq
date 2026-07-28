@@ -108,7 +108,8 @@ export const resolvePost = async (req: Request, res: Response): Promise<void> =>
       recipientId: post.author,
       eventType: 'post_resolved',
       link: `/community?post=${post._id}`,
-      title: 'Your question was resolved!',
+      title: post.title,
+      message: `Your question "${post.title}" has been answered: ${post.answer}`,
     }).catch((err) => {
       communityLog.warn(`[post] Failed to dispatch post resolved notification: ${(err as Error).message}`);
     });

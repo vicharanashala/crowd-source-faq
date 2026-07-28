@@ -91,6 +91,11 @@ interface DispatchOptions {
    * When omitted a sensible default is derived from eventType.
    */
   title?: string;
+  /**
+   * Optional custom message override (e.g. real question title + answer).
+   * Falls back to random text-bank message when omitted.
+   */
+  message?: string;
 }
 
 /**
@@ -107,17 +112,18 @@ export const dispatchNotification = async ({
   eventType,
   link,
   title,
+  message,
 }: DispatchOptions): Promise<void> => {
   const bank = notificationTextBank[eventType];
   if (!bank || bank.length === 0) return; // Unknown eventType — no-op silently
 
-  const message = bank[Math.floor(Math.random() * bank.length)];
+  const finalMessage = message ?? bank[Math.floor(Math.random() * bank.length)];
 
   await notificationsService.dispatch({
     recipientId,
     eventType,
     link,
     title,
-    message,
+    message: finalMessage,
   });
 };
