@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion';
 import { adminBtnDanger, adminBtnOutline, adminBtnPrimary, adminBtnWarn, adminLabel, adminTextarea, modalBackdrop } from '../../styles/style_config';
 import adminApi from '../utils/adminApi';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { timeAgo } from '../../utils/time';
 
 
+interface Toast { msg: string; type: 'success' | 'error'; }
 interface BannedUser { _id: string; name: string; email: string; banReason?: string; bannedAt?: string; tier: string; points: number; }
 interface SuspendedUser { _id: string; name: string; email: string; suspendedUntil?: string; tier: string; points: number; }
 interface ModerationLog { _id: string; moderatorId: { name: string; email: string }; action: string; reason: string; targetId: string; targetType: string; duration?: string; createdAt: string; }
@@ -20,6 +22,11 @@ interface EscalatedPost {
   escalationReason?: string;
 }
 
+function Toast({ toast }: { toast: Toast }) {
+  const colour = toast.type === 'error' ? 'admin-toast-error' : 'admin-toast-success';
+  return <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+    className={`fixed top-4 right-4 z-50 px-4 py-2.5 rounded-lg text-xs font-medium border ${colour}`}>{toast.msg}</motion.div>;
+}
 
 function until(d?: string) {
   if (!d) return '—';
@@ -45,6 +52,7 @@ export default function AdminModeration() {
   const [suspendDuration, setSuspendDuration] = useState('7d');
   const [banModal, setBanModal] = useState<{ userId: string; name: string } | null>(null);
   const [banReason, setBanReason] = useState('');
+  const [toast, setToast] = useState<Toast | null>(null);
 
   const [escalatedPosts, setEscalatedPosts] = useState<EscalatedPost[]>([]);
   const [escalatedLoading, setEscalatedLoading] = useState(false);
@@ -103,13 +111,37 @@ export default function AdminModeration() {
     if (tab === 'users') setPage(1);
   };
 
-  const doAction = async (fn: () => Promise<void>) => { try { await fn(); fetchQueue(); } catch { void 0 } };
+  const showToast = (msg: string, type: Toast['type'] = 'success') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const doAction = async (fn: () => Promise<void>): Promise<boolean> => {
+    try {
+      await fn();
+      fetchQueue();
+      return true;
+    } catch (error) {
+      const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Moderation action failed.';
+      showToast(message, 'error');
+      return false;
+    }
+  };
 
   const handleUnban    = (id: string) => doAction(async () => { await adminApi.post('/moderation/unban', { userId: id }); });
   const handleUnsuspend = (id: string) => doAction(async () => { await adminApi.post('/moderation/unsuspend', { userId: id }); });
-  const handleWarn    = async () => { if (!warnModal || !warnReason) return; await doAction(async () => { await adminApi.post('/moderation/warn', { userId: warnModal.userId, reason: warnReason }); }); setWarnModal(null); setWarnReason(''); };
-  const handleSuspend = async () => { if (!suspendModal || !suspendReason) return; await doAction(async () => { await adminApi.post('/moderation/suspend', { userId: suspendModal.userId, reason: suspendReason, duration: suspendDuration }); }); setSuspendModal(null); setSuspendReason(''); };
-  const handleBan    = async () => { if (!banModal || !banReason) return; await doAction(async () => { await adminApi.post('/moderation/ban', { userId: banModal.userId, reason: banReason }); }); setBanModal(null); setBanReason(''); };
+  const handleWarn    = async () => { if (!warnModal || !warnReason) return; const succeeded = await doAction(async () => { await adminApi.post('/moderation/warn', { userId: warnModal.userId, reason: warnReason }); });
+    // Preserve the entered reason so the admin can correct or retry a failed action.
+    if (!succeeded) return;
+    setWarnModal(null); setWarnReason(''); };
+  const handleSuspend = async () => { if (!suspendModal || !suspendReason) return; const succeeded = await doAction(async () => { await adminApi.post('/moderation/suspend', { userId: suspendModal.userId, reason: suspendReason, duration: suspendDuration }); });
+    // Preserve the entered reason so the admin can correct or retry a failed action.
+    if (!succeeded) return;
+    setSuspendModal(null); setSuspendReason(''); };
+  const handleBan    = async () => { if (!banModal || !banReason) return; const succeeded = await doAction(async () => { await adminApi.post('/moderation/ban', { userId: banModal.userId, reason: banReason }); });
+    // Preserve the entered reason so the admin can correct or retry a failed action.
+    if (!succeeded) return;
+    setBanModal(null); setBanReason(''); };
 
   const ACTION_LABELS: Record<string, string> = {
     ban: 'Banned', unban: 'Unbanned', suspend: 'Suspended', unsuspend: 'Unsuspended',
@@ -120,6 +152,7 @@ export default function AdminModeration() {
 
   return (
     <div className="space-y-5 max-w-4xl">
+      <AnimatePresence>{toast && <Toast toast={toast} />}</AnimatePresence>
       <div className="flex items-center justify-between">
         <p className="text-sm text-ink-faint">Manage bans, suspensions, warnings, and escalated questions</p>
         {/* Tab switcher */}
