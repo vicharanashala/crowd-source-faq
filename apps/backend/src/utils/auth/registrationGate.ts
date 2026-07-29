@@ -101,6 +101,15 @@ export async function registrationGate(
   res: Response,
   next: NextFunction,
 ): Promise<void> {
+  // ── DEV BYPASS ────────────────────────────────────────────────────────────
+  // Set BYPASS_REGISTRATION_GATE=true in backend/.env for local testing.
+  // Remove (or set to false) before pushing to production.
+  if (process.env.BYPASS_REGISTRATION_GATE === 'true') {
+    authLog.warn('[registrationGate] BYPASS active — skipping gate (dev only)');
+    next();
+    return;
+  }
+  // ─────────────────────────────────────────────────────────────────────────
   try {
     const token = typeof req.query.token === 'string' ? req.query.token : undefined;
     const decision = await checkRegistrationAllowed(token);

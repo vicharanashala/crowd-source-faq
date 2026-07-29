@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { getAllFAQs, getFAQById, getRecentFAQs, createFAQ, updateFAQ, deleteFAQ, checkFAQMatch, getPaginatedFAQs, submitFeedback, reportFAQ, getFAQHistory, createFAQSuggestion, getFAQCategories } from './faq.controller.js';
 import { flagFAQ, voteReview } from './freshness.controller.js';
+import { getDailySpotlight } from './daily-spotlight.controller.js';
 import { protect, authorize } from '../../middleware/auth.js';
 import { validateObjectId } from '../../middleware/validateObjectId.js';
 import { validateBody, createFAQSchema, updateFAQSchema, flagFAQSchema, voteReviewSchema } from '../../utils/auth/validation.js';
@@ -20,6 +21,10 @@ router.get('/recent', getRecentFAQs);
 // GET /api/faq/categories — list distinct categories for approved FAQs
 // Audit fix (2026-07-02): added so `/csfaq/api/faq/categories` returns 200.
 router.get('/categories', getFAQCategories);
+
+// GET /api/faq/daily-spotlight — Top 3 FAQs by 24h views (public, used by HomePage)
+// MUST be registered before /:id so Express does not treat "daily-spotlight" as an id.
+router.get('/daily-spotlight', getDailySpotlight);
 
 // POST /api/faq/check-match — Check if a question already exists in the FAQ (before posting on community)
 router.post('/check-match', protect, checkFAQMatch);

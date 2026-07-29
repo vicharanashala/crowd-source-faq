@@ -32,7 +32,8 @@ export type ReputationAction =
   | 'sp_spent'             // user spent SP to create / convert a Golden ticket
   | 'sp_refunded'          // SP returned (golden ticket rolled back by admin)
   | 'sp_deducted'          // SP removed as a penalty (admin rejected a Golden ticket)
-  | 'golden_converted';    // admin converted an existing ticket to Golden (audit trail)
+  | 'golden_converted'     // admin converted an existing ticket to Golden (audit trail)
+  | 'solved_reaction_received'; // post author marked your comment as "This solved it" (+15 SP)
 
 // ─── Badge subdocument ────────────────────────────────────────────────────────
 

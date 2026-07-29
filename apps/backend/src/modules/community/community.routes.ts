@@ -36,6 +36,7 @@ import {
   acceptCommentAnswer,
   updateComment,
   deleteComment,
+  toggleSolvedReaction,
 } from './comment.controller.js';
 import { toggleCommentUpvote, toggleCommentDownvote } from './comment-vote.controller.js';
 import { searchCommunityPosts } from './community-search.controller.js';
@@ -89,6 +90,8 @@ router.post('/:id/comments/:commentId/upvote', protect, validateObjectId('id', '
 router.post('/:id/comments/:commentId/downvote', protect, validateObjectId('id', 'commentId'), toggleCommentDownvote);
 router.patch('/:id/comments/:commentId/verify', protect, authorize('admin', 'moderator'), validateObjectId('id', 'commentId'), verifyComment);
 router.patch('/:id/comments/:commentId/accept-answer', protect, validateObjectId('id', 'commentId'), acceptCommentAnswer);
+// POST /:id/comments/:commentId/solved-reaction — post author marks a comment as "This solved it"
+router.post('/:id/comments/:commentId/solved-reaction', protect, validateObjectId('id', 'commentId'), toggleSolvedReaction);
 router.patch('/:id/comments/:commentId', protect, validateObjectId('id', 'commentId'), updateComment);
 router.delete('/:id/comments/:commentId', protect, validateObjectId('id', 'commentId'), deleteComment);
 router.patch('/:id/comments/:commentId/dna', protect, authorize('admin', 'moderator'), validateObjectId('id', 'commentId'), setCommentDNA);

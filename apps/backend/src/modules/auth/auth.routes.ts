@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { login, register, getMe, getAllUsers, updateUserRole, deleteUser, updateProfile, changePassword, exportUserData, logout, refresh, adminResetUserPassword } from './auth.controller.js';
+import { login, register, getMe, getAllUsers, updateUserRole, deleteUser, updateProfile, changePassword, exportUserData, logout, refresh, adminResetUserPassword, getMyActivity } from './auth.controller.js';
 import { protect, authorize } from '../../middleware/auth.js';
 import { loginLimiter, registerLimiter, passwordChangeLimiter, refreshLimiter } from '../../utils/auth/rateLimit.js';
 import { validateBody, refreshSchema, registerSchema, loginSchema, updateProfileSchema, changePasswordSchema, adminResetPasswordSchema } from '../../utils/auth/validation.js';
@@ -42,6 +42,9 @@ router.post('/logout', protect, logout);
 // GET /api/auth/me (Protected)
 // Uses the 'protect' middleware to verify the token before fetching the user's profile
 router.get('/me', protect, getMe);
+
+// GET /api/auth/me/activity (Protected) — per-day contribution counts for heatmap
+router.get('/me/activity', protect, getMyActivity);
 
 // GET /api/auth/export (Protected)
 // Exports the authenticated user's data as a JSON file
