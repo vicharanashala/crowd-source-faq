@@ -130,7 +130,6 @@ export default function SignatureTool({
   const [signingFace, setSigningFace] = useState<'front' | 'back'>('back');
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [originalSize, setOriginalSize] = useState<number>(0);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -326,9 +325,6 @@ export default function SignatureTool({
 
   const finishDraw = () => {
     const dataUrl = canvasRef.current!.toDataURL('image/png');
-    const base64Str = dataUrl.split(',')[1];
-    const originalBytesSize = base64Str ? Math.floor(base64Str.length * 0.75) : 0;
-    setOriginalSize(originalBytesSize);
 
     const defaultX = signingFace === 'front' ? 0.3 : 0.7;
     setPendingSig({ id: `tmp-${Date.now()}`, dataUrl, face: signingFace, x: defaultX, y: 0.55, scale: 0.6, rotation: 0 });
@@ -352,7 +348,6 @@ export default function SignatureTool({
     
     setError(null);
     setSelectedFile(file);
-    setOriginalSize(file.size);
     return true;
   };
 
@@ -381,14 +376,6 @@ export default function SignatureTool({
     setPhase('submitting');
     try {
       const signatureBlob = dataURLtoBlob(pendingSig.dataUrl);
-      const payloadSize = signatureBlob.size;
-      const contentType = 'multipart/form-data';
-
-      console.log('Original file size:', originalSize);
-      console.log('Payload size:', payloadSize);
-      console.log('Content-Type:', contentType);
-      console.log('Content-Length:', payloadSize);
-
       const formData = new FormData();
       formData.append('signerName', signerName.trim());
       formData.append('face', pendingSig.face ?? 'back');
