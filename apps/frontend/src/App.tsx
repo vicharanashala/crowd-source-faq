@@ -1,3 +1,4 @@
+import BackToTop from './components/ui/BackToTop';
 import React, { Suspense } from 'react';
 import { BrowserRouter } from 'react-router-dom';
 import { AuthProvider } from './hooks/useAuth';
@@ -25,6 +26,8 @@ export default function App() {
                   <InternshipEndDateGate>
                     <AppRoutes />
                   </InternshipEndDateGate>
+
+                  <BackToTop />
                 </ErrorBoundary>
               </Suspense>
             </AuthModalHost>

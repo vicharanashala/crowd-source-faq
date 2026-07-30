@@ -96,7 +96,7 @@ export default function ThreadDetail({ postId, onClose }: ThreadDetailProps) {
   const { user } = useAuth();
   const gate = useAuthGate();
   const navigate = useNavigate();
-  const currentUserId = user?._id ?? '';
+  const currentUserId = user?.id || user?._id || '';
   const userRole = user?.role ?? '';
 
   const [post, setPost] = useState<ThreadPost | null>(null);
@@ -113,6 +113,8 @@ export default function ThreadDetail({ postId, onClose }: ThreadDetailProps) {
   const [reportLoading, setReportLoading] = useState(false);
   const [reportDone, setReportDone] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [spToast, setSpToast] = useState(false);
+  const showSpToast = () => { setSpToast(true); setTimeout(() => setSpToast(false), 5000); };
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState('');
   const [editBody, setEditBody] = useState('');
@@ -794,52 +796,68 @@ export default function ThreadDetail({ postId, onClose }: ThreadDetailProps) {
                     key={comment._id}
                     comment={comment}
                     postId={post?._id ?? ''}
-                    currentUserId={user?._id ?? ''}
+                    currentUserId={currentUserId}
                     userRole={userRole}
-                    postAuthorId={post?.author?._id}
+                    postAuthorId={typeof post?.author === 'string' ? post.author : post?.author?._id}
                     onReplyAdded={handleReplyAdded}
                     onCommentDeleted={handleCommentDeleted}
                     onPostUpdated={(updatedPost) => setPost(updatedPost)}
+                    onSPEarned={showSpToast}
                     threadColor={DEPTH_COLORS[0]}
                     barColor={DEPTH_BARS[0]}
                   />
                 ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
+              </div>
+            )}
+          </div>
+        </div>
 
-                        {/* Sticky footer — new comment */}
-                        <form onSubmit={handleCommentSubmit} className="px-6 sm:px-8 pt-4 pb-6 border-t border-border bg-card flex-shrink-0">
-                          <div className="flex gap-3 items-start">
-                            <Avatar name={user?.name} size="sm" className="mt-1" />
-                            <div className="flex-1 min-w-0">
-                              <textarea
-                                value={commentText}
-                                onChange={(e) => setCommentText(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter' && !e.shiftKey) {
-                                    e.preventDefault();
-                                    if (commentText.trim() && !commentLoading) {
-                                      handleCommentSubmit(e as unknown as React.FormEvent);
-                                    }
-                                  }
-                                }}
-                                rows={2}
-                                placeholder="Add a comment…"
-                                className="w-full rounded-xl border border-border bg-mist px-4 py-3 text-sm text-ink placeholder-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/25 focus:bg-card resize-none transition-all"
-                              />
-                              <div className="flex items-center justify-end mt-2">
-                                <Button type="submit" size="md" disabled={!commentText.trim() || commentLoading} loading={commentLoading}>
-                                  Post
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                          {actionError && (
-                            <p className="text-danger text-xs mt-2 pl-10">{actionError}</p>
-                          )}
-                        </form>
+        {/* Sticky footer — new comment */}
+        <form onSubmit={handleCommentSubmit} className="px-6 sm:px-8 pt-4 pb-6 border-t border-border bg-card flex-shrink-0">
+          <div className="flex gap-3 items-start">
+            <Avatar name={user?.name} size="sm" className="mt-1" />
+            <div className="flex-1 min-w-0">
+              <textarea
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (commentText.trim() && !commentLoading) {
+                      handleCommentSubmit(e as unknown as React.FormEvent);
+                    }
+                  }
+                }}
+                rows={2}
+                placeholder="Add a comment…"
+                className="w-full rounded-xl border border-border bg-mist px-4 py-3 text-sm text-ink placeholder-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/25 focus:bg-card resize-none transition-all"
+              />
+              <div className="flex items-center justify-end mt-2">
+                <Button type="submit" size="md" disabled={!commentText.trim() || commentLoading} loading={commentLoading}>
+                  Post
+                </Button>
+              </div>
+            </div>
+          </div>
+          {actionError && (
+            <p className="text-danger text-xs mt-2 pl-10">{actionError}</p>
+          )}
+        </form>
+
+        {/* 🎉 SP earned toast — appears when current user's answer is accepted */}
+        {spToast && (
+          <div
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[300] flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl border border-green-300 animate-slide-up"
+            style={{ background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)' }}
+          >
+            <span className="text-2xl">🎉</span>
+            <div>
+              <p className="text-white font-semibold text-sm">Your answer was accepted!</p>
+              <p className="text-green-100 text-xs mt-0.5">You earned <strong>+20 SP</strong> — keep it up!</p>
+            </div>
+            <button onClick={() => setSpToast(false)} className="ml-2 text-white/70 hover:text-white text-lg leading-none transition-colors">✕</button>
+          </div>
+        )}
       </div>
     </div>
     </>

@@ -469,7 +469,7 @@ export default function CommunityPage() {
                 key={post._id}
                 post={post}
                 onClick={(p) => handleOpenThread(p._id)}
-                currentUserId={user?._id}
+                currentUserId={user?.id || user?._id}
               />
             ))}
           </div>
