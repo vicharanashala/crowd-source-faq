@@ -42,6 +42,16 @@ const commentSchema = new MongooseSchema(
     depth: { type: Number, default: 0 },
     replies: { type: [replySchema], default: [] },
     batchId: { type: MongooseSchema.Types.ObjectId, ref: 'Batch', default: null, index: true },
+    // Solved Reaction — post author marks this comment as "This solved it"
+    // Unlike acceptCommentAnswer, this does NOT lock the post.
+    // Each entry records who reacted and when (for audit / undo support).
+    solvedReactions: {
+      type: [{
+        userId: { type: MongooseSchema.Types.ObjectId, ref: 'User', required: true },
+        at: { type: Date, default: Date.now },
+      }],
+      default: [],
+    },
     // Solution DNA — structured answer metadata
     solutionDNA: {
       type: {
