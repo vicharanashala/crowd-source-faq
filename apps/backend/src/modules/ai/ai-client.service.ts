@@ -170,7 +170,8 @@ export type AIFeature =
   | 'duplicateDetection'
   | 'knowledgeExtraction'
   | 'searchSummarization'
-  | 'faqGeneration';
+  | 'faqGeneration'
+  | 'translation';
 
 export interface AIResult {
   content: string;
@@ -370,7 +371,7 @@ export class AiClient {
       throw new Error(`No AI API key configured for provider '${config.provider}'.`);
     }
 
-    const featureConfig = dbConfig?.features?.[feature];
+    const featureConfig = (dbConfig?.features as Record<string, { model?: string; temperature?: number; maxTokens?: number }> | undefined)?.[feature];
     const rawModel = overrides?.model || featureConfig?.model || config.modelName;
     const model = getModelForProvider(rawModel, config.provider, config.modelName);
 
@@ -620,6 +621,7 @@ export class AiClient {
     let lastError: Error | null = null;
     let res: Response;
     let rotatedThisLoop = false;
+    // eslint-disable-next-line no-constant-condition
     while (true) {
       try {
         res = await fetch(url, {
