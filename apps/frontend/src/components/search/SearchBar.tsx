@@ -218,10 +218,28 @@ const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(function Se
           }}
           onFocus={onFocus}
           onBlur={handleBlur}
-          placeholder={placeholder}
+          placeholder={`${placeholder}   (Ctrl + K)`}
           className={variant === 'compact' ? searchInputCompact : searchInputDefault}
           autoComplete="off"
         />
+        {query && (
+         <button
+          type="button"
+          onClick={() => {
+          if (isControlled) {
+           onQueryChange?.('');
+          } else {
+            setInternalQuery('');
+           }
+
+         onResults(null);
+          onError?.(null);
+         }}
+         className="absolute right-28 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 transition"
+          >
+         ✕
+         </button>
+        )}
 
         {variant === 'default' && (
           <button
