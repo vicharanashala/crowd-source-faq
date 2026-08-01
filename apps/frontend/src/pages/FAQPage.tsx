@@ -464,7 +464,8 @@ export default function FAQPage() {
               onSortChange={setSortOption}
               visibleCount={visibleCount}
               onLoadMore={() => setVisibleCount((prev) => prev + 6)}
-              emptyMessage="No results yet. Try another keyword or browse a category."
+              emptyMessage="No questions match your filters."
+              onClearEmptyState={handleClearSearch}
             />
           </section>
         )}

@@ -105,6 +105,7 @@ interface QuestionListProps {
   visibleCount: number;
   onLoadMore: () => void;
   emptyMessage: string;
+  onClearEmptyState?: () => void;
 }
 
 export default function QuestionList({
@@ -115,6 +116,7 @@ export default function QuestionList({
   visibleCount,
   onLoadMore,
   emptyMessage,
+  onClearEmptyState,
 }: QuestionListProps) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
@@ -215,8 +217,18 @@ export default function QuestionList({
       {!loading && sortedItems.length === 0 && (
         <div className="faq-item" style={{ textAlign: 'center', padding: '32px 20px' }}>
           <p className="faq-item__question-text" style={{ fontWeight: 400, opacity: 0.6 }}>
-            {emptyMessage}
+            {emptyMessage || 'No questions match your filters.'}
           </p>
+          {/* This is still the same active search flow; clearing the query returns the user to the default browse state without forcing a reload. */}
+          {onClearEmptyState && (
+            <button
+              type="button"
+              onClick={onClearEmptyState}
+              className="mt-4 inline-flex items-center justify-center px-4 py-2 rounded-full bg-accent text-accent-text text-xs font-semibold transition-colors hover:bg-accent/90"
+            >
+              Clear filters
+            </button>
+          )}
         </div>
       )}
 
