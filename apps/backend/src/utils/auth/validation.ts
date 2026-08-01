@@ -180,6 +180,7 @@ export const submitUnresolvedSchema = z.object({
 
 export const resolveUnresolvedSchema = z.object({
   resolution: z.enum(['faq_updated', 'community_post_created', 'dismissed']),
+  faqId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid ObjectId').optional(),
 });
 
 // ─── Moderation ────────────────────────────────────────────────────────────────
