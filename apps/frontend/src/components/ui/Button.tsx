@@ -15,6 +15,8 @@ const variantStyles: Record<ButtonVariant, React.CSSProperties> = {
   primary: {},
   secondary: {},
   ghost: {},
+
+  // front-to-top
   accent: {},
   danger: {},
 };
