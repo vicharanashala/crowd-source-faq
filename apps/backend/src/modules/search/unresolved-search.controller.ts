@@ -136,12 +136,13 @@ export const resolveUnresolved = async (req: Request, res: Response): Promise<vo
     unresolved.status = 'addressed';
     unresolved.resolution = resolution;
     unresolved.resolvedBy = (req.user as any)._id as any;
-    await unresolved.save();
 
-    // If faq_updated — optionally link the FAQ for reference
+    // Link the FAQ for reference when resolving as faq_updated
     if (resolution === 'faq_updated' && faqId) {
-      // FAQ update acknowledged — nothing else needed, admin updated the FAQ manually
+      unresolved.faqId = faqId as any;
     }
+
+    await unresolved.save();
 
     res.json({ message: 'Marked as addressed' });
   } catch (err) {
