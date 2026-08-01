@@ -84,7 +84,7 @@ export const FEATURE_FLAGS = {
     category: 'onboarding',
   },
   askAiChatbot: {
-    default: false,
+    default: true,
     label: 'Ask AI Chatbot',
     description:
       'The floating AskAI assistant button shown on non-admin pages. When disabled, ' +

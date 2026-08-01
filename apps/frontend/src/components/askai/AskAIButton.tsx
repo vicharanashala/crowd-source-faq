@@ -246,61 +246,78 @@ function MessageBubble({
         <div className="px-3.5 py-2.5 rounded-2xl rounded-bl-md bg-card border border-border text-ink text-sm leading-relaxed whitespace-pre-wrap">
           {m.content}
 
-          {/* Speech Controls */}
-          <div className="mt-2 flex items-center gap-1.5">
+          {/* Speech Controls & Audio Feedback */}
+          <div className="mt-2.5 flex items-center justify-between border-t border-border/40 pt-2 text-xs">
+            <div className="flex items-center gap-1.5">
+              {/* Listen */}
+              {!isSpeaking && (
+                <button
+                  type="button"
+                  onClick={speakAnswer}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium text-ink-soft hover:text-accent bg-mist/60 hover:bg-accent/10 border border-transparent hover:border-accent/20 transition-all active:scale-95"
+                  aria-label="Read answer aloud"
+                  title="Read answer aloud"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" /></svg>
+                  Listen
+                </button>
+              )}
 
-            {/* Listen */}
-            {!isSpeaking && (
-              <button
-                type="button"
-                onClick={speakAnswer}
-                className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-ink-soft hover:text-accent hover:bg-mist transition-colors"
-                aria-label="Read answer aloud"
-                title="Read answer aloud"
-              >
-                🔊 Listen
-              </button>
-            )}
+              {/* Pause */}
+              {isSpeaking && !isPaused && (
+                <button
+                  type="button"
+                  onClick={pauseSpeech}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium text-accent bg-accent/10 border border-accent/20 hover:bg-accent/20 transition-all active:scale-95"
+                  aria-label="Pause speech"
+                  title="Pause speech"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></svg>
+                  Pause
+                </button>
+              )}
 
-            {/* Pause */}
-            {isSpeaking && !isPaused && (
-              <button
-                type="button"
-                onClick={pauseSpeech}
-                className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-ink-soft hover:text-accent hover:bg-mist transition-colors"
-                aria-label="Pause speech"
-                title="Pause speech"
-              >
-                ⏸️ Pause
-              </button>
-            )}
+              {/* Resume */}
+              {isSpeaking && isPaused && (
+                <button
+                  type="button"
+                  onClick={resumeSpeech}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium text-accent bg-accent/10 border border-accent/20 hover:bg-accent/20 transition-all active:scale-95"
+                  aria-label="Resume speech"
+                  title="Resume speech"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3" /></svg>
+                  Resume
+                </button>
+              )}
 
-            {/* Resume */}
-            {isSpeaking && isPaused && (
-              <button
-                type="button"
-                onClick={resumeSpeech}
-                className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-ink-soft hover:text-accent hover:bg-mist transition-colors"
-                aria-label="Resume speech"
-                title="Resume speech"
-              >
-                ▶️ Resume
-              </button>
-            )}
+              {/* Stop */}
+              {isSpeaking && (
+                <button
+                  type="button"
+                  onClick={stopSpeech}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium text-danger bg-danger/10 border border-danger/20 hover:bg-danger/20 transition-all active:scale-95"
+                  aria-label="Stop speech"
+                  title="Stop speech"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" /></svg>
+                  Stop
+                </button>
+              )}
+            </div>
 
-            {/* Stop */}
+            {/* Speaking / Soundwave Visualizer Indicator */}
             {isSpeaking && (
-              <button
-                type="button"
-                onClick={stopSpeech}
-                className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-ink-soft hover:text-danger hover:bg-mist transition-colors"
-                aria-label="Stop speech"
-                title="Stop speech"
-              >
-                ⏹️ Stop
-              </button>
+              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-accent/10 border border-accent/20 text-[11px] font-medium text-accent animate-fade-in">
+                <span className="flex items-center gap-0.5 h-3">
+                  <span className={`w-0.5 bg-accent rounded-full ${isPaused ? 'h-1.5' : 'h-3 animate-bounce'}`} style={{ animationDuration: '0.6s' }} />
+                  <span className={`w-0.5 bg-accent rounded-full ${isPaused ? 'h-2' : 'h-3.5 animate-bounce'}`} style={{ animationDuration: '0.4s', animationDelay: '0.15s' }} />
+                  <span className={`w-0.5 bg-accent rounded-full ${isPaused ? 'h-1' : 'h-2 animate-bounce'}`} style={{ animationDuration: '0.5s', animationDelay: '0.3s' }} />
+                  <span className={`w-0.5 bg-accent rounded-full ${isPaused ? 'h-1.5' : 'h-2.5 animate-bounce'}`} style={{ animationDuration: '0.7s', animationDelay: '0.1s' }} />
+                </span>
+                <span>{isPaused ? 'Paused' : 'Playing audio...'}</span>
+              </div>
             )}
-
           </div>
         </div>
 
@@ -541,10 +558,12 @@ export default function AskAIButton() {
 
   if (panel === 'collapsed') {
     return (
-      <button data-tour="ask-ai-button" onClick={() => setPanel('minimized')} className="fixed z-50 right-6 bottom-6 group" aria-label="Open FAQ Assistant" title="Ask the FAQ Assistant">
-        <div className="absolute inset-0 rounded-full bg-accent/20 animate-ping opacity-30 pointer-events-none" style={{ animationDuration: '3s' }} />
-        <div className="relative w-14 h-14 rounded-full bg-gradient-to-br from-accent to-accent-dark shadow-lg shadow-accent/30 flex items-center justify-center transition-transform duration-200 group-hover:scale-110 group-active:scale-95">
-          <SparkleIcon size={24} />
+      <button data-tour="ask-ai-button" onClick={() => setPanel('minimized')} className="fixed z-[9999] right-6 bottom-6 group flex items-center gap-2" aria-label="Open Ask AI Voice Assistant" title="Ask AI Voice Assistant">
+        <div className="absolute inset-0 rounded-full bg-accent/30 animate-ping opacity-40 pointer-events-none" style={{ animationDuration: '2.5s' }} />
+        <div className="relative flex items-center gap-2.5 px-4 py-3 rounded-full bg-accent text-white font-semibold text-sm shadow-xl shadow-accent/30 transition-all duration-200 group-hover:scale-105 group-active:scale-95 border border-white/20">
+          <span className="text-base animate-pulse">🎙️</span>
+          <span>Ask AI Voice</span>
+          <SparkleIcon size={18} />
         </div>
         {unreadCount > 0 && (
           <span className="absolute -top-1 -right-1 min-w-5 h-5 flex items-center justify-center rounded-full bg-danger text-white text-[10px] font-bold px-1 shadow-md animate-bounce" style={{ animationDuration: '2s' }}>
@@ -646,21 +665,55 @@ export default function AskAIButton() {
               )}
             </div>
           )}
+          {/* Active Listening Voice Banner */}
+          {isListening && (
+            <div className="mb-2 flex items-center justify-between px-3 py-1.5 rounded-xl bg-danger/10 border border-danger/20 text-danger text-xs font-medium animate-fade-in">
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-danger opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-danger"></span>
+                </span>
+                <span>Listening... Speak your question now</span>
+              </div>
+              <div className="flex items-center gap-0.5 h-3">
+                <span className="w-0.5 bg-danger rounded-full h-3 animate-bounce" style={{ animationDuration: '0.4s' }} />
+                <span className="w-0.5 bg-danger rounded-full h-3.5 animate-bounce" style={{ animationDuration: '0.3s', animationDelay: '0.1s' }} />
+                <span className="w-0.5 bg-danger rounded-full h-2 animate-bounce" style={{ animationDuration: '0.5s', animationDelay: '0.2s' }} />
+                <span className="w-0.5 bg-danger rounded-full h-3 animate-bounce" style={{ animationDuration: '0.4s', animationDelay: '0.05s' }} />
+              </div>
+            </div>
+          )}
           <div className="flex items-end gap-2">
-            <button
-              type="button"
-              onClick={handleMicClick}
-              disabled={isLoading || quotaExhausted}
-              title={isListening ? 'Stop listening' : 'Ask by voice'}
-              aria-label="Voice input"
-              className={`shrink-0 w-9 h-9 rounded-full border transition-all flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed ${isListening ? 'bg-danger/10 border-danger/30 text-danger animate-pulse' : 'bg-accent/10 border-accent/20 text-accent hover:bg-accent/15'}`}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                <line x1="12" y1="19" x2="12" y2="23" />
-              </svg>
-            </button>
+            <div className="relative shrink-0">
+              {isListening && (
+                <>
+                  <div className="absolute -inset-1 rounded-full bg-danger/30 animate-ping opacity-40 pointer-events-none" style={{ animationDuration: '1.8s' }} />
+                  <div className="absolute -inset-2 rounded-full bg-danger/15 animate-pulse pointer-events-none" style={{ animationDuration: '1.2s' }} />
+                </>
+              )}
+              <button
+                type="button"
+                onClick={handleMicClick}
+                disabled={isLoading || quotaExhausted}
+                title={isListening ? 'Stop listening' : 'Ask by voice'}
+                aria-label="Voice input"
+                className={`relative shrink-0 w-9 h-9 rounded-full border transition-all flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed ${isListening ? 'bg-danger text-white border-danger shadow-md shadow-danger/30' : 'bg-accent/10 border-accent/20 text-accent hover:bg-accent/15 active:scale-95'}`}
+              >
+                {isListening ? (
+                  <span className="flex items-center gap-0.5 h-3.5">
+                    <span className="w-0.5 bg-white rounded-full h-3 animate-bounce" style={{ animationDuration: '0.4s' }} />
+                    <span className="w-0.5 bg-white rounded-full h-4 animate-bounce" style={{ animationDuration: '0.3s', animationDelay: '0.1s' }} />
+                    <span className="w-0.5 bg-white rounded-full h-2 animate-bounce" style={{ animationDuration: '0.5s', animationDelay: '0.2s' }} />
+                  </span>
+                ) : (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                    <line x1="12" y1="19" x2="12" y2="23" />
+                  </svg>
+                )}
+              </button>
+            </div>
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
@@ -672,7 +725,7 @@ export default function AskAIButton() {
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
             </button>
             <div className="flex-1">
-              <textarea ref={inputRef} value={query} onChange={e => setQuery(e.target.value)} onKeyDown={handleKeyDown} placeholder={quotaExhausted ? 'Sign in to continue...' : 'Ask the FAQ Assistant...'} rows={1} disabled={quotaExhausted} className="w-full bg-bg rounded-2xl border border-border px-4 py-2.5 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:border-accent/50 focus:ring-2 focus:ring-accent/15 resize-none leading-6 max-h-[120px] disabled:opacity-50 disabled:cursor-not-allowed transition-all" />
+              <textarea ref={inputRef} value={query} onChange={e => setQuery(e.target.value)} onKeyDown={handleKeyDown} placeholder={isListening ? 'Listening to your voice...' : quotaExhausted ? 'Sign in to continue...' : 'Ask the FAQ Assistant...'} rows={1} disabled={quotaExhausted} className="w-full bg-bg rounded-2xl border border-border px-4 py-2.5 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:border-accent/50 focus:ring-2 focus:ring-accent/15 resize-none leading-6 max-h-[120px] disabled:opacity-50 disabled:cursor-not-allowed transition-all" />
             </div>
             <button onClick={send} disabled={(query.trim().length < 3 && attachments.length === 0) || isLoading || quotaExhausted} title="Send (Enter)" className="shrink-0 w-9 h-9 rounded-full bg-accent hover:bg-accent-hover active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-md shadow-accent/25 flex items-center justify-center" aria-label="Send message"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg></button>
           </div>
