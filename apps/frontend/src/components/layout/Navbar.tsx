@@ -8,6 +8,7 @@ import NotificationBell from '../../components/notifications/NotificationBell';
 import SpurtiChip from './SpurtiChip';
 import ZoomBubble from '../welcome/ZoomBubble';
 import { BatchSwitcher } from './BatchSwitcher';
+import { LanguageSelector } from './LanguageSelector';
 import { NavPills, useNavItems } from './NavPills';
 import { useTeeEligibility } from '../../hooks/useTeeEligibility';
 import logoWide from '../../assets/logo-wide.png';
@@ -167,6 +168,7 @@ export default function Navbar({ showProgramSwitcher: _showProgramSwitcher = fal
 
         {/* Right side actions */}
         <div className="flex items-center justify-self-end gap-2 sm:gap-3">
+          <LanguageSelector />
           {!isAdminView && (
             <>
               {/* Unauthenticated — Sign in (text) + Get started (filled) */}

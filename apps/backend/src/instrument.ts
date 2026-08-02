@@ -35,7 +35,9 @@ import { fileURLToPath } from 'url';
 // point (server.ts, scripts, tests).
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, '../.env.local') });
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
+
 
 import * as Sentry from '@sentry/node';
 import { expressIntegration, mongooseIntegration } from '@sentry/node';

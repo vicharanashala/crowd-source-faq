@@ -11,6 +11,7 @@ import ErrorBoundary from './components/ui/ErrorBoundary';
 // Summership-era user enters their Internship End Date before
 // using the app. Mounts inside AuthProvider (needs `useAuth`) and
 // outside AppRoutes (needs to overlay every page uniformly).
+import { TranslationProvider } from './context/TranslationContext';
 import InternshipEndDateGate from './context/InternshipEndDateGate';
 
 export default function App() {
@@ -19,15 +20,17 @@ export default function App() {
       <AuthProvider>
         <BatchProvider>
           <FeatureFlagProvider>
-            <AuthModalHost>
-              <Suspense fallback={<div className="min-h-screen bg-bg flex items-center justify-center"><Spinner size="md" /></div>}>
-                <ErrorBoundary sectionName="App (top-level)">
-                  <InternshipEndDateGate>
-                    <AppRoutes />
-                  </InternshipEndDateGate>
-                </ErrorBoundary>
-              </Suspense>
-            </AuthModalHost>
+            <TranslationProvider>
+              <AuthModalHost>
+                <Suspense fallback={<div className="min-h-screen bg-bg flex items-center justify-center"><Spinner size="md" /></div>}>
+                  <ErrorBoundary sectionName="App (top-level)">
+                    <InternshipEndDateGate>
+                      <AppRoutes />
+                    </InternshipEndDateGate>
+                  </ErrorBoundary>
+                </Suspense>
+              </AuthModalHost>
+            </TranslationProvider>
           </FeatureFlagProvider>
         </BatchProvider>
       </AuthProvider>
