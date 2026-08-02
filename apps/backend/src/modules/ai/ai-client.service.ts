@@ -1049,6 +1049,15 @@ function parseFAQResponse(
   }
 }
 
+export async function generateChatCompletion(
+  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
+  overrides?: { temperature?: number; maxTokens?: number; model?: string; batchId?: string }
+): Promise<{ text: string; provider: string }> {
+  const client = new AiClient();
+  const res = await client.chat(messages, 'faqGeneration', overrides);
+  return { text: res.content, provider: res.provider };
+}
+
 // ─── Default export ─────────────────────────────────────────────────────────
 
 export default AiClient;

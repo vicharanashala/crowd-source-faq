@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { FAQItem, getQuestionTitle, getAnswerText, formatDate, getCategoryIcon, formatCategoryName, TrustBadge } from './faqUtils';
 import ReportFAQButton from './ReportFAQButton';
 import FreshnessBadge from '../faq/FreshnessBadge';
+import { TranslateButton } from '../ui/TranslateButton';
 import {
   avatarPlaceholder,
   flexCol,
@@ -33,13 +34,18 @@ interface QuestionDetailProps {
 }
 
 export default function QuestionDetail({ item, relatedItems, onBack, onSelectRelated, backLabel }: QuestionDetailProps) {
-  const title = getQuestionTitle(item);
+  const [translatedAnswer, setTranslatedAnswer] = useState<string | null>(null);
+  const [translatedTitle, setTranslatedTitle] = useState<string | null>(null);
+
+  const title = translatedTitle || getQuestionTitle(item);
   const prefix = item.questionNumber ? `${item.questionNumber}. ` : '';
-  const answer = getAnswerText(item);
+  const rawAnswer = getAnswerText(item);
+  const answer = translatedAnswer || rawAnswer;
   const metaDate = formatDate(item?.updatedAt || item?.createdAt);
   const sourceLabel = item?.source ? (item.source === 'faq' ? 'FAQ' : 'Community') : '';
   const trustLevel = item?.trustLevel;
   const highlight = answer ? answer.split('. ').slice(0, 1).join('. ') : '';
+
 
   return (
     <div className="grid lg:grid-cols-[260px_1fr] gap-6">
@@ -84,23 +90,38 @@ export default function QuestionDetail({ item, relatedItems, onBack, onSelectRel
           {backLabel || 'Back'}
         </button>
 
-        <div className={`mt-4 ${flexRowWrap} gap-2`}>
-          {sourceLabel && (
-            <span className="px-2.5 py-1 rounded-full bg-mist text-[11px] font-semibold text-ink-soft">
-              {sourceLabel}
-            </span>
-          )}
-          {metaDate && (
-            <span className={textXsFaint}>Updated {metaDate}</span>
-          )}
-          {item?.source === 'faq' && (
-            <FreshnessBadge
-              reviewStatus={item.reviewStatus}
-              lastVerifiedDate={item.lastVerifiedDate}
-              reviewIntervalDays={item.reviewIntervalDays ?? 0}
-              freshnessTier={item.freshnessTier}
-            />
-          )}
+        <div className={`mt-4 ${flexRowBetween} items-center flex-wrap gap-2`}>
+          <div className={`${flexRowWrap} gap-2 items-center`}>
+            {sourceLabel && (
+              <span className="px-2.5 py-1 rounded-full bg-mist text-[11px] font-semibold text-ink-soft">
+                {sourceLabel}
+              </span>
+            )}
+            {metaDate && (
+              <span className={textXsFaint}>Updated {metaDate}</span>
+            )}
+            {item?.source === 'faq' && (
+              <FreshnessBadge
+                reviewStatus={item.reviewStatus}
+                lastVerifiedDate={item.lastVerifiedDate}
+                reviewIntervalDays={item.reviewIntervalDays ?? 0}
+                freshnessTier={item.freshnessTier}
+              />
+            )}
+          </div>
+          <TranslateButton
+            originalText={`${getQuestionTitle(item)}\n\n${rawAnswer}`}
+            onTranslate={(translated) => {
+              if (!translated) {
+                setTranslatedTitle(null);
+                setTranslatedAnswer(null);
+              } else {
+                const parts = translated.split('\n\n');
+                setTranslatedTitle(parts[0] || null);
+                setTranslatedAnswer(parts.slice(1).join('\n\n') || parts[0]);
+              }
+            }}
+          />
         </div>
 
         <h2 className={`mt-4 text-xl font-semibold text-ink leading-snug`}>
