@@ -353,6 +353,9 @@ export default function HomePage() {
   const [recentLoading, setRecentLoading] = useState(true);
   // Per-category top FAQs ranked by live opens + search hits (dynamic).
   const [topByCategory, setTopByCategory] = useState<Record<string, FAQItem[]>>({});
+  // Daily Spotlight — top 3 FAQs by 24h guest views
+  const [spotlight, setSpotlight] = useState<FAQItem[]>([]);
+  const [spotlightLoading, setSpotlightLoading] = useState(true);
 
   // ── UI state ─────────────────────────────────────────────────────────────
   const [activeCategory, setActiveCategory] = useState('');
@@ -427,6 +430,13 @@ export default function HomePage() {
     api.get('/public/category-top-faqs', { params: { limit: 3, batchId } })
       .then((res) => { if (mounted) setTopByCategory(res.data?.grouped || {}); })
       .catch(() => { /* non-fatal — falls back to popularityScore ordering */ });
+
+    // /api/faq/daily-spotlight — Top 3 FAQs by 24h guest views
+    setSpotlightLoading(true);
+    api.get('/faq/daily-spotlight', { params: { batchId } })
+      .then((res) => { if (mounted) setSpotlight(res.data?.spotlight || []); })
+      .catch(() => { /* non-fatal */ })
+      .finally(() => { if (mounted) setSpotlightLoading(false); });
 
     // /api/search/trending — removed (no longer used)
 
@@ -661,7 +671,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          </section>
+        </section>
 
         {/* ─── LOADING / ERROR STATES ──────────────────────────────── */}
         {loading && (
@@ -710,14 +720,24 @@ export default function HomePage() {
               searchActive
                 ? 'Back to Search Results'
                 : activeCategory
-                ? `Back to ${formatCategoryName(activeCategory)}`
-                : 'Back to Categories'
+                  ? `Back to ${formatCategoryName(activeCategory)}`
+                  : 'Back to Categories'
             }
           />
         )}
 
         {/* Search results render inline in the dropdown under the search bar
             (see SearchDropdown) — no full-page results view / redirect. */}
+        {searchQuery.trim().length >= 3 && (
+          <div className="max-w-3xl mx-auto mt-4 px-2">
+            <p className="text-sm text-ink-soft">
+              {searchLoading
+                ? "Searching..."
+                : `${searchResults?.length || 0} result${(searchResults?.length || 0) !== 1 ? "s" : ""
+                } found`}
+            </p>
+          </div>
+        )}
 
         {/* ─── CATEGORY VIEW ────────────────────────────────────────── */}
         {!loading && !error && !activeQuestion && !searchActive && activeCategory && (
@@ -766,10 +786,80 @@ export default function HomePage() {
         {/* ─── DISCOVERY LANDING ─────────────────────────────────────── */}
         {showDiscovery && (
           <>
+            {/* ─── DAILY SPOTLIGHT ─────────────────────────────────────── */}
+            {(spotlightLoading || spotlight.length > 0) && (
+              <section
+                className="mt-4 mb-0 bg-gradient-to-r from-amber-50 via-orange-50 to-yellow-50 border border-amber-200/60 rounded-2xl p-5"
+                aria-labelledby="spotlight-heading"
+              >
+                <header className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <span className="relative flex h-8 w-8 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M12 2C6.5 7 4 11 4 14a8 8 0 0 0 16 0c0-3-2.5-7-8-12z" />
+                      </svg>
+                      <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-400 animate-ping" aria-hidden="true" />
+                    </span>
+                    <h2 id="spotlight-heading" className="font-serif text-base text-amber-900 leading-none">
+                      Today's Spotlight
+                    </h2>
+                  </div>
+                  <span className="text-[10px] text-amber-600/70 uppercase tracking-wider font-semibold">Last 24 hours</span>
+                </header>
+
+                {spotlightLoading ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {[1, 2, 3].map((n) => (
+                      <div key={n} className="h-20 bg-amber-100/60 rounded-xl animate-pulse" />
+                    ))}
+                  </div>
+                ) : (
+                  <ol className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {spotlight.map((item, idx) => (
+                      <li key={item._id}>
+                        <button
+                          type="button"
+                          onClick={() => handleQuestionOpen(item)}
+                          className="group w-full text-left rounded-xl border border-amber-200/50 bg-white/70 hover:bg-white hover:border-amber-300 hover:shadow-sm transition-all duration-150 p-3.5"
+                        >
+                          <div className="flex items-start gap-2.5">
+                            <span className="shrink-0 w-5 h-5 rounded-md bg-amber-100 text-amber-700 text-[10px] font-bold flex items-center justify-center mt-0.5">
+                              {idx + 1}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-amber-900 line-clamp-2 group-hover:text-amber-700 transition-colors leading-snug">
+                                {getQuestionTitle(item)}
+                              </p>
+                              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                                {item.category && (
+                                  <span className="text-[10px] text-amber-600/70 bg-amber-50 px-1.5 py-0.5 rounded">
+                                    {formatCategoryName(item.category).replace(/^\d+\.\s*/, '')}
+                                  </span>
+                                )}
+                                {(item as { viewsToday?: number }).viewsToday !== undefined && (
+                                  <span className="text-[10px] text-amber-600/80 flex items-center gap-0.5">
+                                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                      <circle cx="12" cy="12" r="3" />
+                                    </svg>
+                                    {(item as { viewsToday?: number }).viewsToday} today
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </button>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </section>
+            )}
+
             {/* ─── 3-COLUMN: Most Popular · Recent FAQs · Browse Categories ─── */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4">
               {/* ───── MOST POPULAR ───── */}
-              <section className="bg-card rounded-2xl border border-border p-6 flex flex-col h-full" aria-labelledby="most-popular-heading">
+              <section className="bg-card rounded-2xl border border-border p-6 flex flex-col h-full transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-accent/30" aria-labelledby="most-popular-heading">
                 <header className="flex items-center justify-between mb-6 shrink-0">
                   <div className="flex items-center gap-2 text-accent">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -787,26 +877,26 @@ export default function HomePage() {
                       : popularFaqs.length === 0
                         ? <p className="text-xs text-ink-soft py-3">No popular FAQs yet — once interns start viewing, they&apos;ll show up here.</p>
                         : popularFaqs.slice(0, 5).map((item, idx) => (
-                            <NumberedFaqRow
-                              key={item._id}
-                              rank={idx + 1}
-                              item={item}
-                              meta={
-                                <>
-                                  <span className="text-[11px] text-ink-faint">{formatViews(item.guestViewCount)}</span>
-                                  <span className="text-[11px] text-ink-faint">· {formatReadTime(item.expectedReadMs)}</span>
-                                </>
-                              }
-                              onOpen={handleQuestionOpen}
-                            />
-                          ))
+                          <NumberedFaqRow
+                            key={item._id}
+                            rank={idx + 1}
+                            item={item}
+                            meta={
+                              <>
+                                <span className="text-[11px] text-ink-faint">{formatViews(item.guestViewCount)}</span>
+                                <span className="text-[11px] text-ink-faint">· {formatReadTime(item.expectedReadMs)}</span>
+                              </>
+                            }
+                            onOpen={handleQuestionOpen}
+                          />
+                        ))
                     }
                   </ol>
                 </div>
               </section>
 
               {/* ───── RECENT FAQs ───── */}
-              <section className="bg-card rounded-2xl border border-border p-6 flex flex-col h-full" aria-labelledby="recent-faqs-heading">
+              <section className="bg-card rounded-2xl border border-border p-6 flex flex-col h-full transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-accent/30" aria-labelledby="recent-faqs-heading">
                 <header className="flex items-center justify-between mb-6 shrink-0">
                   <div className="flex items-center gap-2 text-accent">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -824,26 +914,26 @@ export default function HomePage() {
                       : recentPublicFaqs.length === 0
                         ? <p className="text-xs text-ink-soft py-3">No recent FAQs yet.</p>
                         : recentPublicFaqs.slice(0, 5).map((item, idx) => (
-                            <NumberedFaqRow
-                              key={item._id}
-                              rank={idx + 1}
-                              item={item}
-                              meta={
-                                <>
-                                  <span className="text-[11px] text-ink-faint">{formatShortDate(item.createdAt)}</span>
-                                  {item.expectedReadMs ? <span className="text-[11px] text-ink-faint">· {formatReadTime(item.expectedReadMs)}</span> : null}
-                                </>
-                              }
-                              onOpen={handleQuestionOpen}
-                            />
-                          ))
+                          <NumberedFaqRow
+                            key={item._id}
+                            rank={idx + 1}
+                            item={item}
+                            meta={
+                              <>
+                                <span className="text-[11px] text-ink-faint">{formatShortDate(item.createdAt)}</span>
+                                {item.expectedReadMs ? <span className="text-[11px] text-ink-faint">· {formatReadTime(item.expectedReadMs)}</span> : null}
+                              </>
+                            }
+                            onOpen={handleQuestionOpen}
+                          />
+                        ))
                     }
                   </ol>
                 </div>
               </section>
 
               {/* ───── BROWSE CATEGORIES ───── */}
-              <section className="bg-card rounded-2xl border border-border p-6 flex flex-col h-full" aria-labelledby="browse-categories-heading">
+              <section className="bg-card rounded-2xl border border-border p-6 flex flex-col h-full transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-accent/30" aria-labelledby="browse-categories-heading">
                 <header className="flex items-center justify-between mb-6 shrink-0">
                   <div className="flex items-center gap-2 text-accent">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

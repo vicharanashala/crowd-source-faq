@@ -69,6 +69,12 @@ interface UserResponse {
   // Sent on /auth/me and /auth/profile responses so the FE
   // gate provider can re-evaluate without an extra round-trip.
   internshipEndDate?: Date | null;
+  sp?: number;
+  points?: number;
+  tier?: string;
+  acceptedAnswers?: number;
+  faqContributions?: number;
+  reputation?: number;
 }
 
 // POST /api/auth/register
@@ -122,6 +128,12 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       projectAssignedAt: user.projectAssignedAt,
       projectSelectionLocked: user.projectSelectionLocked,
       guidedTourCompleted: user.guidedTourCompleted,
+      sp: user.sp,
+      points: user.points,
+      tier: user.tier,
+      acceptedAnswers: user.acceptedAnswers,
+      faqContributions: user.faqContributions,
+      reputation: user.reputation,
     };
 
     res.status(201).json({ token, refreshToken, user: userResponse });
@@ -205,6 +217,12 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       projectAssignedAt: user.projectAssignedAt,
       projectSelectionLocked: user.projectSelectionLocked,
       guidedTourCompleted: user.guidedTourCompleted,
+      sp: user.sp,
+      points: user.points,
+      tier: user.tier,
+      acceptedAnswers: user.acceptedAnswers,
+      faqContributions: user.faqContributions,
+      reputation: user.reputation,
     };
 
     res.json({ token, refreshToken, user: userResponse });
@@ -250,6 +268,12 @@ export const getMe = async (req: Request, res: Response): Promise<void> => {
     // v1.87 — Sign My Tee: surface on every /auth/me response so
     // the FE gate provider can pick it up.
     internshipEndDate: (req.user as any).internshipEndDate ?? null,
+    sp: (req.user as any).sp,
+    points: (req.user as any).points,
+    tier: (req.user as any).tier,
+    acceptedAnswers: (req.user as any).acceptedAnswers,
+    faqContributions: (req.user as any).faqContributions,
+    reputation: (req.user as any).reputation,
   };
 
   res.json({ user: userResponse });
@@ -866,5 +890,60 @@ export const refresh = async (req: Request, res: Response): Promise<void> => {
   } catch (error) {
     authLog.error('refresh token rotation failed', { error: (error as Error).message });
     res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// ── GET /api/auth/me/activity ─────────────────────────────────────────────────
+// Returns per-day contribution counts for the past 52 weeks (364 days).
+// Used by the GitHub-style heatmap on the user account page.
+// Day keys are "YYYY-MM-DD" (UTC). Weights: post=1, comment=1, accepted answer=2.
+export const getMyActivity = async (req: Request, res: Response): Promise<void> => {
+  if (!req.user) { res.status(401).json({ message: 'Not authorized' }); return; }
+  try {
+    const userId = new mongoose.Types.ObjectId(req.user._id.toString());
+    const since = new Date();
+    since.setDate(since.getDate() - 364);
+    since.setHours(0, 0, 0, 0);
+
+    const postPipeline: any[] = [
+      { $match: { author: userId, createdAt: { $gte: since } } },
+      { $group: {
+        _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt', timezone: 'UTC' } },
+        count: { $sum: 1 },
+      }},
+    ];
+
+    const commentPipeline: any[] = [
+      { $match: { 'comments.author': userId, createdAt: { $gte: since } } },
+      { $unwind: '$comments' },
+      { $match: { 'comments.author': userId, 'comments.createdAt': { $gte: since } } },
+      { $group: {
+        _id: { $dateToString: { format: '%Y-%m-%d', date: '$comments.createdAt', timezone: 'UTC' } },
+        count: { $sum: 1 },
+      }},
+    ];
+
+    const acceptedPipeline: any[] = [
+      { $match: { answerAuthorId: userId, status: 'answered', updatedAt: { $gte: since } } },
+      { $group: {
+        _id: { $dateToString: { format: '%Y-%m-%d', date: '$updatedAt', timezone: 'UTC' } },
+        count: { $sum: 2 },
+      }},
+    ];
+
+    const [posts, comments, accepted] = await Promise.all([
+      CommunityPost.aggregate(postPipeline),
+      CommunityPost.aggregate(commentPipeline),
+      CommunityPost.aggregate(acceptedPipeline),
+    ]);
+
+    const days: Record<string, number> = {};
+    for (const row of [...posts, ...comments, ...accepted]) {
+      days[row._id] = (days[row._id] ?? 0) + row.count;
+    }
+
+    res.json({ days, since: since.toISOString() });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: (error as Error).message });
   }
 };

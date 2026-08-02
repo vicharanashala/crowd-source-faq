@@ -26,6 +26,7 @@ interface CommentNodeProps {
   onReplyAdded: (newComment: Comment, parentId: string | null) => void;
   onCommentDeleted?: (commentId: string, parentId: string | null) => void;
   onPostUpdated?: (updatedPost: any) => void;
+  onSPEarned?: () => void;
   depth?: number;
   threadColor?: string;
   barColor?: string;
@@ -56,6 +57,7 @@ export default function CommentNode({
   onReplyAdded,
   onCommentDeleted,
   onPostUpdated,
+  onSPEarned,
   depth = 0,
   threadColor,
   barColor,
@@ -367,6 +369,13 @@ export default function CommentNode({
                           onPostUpdated(res.data.post);
                         }
                         setLocalVerified(true);
+                        
+                        const commentAuthorId = typeof comment.author === 'string' 
+                          ? comment.author 
+                          : (comment.author as any)?._id ?? '';
+                        if (idMatches(commentAuthorId, currentUserId)) {
+                          onSPEarned?.();
+                        }
                       }}
                       className={`text-[10px] px-1.5 py-0.5 rounded border transition-all ${
                         isVerified

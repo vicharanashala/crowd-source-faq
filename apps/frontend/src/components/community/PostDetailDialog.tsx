@@ -258,12 +258,13 @@ function AnswerCard({ post, currentUserId, userRole, onPostUpdate }: {
 }
 
 // ── Comment Item ──────────────────────────────────────────────────────────────
-function CommentItem({ comment, post, currentUserId, userRole, onUpdate }: {
+function CommentItem({ comment, post, currentUserId, userRole, onUpdate, onSPEarned }: {
   comment: Comment;
   post: Post;
   currentUserId: string;
   userRole: string;
   onUpdate: (comments: Comment[]) => void;
+  onSPEarned?: () => void;
 }) {
   const cUpvotes = comment.upvotes?.length ?? 0;
   const cDownvotes = comment.downvotes?.length ?? 0;
@@ -276,7 +277,8 @@ function CommentItem({ comment, post, currentUserId, userRole, onUpdate }: {
   ) ?? false;
   const commentOpacity = netScore >= 0 ? 1 : Math.max(0.15, 1 - (Math.abs(netScore) * 0.2));
   const canResolve = userRole === 'admin' || userRole === 'moderator';
-  const isPostAuthor = post.author?._id === currentUserId;
+  const postAuthorId = typeof post.author === 'string' ? post.author : post.author?._id ?? '';
+  const isPostAuthor = idMatches(postAuthorId, currentUserId);
   const [replyOpen, setReplyOpen] = useState(false);
   const [replyText, setReplyText] = useState('');
   const [replyLoading, setReplyLoading] = useState(false);
@@ -358,6 +360,13 @@ function CommentItem({ comment, post, currentUserId, userRole, onUpdate }: {
         `/community/${post._id}/comments/${comment._id}/accept-answer`
       );
       onUpdate((res.data.comments || []) as unknown as import('../../types/ui').Comment[]);
+      // Show SP toast to the answer author
+      const commentAuthorId = typeof comment.author === 'string'
+        ? comment.author
+        : (comment.author as any)?._id ?? '';
+      if (idMatches(commentAuthorId, currentUserId)) {
+        onSPEarned?.();
+      }
     } catch (e) {
       const msg = friendlyError(e, 'Failed to accept answer.');
       setActionError(msg);
@@ -477,6 +486,8 @@ export default function PostDetailDialog({ post: initialPost, onClose, currentUs
   const [resolveLoading, setResolveLoading] = useState(false);
   const [expertHelpLoading, setExpertHelpLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [spToast, setSpToast] = useState(false);
+  const showSpToast = () => { setSpToast(true); setTimeout(() => setSpToast(false), 5000); };
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportReason, setReportReason] = useState('');
   const [reportLoading, setReportLoading] = useState(false);
@@ -826,7 +837,8 @@ export default function PostDetailDialog({ post: initialPost, onClose, currentUs
                 {post.comments.map((c, i) => (
                   <CommentItem key={c._id || i} comment={c as Comment} post={post}
                     currentUserId={currentUserId} userRole={userRole}
-                    onUpdate={comments => setPost(p => ({ ...p, comments }))} />
+                    onUpdate={comments => setPost(p => ({ ...p, comments }))}
+                    onSPEarned={showSpToast} />
                 ))}
               </div>
             )}
@@ -885,6 +897,21 @@ export default function PostDetailDialog({ post: initialPost, onClose, currentUs
       {/* Lightbox — rendered outside dialog entirely (position:fixed, full viewport) */}
       {lightboxAssets.length > 0 && (
         <AttachmentLightbox assets={lightboxAssets} startIndex={lightboxIndex} onClose={() => setLightboxAssets([])} />
+      )}
+
+      {/* 🎉 SP earned toast — appears when current user's answer is accepted */}
+      {spToast && (
+        <div
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[300] flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl border border-green-300 animate-slide-up"
+          style={{ background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)' }}
+        >
+          <span className="text-2xl">🎉</span>
+          <div>
+            <p className="text-white font-semibold text-sm">Your answer was accepted!</p>
+            <p className="text-green-100 text-xs mt-0.5">You earned <strong>+20 SP</strong> — keep it up!</p>
+          </div>
+          <button onClick={() => setSpToast(false)} className="ml-2 text-white/70 hover:text-white text-lg leading-none transition-colors">✕</button>
+        </div>
       )}
     </>
   );

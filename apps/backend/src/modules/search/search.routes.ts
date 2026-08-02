@@ -16,7 +16,7 @@ import {
   deleteUnresolved,
   bulkDeleteUnresolved,
 } from './unresolved-search.controller.js';
-import { validateBody, searchSchema, submitUnresolvedSchema } from '../../utils/auth/validation.js';
+import { validateBody, searchSchema, submitUnresolvedSchema, resolveUnresolvedSchema } from '../../utils/auth/validation.js';
 
 const router = Router();
 
@@ -81,7 +81,7 @@ router.post('/unresolved', validateBody(submitUnresolvedSchema), submitUnresolve
 // → 500 on malformed ids. With `validateObjectId('id')` mounted
 // before the controller, malformed ids return 400 cleanly.
 router.get('/unresolved-list',         adminOnly, getUnresolvedSearches);
-router.patch('/unresolved/:id/resolve', adminOnly, validateObjectId('id'), resolveUnresolved);
+router.patch('/unresolved/:id/resolve', adminOnly, validateObjectId('id'), validateBody(resolveUnresolvedSchema), resolveUnresolved);
 router.delete('/unresolved/:id',         adminOnly, validateObjectId('id'), deleteUnresolved);
 router.post('/unresolved/bulk-delete',    adminOnly, bulkDeleteUnresolved);
 router.get('/unresolved-stats',          adminOnly, getUnresolvedStats);
