@@ -22,6 +22,8 @@ import { searchKnowledge } from '../knowledge/knowledge-base.service.js';
 import { getAssistantPersona } from '../../utils/ai/assistantPersona.js';
 import { logger } from '../../utils/http/logger.js';
 
+import { processMultilingualQuery, translateFromEnglish } from './multilingual.service.js';
+
 export interface RagSource {
   /** Stable id — the client uses this as a React key and to link out. */
   id: string;
@@ -42,6 +44,8 @@ export interface RagResult {
   sources: RagSource[];
   /** The model that produced the answer (e.g. "gpt-4o-mini"). */
   modelName: string;
+  detectedLanguage?: string;
+  translatedText?: string;
 }
 
 const TOP_K_PER_SOURCE = 4;
@@ -249,20 +253,22 @@ export interface RagAttachment {
  */
 export async function runRag(question: string, attachments: RagAttachment[] = []): Promise<RagResult> {
   const t0 = Date.now();
-  const embedding = await generateQueryEmbedding(question);
-  logger.info('rag.embedding.done', { ms: Date.now() - t0 });
+  const multi = await processMultilingualQuery(question);
+  const queryToSearch = multi.translatedText || question;
+  const embedding = await generateQueryEmbedding(queryToSearch);
+  logger.info('rag.embedding.done', { ms: Date.now() - t0, detectedLang: multi.detectedLanguage });
 
   // Fan out — 3 sources, top-K each, in parallel.
   const [faqHits, postHits, knowledgeHits] = await Promise.all([
-    searchFaqs(embedding, question, TOP_K_PER_SOURCE).catch((e) => {
+    searchFaqs(embedding, queryToSearch, TOP_K_PER_SOURCE).catch((e) => {
       logger.warn('rag.faq.search.failed', { error: (e as Error).message });
       return [] as FaqHit[];
     }),
-    searchCommunity(embedding, question, TOP_K_PER_SOURCE).catch((e) => {
+    searchCommunity(embedding, queryToSearch, TOP_K_PER_SOURCE).catch((e) => {
       logger.warn('rag.community.search.failed', { error: (e as Error).message });
       return [] as PostHit[];
     }),
-    searchKnowledge(question, TOP_K_PER_SOURCE, { embedQuery: true }).catch((e) => {
+    searchKnowledge(queryToSearch, TOP_K_PER_SOURCE, { embedQuery: true }).catch((e) => {
       logger.warn('rag.knowledge.search.failed', { error: (e as Error).message });
       return [] as Awaited<ReturnType<typeof searchKnowledge>>;
     }),
@@ -304,15 +310,21 @@ export async function runRag(question: string, attachments: RagAttachment[] = []
 
   // If we found nothing at all, skip the LLM call — just say "no answer".
   if (sources.length === 0) {
+    let emptyAnswer = "I couldn't find anything relevant in the FAQ, community, or your team's Zoom knowledge base. Try rephrasing, or post a new question to the community.";
+    if (!multi.isEnglish) {
+      emptyAnswer = await translateFromEnglish(emptyAnswer, multi.detectedLanguage);
+    }
     return {
-      answer: "I couldn't find anything relevant in the FAQ, community, or your team's Zoom knowledge base. Try rephrasing, or post a new question to the community.",
+      answer: emptyAnswer,
       sources: [],
       modelName: 'none',
+      detectedLanguage: multi.detectedLanguage,
+      translatedText: multi.translatedText,
     };
   }
 
   const context = buildContext(sources);
-  const prompt = buildPrompt(question, context);
+  const prompt = buildPrompt(queryToSearch, context);
 
   // Build the user-message content. When there are attachments we send a
   // multi-part content array (text + image parts) instead of a plain string.
@@ -344,7 +356,18 @@ export async function runRag(question: string, attachments: RagAttachment[] = []
     answer = sources[0]?.snippet ?? '';
   }
 
-  return { answer, sources, modelName: model };
+  // Translate answer to target language if input was non-English
+  if (!multi.isEnglish && answer && answer.trim().length > 5) {
+    answer = await translateFromEnglish(answer, multi.detectedLanguage);
+  }
+
+  return {
+    answer,
+    sources,
+    modelName: model,
+    detectedLanguage: multi.detectedLanguage,
+    translatedText: multi.translatedText,
+  };
 }
 
 /**

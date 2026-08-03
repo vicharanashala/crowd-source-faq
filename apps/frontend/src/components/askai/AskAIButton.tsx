@@ -30,10 +30,17 @@ function bumpAnonCount(): number {
   return next;
 }
 
-interface Source { kind: 'knowledge'|'faq'|'community'; title: string; snippet: string; score: number; href: string; id: string; aboveThreshold?: boolean; }
+interface Source { kind: 'knowledge' | 'faq' | 'community'; title: string; snippet: string; score: number; href: string; id: string; aboveThreshold?: boolean; }
 interface AskResponse { question: string; answer: string; sources: Source[]; relevantCount: number; sourceCount: number; model: string; aiFailed: boolean; }
-interface ChatMessage { id: string; role: 'user'|'assistant'; content: string; sources?: Source[]; loading?: boolean; error?: string; }
-
+interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  sources?: Source[];
+  loading?: boolean;
+  error?: string;
+  isNew?: boolean;
+}
 /** File/image attachment queued in the chat composer. */
 interface PendingAttachment {
   /** Local object URL for previews (images only) — released on remove/send. */
@@ -77,47 +84,265 @@ function SourceRow({ s, i, onNav }: { s: Source; i: number; onNav: (href: string
         </div>
         <p className="text-xs text-ink line-clamp-1">{s.title}</p>
       </div>
-      <svg className="w-3 h-3 text-ink-faint group-hover:text-accent group-hover:translate-x-0.5 transition-all shrink-0 mt-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+      <svg className="w-3 h-3 text-ink-faint group-hover:text-accent group-hover:translate-x-0.5 transition-all shrink-0 mt-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6" /></svg>
     </button>
   );
 }
 
-function MessageBubble({ m, onNav }: { m: ChatMessage; onNav: (href: string) => void }) {
+function MessageBubble({
+  m,
+  onNav,
+}: {
+  m: ChatMessage;
+  onNav: (href: string) => void;
+}) {
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+
+  // Automatically speak a newly received AI answer
+  useEffect(() => {
+    // Do not speak user messages, loading messages, or errors
+    if (
+      m.role !== 'assistant' ||
+      m.loading ||
+      m.error ||
+      !m.content.trim()
+    ) {
+      return;
+    }
+
+    // Stop any previous speech
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(m.content);
+
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+
+    utterance.onstart = () => {
+      setIsSpeaking(true);
+      setIsPaused(false);
+    };
+
+    utterance.onend = () => {
+      setIsSpeaking(false);
+      setIsPaused(false);
+    };
+
+    utterance.onerror = () => {
+      setIsSpeaking(false);
+      setIsPaused(false);
+    };
+
+    // Start speaking this particular answer
+    window.speechSynthesis.speak(utterance);
+  }, [m.content, m.loading, m.error, m.role]);
+
+  // Start/restart reading this particular answer
+  const speakAnswer = () => {
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(m.content);
+
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+
+    utterance.onstart = () => {
+      setIsSpeaking(true);
+      setIsPaused(false);
+    };
+
+    utterance.onend = () => {
+      setIsSpeaking(false);
+      setIsPaused(false);
+    };
+
+    utterance.onerror = () => {
+      setIsSpeaking(false);
+      setIsPaused(false);
+    };
+
+    window.speechSynthesis.speak(utterance);
+  };
+
+  // Pause
+  const pauseSpeech = () => {
+    if (
+      window.speechSynthesis.speaking &&
+      !window.speechSynthesis.paused
+    ) {
+      window.speechSynthesis.pause();
+      setIsPaused(true);
+    }
+  };
+
+  // Resume
+  const resumeSpeech = () => {
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+      setIsPaused(false);
+    }
+  };
+
+  // Stop
+  const stopSpeech = () => {
+    window.speechSynthesis.cancel();
+    setIsSpeaking(false);
+    setIsPaused(false);
+  };
+
   if (m.role === 'user') {
-    return (<div className="flex justify-end"><div className="max-w-[80%] px-3.5 py-2 rounded-2xl rounded-br-md bg-accent text-accent-text text-sm shadow-sm shadow-accent/20">{m.content}</div></div>);
+    return (
+      <div className="flex justify-end">
+        <div className="max-w-[80%] px-3.5 py-2 rounded-2xl rounded-br-md bg-accent text-accent-text text-sm shadow-sm shadow-accent/20">
+          {m.content}
+        </div>
+      </div>
+    );
   }
+
   if (m.loading) {
     return (
       <div className="flex justify-start">
         <div className="max-w-[80%] px-4 py-3 rounded-2xl rounded-bl-md bg-card border border-border flex items-center gap-2 text-ink-soft text-sm">
           <span className="flex gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-accent animate-bounce" style={{ animationDelay: '0ms' }} />
-            <span className="w-1.5 h-1.5 rounded-full bg-accent animate-bounce" style={{ animationDelay: '150ms' }} />
-            <span className="w-1.5 h-1.5 rounded-full bg-accent animate-bounce" style={{ animationDelay: '300ms' }} />
+            <span
+              className="w-1.5 h-1.5 rounded-full bg-accent animate-bounce"
+              style={{ animationDelay: '0ms' }}
+            />
+            <span
+              className="w-1.5 h-1.5 rounded-full bg-accent animate-bounce"
+              style={{ animationDelay: '150ms' }}
+            />
+            <span
+              className="w-1.5 h-1.5 rounded-full bg-accent animate-bounce"
+              style={{ animationDelay: '300ms' }}
+            />
           </span>
+
           Searching knowledge base...
         </div>
       </div>
     );
   }
+
   if (m.error) {
-    return (<div className="flex justify-start"><div className="max-w-[80%] px-3.5 py-2.5 rounded-2xl rounded-bl-md bg-danger-light border border-danger/30 text-danger text-sm">{m.error}</div></div>);
+    return (
+      <div className="flex justify-start">
+        <div className="max-w-[80%] px-3.5 py-2.5 rounded-2xl rounded-bl-md bg-danger-light border border-danger/30 text-danger text-sm">
+          {m.error}
+        </div>
+      </div>
+    );
   }
+
   return (
     <div className="flex justify-start">
       <div className="max-w-[85%] space-y-2">
-        <div className="px-3.5 py-2.5 rounded-2xl rounded-bl-md bg-card border border-border text-ink text-sm leading-relaxed whitespace-pre-wrap">{m.content}</div>
+
+        {/* AI Answer */}
+        <div className="px-3.5 py-2.5 rounded-2xl rounded-bl-md bg-card border border-border text-ink text-sm leading-relaxed whitespace-pre-wrap">
+          {m.content}
+
+          {/* Speech Controls & Audio Feedback */}
+          <div className="mt-2.5 flex items-center justify-between border-t border-border/40 pt-2 text-xs">
+            <div className="flex items-center gap-1.5">
+              {/* Listen */}
+              {!isSpeaking && (
+                <button
+                  type="button"
+                  onClick={speakAnswer}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium text-ink-soft hover:text-accent bg-mist/60 hover:bg-accent/10 border border-transparent hover:border-accent/20 transition-all active:scale-95"
+                  aria-label="Read answer aloud"
+                  title="Read answer aloud"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" /></svg>
+                  Listen
+                </button>
+              )}
+
+              {/* Pause */}
+              {isSpeaking && !isPaused && (
+                <button
+                  type="button"
+                  onClick={pauseSpeech}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium text-accent bg-accent/10 border border-accent/20 hover:bg-accent/20 transition-all active:scale-95"
+                  aria-label="Pause speech"
+                  title="Pause speech"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></svg>
+                  Pause
+                </button>
+              )}
+
+              {/* Resume */}
+              {isSpeaking && isPaused && (
+                <button
+                  type="button"
+                  onClick={resumeSpeech}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium text-accent bg-accent/10 border border-accent/20 hover:bg-accent/20 transition-all active:scale-95"
+                  aria-label="Resume speech"
+                  title="Resume speech"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3" /></svg>
+                  Resume
+                </button>
+              )}
+
+              {/* Stop */}
+              {isSpeaking && (
+                <button
+                  type="button"
+                  onClick={stopSpeech}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium text-danger bg-danger/10 border border-danger/20 hover:bg-danger/20 transition-all active:scale-95"
+                  aria-label="Stop speech"
+                  title="Stop speech"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" /></svg>
+                  Stop
+                </button>
+              )}
+            </div>
+
+            {/* Speaking / Soundwave Visualizer Indicator */}
+            {isSpeaking && (
+              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-accent/10 border border-accent/20 text-[11px] font-medium text-accent animate-fade-in">
+                <span className="flex items-center gap-0.5 h-3">
+                  <span className={`w-0.5 bg-accent rounded-full ${isPaused ? 'h-1.5' : 'h-3 animate-bounce'}`} style={{ animationDuration: '0.6s' }} />
+                  <span className={`w-0.5 bg-accent rounded-full ${isPaused ? 'h-2' : 'h-3.5 animate-bounce'}`} style={{ animationDuration: '0.4s', animationDelay: '0.15s' }} />
+                  <span className={`w-0.5 bg-accent rounded-full ${isPaused ? 'h-1' : 'h-2 animate-bounce'}`} style={{ animationDuration: '0.5s', animationDelay: '0.3s' }} />
+                  <span className={`w-0.5 bg-accent rounded-full ${isPaused ? 'h-1.5' : 'h-2.5 animate-bounce'}`} style={{ animationDuration: '0.7s', animationDelay: '0.1s' }} />
+                </span>
+                <span>{isPaused ? 'Paused' : 'Playing audio...'}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Sources */}
         {m.sources && m.sources.length > 0 && (
           <div className="space-y-1 pl-1">
-            <p className="text-[10px] uppercase tracking-wider text-ink-faint font-semibold pl-1">Sources ({m.sources.length})</p>
-            {m.sources.map((s, i) => <SourceRow key={`${s.id}-${i}`} s={s} i={i} onNav={onNav} />)}
+            <p className="text-[10px] uppercase tracking-wider text-ink-faint font-semibold pl-1">
+              Sources ({m.sources.length})
+            </p>
+
+            {m.sources.map((s, i) => (
+              <SourceRow
+                key={`${s.id}-${i}`}
+                s={s}
+                i={i}
+                onNav={onNav}
+              />
+            ))}
           </div>
         )}
+
       </div>
     </div>
   );
 }
-
 export default function AskAIButton() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
@@ -131,8 +356,10 @@ export default function AskAIButton() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [attachError, setAttachError] = useState<string | null>(null);
+  const [isListening, setIsListening] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const recognitionRef = useRef<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   // H36 — ref-mirrored attachments so the unmount cleanup can revoke
@@ -294,6 +521,36 @@ export default function AskAIButton() {
   }, [query, isLoading, isAuthenticated, openModal, attachments]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } };
+
+  // ── Voice input (VoiceFAQ) ──────────────────────────────────────────────
+  // Uses the browser's built-in SpeechRecognition API (Chrome). Fills the
+  // same `query` state the textarea uses, so send/Enter behave unchanged.
+  const handleMicClick = () => {
+    if (isListening) {
+      recognitionRef.current?.stop();
+      return;
+    }
+    const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+    if (!SpeechRecognition) {
+      setAttachError('Voice input is not supported in this browser. Try Chrome.');
+      return;
+    }
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.lang = 'en-US';
+    recognitionRef.current = recognition;
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setQuery(transcript);
+    };
+    recognition.onerror = () => setIsListening(false);
+    recognition.onend = () => setIsListening(false);
+
+    recognition.start();
+  };
+
   const reset = () => { setMessages([]); setQuery(''); };
   const handleSourceNav = useCallback((href: string) => { setPanel('collapsed'); navigate(href); }, [navigate]);
   const isExpanded = panel === 'expanded';
@@ -301,10 +558,12 @@ export default function AskAIButton() {
 
   if (panel === 'collapsed') {
     return (
-      <button data-tour="ask-ai-button" onClick={() => setPanel('minimized')} className="fixed z-50 right-6 bottom-6 group" aria-label="Open FAQ Assistant" title="Ask the FAQ Assistant">
-        <div className="absolute inset-0 rounded-full bg-accent/20 animate-ping opacity-30 pointer-events-none" style={{ animationDuration: '3s' }} />
-        <div className="relative w-14 h-14 rounded-full bg-gradient-to-br from-accent to-accent-dark shadow-lg shadow-accent/30 flex items-center justify-center transition-transform duration-200 group-hover:scale-110 group-active:scale-95">
-          <SparkleIcon size={24} />
+      <button data-tour="ask-ai-button" onClick={() => setPanel('minimized')} className="fixed z-[9999] right-6 bottom-6 group flex items-center gap-2" aria-label="Open Ask AI Voice Assistant" title="Ask AI Voice Assistant">
+        <div className="absolute inset-0 rounded-full bg-accent/30 animate-ping opacity-40 pointer-events-none" style={{ animationDuration: '2.5s' }} />
+        <div className="relative flex items-center gap-2.5 px-4 py-3 rounded-full bg-accent text-white font-semibold text-sm shadow-xl shadow-accent/30 transition-all duration-200 group-hover:scale-105 group-active:scale-95 border border-white/20">
+          <span className="text-base animate-pulse">🎙️</span>
+          <span>Ask AI Voice</span>
+          <SparkleIcon size={18} />
         </div>
         {unreadCount > 0 && (
           <span className="absolute -top-1 -right-1 min-w-5 h-5 flex items-center justify-center rounded-full bg-danger text-white text-[10px] font-bold px-1 shadow-md animate-bounce" style={{ animationDuration: '2s' }}>
@@ -334,20 +593,20 @@ export default function AskAIButton() {
           <div className="flex items-center gap-0.5">
             {!isAuthenticated && (<span className={`mr-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${quotaExhausted ? 'bg-danger/10 text-danger border-danger/20' : 'bg-mist text-ink-soft border-border'}`}>{Math.max(0, ANON_AI_LIMIT - anonCount)}/{ANON_AI_LIMIT}</span>)}
             {messages.length > 0 && (<button onClick={reset} title="Clear chat" className="px-2 py-1 rounded-md text-[10px] font-medium text-ink-faint hover:text-ink hover:bg-mist transition-colors">Clear</button>)}
-            <button onClick={() => setPanel(isExpanded ? 'minimized' : 'collapsed')} title={isExpanded ? 'Minimize' : 'Collapse'} className="w-7 h-7 rounded-md text-ink-faint hover:text-ink hover:bg-mist transition-colors flex items-center justify-center" aria-label="Minimize"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+            <button onClick={() => setPanel(isExpanded ? 'minimized' : 'collapsed')} title={isExpanded ? 'Minimize' : 'Collapse'} className="w-7 h-7 rounded-md text-ink-faint hover:text-ink hover:bg-mist transition-colors flex items-center justify-center" aria-label="Minimize"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="5" y1="12" x2="19" y2="12" /></svg></button>
             <button onClick={() => setPanel(isExpanded ? 'minimized' : 'expanded')} title={isExpanded ? 'Shrink' : 'Expand'} className="w-7 h-7 rounded-md text-ink-faint hover:text-ink hover:bg-mist transition-colors flex items-center justify-center" aria-label="Expand">
               {isExpanded
-                ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
-                : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+                ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" /><line x1="14" y1="10" x2="21" y2="3" /><line x1="3" y1="21" x2="10" y2="14" /></svg>
+                : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" /></svg>
               }
             </button>
-            <button onClick={() => setPanel('collapsed')} title="Close (Esc)" className="w-7 h-7 rounded-md text-ink-faint hover:text-danger hover:bg-danger/10 transition-colors flex items-center justify-center" aria-label="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+            <button onClick={() => setPanel('collapsed')} title="Close (Esc)" className="w-7 h-7 rounded-md text-ink-faint hover:text-danger hover:bg-danger/10 transition-colors flex items-center justify-center" aria-label="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg></button>
           </div>
         </div>
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-bg/40 min-h-0">
           {messages.length === 0 && quotaExhausted && (
             <div className="text-center py-8 space-y-3">
-              <div className="w-12 h-12 mx-auto rounded-2xl bg-accent/10 border border-accent/20 flex items-center justify-center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-accent"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+              <div className="w-12 h-12 mx-auto rounded-2xl bg-accent/10 border border-accent/20 flex items-center justify-center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-accent"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg></div>
               <p className="text-sm font-semibold text-ink">Sign in to continue</p>
               <p className="text-[11px] text-ink-soft max-w-xs mx-auto">You have used your {ANON_AI_LIMIT} free AI searches. Sign in for unlimited access.</p>
               <button onClick={() => openModal('signin')} className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-accent text-accent-text text-xs font-semibold hover:bg-accent-hover transition-colors">Sign in</button>
@@ -355,7 +614,7 @@ export default function AskAIButton() {
           )}
           {messages.length === 0 && !quotaExhausted && (
             <div className="text-center py-6 space-y-2.5">
-              <div className="w-12 h-12 mx-auto rounded-2xl bg-accent/10 border border-accent/20 flex items-center justify-center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-accent"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
+              <div className="w-12 h-12 mx-auto rounded-2xl bg-accent/10 border border-accent/20 flex items-center justify-center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-accent"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg></div>
               <p className="text-sm font-medium text-ink">How can I help?</p>
               <p className="text-[11px] text-ink-faint">I will search FAQs, Zoom transcripts, and community posts.</p>
               <div className="flex flex-wrap gap-1.5 justify-center pt-1">
@@ -406,7 +665,55 @@ export default function AskAIButton() {
               )}
             </div>
           )}
+          {/* Active Listening Voice Banner */}
+          {isListening && (
+            <div className="mb-2 flex items-center justify-between px-3 py-1.5 rounded-xl bg-danger/10 border border-danger/20 text-danger text-xs font-medium animate-fade-in">
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-danger opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-danger"></span>
+                </span>
+                <span>Listening... Speak your question now</span>
+              </div>
+              <div className="flex items-center gap-0.5 h-3">
+                <span className="w-0.5 bg-danger rounded-full h-3 animate-bounce" style={{ animationDuration: '0.4s' }} />
+                <span className="w-0.5 bg-danger rounded-full h-3.5 animate-bounce" style={{ animationDuration: '0.3s', animationDelay: '0.1s' }} />
+                <span className="w-0.5 bg-danger rounded-full h-2 animate-bounce" style={{ animationDuration: '0.5s', animationDelay: '0.2s' }} />
+                <span className="w-0.5 bg-danger rounded-full h-3 animate-bounce" style={{ animationDuration: '0.4s', animationDelay: '0.05s' }} />
+              </div>
+            </div>
+          )}
           <div className="flex items-end gap-2">
+            <div className="relative shrink-0">
+              {isListening && (
+                <>
+                  <div className="absolute -inset-1 rounded-full bg-danger/30 animate-ping opacity-40 pointer-events-none" style={{ animationDuration: '1.8s' }} />
+                  <div className="absolute -inset-2 rounded-full bg-danger/15 animate-pulse pointer-events-none" style={{ animationDuration: '1.2s' }} />
+                </>
+              )}
+              <button
+                type="button"
+                onClick={handleMicClick}
+                disabled={isLoading || quotaExhausted}
+                title={isListening ? 'Stop listening' : 'Ask by voice'}
+                aria-label="Voice input"
+                className={`relative shrink-0 w-9 h-9 rounded-full border transition-all flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed ${isListening ? 'bg-danger text-white border-danger shadow-md shadow-danger/30' : 'bg-accent/10 border-accent/20 text-accent hover:bg-accent/15 active:scale-95'}`}
+              >
+                {isListening ? (
+                  <span className="flex items-center gap-0.5 h-3.5">
+                    <span className="w-0.5 bg-white rounded-full h-3 animate-bounce" style={{ animationDuration: '0.4s' }} />
+                    <span className="w-0.5 bg-white rounded-full h-4 animate-bounce" style={{ animationDuration: '0.3s', animationDelay: '0.1s' }} />
+                    <span className="w-0.5 bg-white rounded-full h-2 animate-bounce" style={{ animationDuration: '0.5s', animationDelay: '0.2s' }} />
+                  </span>
+                ) : (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                    <line x1="12" y1="19" x2="12" y2="23" />
+                  </svg>
+                )}
+              </button>
+            </div>
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
@@ -418,7 +725,7 @@ export default function AskAIButton() {
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
             </button>
             <div className="flex-1">
-              <textarea ref={inputRef} value={query} onChange={e => setQuery(e.target.value)} onKeyDown={handleKeyDown} placeholder={quotaExhausted ? 'Sign in to continue...' : 'Ask the FAQ Assistant...'} rows={1} disabled={quotaExhausted} className="w-full bg-bg rounded-2xl border border-border px-4 py-2.5 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:border-accent/50 focus:ring-2 focus:ring-accent/15 resize-none leading-6 max-h-[120px] disabled:opacity-50 disabled:cursor-not-allowed transition-all" />
+              <textarea ref={inputRef} value={query} onChange={e => setQuery(e.target.value)} onKeyDown={handleKeyDown} placeholder={isListening ? 'Listening to your voice...' : quotaExhausted ? 'Sign in to continue...' : 'Ask the FAQ Assistant...'} rows={1} disabled={quotaExhausted} className="w-full bg-bg rounded-2xl border border-border px-4 py-2.5 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:border-accent/50 focus:ring-2 focus:ring-accent/15 resize-none leading-6 max-h-[120px] disabled:opacity-50 disabled:cursor-not-allowed transition-all" />
             </div>
             <button onClick={send} disabled={(query.trim().length < 3 && attachments.length === 0) || isLoading || quotaExhausted} title="Send (Enter)" className="shrink-0 w-9 h-9 rounded-full bg-accent hover:bg-accent-hover active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-md shadow-accent/25 flex items-center justify-center" aria-label="Send message"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg></button>
           </div>

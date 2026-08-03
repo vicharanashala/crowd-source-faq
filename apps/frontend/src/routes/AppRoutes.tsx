@@ -154,7 +154,7 @@ export default function AppRoutes() {
   // flag (/admin/features). Never shown on admin pages. `askAiEnabled` is
   // undefined while flags load and null for an unknown key — both treated
   // as off so the button never flashes in.
-  const showAskAI = askAiEnabled === true && !location.pathname.startsWith('/admin');
+  const showAskAI = askAiEnabled !== false && !location.pathname.startsWith('/admin');
 
   return (
     <>
