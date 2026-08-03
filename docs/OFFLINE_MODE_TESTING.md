@@ -73,6 +73,17 @@ The application should not display outdated or unrelated content. Uncached conte
 
 The service worker should be unregistered and Offline Mode caches should be cleared.
 
+## Troubleshooting
+
+| Problem | Possible cause | Recommended check |
+|---|---|---|
+| Service worker is not visible | Offline Mode is disabled | Confirm that the `offlineMode` feature flag is enabled |
+| Cached-page count remains zero | No FAQ request has been cached | Visit an FAQ while online and check Cache Storage again |
+| Offline page does not load | The page was not previously visited | Load the page once while connected to the internet |
+| Install button is disabled | The browser has not provided an install prompt | Test using a supported browser and a secure connection |
+| Old content remains after disabling the feature | Cache cleanup has not completed | Refresh the application and inspect Cache Storage |
+| Offline testing works differently during development | Development service workers may behave differently | Test using a production build |
+
 ## Test Record
 
 | Test | Result | Notes |
