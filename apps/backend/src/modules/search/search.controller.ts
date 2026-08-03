@@ -302,9 +302,8 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
     // 3. Execute Vector (when an embedding is available) + Text searches in
     //    parallel across both collections for maximum speed.
     const empty = Promise.resolve([] as SearchResultItem[]);
-    let [faqVec, commVec, faqTxt, commTxt] = await Promise.all([
-      empty,
-      empty,
+    const [faqVec, commVec] = await Promise.all([empty, empty]);
+    let [faqTxt, commTxt] = await Promise.all([
       runTextSearch('yaksha_faq_faqs', queryToSearch, 5, batchIdObjectId),
       runTextSearch('yaksha_faq_communityposts', queryToSearch, 5, batchIdObjectId)
     ]);
