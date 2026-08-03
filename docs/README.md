@@ -2,6 +2,7 @@
 
 ## Contents
 
+- [Offline Mode Testing](OFFLINE_MODE_TESTING.md) — Manual verification steps, expected results, troubleshooting guidance, and a reusable QA checklist for PWA offline support
 - [Architecture Overview](ARCHITECTURE.md) — Complete codebase map: routes, controllers, models, services, utils, frontend pages, middleware, patterns, environment variables
 - [Pipelines](PIPELINES.md) — All automated pipelines: auto-answer, FAQ audit, FAQ freshness, search, Zoom ingestion, support escalation; includes flows, configuration, and API endpoints
 - [MCP Integration](MCP.md) — Model Context Protocol: Hermes MCP client setup, CodeGraphContext MCP server tools, adding new servers, troubleshooting
