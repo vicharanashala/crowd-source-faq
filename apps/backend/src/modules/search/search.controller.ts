@@ -13,6 +13,7 @@ import {
 } from '../../utils/http/search.js';
 import { searchRequests, searchResultsReturned, searchLogFlushActive, searchLogFlushes } from '../../utils/http/metrics.js';
 import { searchKnowledge } from '../knowledge/knowledge-base.service.js';
+import { processMultilingualQuery } from '../ai/multilingual.service.js';
 
 // Cache configuration: Store up to 500 recent queries for 1 hour to reduce DB/AI loads
 const searchCache = new LRUCache<string, SearchResultItem[]>({
@@ -294,20 +295,28 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
     //   }
     const embedding: number[] | null = null;
 
+    // Multilingual translation: translate non-English queries to English for DB text search
+    const multi = await processMultilingualQuery(query);
+    const queryToSearch = multi.translatedText || query;
+
     // 3. Execute Vector (when an embedding is available) + Text searches in
     //    parallel across both collections for maximum speed.
     const empty = Promise.resolve([] as SearchResultItem[]);
-    const [faqVec, commVec, faqTxt, commTxt] = await Promise.all([
-      // Vector search is currently disabled on the per-request path
-      // (see v1.71 above). Embedding here would always be null.
-      // We keep the helper + call structure in place so re-enabling
-      // is a one-line change: `embedding ? runVectorSearch(...) : empty`.
-      empty,
-      empty,
-      runTextSearch('yaksha_faq_faqs', query, 5, batchIdObjectId),
-      runTextSearch('yaksha_faq_communityposts', query, 5, batchIdObjectId)
+    const [faqVec, commVec] = await Promise.all([empty, empty]);
+    let [faqTxt, commTxt] = await Promise.all([
+      runTextSearch('yaksha_faq_faqs', queryToSearch, 5, batchIdObjectId),
+      runTextSearch('yaksha_faq_communityposts', queryToSearch, 5, batchIdObjectId)
     ]);
     
+    if (faqTxt.length === 0 && commTxt.length === 0 && queryToSearch !== query) {
+      const [fallbackFaq, fallbackComm] = await Promise.all([
+        runTextSearch('yaksha_faq_faqs', query, 5, batchIdObjectId),
+        runTextSearch('yaksha_faq_communityposts', query, 5, batchIdObjectId)
+      ]);
+      faqTxt = fallbackFaq;
+      commTxt = fallbackComm;
+    }
+
     // Tag results with their origin source (FAQ vs Community)
     const processResults = (results: SearchResultItem[], source: ResultSource): SearchResultItem[] => 
       results.map(r => ({ ...r, source }));
