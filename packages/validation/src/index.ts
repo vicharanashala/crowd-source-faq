@@ -5,3 +5,4 @@ export * from './schemas/auth.schema.js';
 export * from './schemas/faq.schema.js';
 export * from './schemas/community.schema.js';
 export * from './schemas/support.schema.js';
+export * from './schemas/pinboard.schema.js';
