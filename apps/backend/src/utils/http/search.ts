@@ -20,6 +20,8 @@ export interface SearchResultItem {
   lastVerifiedDate?: Date;
   reviewIntervalDays?: number;
   freshnessTier?: 'evergreen' | 'seasonal' | 'volatile';
+  isTranslated?: boolean;
+  detectedLanguage?: string;
 }
 
 export interface RRFEntry {
