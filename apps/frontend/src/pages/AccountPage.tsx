@@ -5,6 +5,7 @@ import api from '../utils/api';
 import Footer from '../components/layout/Footer';
 import ProfileCard from '../components/account/ProfileCard';
 import PasswordCard from '../components/account/PasswordCard';
+import ActivityHeatmap from '../components/account/ActivityHeatmap';
 
 interface ZoomStatus {
   connected: boolean;
@@ -27,6 +28,19 @@ export default function AccountPage() {
   const [transcriptMeetingId, setTranscriptMeetingId] = useState<string | null>(null);
   const [transcriptProgress, setTranscriptProgress] = useState<{ stage: string; percent: number; message: string } | null>(null);
   const [transcriptSelectedFile, setTranscriptSelectedFile] = useState<{ file: File; type: 'vtt' | 'txt' } | null>(null);
+
+  // ─── Live user stats (SP, points, acceptedAnswers, tier) ────────
+  const [liveStats, setLiveStats] = useState<{
+    sp: number; points: number; tier: string;
+    acceptedAnswers: number; faqContributions: number; reputation: number;
+  } | null>(null);
+
+  useEffect(() => {
+    api.get<{ user: typeof liveStats }>('/auth/me')
+      .then(res => { if (res.data?.user) setLiveStats(res.data.user as any); })
+      .catch(() => {});
+  }, []);
+
   // 2-E (MEDIUM) — topic used to be read via document.getElementById
   // each time the user clicked Process. That DOM-read lost state when
   // the modal opened/closed (React re-rendered the input but the DOM
@@ -338,6 +352,78 @@ export default function AccountPage() {
 
         {/* Profile card (avatar + name/email edit) */}
         <ProfileCard />
+
+        {/* ─── SP & Contribution Stats ─────────────────────────── */}
+        {(liveStats || user) && (() => {
+          const sp              = liveStats?.sp              ?? (user as any)?.sp              ?? 0;
+          const points          = liveStats?.points          ?? (user as any)?.points          ?? 0;
+          const tier            = liveStats?.tier            ?? (user as any)?.tier            ?? 'newcomer';
+          const acceptedAnswers = liveStats?.acceptedAnswers ?? (user as any)?.acceptedAnswers ?? 0;
+          const faqContribs     = liveStats?.faqContributions ?? (user as any)?.faqContributions ?? 0;
+          const reputation      = liveStats?.reputation      ?? (user as any)?.reputation      ?? 0;
+
+          const TIER_COLORS: Record<string, string> = {
+            newcomer:       'bg-gray-100 text-gray-600',
+            contributor:    'bg-blue-100 text-blue-700',
+            helper:         'bg-green-100 text-green-700',
+            expert:         'bg-purple-100 text-purple-700',
+            champion:       'bg-orange-100 text-orange-700',
+            knowledge_master: 'bg-yellow-100 text-yellow-800',
+          };
+
+          return (
+            <div className="bg-card rounded-2xl border border-border p-6 shadow-subtle">
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="font-semibold text-ink text-sm">Your Contributions</h2>
+                <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full capitalize ${TIER_COLORS[tier] ?? 'bg-gray-100 text-gray-600'}`}>
+                  {tier.replace('_', ' ')}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {/* SP */}
+                <div className="flex flex-col items-center justify-center bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4">
+                  <span className="text-2xl font-bold text-orange-600">{sp}</span>
+                  <span className="text-[11px] text-orange-500 font-medium mt-1">SP Balance</span>
+                  <span className="text-[10px] text-ink-soft mt-0.5">Spurti Points</span>
+                </div>
+                {/* Accepted Answers */}
+                <div className="flex flex-col items-center justify-center bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4">
+                  <span className="text-2xl font-bold text-green-600">{acceptedAnswers}</span>
+                  <span className="text-[11px] text-green-600 font-medium mt-1">Accepted</span>
+                  <span className="text-[10px] text-ink-soft mt-0.5">Answers</span>
+                </div>
+                {/* Points */}
+                <div className="flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4">
+                  <span className="text-2xl font-bold text-blue-600">{points}</span>
+                  <span className="text-[11px] text-blue-600 font-medium mt-1">Points</span>
+                  <span className="text-[10px] text-ink-soft mt-0.5">Reputation</span>
+                </div>
+                {/* Reputation */}
+                <div className="flex flex-col items-center justify-center bg-mist rounded-xl p-4">
+                  <span className="text-2xl font-bold text-ink">{reputation}</span>
+                  <span className="text-[11px] text-ink-soft font-medium mt-1">Reputation</span>
+                  <span className="text-[10px] text-ink-soft mt-0.5">Score</span>
+                </div>
+                {/* FAQ contributions */}
+                <div className="flex flex-col items-center justify-center bg-mist rounded-xl p-4">
+                  <span className="text-2xl font-bold text-ink">{faqContribs}</span>
+                  <span className="text-[11px] text-ink-soft font-medium mt-1">FAQ</span>
+                  <span className="text-[10px] text-ink-soft mt-0.5">Contributions</span>
+                </div>
+                {/* Each accept = +20 SP info */}
+                <div className="flex flex-col items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-4">
+                  <span className="text-lg font-bold text-purple-600">+20</span>
+                  <span className="text-[11px] text-purple-600 font-medium mt-1">SP/Accept</span>
+                  <span className="text-[10px] text-ink-soft mt-0.5">Earned</span>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* ─── Activity Heatmap ─────────────────────────────────── */}
+        <ActivityHeatmap />
+
 
         {/* Password card */}
         <PasswordCard />
