@@ -661,7 +661,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          </section>
+        </section>
 
         {/* ─── LOADING / ERROR STATES ──────────────────────────────── */}
         {loading && (
@@ -710,14 +710,24 @@ export default function HomePage() {
               searchActive
                 ? 'Back to Search Results'
                 : activeCategory
-                ? `Back to ${formatCategoryName(activeCategory)}`
-                : 'Back to Categories'
+                  ? `Back to ${formatCategoryName(activeCategory)}`
+                  : 'Back to Categories'
             }
           />
         )}
 
         {/* Search results render inline in the dropdown under the search bar
             (see SearchDropdown) — no full-page results view / redirect. */}
+        {searchQuery.trim().length >= 3 && (
+          <div className="max-w-3xl mx-auto mt-4 px-2">
+            <p className="text-sm text-ink-soft">
+              {searchLoading
+                ? "Searching..."
+                : `${searchResults?.length || 0} result${(searchResults?.length || 0) !== 1 ? "s" : ""
+                } found`}
+            </p>
+          </div>
+        )}
 
         {/* ─── CATEGORY VIEW ────────────────────────────────────────── */}
         {!loading && !error && !activeQuestion && !searchActive && activeCategory && (
@@ -769,7 +779,7 @@ export default function HomePage() {
             {/* ─── 3-COLUMN: Most Popular · Recent FAQs · Browse Categories ─── */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4">
               {/* ───── MOST POPULAR ───── */}
-              <section className="bg-card rounded-2xl border border-border p-6 flex flex-col h-full" aria-labelledby="most-popular-heading">
+              <section className="bg-card rounded-2xl border border-border p-6 flex flex-col h-full transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-accent/30" aria-labelledby="most-popular-heading">
                 <header className="flex items-center justify-between mb-6 shrink-0">
                   <div className="flex items-center gap-2 text-accent">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -787,26 +797,26 @@ export default function HomePage() {
                       : popularFaqs.length === 0
                         ? <p className="text-xs text-ink-soft py-3">No popular FAQs yet — once interns start viewing, they&apos;ll show up here.</p>
                         : popularFaqs.slice(0, 5).map((item, idx) => (
-                            <NumberedFaqRow
-                              key={item._id}
-                              rank={idx + 1}
-                              item={item}
-                              meta={
-                                <>
-                                  <span className="text-[11px] text-ink-faint">{formatViews(item.guestViewCount)}</span>
-                                  <span className="text-[11px] text-ink-faint">· {formatReadTime(item.expectedReadMs)}</span>
-                                </>
-                              }
-                              onOpen={handleQuestionOpen}
-                            />
-                          ))
+                          <NumberedFaqRow
+                            key={item._id}
+                            rank={idx + 1}
+                            item={item}
+                            meta={
+                              <>
+                                <span className="text-[11px] text-ink-faint">{formatViews(item.guestViewCount)}</span>
+                                <span className="text-[11px] text-ink-faint">· {formatReadTime(item.expectedReadMs)}</span>
+                              </>
+                            }
+                            onOpen={handleQuestionOpen}
+                          />
+                        ))
                     }
                   </ol>
                 </div>
               </section>
 
               {/* ───── RECENT FAQs ───── */}
-              <section className="bg-card rounded-2xl border border-border p-6 flex flex-col h-full" aria-labelledby="recent-faqs-heading">
+              <section className="bg-card rounded-2xl border border-border p-6 flex flex-col h-full transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-accent/30" aria-labelledby="recent-faqs-heading">
                 <header className="flex items-center justify-between mb-6 shrink-0">
                   <div className="flex items-center gap-2 text-accent">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -824,26 +834,26 @@ export default function HomePage() {
                       : recentPublicFaqs.length === 0
                         ? <p className="text-xs text-ink-soft py-3">No recent FAQs yet.</p>
                         : recentPublicFaqs.slice(0, 5).map((item, idx) => (
-                            <NumberedFaqRow
-                              key={item._id}
-                              rank={idx + 1}
-                              item={item}
-                              meta={
-                                <>
-                                  <span className="text-[11px] text-ink-faint">{formatShortDate(item.createdAt)}</span>
-                                  {item.expectedReadMs ? <span className="text-[11px] text-ink-faint">· {formatReadTime(item.expectedReadMs)}</span> : null}
-                                </>
-                              }
-                              onOpen={handleQuestionOpen}
-                            />
-                          ))
+                          <NumberedFaqRow
+                            key={item._id}
+                            rank={idx + 1}
+                            item={item}
+                            meta={
+                              <>
+                                <span className="text-[11px] text-ink-faint">{formatShortDate(item.createdAt)}</span>
+                                {item.expectedReadMs ? <span className="text-[11px] text-ink-faint">· {formatReadTime(item.expectedReadMs)}</span> : null}
+                              </>
+                            }
+                            onOpen={handleQuestionOpen}
+                          />
+                        ))
                     }
                   </ol>
                 </div>
               </section>
 
               {/* ───── BROWSE CATEGORIES ───── */}
-              <section className="bg-card rounded-2xl border border-border p-6 flex flex-col h-full" aria-labelledby="browse-categories-heading">
+              <section className="bg-card rounded-2xl border border-border p-6 flex flex-col h-full transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-accent/30" aria-labelledby="browse-categories-heading">
                 <header className="flex items-center justify-between mb-6 shrink-0">
                   <div className="flex items-center gap-2 text-accent">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
