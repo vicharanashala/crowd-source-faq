@@ -37,6 +37,7 @@ const SupportIndexPage = lazy(() => import('../pages/SupportIndexPage'));
 const NewSupportRequestPage = lazy(() => import('../pages/NewSupportRequestPage'));
 const SupportTicketPage = lazy(() => import('../pages/SupportTicketPage'));
 const GoldenTicketPage = lazy(() => import('../pages/GoldenTicketPage'));
+const QuizPage = lazy(() => import('../pages/QuizPage'));
 const GoldenTicketDetailPage = lazy(() => import('../pages/GoldenTicketDetailPage'));
 const WelcomePackagePage = lazy(() => import('../pages/WelcomePackagePage'));
 const ProgramPortalPage = lazy(() => import('../pages/ProgramPortalPage'));
@@ -117,6 +118,13 @@ function GoldenRoute() {
     </FeatureGate>
   );
 }
+function QuizRoute() {
+  return (
+    <FeatureGate featureKey="quizMode" featureLabel="FAQ Quiz Mode">
+      <QuizPage />
+    </FeatureGate>
+  );
+}
 
 // v1.73 — dedicated user thread for a single Golden ticket. The
 // in-app bell notification (from /admin/golden-tickets/:id/resolve
@@ -161,19 +169,20 @@ export default function AppRoutes() {
       <Suspense fallback={<div className="min-h-screen bg-bg flex items-center justify-center"><Spinner size="md" /></div>}>
         <Routes>
           <Route element={<MainLayout />}>
-            <Route path="/" element={<RouteElement name="root"><HomePage /></RouteElement>} />
-            <Route path="/programs" element={<RouteElement name="programs"><ProgramPortalPage /></RouteElement>} />
-            <Route path="/explore/select" element={<RouteElement name="explore-select"><Navigate to="/programs" replace /></RouteElement>} />
-            <Route path="/faq" element={<RouteElement name="faq"><FAQPage /></RouteElement>} />
-            <Route path="/faq/:id" element={<RouteElement name="faq-:id"><FAQPage /></RouteElement>} />
-            <Route path="/community" element={<RouteElement name="community"><CommunityPage /></RouteElement>} />
-            <Route path="/saved" element={<RouteElement name="saved"><SavedKnowledgePage /></RouteElement>} />
-            <Route path="/support" element={<RouteElement name="support"><SupportRoute /></RouteElement>} />
-            <Route path="/support/new" element={<RouteElement name="support-new"><SupportNewRoute /></RouteElement>} />
-            <Route path="/support/:id" element={<RouteElement name="support-:id"><SupportTicketRoute /></RouteElement>} />
-            <Route path="/golden" element={<RouteElement name="golden"><GoldenRoute /></RouteElement>} />
-            <Route path="/golden/ticket/:id" element={<RouteElement name="golden-ticket-:id"><GoldenTicketDetailRoute /></RouteElement>} />
-            <Route path="/program/:slug" element={<RouteElement name="program-:slug"><ProgramPage /></RouteElement>} />
+<Route path="/" element={<RouteElement name="root"><HomePage /></RouteElement>} />
+<Route path="/programs" element={<RouteElement name="programs"><ProgramPortalPage /></RouteElement>} />
+<Route path="/explore/select" element={<RouteElement name="explore-select"><Navigate to="/programs" replace /></RouteElement>} />
+<Route path="/faq" element={<RouteElement name="faq"><FAQPage /></RouteElement>} />
+<Route path="/faq/:id" element={<RouteElement name="faq-:id"><FAQPage /></RouteElement>} />
+<Route path="/community" element={<RouteElement name="community"><CommunityPage /></RouteElement>} />
+<Route path="/saved" element={<RouteElement name="saved"><SavedKnowledgePage /></RouteElement>} />
+<Route path="/support" element={<RouteElement name="support"><SupportRoute /></RouteElement>} />
+<Route path="/support/new" element={<RouteElement name="support-new"><SupportNewRoute /></RouteElement>} />
+<Route path="/support/:id" element={<RouteElement name="support-:id"><SupportTicketRoute /></RouteElement>} />
+<Route path="/golden" element={<RouteElement name="golden"><GoldenRoute /></RouteElement>} />
+<Route path="/golden/ticket/:id" element={<RouteElement name="golden-ticket-:id"><GoldenTicketDetailRoute /></RouteElement>} />
+<Route path="/quiz" element={<RouteElement name="quiz"><QuizRoute /></RouteElement>} />
+<Route path="/program/:slug" element={<RouteElement name="program-:slug"><ProgramPage /></RouteElement>} />
             <Route
               path="/account"
               element={<RouteElement name="account"><AccountRoute>

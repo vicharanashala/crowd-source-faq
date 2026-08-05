@@ -23,6 +23,7 @@ export type ReputationAction =
   | 'faq_answer_used'      // answer author: answer used in FAQ (+25)
   | 'admin_approval_bonus' // question author: admin approved (+10)
   | 'spam_confirmed'       // user: spam report confirmed (-20)
+  | 'quiz_correct'   // v-quiz: +2 SP per first-attempt correct quiz answer
   // v1.65 — Golden Ticket / Spurti Points (SP) ledger entries.
   // SP is a separate currency from `points`; these actions do NOT
   // touch the tier system. The Golden controller routes through

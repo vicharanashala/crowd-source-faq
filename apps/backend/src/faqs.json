@@ -1,3 +1,4 @@
+
 {
   "faqs": [
     {
@@ -5,6 +6,27 @@
       "section": "General",
       "question": "What is the Yaksha research internship?",
       "answer": "Yaksha is a two-month research internship program.",
+      "category": "General Info"
+    },
+    {
+      "id": "2",
+      "section": "General",
+      "question": "How long does the internship last?",
+      "answer": "The internship runs for two months, aligned with the academic calendar.",
+      "category": "General Info"
+    },
+    {
+      "id": "3",
+      "section": "General",
+      "question": "Who can apply to the Yaksha internship?",
+      "answer": "Any enrolled student meeting the eligibility criteria published on the program page can apply.",
+      "category": "General Info"
+    },
+    {
+      "id": "4",
+      "section": "General",
+      "question": "Is the Yaksha internship paid?",
+      "answer": "Stipend details are shared during the offer stage and vary by track.",
       "category": "General Info"
     }
   ]
