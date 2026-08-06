@@ -14,6 +14,11 @@ import type { Post } from '../types/ui';
 
 import CreatePostDialog from '../components/community/CreatePostDialog';
 import { buttonCommunityAsk } from '../styles/style_config';
+// Community Pinboard integration — reusable components only, no backend/API/routing changes.
+import AdminControls from '../components/community/moderation/AdminControls';
+import StatusBadge from '../components/community/moderation/StatusBadge';
+import { ImportantLinksTab, type ImportantLink } from '../components/community/important-links';
+import { SegmentedTabs } from '../components/community/shared';
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function CommunityPage() {
@@ -54,6 +59,12 @@ export default function CommunityPage() {
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [createPrefillTitle, setCreatePrefillTitle] = useState('');
+
+  // Community Pinboard — Important Links tab. Local UI state only; no
+  // backend/API wired up yet (out of scope for this integration pass).
+  const [activeView, setActiveView] = useState<'discussions' | 'links'>('discussions');
+  const [importantLinks, setImportantLinks] = useState<ImportantLink[]>([]);
+  const [linksSectionPinned, setLinksSectionPinned] = useState(true);
 
   // Backend uses cursor-based pagination. The previous version sent `?page=2`
   // which the backend silently ignored — so every "Load more" call returned
@@ -241,6 +252,21 @@ export default function CommunityPage() {
     setSelectedPostId(null);
   };
 
+  // Important Links — local-only handlers (no API). ManageLinksModal and
+  // ImportantLinksTab only ever call back with plain data; persistence is
+  // intentionally out of scope for this integration pass.
+  const handleAddLink = (draft: Omit<ImportantLink, 'id'>) => {
+    setImportantLinks((prev) => [...prev, { ...draft, id: crypto.randomUUID() }]);
+  };
+
+  const handleEditLink = (id: string, draft: Omit<ImportantLink, 'id'>) => {
+    setImportantLinks((prev) => prev.map((l) => (l.id === id ? { ...draft, id } : l)));
+  };
+
+  const handleDeleteLink = (id: string) => {
+    setImportantLinks((prev) => prev.filter((l) => l.id !== id));
+  };
+
   const handleShareCommunity = async () => {
     const url = window.location.origin + '/csfaq/community';
     try { await navigator.clipboard.writeText(url); } catch { /* ignore */ }
@@ -347,6 +373,30 @@ export default function CommunityPage() {
           </div>
         </div>
 
+        {/* Community Pinboard — Discussions / Important Links toggle. */}
+        <div className="flex items-center gap-3 mb-4 flex-wrap">
+          <SegmentedTabs
+            options={[
+              { key: 'discussions', label: 'Discussions' },
+              { key: 'links', label: 'Important Links' },
+            ]}
+            value={activeView}
+            onChange={setActiveView}
+          />
+
+          {activeView === 'links' && (
+            <div className="flex items-center gap-2">
+              {linksSectionPinned && <StatusBadge status="pinned" />}
+              <AdminControls
+                isPinned={linksSectionPinned}
+                onPin={() => setLinksSectionPinned((p) => !p)}
+              />
+            </div>
+          )}
+        </div>
+
+        {activeView === 'discussions' && (
+        <>
         <CommunityHealth />
 
         {!loading && total > 0 && (
@@ -493,6 +543,17 @@ export default function CommunityPage() {
               )
             )}
           </div>
+        )}
+        </>
+        )}
+
+        {activeView === 'links' && (
+          <ImportantLinksTab
+            links={importantLinks}
+            onAdd={handleAddLink}
+            onEdit={handleEditLink}
+            onDelete={handleDeleteLink}
+          />
         )}
 
         <div className="h-12" />
