@@ -631,9 +631,6 @@ export function WebUrlView({ bare = false }: { bare?: boolean } = {}) {
 /**
  * UploadDocumentView — file-upload form + list for `DocumentAsset`.
  * Self-contained: owns its own state, fetches `/admin/documents`.
- * v1.83 — `.html` / `.htm` added to the accept= list; uploads will
- * still be rejected by the backend until ALLOWED_MIME in
- * adminDocuments.controller.ts is extended (tracked as a TODO).
  */
 export function UploadDocumentView({ bare = false }: { bare?: boolean } = {}) {
   const [items, setItems] = useState<DocumentRow[]>([]);
@@ -704,7 +701,7 @@ export function UploadDocumentView({ bare = false }: { bare?: boolean } = {}) {
     } catch (e) {
       const status = (e as { response?: { status?: number } })?.response?.status;
       let msg = friendlyError(e, 'Upload failed.');
-      if (status === 400) msg = 'That file type is not supported. Use PDF, TXT, MD, CSV, HTML, or HTM.';
+      if (status === 400) msg = 'That file type is not supported. Use PDF, TXT, MD, or CSV.';
       else if (status === 422) msg = 'We could not extract any text from that file.';
       setUploadError(msg);
     } finally {
@@ -810,12 +807,7 @@ export function UploadDocumentView({ bare = false }: { bare?: boolean } = {}) {
         <input
           id="context-doc-file"
           type="file"
-          // v1.83 — accept HTML too. Backend ALLOWED_MIME set does NOT
-          // yet include `text/html` / `application/xhtml+xml`; a
-          // follow-up backend PR will add extraction support. Until
-          // then an HTML upload returns 400 and the existing error
-          // path displays "unsupported file type".
-          accept=".pdf,.txt,.md,.csv,.html,.htm"
+          accept=".pdf,.txt,.md,.csv"
           onChange={handleFileChange}
           disabled={uploadPending}
           aria-label="Document file"
@@ -924,7 +916,7 @@ export function UploadDocumentView({ bare = false }: { bare?: boolean } = {}) {
   return (
     <AdminCard
       title="Documents"
-      subtitle="Upload a PDF, TXT, MD, CSV, HTML, or HTM. Text is extracted and indexed for retrieval."
+      subtitle="Upload a PDF, TXT, MD, or CSV. Text is extracted and indexed for retrieval."
     >
       {body}
     </AdminCard>
