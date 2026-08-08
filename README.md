@@ -38,7 +38,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the architecture deep-dive 
 |---|---|
 | Frontend | React 18, Vite, TypeScript, Tailwind CSS, Framer Motion, Axios, Recharts, React Router 6, Vitest |
 | Backend | Node.js, Express 4, TypeScript (ESM), Mongoose 8, JWT, bcryptjs, Helmet, CORS, Morgan, Multer, Zod, express-rate-limit, dotenv, OpenAI SDK, Vitest |
-| Database & Storage | MongoDB Atlas (with Vector Search), Upstash Redis (optional), LRU cache, Cloudinary |
+| Database & Storage | MongoDB Atlas (with Vector Search), Google Cloud Storage for new uploads, LRU cache, legacy Cloudinary pass-through support |
 | Search & AI | Xenova/transformers (768-dim local embeddings), Atlas Vector Search, $text search, Reciprocal Rank Fusion |
 | AI Providers | Anthropic, OpenAI, XAI, MiniMax (per-pipeline configurable) |
 | DevOps | Sentry, Ngrok (local webhook tunnel), Twilio (SMS), SMTP, Vitest |
@@ -90,7 +90,7 @@ For the full admin route map and per-page behaviour, see [docs/ARCHITECTURE.md](
 The user-facing app (`/`, `/faq`, `/community`, `/saved`, `/account`, `/leaderboard`) gives authenticated users full participation in the knowledge loop:
 
 - **Discover** — hybrid semantic + keyword search at `/api/search` (public), semantic suggestions at `/api/search/suggest`, category browsing
-- **Ask the community** — post creation with Zod validation, debounced duplicate detection against the FAQ base (banner + block on match), auto-normalised tags, Cloudinary image attachments
+- **Ask the community** — post creation with Zod validation, debounced duplicate detection against the FAQ base (banner + block on match), auto-normalised tags, image attachments
 - **Engage** — upvotes with reputation-farming prevention (reverses on removal), bookmarks at `/saved`, nested comment threads with optimistic UI, accept-answer (locks verified/expert comments from edit), edit/delete own comments, share via clipboard, report and flag-outdated
 - **Notifications** — in-app bell, SpillTheTea event stream (`post_answered`, `post_deleted`, etc.), per-event-type settings, email + SMS delivery
 - **Reputation** — points for accepted answers, badges at thresholds, expert promotion by peer vote, public leaderboard
@@ -118,7 +118,7 @@ Crowd Source FAQ/
 ## Environment Variables
 
 Required: `MONGODB_URI`, `JWT_SECRET`
-Optional: at least one AI provider key (`ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `XAI_API_KEY` / `MINIMAX_API_KEY`), Zoom OAuth credentials, `CLOUDINARY_*`, `SENTRY_DSN`, Twilio + SMTP for notifications, `UPSTASH_REDIS_*`
+Optional: at least one AI provider key (`ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `XAI_API_KEY` / `MINIMAX_API_KEY`), Zoom OAuth credentials, GCS-related upload settings, `SENTRY_DSN`, Twilio + SMTP for notifications, and optional legacy Cloudinary/Redis variables.
 
 See [docs/ARCHITECTURE.md#10-env-variables-reference](docs/ARCHITECTURE.md#10-env-variables-reference) for the full list.
 

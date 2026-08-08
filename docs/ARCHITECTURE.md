@@ -167,7 +167,7 @@ All routes are mounted in `server.ts`. Admin routes are prefixed `/api/admin`.
 | `zoom.ts` | `/api/zoom` | mixed | OAuth, webhook, manual upload, status |
 | `knowledge.ts` | `/api/knowledge` | protected | TranscriptKnowledge management |
 | `askAi.ts` | `/api/ask-ai` | public (quota) | RAG-powered AI assistant |
-| `upload.ts` | `/api/upload` | protected | Cloudinary signed upload URL |
+| `upload.ts` | `/api/upload` | protected | GCS signed upload URL |
 
 ### Route prefix pitfall
 
@@ -338,7 +338,7 @@ Each controller handles a set of related operations. Controllers are imported by
 | `rateLimit.ts` | `createIdentityLimiter()` — per-user/IP rate limiters |
 | `cache.ts` | In-memory LRU cache for search results |
 | `circuitBreaker.ts` | `CircuitOpenError` + circuit state for Zoom OAuth + API calls |
-| `cloudinary.ts` | `getCloudinaryConfig()` — startup validation, `generateUploadSignature()` |
+| `cloudinary.ts` | `getCloudinaryConfig()` — legacy/secondary Cloudinary helper for resource uploads; current primary uploads use GCS |
 | `crypto.ts` | `encrypt()`, `decrypt()` — AES-256-GCM for token storage |
 | `duplicateDetector.ts` | AI-powered duplicate FAQ/post detection |
 | `fileLogger.ts` | Structured file-based logging (rotating) |
@@ -664,7 +664,9 @@ The cooldown duration is a singleton admin setting (`AppSetting.goldenCooldownHo
 | `ZOOM_WEBHOOK_SECRET_TOKEN` | Yes (prod) | Webhook HMAC verification |
 | `ZOOM_TOPIC_BLACKLIST` | No | CSV regex — skip matching meetings |
 
-### Cloudinary
+### Cloudinary (legacy/secondary)
+
+Legacy/secondary storage path; new avatar and post uploads use GCS via signed URLs.
 
 | Variable | Required | Purpose |
 |---|---|---|
@@ -685,7 +687,9 @@ The cooldown duration is a singleton admin setting (`AppSetting.goldenCooldownHo
 | `EMAIL_USER` | SMTP user |
 | `EMAIL_PASS` | SMTP password |
 
-### Upstash Redis (optional — search cache)
+### Upstash Redis (optional / legacy scaffolding)
+
+Optional legacy/secondary config; Redis is not currently active. Rate limiting falls back to the default in-memory store, and search-result caching uses an in-process LRU cache (see cache.ts) rather than Redis/Upstash.
 
 | Variable | Purpose |
 |---|---|
