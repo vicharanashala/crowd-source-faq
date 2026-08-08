@@ -373,6 +373,7 @@ describe('AdminContextSources', () => {
 
     const file = new File(['hello world'], 'uploaded.pdf', { type: 'application/pdf' });
     const fileInput = screen.getByTestId('documents-file-input') as HTMLInputElement;
+    expect(fileInput.accept).toBe('.pdf,.txt,.md,.csv');
     fireEvent.change(fileInput, { target: { files: [file] } });
 
     // Selected-file hint surfaces.
