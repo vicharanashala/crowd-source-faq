@@ -178,6 +178,12 @@ export const submitUnresolvedSchema = z.object({
   feedback: z.string().max(2000).optional(),
 });
 
+export const aiFeedbackSchema = z.object({
+  aiQuestionId: objectIdLike,
+  rating: z.enum(['helpful', 'not_helpful']),
+  comment: z.string().trim().max(1000).optional(),
+});
+
 export const resolveUnresolvedSchema = z.object({
   resolution: z.enum(['faq_updated', 'community_post_created', 'dismissed']),
 });

@@ -4,9 +4,10 @@ import multer from 'multer';
 import { protect } from '../../middleware/auth.js';
 import { authorize } from '../../middleware/authShared.js';
 import CommunityPost from '../community/community-post.model.js';
-import { askAIController } from '../knowledge/knowledge.controller.js';
+import { askAIController, submitAiFeedback } from '../knowledge/knowledge.controller.js';
 import { fetchContext } from '../../services/contextRetriever.js';
 import { adminLog } from '../../utils/http/logger.js';
+import { validateBody, aiFeedbackSchema } from '../../utils/auth/validation.js';
 
 const router = Router();
 
@@ -71,6 +72,13 @@ const authedAiLimiter = rateLimit({
 // Routes that accept text-only (no files) and routes that accept multipart
 // (with files) are mounted as the same path — multer's any() only triggers
 // on multipart/form-data, so JSON requests pass through untouched.
+router.post(
+  '/feedback',
+  protect,
+  validateBody(aiFeedbackSchema),
+  submitAiFeedback
+);
+
 router.post(
   '/',
   (req: Request, res: Response, next: NextFunction) => {

@@ -1,8 +1,8 @@
 import mongoose, { Document, Schema as MongooseSchema, Types } from 'mongoose';
 
 export interface IAiQuestion extends Document {
-  userId: Types.ObjectId;
-  orientationId: Types.ObjectId;
+  userId?: Types.ObjectId | null;
+  orientationId?: Types.ObjectId | null;
   /** v1.69 — Program context for the orientation session. */
   batchId?: Types.ObjectId | null;
   question: string;
@@ -13,8 +13,8 @@ export interface IAiQuestion extends Document {
 
 const aiQuestionSchema = new MongooseSchema<IAiQuestion>(
   {
-    userId: { type: MongooseSchema.Types.ObjectId, ref: 'User', required: true },
-    orientationId: { type: MongooseSchema.Types.ObjectId, ref: 'Orientation', required: true },
+    userId: { type: MongooseSchema.Types.ObjectId, ref: 'User', default: null },
+    orientationId: { type: MongooseSchema.Types.ObjectId, ref: 'Orientation', default: null },
     // v1.69 — orientation is program-scoped; carry the program
     // forward on the question log so admins can audit AI answers
     // per cohort.
