@@ -46,8 +46,14 @@ import { getRelatedForPost } from '../faq/related.controller.js';
 import { protect, authorize } from '../../middleware/auth.js';
 import { validateObjectId } from '../../middleware/validateObjectId.js';
 import { validateBody, createPostSchema, addCommentSchema, resolvePostSchema, reportPostSchema, checkDuplicateSchema } from '../../utils/auth/validation.js';
+import reminderRoutes from './reminder.routes.js';
+import importantLinkRoutes from './important-link.routes.js';
 
 const router = Router();
+
+// Sub-module routers for Community Pinboard (Reminders & Important Links)
+router.use('/reminders', reminderRoutes);
+router.use('/important-links', importantLinkRoutes);
 
 // Public read-only routes — anonymous users can browse community posts freely.
 // (User-specific actions like bookmarks and admin/moderator actions like
