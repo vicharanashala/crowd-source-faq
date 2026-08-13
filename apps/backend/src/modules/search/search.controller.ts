@@ -316,10 +316,12 @@ export const semanticSearch = async (req: Request, res: Response): Promise<void>
     const allTxt = [...processResults(faqTxt, 'faq'), ...processResults(commTxt, 'community')];
 
     // 4. Merge results using Reciprocal Rank Fusion
+   // 4. Merge results using Reciprocal Rank Fusion
     const merged = computeRRF(allVec, allTxt);
 
     // 5. Apply threshold filters to remove irrelevant garbage results
-    const filtered = applySearchThreshold(merged).slice(0, 5); // Return only the absolute top 5 results
+    
+    const filtered = applySearchThreshold(merged, thresholds).slice(0, 5);
 
     // 5b. TranscriptKnowledge fallback — if FAQ + Community returned nothing,
     // try the auto-extracted Zoom knowledge base. Zero-human data path:
