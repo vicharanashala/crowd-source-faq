@@ -208,7 +208,8 @@ const runVectorSearch = async (collectionName: string, queryEmbedding: number[],
  */
 export const semanticSearch = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { query } = req.body as { query?: string };
+    const { query, q, thresholds } = req.body as { query?: string; q?: string; thresholds?: number };
+    const activeQuery = query || q;
     // v1.68 — M1: capture the requester's userId so the
     // admin User Activity chart can show unique user counts.
     // Anonymous searches leave it null.
