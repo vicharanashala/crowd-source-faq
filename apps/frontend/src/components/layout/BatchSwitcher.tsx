@@ -7,7 +7,7 @@
 // existing topbar pill buttons.
 
 import React, { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useBatch } from '../../context/BatchContext';
 import {
   topbarCreateButton,
@@ -79,13 +79,13 @@ export function BatchSwitcher({
     // Nothing to switch to yet — render an empty "Pick a program" pill
     // that links to the portal picker.
     return (
-      <a
-        href="/explore/select"
+      <Link
+        to="/programs"
         className={`${topbarPill} ${className}`}
       >
         <LayersIcon className="text-accent" />
         <span>Pick a program</span>
-      </a>
+      </Link>
     );
   }
 

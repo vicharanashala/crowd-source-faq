@@ -169,21 +169,24 @@ export default function Navbar({ showProgramSwitcher: _showProgramSwitcher = fal
         <div className="flex items-center justify-self-end gap-2 sm:gap-3">
           {!isAdminView && (
             <>
-              {/* Unauthenticated — Sign in (text) + Get started (filled) */}
+              {/* Unauthenticated — Program switcher + Sign in (text) + Get started (filled) */}
               {!isAuthenticated && (
-                <div className="hidden lg:flex items-center gap-2">
-                  <button
-                    onClick={() => openModal('signin')}
-                    className="px-3 py-1.5 text-sm font-medium text-ink-soft hover:text-ink transition-colors"
-                  >
-                    Sign in
-                  </button>
-                  <button
-                    onClick={() => openModal('register')}
-                    className={`${btnBase} ${btnPrimary} text-sm`}
-                  >
-                    Get started
-                  </button>
+                <div className="flex items-center gap-2">
+                  <BatchSwitcher showCreateLink={false} className="hidden md:inline-flex" />
+                  <div className="hidden lg:flex items-center gap-2">
+                    <button
+                      onClick={() => openModal('signin')}
+                      className="px-3 py-1.5 text-sm font-medium text-ink-soft hover:text-ink transition-colors"
+                    >
+                      Sign in
+                    </button>
+                    <button
+                      onClick={() => openModal('register')}
+                      className={`${btnBase} ${btnPrimary} text-sm`}
+                    >
+                      Get started
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -193,9 +196,7 @@ export default function Navbar({ showProgramSwitcher: _showProgramSwitcher = fal
                   <ZoomBubble />
                   {/* Spurti Points chip */}
                   <SpurtiChip />
-                  {isAuthenticated && (
-                    <BatchSwitcher showCreateLink={user?.role === 'admin'} className="hidden md:inline-flex" />
-                  )}
+                  <BatchSwitcher showCreateLink={user?.role === 'admin'} className="hidden md:inline-flex" />
 
                   {/* v1.87 — Sign My Tee pill. Shown ONLY when the
                       BE says the user is inside the rolling 3-day
@@ -375,14 +376,12 @@ export default function Navbar({ showProgramSwitcher: _showProgramSwitcher = fal
         }`}
       >
         <div className="px-6 py-4 flex flex-col gap-1">
-          {isAuthenticated && (
-            <div className="px-4 py-2 border-b border-border/40 mb-2">
-              <p className="text-[10px] uppercase tracking-wider font-semibold text-ink-faint mb-1.5">
-                Current Program
-              </p>
-              <BatchSwitcher showCreateLink={user?.role === 'admin'} compact className="w-full" />
-            </div>
-          )}
+          <div className="px-4 py-2 border-b border-border/40 mb-2">
+            <p className="text-[10px] uppercase tracking-wider font-semibold text-ink-faint mb-1.5">
+              Current Program
+            </p>
+            <BatchSwitcher showCreateLink={user?.role === 'admin'} compact className="w-full" />
+          </div>
           {allNavItems.map(({ label, to }) => (
             <NavLink
               key={to}
