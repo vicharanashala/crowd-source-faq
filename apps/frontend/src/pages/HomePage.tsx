@@ -437,10 +437,7 @@ export default function HomePage() {
   // Order by FAQ count (desc), tie-break alphabetically — matches the
   // discovery layout where the busiest categories surface first.
   const categories = useMemo(() => (
-    Object.keys(grouped).sort((a, b) => {
-      const diff = (grouped[b]?.length ?? 0) - (grouped[a]?.length ?? 0);
-      return diff !== 0 ? diff : a.localeCompare(b);
-    })
+    Object.keys(grouped).sort((a, b) => a.localeCompare(b))
   ), [grouped]);
 
   const flatQuestions = useMemo(() => (

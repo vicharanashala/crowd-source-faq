@@ -186,6 +186,7 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
   const [customCategory, setCustomCategory] = useState<string>('');
   const [duplicateMatch, setDuplicateMatch] = useState<{ isDuplicate: boolean; matches: DuplicateMatch[] } | null>(null);
   const [checkingDuplicates, setCheckingDuplicates] = useState(false);
+  const [expandedMatchId, setExpandedMatchId] = useState<string | null>(null);
   const [floatAway] = useState(false);
   const duplicateCheckTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -235,15 +236,30 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
 
   useEffect(() => {
     if (duplicateCheckTimerRef.current) clearTimeout(duplicateCheckTimerRef.current);
-    const q = title.trim();
-    if (q.length < 10) {
+    
+    const tClean = title.trim();
+    const bClean = body.trim();
+    
+    // Trigger duplicate check if either title or description is at least 10 characters long
+    if (tClean.length < 10 && bClean.length < 10) {
       setDuplicateMatch(null);
       setCheckingDuplicates(false);
       return;
     }
+
     setCheckingDuplicates(true);
     duplicateCheckTimerRef.current = setTimeout(async () => {
       try {
+        // Combine title and description for a comprehensive semantic search
+        let q = '';
+        if (tClean.length >= 10 && bClean.length >= 10) {
+          q = `${tClean} ${bClean}`;
+        } else if (tClean.length >= 10) {
+          q = tClean;
+        } else {
+          q = bClean;
+        }
+
         const res = await api.post<{ isDuplicate: boolean; matches: DuplicateMatch[] }>('/community/check-duplicate', { query: q });
         setDuplicateMatch(res.data);
       } catch {
@@ -253,7 +269,7 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
       }
     }, 600);
     return () => { if (duplicateCheckTimerRef.current) clearTimeout(duplicateCheckTimerRef.current); };
-  }, [title]);
+  }, [title, body]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -414,12 +430,11 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
             <div className="faq-match-banner">
               <div className="flex items-center gap-1.5 mb-2">
                 <span>📖</span>
-                <p className="font-medium text-sm">Similar question found!</p>
-                <span className="ml-auto text-[10px] text-ink-faint">Click to view</span>
+                <p className="font-medium text-sm text-ink">Similar question found!</p>
+                <span className="ml-auto text-[10px] text-ink-faint">Click to expand answer</span>
               </div>
               <div className="space-y-1">
                 {duplicateMatch.matches.slice(0, 3).map((m: any, i: number) => {
-                  // Decide where to send the user
                   const href = m.source === 'faq'
                     ? `/faq/${m._id}`
                     : m.source === 'community'
@@ -427,33 +442,63 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
                       : `/faq/${m._id}`;
                   const icon = m.source === 'faq' ? '📋' : m.source === 'community' ? '💬' : '🧠';
                   const label = m.source === 'faq' ? 'FAQ' : m.source === 'community' ? 'Community' : 'Knowledge';
+                  const isExpanded = expandedMatchId === m._id;
+
                   return (
-                    <button
+                    <div
                       key={i}
-                      type="button"
-                      onClick={() => {
-                        // Close dialog and navigate to the existing item
-                        dialogRef.current?.close();
-                        navigate(href);
-                      }}
-                      className={communityTemplateCard}
+                      onClick={() => setExpandedMatchId(isExpanded ? null : m._id)}
+                      className={`${communityTemplateCard} flex-col !items-stretch cursor-pointer select-none`}
                     >
-                      <span className="shrink-0 mt-0.5">{icon}</span>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className={communityTemplateLabel}>{label}</span>
-                          {m.score && (
-                            <span className="text-[10px] text-ink-faint">{(m.score * 100).toFixed(0)}% match</span>
-                          )}
+                      <div className="flex items-center gap-3">
+                        <span className="shrink-0">{icon}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className={communityTemplateLabel}>{label}</span>
+                            {m.score && (
+                              <span className="text-[10px] text-ink-faint">{(m.score * 100).toFixed(0)}% match</span>
+                            )}
+                          </div>
+                          <p className="text-xs text-ink-soft group-hover:text-ink font-medium line-clamp-1">
+                            "{m.question || m.title}"
+                          </p>
                         </div>
-                        <p className="text-xs text-ink-soft group-hover:text-ink line-clamp-1">
-                          "{m.question || m.title}"
-                        </p>
+                        <svg
+                          className={`${communityTemplateIcon} transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M9 18l6-6-6-6" />
+                        </svg>
                       </div>
-                      <svg className={communityTemplateIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M9 18l6-6-6-6"/>
-                      </svg>
-                    </button>
+
+                      {isExpanded && (
+                        <div
+                          className="mt-2.5 pt-2.5 border-t border-border/40 text-xs"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="bg-mist text-ink-soft rounded-xl p-3 border border-border/30 whitespace-pre-wrap leading-relaxed">
+                            {m.answer || m.body || 'No description available.'}
+                          </div>
+                          <div className="flex gap-2 mt-2 justify-end">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                dialogRef.current?.close();
+                                navigate(href);
+                              }}
+                              className="text-[10px] font-bold text-accent hover:underline flex items-center gap-0.5 px-2.5 py-1 rounded-lg bg-accent/5"
+                            >
+                              Go to full post →
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>

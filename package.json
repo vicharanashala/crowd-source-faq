@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "turbo dev",
+    "dev:local": "tsx scripts/dev-local.ts",
     "dev:backend": "turbo dev --filter=yaksha-faq-backend",
     "dev:frontend": "turbo dev --filter=yaksha-faq-frontend",
     "build": "turbo build",

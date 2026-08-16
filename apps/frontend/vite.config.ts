@@ -24,7 +24,7 @@ function csfaqBaseRedirect(): Plugin {
     name: 'csfaq-base-redirect',
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
-        if (req.url === '/csfaq') {
+        if (req.url === '/' || req.url === '' || req.url === '/csfaq') {
           res.writeHead(308, { Location: '/csfaq/' });
           res.end();
           return;

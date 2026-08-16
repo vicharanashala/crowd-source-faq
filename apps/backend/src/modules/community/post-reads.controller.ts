@@ -35,10 +35,20 @@ export const getAllPosts = async (req: Request, res: Response): Promise<void> =>
     const search = (req.query.search as string)?.trim() || '';
 
     // Build query filter
-    const query: Record<string, unknown> = { isHidden: { $ne: true } };
-    if (filter === 'unanswered') query.status = 'unanswered';
-    else if (filter === 'answered') query.status = 'answered';
-    // 'all' → no status filter
+    const query: Record<string, any> = { isHidden: { $ne: true } };
+    if (filter === 'promoted') {
+      // Access record of questions that were moved/promoted (Admin/Mod/Expert only)
+      if (req.user?.role !== 'admin' && req.user?.role !== 'moderator' && req.user?.role !== 'expert') {
+        res.status(403).json({ message: 'Forbidden' });
+        return;
+      }
+      query['lifecycle.status'] = 'converted_to_faq';
+    } else {
+      // Exclude promoted questions from standard student feed
+      query['lifecycle.status'] = { $ne: 'converted_to_faq' };
+      if (filter === 'unanswered') query.status = 'unanswered';
+      else if (filter === 'answered') query.status = 'answered';
+    }
 
     // Text search on title
     if (search.length >= 2) {

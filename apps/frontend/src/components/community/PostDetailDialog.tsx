@@ -283,38 +283,48 @@ function CommentItem({ comment, post, currentUserId, userRole, onUpdate }: {
   const [actionError, setActionError] = useState<string | null>(null);
 
   const handleUpvote = async () => {
-    const res = await api.post<{ upvotedByMe: boolean }>(
-      `/community/${post._id}/comments/${comment._id}/upvote`
-    );
-    onUpdate((post.comments as Comment[]).map(c =>
-      c._id === comment._id ? {
-        ...c,
-        upvotes: res.data.upvotedByMe
-          ? [...(c.upvotes || []), currentUserId]
-          : (c.upvotes || []).filter(u => idMatches(u, currentUserId)),
-        downvotes: (c.downvotes || []).filter(u => idMatches(u, currentUserId)),
-      } : c
-    ));
+    try {
+      const res = await api.post<{ upvotedByMe: boolean }>(
+        `/community/${post._id}/comments/${comment._id}/upvote`
+      );
+      onUpdate((post.comments as Comment[]).map(c =>
+        c._id === comment._id ? {
+          ...c,
+          upvotes: res.data.upvotedByMe
+            ? [...(c.upvotes || []), currentUserId]
+            : (c.upvotes || []).filter(u => idMatches(u, currentUserId)),
+          downvotes: (c.downvotes || []).filter(u => idMatches(u, currentUserId)),
+        } : c
+      ));
+    } catch (err: any) {
+      const msg = err.response?.data?.message || 'Failed to vote.';
+      alert(msg);
+    }
   };
 
   const handleDownvote = async () => {
-    const res = await api.post<{ deleted?: boolean; downvotedByMe: boolean }>(
-      `/community/${post._id}/comments/${comment._id}/downvote`
-    );
-    if (res.data.deleted) {
-      try { new Audio('/fahhhhh.mp3').play(); } catch (_) { void 0 }
-      onUpdate((post.comments as Comment[]).filter(c => c._id !== comment._id));
-      return;
+    try {
+      const res = await api.post<{ deleted?: boolean; downvotedByMe: boolean }>(
+        `/community/${post._id}/comments/${comment._id}/downvote`
+      );
+      if (res.data.deleted) {
+        try { new Audio('/fahhhhh.mp3').play(); } catch (_) { void 0 }
+        onUpdate((post.comments as Comment[]).filter(c => c._id !== comment._id));
+        return;
+      }
+      onUpdate((post.comments as Comment[]).map(c =>
+        c._id === comment._id ? {
+          ...c,
+          downvotes: res.data.downvotedByMe
+            ? [...(c.downvotes || []), currentUserId]
+            : (c.downvotes || []).filter(u => idMatches(u, currentUserId)),
+          upvotes: (c.upvotes || []).filter(u => idMatches(u, currentUserId)),
+        } : c
+      ));
+    } catch (err: any) {
+      const msg = err.response?.data?.message || 'Failed to vote.';
+      alert(msg);
     }
-    onUpdate((post.comments as Comment[]).map(c =>
-      c._id === comment._id ? {
-        ...c,
-        downvotes: res.data.downvotedByMe
-          ? [...(c.downvotes || []), currentUserId]
-          : (c.downvotes || []).filter(u => idMatches(u, currentUserId)),
-        upvotes: (c.upvotes || []).filter(u => idMatches(u, currentUserId)),
-      } : c
-    ));
   };
 
   const handleReply = async (e: React.FormEvent) => {
@@ -528,8 +538,10 @@ export default function PostDetailDialog({ post: initialPost, onClose, currentUs
         ? [...prev.filter(id => idMatches(id, currentUserId)), currentUserId]
         : prev.filter(id => idMatches(id, currentUserId))
       }));
-    } catch {
+    } catch (err: any) {
       setPost(p => ({ ...p, upvotes: prev }));
+      const msg = err.response?.data?.message || 'Failed to upvote.';
+      alert(msg);
     }
   };
 

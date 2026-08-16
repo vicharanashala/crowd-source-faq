@@ -20,6 +20,7 @@ interface CommunityPost {
   answer?: string;
   reports?: Array<{ reportedBy: string; reason: string; createdAt?: string }>;
   tags?: string[];
+  lifecycle?: { status: string };
 }
 interface CommunityPostsResponse {
   posts: CommunityPost[];
@@ -60,7 +61,8 @@ export default function AdminCommunity() {
       setPosts(r.data.posts);
       setTotal(r.data.total);
       setPages(r.data.pages);
-      setCategories(r.data.categories || []);
+      const cats = r.data.categories || [];
+      setCategories([...cats].sort((a, b) => a.name.localeCompare(b.name)));
     }).finally(() => setLoading(false));
   }, [page, debouncedSearch, statusFilter, categoryFilter]);
 
@@ -139,7 +141,10 @@ export default function AdminCommunity() {
           <input type="text" placeholder="Search posts…" value={search} onChange={e => setSearch(e.target.value)} className={`${adminSearchInput}`} />
         </div>
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className={`${adminSelect}`}>
-          <option value="">All Status</option><option value="unanswered">Unanswered</option><option value="answered">Answered</option>
+          <option value="">All Status</option>
+          <option value="unanswered">Unanswered</option>
+          <option value="answered">Answered</option>
+          <option value="promoted">Promoted to FAQ</option>
         </select>
       </div>
 
@@ -181,7 +186,13 @@ export default function AdminCommunity() {
                     {post.title}
                   </td>
                   <td className="admin-td text-ink-faint">{post.author?.name ?? '—'}</td>
-                  <td className="admin-td"><Badge status={post.status === 'answered' ? 'approved' : 'pending'} label={post.status} showDot={false} /></td>
+                  <td className="admin-td">
+                    {post.lifecycle?.status === 'converted_to_faq' ? (
+                      <Badge status="approved" label="promoted" showDot={false} />
+                    ) : (
+                      <Badge status={post.status === 'answered' ? 'approved' : 'pending'} label={post.status} showDot={false} />
+                    )}
+                  </td>
                   <td className="admin-td text-right">
                     {(post.reports?.length ?? 0) > 0 ? (
                       <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-danger/10 border border-danger/20 text-[10px] font-bold text-danger">{post.reports!.length}</span>
@@ -227,8 +238,16 @@ export default function AdminCommunity() {
               );
             })()}
             <div><p className={`${adminLabel}`}>Author</p><p className="text-sm text-ink-soft">{viewPost.author?.name} ({viewPost.author?.email})</p></div>
+            <div><p className={`${adminLabel}`}>Upvotes</p><p className="text-sm text-ink-soft">{viewPost.upvotes?.length ?? 0} upvote(s)</p></div>
             <div><p className={`${adminLabel}`}>Body</p><p className="text-sm text-ink-soft whitespace-pre-wrap">{viewPost.body}</p></div>
-            <div><p className={`${adminLabel}`}>Status</p><Badge status={viewPost.status === 'answered' ? 'approved' : 'pending'} label={viewPost.status} showDot={false} /></div>
+            <div>
+              <p className={`${adminLabel}`}>Status</p>
+              {viewPost.lifecycle?.status === 'converted_to_faq' ? (
+                <Badge status="approved" label="promoted to FAQ" showDot={false} />
+              ) : (
+                <Badge status={viewPost.status === 'answered' ? 'approved' : 'pending'} label={viewPost.status} showDot={false} />
+              )}
+            </div>
             {viewPost.answer && <div><p className={`${adminLabel}`}>Official Answer</p><p className="text-sm text-success whitespace-pre-wrap border-l-2 border-success/40 pl-3">{viewPost.answer}</p></div>}
             {viewPost.reports && viewPost.reports.length > 0 && (
               <div className="p-3 rounded-lg bg-danger/10 border border-danger/20">

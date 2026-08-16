@@ -1432,7 +1432,15 @@ export default function AdminAISettings() {
     );
   }
 
-  const currentMeta = PROVIDER_META[activeProvider as ProviderKey];
+  const currentMeta = PROVIDER_META[activeProvider as ProviderKey] || {
+    label: 'None',
+    description: 'No active AI provider configured',
+    defaultModel: 'None',
+    defaultBaseURL: '',
+    docsUrl: '',
+    badgeColor: 'bg-border/60 text-ink-soft border-border',
+    suggestedModels: []
+  };
   const monoInput = 'w-full px-3 py-2 rounded-lg text-xs border bg-bg-secondary text-ink font-mono focus:outline-none transition-colors admin-input';
 
   return (

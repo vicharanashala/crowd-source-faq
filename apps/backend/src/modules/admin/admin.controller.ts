@@ -624,9 +624,18 @@ export const getCommunityPosts = async (req: Request, res: Response): Promise<vo
     const search = (req.query.search as string) || '';
     const status = (req.query.status as string) || '';
     const category = (req.query.category as string) || '';
-    const batchId = (req.query.batchId as string | undefined) ?? null;
+    const rawBatchId = (req.query.batchId as string | undefined) ?? null;
+    const batchId = rawBatchId && Types.ObjectId.isValid(rawBatchId) ? rawBatchId : null;
 
     const base: Record<string, any> = {};
+    if (status === 'promoted') {
+      base['lifecycle.status'] = 'converted_to_faq';
+    } else {
+      if (status) {
+        base.status = status;
+        base['lifecycle.status'] = { $ne: 'converted_to_faq' };
+      }
+    }
     if (search) {
       // S5-H11 (HIGH) fix: previously this built `{ $regex: search }` raw,
       // letting admin-controlled regex special characters trigger ReDoS.
@@ -637,7 +646,6 @@ export const getCommunityPosts = async (req: Request, res: Response): Promise<vo
         { body: { $regex: escapeRegex(search), $options: 'i' } },
       ];
     }
-    if (status) base.status = status;
     if (category) {
       if (category.toLowerCase() === 'uncategorized') {
         base.$or = [{ tags: { $exists: false } }, { tags: { $size: 0 } }];

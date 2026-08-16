@@ -119,17 +119,38 @@ function wordOverlap(
   return { overlap, total, jaccard };
 }
 
-function textMatchScore(query: string, target: string): number {
+function textMatchScore(query: string, target: string, categoryOrTags?: string | string[]): number {
   const qWords = significantWords(query);
   const tWords = significantWords(target);
   if (qWords.length === 0 || tWords.length === 0) return 0;
+
+  const lowerQuery = query.toLowerCase().trim();
+  let isCategoryMatch = false;
+  if (categoryOrTags) {
+    if (Array.isArray(categoryOrTags)) {
+      isCategoryMatch = categoryOrTags.some(t => {
+        const tLower = t.toLowerCase().trim();
+        return tLower.includes(lowerQuery) || lowerQuery.includes(tLower);
+      });
+    } else {
+      const catLower = categoryOrTags.toLowerCase().trim();
+      isCategoryMatch = catLower.includes(lowerQuery) || lowerQuery.includes(catLower);
+    }
+  }
+
   const { overlap, jaccard } = wordOverlap(qWords, tWords);
-  if (overlap < 2) return 0;
+  if (overlap < 2 && !isCategoryMatch) return 0;
+
   const qSet = new Set(qWords);
   const tSet = new Set(tWords);
   const overlapRatio =
     [...qSet].filter((w) => tSet.has(normalizeWord(w))).length / qSet.size;
-  return Math.min(1, jaccard * 0.5 + overlapRatio * 0.5);
+
+  let score = jaccard * 0.5 + overlapRatio * 0.5;
+  if (isCategoryMatch) {
+    score = Math.max(score, 0.75);
+  }
+  return Math.min(1, score);
 }
 
 // ─── checkDuplicate (pure fallback — used when AI is unavailable) ──────────────
@@ -190,7 +211,7 @@ export async function checkDuplicate(
           const scored = faqs
             .map((f) => ({
               faq: f,
-              score: textMatchScore(lower, f.question + ' ' + (f.answer ?? '')),
+              score: textMatchScore(lower, f.question + ' ' + (f.answer ?? ''), f.category),
             }))
             .filter((x) => x.score >= DUPLICATE_TEXT_THRESHOLD)
             .sort((a, b) => b.score - a.score)
@@ -230,13 +251,13 @@ export async function checkDuplicate(
           })),
         ],
       }, batchId))
-        .select('_id title body status')
+        .select('_id title body status tags')
         .lean()
         .then((posts) => {
           const scored = posts
             .map((p) => ({
               post: p,
-              score: textMatchScore(lower, p.title + ' ' + (p.body ?? '')),
+              score: textMatchScore(lower, p.title + ' ' + (p.body ?? ''), p.tags),
             }))
             .filter((x) => x.score >= DUPLICATE_TEXT_THRESHOLD)
             .sort((a, b) => b.score - a.score)
@@ -297,8 +318,8 @@ export async function evaluateDuplicates(
 ): Promise<DuplicateMatch[]> {
   let aiAvailable = false;
   try {
-    await resolveProviderAsync();
-    aiAvailable = true;
+    const cfg = await resolveProviderAsync();
+    aiAvailable = !!(cfg && cfg.apiKey && cfg.apiKey.trim());
   } catch {
     aiAvailable = false;
   }
@@ -307,8 +328,11 @@ export async function evaluateDuplicates(
 
   if (aiAvailable) {
     matches = await detectDuplicatesWithAI(query);
-  } else {
-    // No AI configured — use knowledge base + keyword fallback
+  }
+
+  // Fallback to local DB vector / text match if AI is not configured or failed to find matches
+  if (matches.length === 0) {
+    // No AI configured or AI returned no matches — use knowledge base + keyword fallback
     try {
       const { searchKnowledge } = await import('../knowledge/knowledge-base.service.js');
       const knowledgeMatches = await searchKnowledge(query, 3);

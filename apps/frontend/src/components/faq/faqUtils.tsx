@@ -353,13 +353,8 @@ export const getCategoryIndex = (name: string = ''): string => {
 export const applyQuestionNumbers = (grouped: Record<string, FAQItem[]>): Record<string, FAQItem[]> => {
   const result: Record<string, FAQItem[]> = {};
   
-  // Sort category names to determine their 1, 2, 3... index
-  const sortedCategories = Object.keys(grouped).sort((a, b) => {
-    const an = Number(a.match(/^\s*(\d+)/)?.[1] ?? '0');
-    const bn = Number(b.match(/^\s*(\d+)/)?.[1] ?? '0');
-    if (an !== bn) return an - bn;
-    return a.localeCompare(b);
-  });
+  // Sort category names alphabetically (A-Z)
+  const sortedCategories = Object.keys(grouped).sort((a, b) => a.localeCompare(b));
 
   sortedCategories.forEach((catName, catIndex) => {
     const items = grouped[catName];

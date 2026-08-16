@@ -103,7 +103,7 @@ router.post('/:id/hide', protect, authorize('admin', 'moderator'), validateObjec
 router.post('/:id/unhide', protect, authorize('admin', 'moderator'), validateObjectId('id'), unhidePost);
 router.post('/:id/lock', protect, authorize('admin', 'moderator'), validateObjectId('id'), lockPost);
 router.post('/:id/unlock', protect, authorize('admin', 'moderator'), validateObjectId('id'), unlockPost);
-router.post('/:id/convert-to-faq', protect, authorize('admin'), validateObjectId('id'), convertCommunityPostToFAQ);
+router.post('/:id/convert-to-faq', protect, authorize('admin', 'moderator', 'expert'), validateObjectId('id'), convertCommunityPostToFAQ);
 router.patch('/:id/dna', protect, validateObjectId('id'), setPostDNA);
 router.patch('/:id/tags', protect, validateObjectId('id'), setPostTags);
 router.patch('/:id', protect, validateObjectId('id'), updatePost);
