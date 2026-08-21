@@ -90,7 +90,9 @@ export default function FAQPage() {
     inFlightRef.current = true;
     setLoading(true);
     try {
-      const res = await api.get('/faq', { params: { batchId } });
+      const res = await api.get('/faq', {
+        params: { batchId },
+      });
       setGrouped(applyQuestionNumbers(res.data.grouped || {}));
       setTotal(res.data.total || 0);
       setError('');

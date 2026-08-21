@@ -6,6 +6,12 @@ export type ReviewStatus = 'verified' | 'pending_review' | 'update_requested';
 export type TrustLevel = 'low' | 'medium' | 'high' | 'expert';
 export type SourceType = 'manual' | 'community_promotion' | 'expert_verified' | 'zoom_transcript';
 export type ObjectionStatus = 'none' | 'objected' | 'resolved';
+export type InternshipPhase =
+  | 'GENERAL'
+  | 'PHASE_1'
+  | 'PHASE_2'
+  | 'PHASE_3'
+  | 'COMPLETED';
 
 export interface IPromotionMetadata {
   upvotesAtPromotion?: number;
@@ -22,6 +28,8 @@ export interface IFAQ extends Document {
   answer: string;
   tags: string[];
   category: string;
+  phase: InternshipPhase;
+  phaseOrder: number;
   embedding?: number[];
   searchCount: number;
   status: FAQStatus;
@@ -117,10 +125,28 @@ const faqSchema = new MongooseSchema(
       required: [true, 'Category is required'],
       trim: true,
     },
-    embedding: {
-      type: [Number],
-      default: undefined,
-    },
+    phase: {
+    type: String,
+    enum: [
+        "GENERAL",
+        "PHASE_1",
+        "PHASE_2",
+        "PHASE_3",
+        "COMPLETED"
+    ],
+    default: "GENERAL"
+},
+
+phaseOrder: {
+    type: Number,
+    default: 0,
+    index: true
+},   // <-- Missing comma was here
+
+embedding: {
+    type: [Number],
+    default: undefined,
+},
     searchCount: {
       type: Number,
       default: 0,

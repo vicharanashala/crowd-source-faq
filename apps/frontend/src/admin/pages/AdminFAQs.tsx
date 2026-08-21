@@ -23,6 +23,7 @@ interface FAQ {
   freshnessTier?: 'evergreen' | 'seasonal' | 'volatile';
   reviewIntervalDays?: number;
   reviewStatus?: 'verified' | 'pending_review' | 'update_requested';
+  phase?: 'GENERAL' | 'PHASE_1' | 'PHASE_2' | 'PHASE_3' | 'COMPLETED';
 }
 interface FAQApiResponse { faqs: FAQ[]; total: number; pages: number; categories?: string[]; }
 interface AdminBatch { _id: string; name: string; isActive: boolean; faqCount: number; approvedCount?: number; }
@@ -143,14 +144,24 @@ export default function AdminFAQs() {
   const [editFaq, setEditFaq] = useState<FAQ | null>(null);
   const [addModal, setAddModal] = useState(false);
   const [newFaq, setNewFaq] = useState<{
-    question: string;
-    answer: string;
-    category: string;
-    batchId: string;
-    status: FAQ['status'];
-    freshnessTier: 'evergreen' | 'seasonal' | 'volatile';
-    reviewIntervalDays: number;
-  }>({ question: '', answer: '', category: '', batchId: '', status: 'approved', freshnessTier: 'evergreen', reviewIntervalDays: 0 });
+  question: string;
+  answer: string;
+  category: string;
+  batchId: string;
+  status: FAQ['status'];
+  freshnessTier: 'evergreen' | 'seasonal' | 'volatile';
+  reviewIntervalDays: number;
+  phase?: 'GENERAL' | 'PHASE_1' | 'PHASE_2' | 'PHASE_3' | 'COMPLETED';
+}>({
+  question: '',
+  answer: '',
+  category: '',
+  batchId: '',
+  status: 'approved',
+  freshnessTier: 'evergreen',
+  reviewIntervalDays: 0,
+  phase: 'GENERAL',
+});
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<Toast | null>(null);
   const [addCategoryOption, setAddCategoryOption] = useState<string>('');
@@ -225,6 +236,7 @@ export default function AdminFAQs() {
         category: editFaq.category,
         status: editFaq.status,
         batchId: editFaq.batchId || undefined,
+        phase: editFaq.phase,
       });
       showToast('Saved');
       setEditModal(false);
@@ -249,10 +261,20 @@ export default function AdminFAQs() {
         status: newFaq.status,
         freshnessTier: newFaq.freshnessTier,
         reviewIntervalDays: newFaq.reviewIntervalDays,
+        phase:newFaq.phase,
       });
       showToast('Created');
       setAddModal(false);
-      setNewFaq({ question: '', answer: '', category: '', batchId: newFaq.batchId, status: 'approved', freshnessTier: 'evergreen', reviewIntervalDays: 0 });
+      setNewFaq({
+    question: '',
+    answer: '',
+    category: '',
+    batchId: newFaq.batchId,
+    status: 'approved',
+    freshnessTier: 'evergreen',
+    reviewIntervalDays: 0,
+    phase: 'GENERAL',
+});
       setAddCategoryOption('');
       fetchFaqs();
       void loadBatches();
@@ -318,10 +340,11 @@ export default function AdminFAQs() {
               <th className="admin-th text-right">Votes</th>
               <th className="admin-th">Date</th>
               <th className="admin-th text-right">Actions</th>
+              <th>Phase</th>
             </tr></thead>
             <tbody>
-              {loading ? <tr><td colSpan={8} className="px-3 py-6"><TableSkeleton rows={8} /></td></tr> :
-               faqs.length === 0 ? <tr><td colSpan={8} className="admin-empty">No FAQs found</td></tr> :
+              {loading ? <tr><td colSpan={9} className="px-3 py-6"><TableSkeleton rows={8} /></td></tr> :
+               faqs.length === 0 ? <tr><td colSpan={9} className="admin-empty">No FAQs found</td></tr> :
                faqs.map(faq => (
                 <tr key={faq._id} className="admin-tr">
                   <td className="admin-td max-w-[220px] truncate" title={faq.question}>{faq.question}</td>
@@ -351,6 +374,7 @@ export default function AdminFAQs() {
                       <button onClick={() => handleDelete(faq._id)} className="w-6 h-6 flex items-center justify-center rounded text-ink-faint hover:text-danger hover:bg-danger/10 transition-colors" title="Delete"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg></button>
                     </div>
                   </td>
+                  <td className="admin-td text-ink-faint">{faq.phase ?? 'GENERAL'}</td>
                 </tr>
               ))}
             </tbody>
@@ -432,6 +456,20 @@ export default function AdminFAQs() {
                 onIntervalChange={d => setEditFaq(f => f ? { ...f, reviewIntervalDays: d } : null)}
               />
             </div>
+            <div>
+              <label className={`${adminLabel}`}>Internship Phase</label>
+              <select
+                value={editFaq.phase ?? 'GENERAL'}
+                onChange={e => setEditFaq(f => f ? { ...f, phase: e.target.value as FAQ['phase'] } : null)}
+                className={`${adminSelect} w-full`}
+              >
+                <option value="GENERAL">General</option>
+                <option value="PHASE_1">Phase 1</option>
+                <option value="PHASE_2">Phase 2</option>
+                <option value="PHASE_3">Phase 3</option>
+                <option value="COMPLETED">Completed</option>
+              </select>
+            </div>
             <div className="flex justify-end gap-2 pt-2">
               <button onClick={() => setEditModal(false)} className={`${adminBtnGhost}`}>Cancel</button>
               <button onClick={handleEdit} disabled={saving} className={`${adminBtnPrimary}`}>{saving ? 'Saving…' : 'Save'}</button>
@@ -508,6 +546,20 @@ export default function AdminFAQs() {
               reviewIntervalDays={newFaq.reviewIntervalDays}
               onIntervalChange={d => setNewFaq(f => ({ ...f, reviewIntervalDays: d }))}
             />
+          </div>
+          <div>
+            <label className={`${adminLabel}`}>Internship Phase</label>
+            <select
+              value={newFaq.phase}
+              onChange={e => setNewFaq(f => ({ ...f, phase: e.target.value as typeof newFaq.phase }))}
+              className={`${adminSelect} w-full`}
+            >
+              <option value="GENERAL">General</option>
+              <option value="PHASE_1">Phase 1</option>
+              <option value="PHASE_2">Phase 2</option>
+              <option value="PHASE_3">Phase 3</option>
+              <option value="COMPLETED">Completed</option>
+            </select>
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <button onClick={() => setAddModal(false)} className={`${adminBtnGhost}`}>Cancel</button>

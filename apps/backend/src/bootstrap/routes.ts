@@ -39,6 +39,7 @@ import adminWelcomeRoutes from '../modules/admin/admin-welcome.routes.js';
 import teeRoutes from '../modules/tee/tee.routes.js';
 import adminMentorRoutes from '../modules/admin/admin-mentor.routes.js';
 import adminTimelineRoutes from '../modules/admin/admin-timeline.routes.js';
+import adminInternshipRoutes from '../modules/internship/internship.routes.js';
 import { adminRouter as appSettingsAdminRouter, publicRouter as appSettingsPublicRouter } from '../modules/program/app-settings.routes.js';
 import registrationControlRoutes from '../modules/program/registration-control.routes.js';
 import adminCategoryClusterRoutes from '../modules/program/admin-category-cluster.routes.js';
@@ -92,6 +93,7 @@ export function registerRoutes(app: Express): void {
   router.use('/tee', teeRoutes);
   router.use('/admin/mentors', adminMentorRoutes);
   router.use('/admin/timeline-steps', adminTimelineRoutes);
+  router.use('/admin/internship', adminInternshipRoutes);
   router.use('/admin/settings',  appSettingsAdminRouter);
   router.use('/public/settings', appSettingsPublicRouter);
   router.use('/admin/registration-config', registrationControlRoutes);

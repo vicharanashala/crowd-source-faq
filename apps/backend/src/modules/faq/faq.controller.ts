@@ -15,6 +15,8 @@ import { sanitizeHtml } from '../../utils/http/sanitize.js';
 import Batch from '../program/batch.model.js';
 import { invalidatePublicCaches } from './public-faq.controller.js';
 import { readSetting } from '../program/app-setting.model.js';
+import InternshipProgress from "../internship/internship.model.js";
+import { getVisiblePhases } from "../internship/phase.helper.js";
 // v1.69 — Phase 3a: every public read in this file funnels its
 // Mongoose filter through withProgramScope. Single tenant callers
 // (no batchId) keep working until the rollout flips required=true.
@@ -113,6 +115,15 @@ export const getAllFAQs = async (req: Request<Record<string, never>, Record<stri
     // structurally compatible with mongoose's find/count
     // filters — no cast needed.
     const scoped = withProgramScope(query, batchIdFromQuery(req));
+
+    // Internship-phase scope: an intern sees GENERAL FAQs plus FAQs
+    // tagged for their current phase (from InternshipProgress). Guests
+    // (no req.user — this route has no `protect`) default to GENERAL.
+    const progress = req.user
+      ? await InternshipProgress.findOne({ userId: req.user._id })
+      : null;
+    const visiblePhases = getVisiblePhases(progress?.currentPhase ?? 'GENERAL');
+    (scoped as Record<string, unknown>).phase = { $in: visiblePhases };
 
     const totalCount = await FAQ.countDocuments(scoped);
 
@@ -271,12 +282,19 @@ export const getPaginatedFAQs = async (req: Request<Record<string, never>, Recor
     // v1.69 — Phase 3a: scope by program.
     const scoped = withProgramScope(query, batchIdFromQuery(req));
 
+    // Internship-phase scope — see getAllFAQs for rationale. Guests
+    // (no req.user — this route has no `protect`) default to GENERAL.
+    const progress = req.user
+      ? await InternshipProgress.findOne({ userId: req.user._id })
+      : null;
+    const visiblePhases = getVisiblePhases(progress?.currentPhase ?? 'GENERAL');
+    (scoped as Record<string, unknown>).phase = { $in: visiblePhases };
+
     // Fetch one extra to detect hasMore
     const [faqs, total] = await Promise.all([
       FAQ.find(scoped).select('-embedding').sort({ _id: -1 }).limit(limit + 1),
       FAQ.countDocuments(scoped),
     ]);
-
     const hasMore = faqs.length > limit;
     const results = hasMore ? faqs.slice(0, limit) : faqs;
 
@@ -320,10 +338,12 @@ export const createFAQ = async (req: Request, res: Response): Promise<void> => {
       question, answer, category, batchId: rawBatchId,
       freshnessTier,
       reviewIntervalDays,
+      phase,
     } = req.body as {
       question?: string; answer?: string; category?: string; batchId?: string;
       freshnessTier?: 'evergreen' | 'seasonal' | 'volatile';
       reviewIntervalDays?: number;
+      phase?: IFAQ['phase'];
     };
 
     const batchId = rawBatchId || req.programContext?.batchId;
@@ -363,6 +383,7 @@ export const createFAQ = async (req: Request, res: Response): Promise<void> => {
       answer: answer_,
       category: category_,
       batchId: new Types.ObjectId(batchId),
+      phase: phase ?? 'GENERAL',
       // embedding omitted — assigned offline by weekly batch cron
       freshnessTier: tier,
       reviewIntervalDays: interval,
@@ -392,9 +413,10 @@ export const createFAQ = async (req: Request, res: Response): Promise<void> => {
 // PUT /api/faq/:id — Update an FAQ (Admin/Moderator only)
 export const updateFAQ = async (req: Request<{ id: string }>, res: Response): Promise<void> => {
   try {
-    const { question, answer, category, batchId, status } = req.body as {
+    const { question, answer, category, batchId, status, phase } = req.body as {
       question?: string; answer?: string; category?: string; batchId?: string;
       status?: 'approved' | 'pending' | 'rejected';
+      phase?: IFAQ['phase'];
     };
 
     const faq = await FAQ.findById(req.params.id);
@@ -422,6 +444,9 @@ export const updateFAQ = async (req: Request<{ id: string }>, res: Response): Pr
     }
     if (status && ['approved', 'pending', 'rejected'].includes(status)) {
       faq.status = status;
+    }
+    if (phase && ['GENERAL', 'PHASE_1', 'PHASE_2', 'PHASE_3', 'COMPLETED'].includes(phase)) {
+      faq.phase = phase;
     }
 
     // Embedding recalculation skipped — handled by weekly batch cron.

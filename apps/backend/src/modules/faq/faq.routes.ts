@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { getAllFAQs, getFAQById, getRecentFAQs, createFAQ, updateFAQ, deleteFAQ, checkFAQMatch, getPaginatedFAQs, submitFeedback, reportFAQ, getFAQHistory, createFAQSuggestion, getFAQCategories } from './faq.controller.js';
 import { flagFAQ, voteReview } from './freshness.controller.js';
 import { protect, authorize } from '../../middleware/auth.js';
+import { protectOptional } from '../../middleware/protectOptional.js';
 import { validateObjectId } from '../../middleware/validateObjectId.js';
 import { validateBody, createFAQSchema, updateFAQSchema, flagFAQSchema, voteReviewSchema } from '../../utils/auth/validation.js';
 
@@ -9,9 +10,11 @@ const router = Router();
 
 // Public read-only routes — anonymous users can browse FAQs freely.
 // (Admin/moderator actions and user-specific actions like feedback/flag
-//  remain protected below.)
-router.get('/', getAllFAQs);
-router.get('/paginated', getPaginatedFAQs);
+//  remain protected below.) protectOptional attaches req.user when a
+// valid token is present (for internship-phase FAQ filtering) without
+// requiring login.
+router.get('/', protectOptional, getAllFAQs);
+router.get('/paginated', protectOptional, getPaginatedFAQs);
 
 // GET /api/faq/recent — Recent approved FAQs (public, used by HomePage)
 // MUST be registered before /:id route so Express doesn't treat "recent" as an id
