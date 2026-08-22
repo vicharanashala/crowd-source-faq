@@ -12,7 +12,6 @@ import ErrorBoundary from './components/ui/ErrorBoundary';
 // using the app. Mounts inside AuthProvider (needs `useAuth`) and
 // outside AppRoutes (needs to overlay every page uniformly).
 import InternshipEndDateGate from './context/InternshipEndDateGate';
-
 export default function App() {
   return (
     <BrowserRouter basename="/csfaq">

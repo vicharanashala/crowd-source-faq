@@ -397,7 +397,13 @@ read_env_with_local() {
 }
 
 # ── Check GCS credentials and connection ─────────────────────────────────────
+# ── Check GCS credentials and connection ─────────────────────────────────────
 check_gcs_connection() {
+  # --- FORCE SKIP GCS FOR LOCAL DEVELOPMENT ---
+  dim "GCS check skipped for local development"
+  return 0
+  # --- END SKIP ---
+  
   local bucket
   bucket=$(read_env_with_local "GCS_BUCKET")
   if [ -z "$bucket" ] || [[ "$bucket" == dummy* ]]; then

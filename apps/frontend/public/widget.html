@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FAQ Widget Demo</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f7fa;
+    }
+    .demo-container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      padding: 30px;
+    }
+    h1 { color: #1a202c; font-size: 24px; margin-top: 0; }
+    .embed-code {
+      background: #edf2f7;
+      padding: 15px;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 14px;
+      overflow-x: auto;
+      margin: 20px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="demo-container">
+    <h1>🧩 FAQ Widget Demo</h1>
+    <p>This is a demo page showing how the FAQ widget works.</p>
+    
+    <h2>Embed Code</h2>
+    <p>Copy and paste this code into any website:</p>
+    <div class="embed-code">
+      &lt;script src="http://localhost:5173/widget.js" data-limit="5" data-title="Help Center"&gt;&lt;/script&gt;
+    </div>
+    
+    <h2>Widget Preview</h2>
+    <div id="faq-widget-container"></div>
+  </div>
+  
+  <script src="/widget.js" data-limit="10" data-title="Frequently Asked Questions"></script>
+</body>
+</html>
