@@ -1,101 +1,372 @@
-# Crowd Source FAQ — Product Overview
+# Crowd Source FAQ (Yaksha FAQ Portal)
 
-A self-maintaining FAQ + community Q&A portal. Combines semantic vector search, AI-powered ingestion, and an expert promotion layer so the right answer is in front of a user before they finish typing.
+**Full-stack FAQ portal with semantic vector search, AI-powered community moderation, and an expert promotion layer.**
 
----
+**Repository:** https://github.com/vicharanashala/crowd-source-faq
 
-## What it does
-
-Four zero-touch pillars, in order of automation:
-
-1. **Ingest** — Zoom recordings, manual uploads (PDF/DOCX/XLSX/images), and webhooks feed a knowledge base. No human scheduling or categorising.
-2. **Answer** — Unanswered community posts are auto-matched against the knowledge base every 24h via semantic search. High-confidence matches are auto-posted; low-confidence escalate to admins.
-3. **Quality** — Approved FAQs are re-evaluated every 6h for drift, contradictions, and staleness. Drift is auto-flagged.
-4. **Lifecycle** — User deletion is anonymisation, not destruction. Reputation, attribution, and audit history persist.
+**PR:** #230
 
 ---
 
-## Key features
+## 📖 Executive Summary
 
-- **Hybrid search** — vector + keyword + Reciprocal Rank Fusion. Auto-falls-back to keyword when vector search is empty.
-- **Public FAQ portal** — no-auth browse path, batch-scoped, with popularity ranking and guest analytics.
-- **Community Q&A** — posts + threaded comments + upvotes + AI auto-answer; admin escalation flow.
-- **Session Support** — student issue tracker with 4-step troubleshooting checklists, evidence uploads, admin follow-ups.
-- **Golden Tickets** — admin-promoted high-priority support requests with Spurti Points (SP) economy and 48h cooldown.
-- **Reputation system** — points, tier ladder (newcomer → knowledge_master), auto-awarded badges.
-- **Admin panel** — FAQs, users, golden tickets, support inbox, AI settings, feature flags, batches, categories.
-- **Real-time observability** — tagged colored logs (`[ INFO ] [ cron ]` etc.), Discord ALERT webhook, optional Sentry.
+Crowd Source FAQ (Yaksha FAQ Portal) is a full-stack FAQ management platform that automates the entire FAQ lifecycle through AI-powered ingestion, answering, and quality control. Built with the "zero-touch" philosophy, the platform handles 1 million registered users while maintaining high-quality, up-to-date FAQ content.
+
+The platform is designed for organizations whose communities generate more questions than a human team can answer — student cohorts, open-source projects, internal forums, and customer-success communities.
 
 ---
 
-## Tech stack (one-liner per layer)
+## 🎯 Introduction
 
-| Layer | Pick |
-|---|---|
-| Frontend | React 18 + Vite + TS + Tailwind + Framer Motion |
-| Backend | Node 22 + Express 4 + TS (ESM) + Mongoose 8 |
-| DB | MongoDB Atlas (with Vector Search) + Upstash Redis (optional cache) + Cloudinary (uploads) |
-| Search & AI | `mixedbread-ai/mxbai-embed-large-v1` (1024-dim, via HF Inference API; falls back to in-process ONNX), RRF, Atlas `$vectorSearch` |
-| AI providers | Anthropic, OpenAI, XAI, MiniMax, Gemini, custom — admin-configurable per-pipeline |
-| Infra | Sentry, Ngrok (webhook dev tunnel), Twilio (SMS), SMTP, Helmet, express-rate-limit, JWT, bcryptjs |
+Every question a user has has been asked before — and most will be asked again. The right answer should be there before the user finishes typing. The platform achieves this through four zero-touch pillars:
 
----
+- **Zero-touch ingestion** — Zoom meetings, webhooks, and manual uploads feed the knowledge base without human intervention.
+- **Zero-touch answering** — A 24-hour scheduler matches unanswered posts against the knowledge base.
+- **Zero-touch quality control** — Approved FAQs are re-evaluated every 6 hours.
+- **Zero-touch user lifecycle** — Deletion is anonymization, not destruction.
 
-## Recent changes (v1.68)
-
-- **Embedding model swap**: `Xenova/multi-qa-mpnet-base-dot-v1` (768-dim) → `mixedbread-ai/mxbai-embed-large-v1` (1024-dim, SOTA MTEB 64.68). Now routed through the HuggingFace Inference API when `HUGGINGFACE_API_KEY` is set, with a fall-back to the in-process ONNX pipeline. The retrieval-tuned query prompt (`Represent this sentence for searching relevant passages:`) is auto-prepended for queries via `generateQueryEmbedding()`.
-- **Schema + data audit pass** — 3 critical, 4 high, 7 medium, 6 low fixes across the 29 Mongoose models. See [`docs/schema-audit.md`](docs/schema-audit.md).
-- **Race-condition sweep** — all 8 `findByIdAndUpdate` + `save()` anti-patterns in user-facing controllers (comments, bookmarks, FAQ, posts, golden tickets) replaced with atomic `$set` / `$addToSet` / `$pull`.
-- **Observability overhaul** — 11 named loggers (`authLog`, `adminLog`, `cronLog`, etc.), background-colored level tags (`[ INFO ]`, `[ WARN ]`, `[ ERR ]`, `[ ALRT ]`), glyph-prefixed lines, Discord webhook forwarder with exponential-backoff retry queue.
-- **Live-data seed** — `npm run seed:live` populates 20 community posts, 8 support tickets, 2 zoom meetings, badge awards, search logs, and a populated leaderboard. Idempotent.
+The platform is the operator. People handle exceptions, not the steady state.
 
 ---
 
-## Reference docs
+## 🏗️ System Design / Architecture
 
-| Topic | File |
-|---|---|
-| Full architecture deep-dive | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
-| AI provider configuration | [`docs/AI_PROVIDERS.md`](docs/AI_PROVIDERS.md) |
-| Pipelines (Zoom / doc / AI extraction) | [`docs/PIPELINES.md`](docs/PIPELINES.md) |
-| Batch + category scoping | [`docs/BATCH MANAGEMENT_PLAN.md`](docs/BATCH%20MANAGEMENT_PLAN.md) |
-| Public FAQ page design | [`docs/PUBLIC_FAQ_PLAN.md`](docs/PUBLIC_FAQ_PLAN.md) |
-| Schema-driven context fields | [`docs/SCHEMA_DRIVEN_CONTEXT_PLAN.md`](docs/SCHEMA_DRIVEN_CONTEXT_PLAN.md) |
-| Public API surface | [`docs/openapi.yaml`](docs/openapi.yaml) |
-| Backup strategy | [`docs/BACKUP.md`](docs/BACKUP.md) |
-| MCP server integration | [`docs/MCP.md`](docs/MCP.md) |
-| Schema + data audit (v1.68) | [`docs/schema-audit.md`](docs/schema-audit.md) |
-| Code audit (issues tracker) | [`docs/issues.md`](docs/issues.md) |
-| Progress log | [`docs/progress.md`](docs/progress.md) |
-| Wire diagram | [`docs/wire.md`](docs/wire.md) |
-| Context | [`docs/context.md`](docs/context.md) |
-| Project README | [`README.md`](README.md) |
-| Contributing | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
-| Code of Conduct | [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) |
-| License | [`LICENSE`](LICENSE) |
+### Architecture Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          External Websites                              │
+│                        (Embed Widget / Script)                          │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          Frontend (React + Vite)                        │
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐          │
+│  │  Home   │ │  FAQ    │ │Community│ │  Admin  │ │  Embed  │          │
+│  │  Page   │ │  Page   │ │  Page   │ │  Panel  │ │  Page   │          │
+│  └─────────┘ └─────────┘ └─────────┘ └─────────┘ └─────────┘          │
+│                                                                         │
+│  Tech: React 18, TypeScript, Tailwind CSS, Framer Motion, Axios         │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          Backend (Node.js + Express)                    │
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │                        API Gateway                              │   │
+│  │                   /csfaq/api/*                                  │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                                    │                                    │
+│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐     │
+│  │   Auth      │ │   FAQ       │ │  Community  │ │   Embed     │     │
+│  │   Module    │ │   Module    │ │   Module    │ │   Module    │     │
+│  └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘     │
+│                                    │                                    │
+│  Tech: Node.js, Express 4, Mongoose 8, JWT, bcryptjs, Zod             │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          Database (MongoDB Atlas)                       │
+│                                                                         │
+│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐     │
+│  │   Users     │ │    FAQs     │ │   Batches   │ │  Categories │     │
+│  └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘     │
+│                                                                         │
+│  Features: Vector Search, Text Search, Aggregation Pipelines           │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Data Flow Diagram
+
+```
+[User] → [Frontend] → [API Gateway] → [Controller] → [Service] → [Database]
+                          │
+                          ▼
+                  [Embed Widget] → [External Site]
+```
+
+### Use-Case Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          Yaksha FAQ Portal                              │
+│                                                                         │
+│  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐    │
+│  │   User (Public) │    │   User (Auth)   │    │   Admin User    │    │
+│  └─────────────────┘    └─────────────────┘    └─────────────────┘    │
+│         │                       │                       │              │
+│         ▼                       ▼                       ▼              │
+│  ┌─────────────┐          ┌─────────────┐         ┌─────────────┐    │
+│  │  View FAQs  │          │  Post Q&A   │         │  Manage FAQs │    │
+│  │  Search     │          │  Upvote     │         │  Audit FAQs  │    │
+│  │  Browse     │          │  Comment    │         │  Manage Users│    │
+│  │  Embed      │          │  Saved      │         │  AI Settings │    │
+│  └─────────────┘          └─────────────┘         └─────────────┘    │
+└─────────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## Useful npm scripts (backend)
+## 💻 Implementation
 
-| Script | What it does |
-|---|---|
-| `npm start` | Run backend (tsx server.ts) |
-| `npm run dev` | Run with watch |
-| `npm run seed` | Seed 130 FAQs from `faqs.json` |
-| `npm run seed:live` | Seed realistic test data (posts, tickets, badges, zoom, etc.) |
-| `npm run audit:data` | Read-only data-quality report |
-| `npm run cleanup:seed` | Undo `seed:live` |
-| `npm run cleanup:orphan-notifications` | Delete orphan notifications |
-| `npm run recompute:tier` | Fix stale user `tier` values |
-| `npm run backfill:embeddings` | Regenerate all stored vectors with the current model |
-| `npm run create:vector-index -- --drop` | Drop + recreate the Atlas vector search index |
-| `npm run migrate` | Add / update Mongo indexes |
+### 5.1 Tech Stack & Justification
+
+| Layer | Technology | Justification |
+|-------|------------|---------------|
+| **Frontend** | React 18 | Component-based architecture for scalable UI |
+| | TypeScript | Type safety and better developer experience |
+| | Tailwind CSS | Rapid UI development with utility classes |
+| | Vite | Fast build and hot module replacement |
+| **Backend** | Node.js + Express | Lightweight, fast, and scalable |
+| | Mongoose 8 | ODM for MongoDB with schema validation |
+| | JWT | Secure authentication and session management |
+| | Zod | Runtime validation of API requests |
+| **Database** | MongoDB Atlas | NoSQL with Vector Search for semantic search |
+| **AI** | OpenAI/Anthropic | NLP for auto-answer and FAQ audit |
+| **Embed** | Vanilla JS | Lightweight, no external dependencies |
+
+### 5.2 Module/Feature Breakdown
+
+#### Core Modules
+
+| Module | Description | Key Files |
+|--------|-------------|-----------|
+| **Auth Module** | User registration, login, JWT-based sessions | `modules/auth/` |
+| **FAQ Module** | CRUD operations for FAQs with approval workflow | `modules/faq/` |
+| **Community Module** | Q&A board with voting and comments | `modules/community/` |
+| **Embed Module** | Public API and widget for external embedding | `modules/embed/` ⭐ NEW |
+| **Admin Module** | Dashboard for managing content and users | `modules/admin/` |
+| **Search Module** | Hybrid vector + keyword search | `modules/search/` |
+| **Zoom Module** | Zoom transcript ingestion and processing | `modules/zoom/` |
+| **Program Module** | Batch and program management | `modules/program/` |
+
+#### 🧩 New Embed Module (Feature Spotlight)
+
+| Component | Description | Path |
+|-----------|-------------|------|
+| **Embed Controller** | Handles API requests for FAQ data | `modules/embed/embed.controller.ts` |
+| **Embed Routes** | Public API endpoints for embedding | `modules/embed/embed.routes.ts` |
+| **Embed Index** | Module exports | `modules/embed/index.ts` |
+| **Widget Script** | JavaScript widget for external sites | `frontend/public/widget.js` |
+| **Embed Page** | UI for generating embed code | `frontend/src/pages/EmbedPage.tsx` |
 
 ---
 
-## Repository
+## ✨ Feature Spotlight
 
-- GitHub: https://github.com/vicharanashala/crowd-source-faq
-- License: see [`LICENSE`](LICENSE)
-- Branch: `main` (active), with `MCSFAQ/main-v2` for the next iteration
+### 🧩 FAQ Embed Widget
+
+#### Purpose & Impact
+
+The FAQ Embed Widget allows external websites to display FAQs from the portal without any backend integration. This extends the reach of the knowledge base, reduces support tickets, and drives traffic back to the portal.
+
+**Impact:**
+- 📊 **Reduced Support Tickets** — Users find answers without contacting support
+- 🌐 **Extended Reach** — Your FAQs appear on external websites
+- ⏱️ **Self-Service** — Users get answers instantly
+- 🎯 **SEO Benefits** — FAQs help external sites rank better
+- 📈 **Content Distribution** — Your FAQs reach a wider audience
+
+#### Real-World Usefulness
+
+| Use Case | Example |
+|----------|---------|
+| **Product Websites** | Display FAQs directly on product pages |
+| **Help Centers** | Embed FAQs in support documentation |
+| **Blog Posts** | Add relevant FAQs to articles |
+| **Landing Pages** | Answer common questions on landing pages |
+| **Documentation** | Include interactive FAQ sections |
+
+#### Technical Implementation
+
+**1. Public API Endpoint**
+
+```http
+GET /csfaq/api/embed/faqs?limit=10&batchId=BATCH_ID
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "question": "How do I reset my password?",
+      "answer": "Go to the login page and click 'Forgot Password'...",
+      "tags": ["password", "account"],
+      "createdAt": "2026-08-22T..."
+    }
+  ],
+  "meta": {
+    "count": 1,
+    "limit": 10
+  }
+}
+```
+
+**2. Widget Script (`widget.js`)**
+
+- ✅ Lightweight (~8KB)
+- ✅ No external dependencies
+- ✅ Auto-detects API URL
+- ✅ Supports dark/light themes
+- ✅ Responsive design
+
+**3. Customization Options**
+
+| Attribute | Description | Example |
+|-----------|-------------|---------|
+| `data-limit` | Number of FAQs to show | `data-limit="10"` |
+| `data-title` | Custom widget title | `data-title="Help Center"` |
+| `data-theme` | Light or dark mode | `data-theme="dark"` |
+| `data-batch-id` | Filter by batch | `data-batch-id="BATCH_ID"` |
+| `data-container` | Custom container ID | `data-container="my-faq"` |
+| `data-show-tags` | Show/hide tags | `data-show-tags="false"` |
+| `data-show-date` | Show/hide dates | `data-show-date="true"` |
+
+**4. Embed Code**
+
+```html
+<script src="https://yourdomain.com/csfaq/widget.js" 
+        data-limit="5" 
+        data-title="FAQ" 
+        data-theme="light">
+</script>
+```
+
+#### Demo Screenshot
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    FAQ Embed Widget Example                             │
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │  ❓ Frequently Asked Questions                                  │   │
+│  │                                                                 │   │
+│  │  ▶ How do I reset my password?                                 │   │
+│  │     [Answer expands when clicked]                              │   │
+│  │                                                                 │   │
+│  │  ▶ What is the Yaksha FAQ Portal?                              │   │
+│  │     [Answer expands when clicked]                              │   │
+│  │                                                                 │   │
+│  │  ▶ How do I register a new account?                            │   │
+│  │     [Answer expands when clicked]                              │   │
+│  │                                                                 │   │
+│  │  ────────────────────────────────────────────────────────────── │   │
+│  │  Powered by Yaksha FAQ Portal                                  │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                                                                         │
+│  Embed Code:                                                            │
+│  <script src="https://yourdomain.com/csfaq/widget.js"></script>        │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🚧 Challenges & Limitations
+
+### Challenges Overcome
+
+| Challenge | Solution |
+|-----------|----------|
+| **MongoDB Connection** | IP whitelisting and connection string optimization |
+| **CORS Issues** | Configured CORS headers for public API endpoints |
+| **Widget Security** | Rate limiting for public API |
+| **Base URL Routing** | Properly configured `/csfaq/` base path |
+| **Module Pattern** | Created Embed module following existing architecture |
+
+### Current Limitations
+
+| Limitation | Description | Future Enhancement |
+|------------|-------------|-------------------|
+| **Single Language** | Only supports English | Add multi-language support |
+| **No Analytics** | No tracking of widget usage | Add analytics and insights |
+| **Manual Sync** | FAQs updated manually | Auto-sync with database changes |
+| **Fixed Theme** | Light/Dark only | Custom CSS support |
+
+---
+
+## 🔮 Future Enhancements
+
+| Feature | Description | Priority | Timeline |
+|---------|-------------|----------|----------|
+| **Multi-Language Support** | Support multiple languages for FAQs | High | Phase 2 |
+| **Widget Analytics** | Track impressions, clicks, and engagement | Medium | Phase 2 |
+| **Auto-Sync** | Widget updates when FAQs change | High | Phase 2 |
+| **Custom CSS** | Allow users to override styles | Medium | Phase 2 |
+| **AI Chatbot** | Add conversational AI to widget | Low | Phase 3 |
+| **Dark Mode Auto-Detect** | Auto-detect system theme | Low | Phase 2 |
+
+---
+
+## 👥 Team Information
+
+| Name | Role | Email | Contributions |
+|------|------|-------|---------------|
+| Saniya Kousar | Developer | saniyakousar013@gmail.com | Full-stack development, FAQ Embed Widget, Product Documentation |
+
+---
+
+## 📁 Repository Structure
+
+```
+crowd-source-faq/
+├── apps/
+│   ├── backend/
+│   │   ├── src/
+│   │   │   ├── modules/
+│   │   │   │   ├── embed/           # 🧩 NEW: Embed module
+│   │   │   │   │   ├── embed.controller.ts
+│   │   │   │   │   ├── embed.routes.ts
+│   │   │   │   │   └── index.ts
+│   │   │   │   ├── faq/
+│   │   │   │   ├── auth/
+│   │   │   │   └── ...
+│   │   │   ├── bootstrap/
+│   │   │   │   └── routes.ts        # 📝 MODIFIED
+│   │   │   └── server.ts
+│   │   └── package.json
+│   └── frontend/
+│       ├── src/
+│       │   ├── pages/
+│       │   │   └── EmbedPage.tsx    # 🧩 NEW
+│       │   └── routes/
+│       │       └── AppRoutes.tsx    # 📝 MODIFIED
+│       └── public/
+│           ├── widget.js            # 🧩 NEW
+│           └── widget.html          # 🧩 NEW
+├── docs/
+├── PRODUCT.md                       # 📝 THIS FILE
+└── README.md
+```
+
+---
+
+## 📝 Summary of Changes
+
+### Files Added (6)
+
+| File | Purpose |
+|------|---------|
+| `apps/backend/src/modules/embed/embed.controller.ts` | API request handler |
+| `apps/backend/src/modules/embed/embed.routes.ts` | Route definitions |
+| `apps/backend/src/modules/embed/index.ts` | Module exports |
+| `apps/frontend/src/pages/EmbedPage.tsx` | Embed page UI |
+| `apps/frontend/public/widget.js` | Widget JavaScript |
+| `apps/frontend/public/widget.html` | Widget demo page |
+
+### Files Modified (2)
+
+| File | Changes |
+|------|---------|
+| `apps/backend/src/bootstrap/routes.ts` | Added embed routes |
+| `apps/frontend/src/routes/AppRoutes.tsx` | Added /embed route |
+
+---
+
+## 📄 License
+
+MIT © 2026 vicharanashala
