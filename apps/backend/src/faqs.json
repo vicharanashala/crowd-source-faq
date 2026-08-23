@@ -6,6 +6,34 @@
       "question": "What is the Yaksha research internship?",
       "answer": "Yaksha is a two-month research internship program.",
       "category": "General Info"
+    },
+    {
+      "id": "2",
+      "section": "Python Learning",
+      "question": "What is Python?",
+      "answer": "Python is a beginner-friendly, high-level programming language widely used for web development, automation, data analysis, artificial intelligence, and machine learning.",
+      "category": "Python Basics"
+    },
+    {
+      "id": "3",
+      "section": "Python Learning",
+      "question": "How do I start learning Python?",
+      "answer": "Start with variables, data types, operators, conditional statements, loops, functions, lists, tuples, dictionaries, and sets. Then practice by building small projects.",
+      "category": "Getting Started"
+    },
+    {
+      "id": "4",
+      "section": "Python Learning",
+      "question": "What are Python lists?",
+      "answer": "A list is an ordered and mutable collection in Python that can store multiple values.",
+      "category": "Data Structures"
+    },
+    {
+      "id": "5",
+      "section": "Python Learning",
+      "question": "What is a Python function?",
+      "answer": "A function is a reusable block of code that performs a specific task. Functions can accept inputs and return outputs.",
+      "category": "Functions"
     }
   ]
 }
