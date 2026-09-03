@@ -12,21 +12,38 @@
  *   Headers:
  *     X-Bridge-Secret-Index: number (0 = primary secret, 1+ = rotated secrets)
  *
- * The HMAC is computed over the canonical string:
- *   `${ts}.${email.toLowerCase()}.${displayName}`
+ * There are two payload versions. The version is chosen by whether
+ * `programSlug` is present, so both can be in flight during rollout.
  *
- * On success, returns the standard auth payload:
- *   { token, refreshToken, user: { id, name, email, role, ... } }
+ *   v1 (no cohort):
+ *     canonical = `${ts}.${email.toLowerCase()}.${displayName}`
+ *
+ *   v2 (with cohort) — body also carries programSlug + programRole:
+ *     canonical = `${ts}.${email.toLowerCase()}.${displayName}.${programSlug}.${programRole}`
+ *
+ * programSlug and programRole are inside the signature on purpose. If
+ * they sat outside it, anyone able to reach this endpoint could enrol
+ * themselves into any cohort at any privilege level.
+ *
+ * On success, returns the standard auth payload plus, for v2, the
+ * resolved program so samagama.in can deep-link straight into it:
+ *   {
+ *     token, refreshToken,
+ *     user: { id, name, email, role, ... },
+ *     program: { batchId, slug, name, programRole } | null
+ *   }
  *
  * If the email doesn't exist locally, a new user is created with role
  * 'user' and a random unguessable password (the user can never log in
- * directly — only via the bridge). Display name is preserved from
+ * directly, only via the bridge). Display name is preserved from
  * samagama.in.
  *
- * Subsequent visits to /csfaq are authenticated by bridgeCookieAuth
- * middleware (reads the yaksha_session cookie that samagama.in's team
- * stores the JWT in) so this endpoint is only called once per
- * samagama.in login.
+ * After this call, samagama.in stores the JWT in the `yaksha_session`
+ * cookie. On the next visit to /csfaq the frontend reads that cookie
+ * (apps/frontend/src/auth/cookieBridge.ts) and mirrors it into
+ * localStorage, so every later request uses the ordinary
+ * `Authorization: Bearer` path. There is no backend cookie middleware
+ * by design; see the note in bootstrap/app.ts.
  */
 
 import type { Request, Response } from 'express';
@@ -34,12 +51,23 @@ import * as crypto from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import User, { type IUser } from '../auth/user.model.js';
 import { logger } from '../../utils/http/logger.js';
+import type { ProgramRole } from '../program/program-enrollment.model.js';
+import {
+  BRIDGE_ASSIGNABLE_ROLES,
+  resolveActiveBatchBySlug,
+  syncBridgeEnrollment,
+  type BridgeEnrollmentResult,
+} from './bridge-enrollment.js';
 
 const BRIDGE_TOKEN_TTL_SECONDS = 60;
 
 interface BridgeRequest {
   email: string;
   displayName: string;
+  /** v2 only. Derived slug of the Batch, e.g. "guru-vaani". */
+  programSlug: string;
+  /** v2 only. One of BRIDGE_ASSIGNABLE_ROLES. */
+  programRole: ProgramRole;
   ts: number;
   sig: string;
 }
@@ -53,8 +81,24 @@ function getBridgeSecrets(): string[] {
   return raw.split(',').map((s) => s.trim()).filter(Boolean);
 }
 
-function canonicalString(ts: number, email: string, displayName: string): string {
-  return `${ts}.${email.toLowerCase().trim()}.${displayName.trim()}`;
+/**
+ * Build the string the HMAC is computed over.
+ *
+ * v1 when `programSlug` is empty, v2 when it is set. Keeping the v1
+ * shape byte-identical means samagama.in can migrate to v2 without a
+ * coordinated cut-over: this endpoint accepts both until v1 traffic
+ * stops.
+ */
+function canonicalString(
+  ts: number,
+  email: string,
+  displayName: string,
+  programSlug = '',
+  programRole = '',
+): string {
+  const base = `${ts}.${email.toLowerCase().trim()}.${displayName.trim()}`;
+  if (!programSlug) return base;
+  return `${base}.${programSlug.trim().toLowerCase()}.${programRole.trim()}`;
 }
 
 function timingSafeEqual(a: string, b: string): boolean {
@@ -74,12 +118,23 @@ function timingSafeEqual(a: string, b: string): boolean {
  *     signed before the rotation kicked in. Once the rotation is
  *     complete (no tokens for index 1 seen for >7d), drop it.
  */
-function verifyBridgeSignature(ts: number, email: string, displayName: string, sig: string, secretIndex: number): boolean {
+function verifyBridgeSignature(
+  ts: number,
+  email: string,
+  displayName: string,
+  sig: string,
+  secretIndex: number,
+  programSlug = '',
+  programRole = '',
+): boolean {
   const secrets = getBridgeSecrets();
   if (secretIndex < 0 || secretIndex >= secrets.length) return false;
   const secret = secrets[secretIndex];
   if (!secret) return false;
-  const expected = crypto.createHmac('sha256', secret).update(canonicalString(ts, email, displayName)).digest('hex');
+  const expected = crypto
+    .createHmac('sha256', secret)
+    .update(canonicalString(ts, email, displayName, programSlug, programRole))
+    .digest('hex');
   return timingSafeEqual(expected, sig.toLowerCase());
 }
 
@@ -107,6 +162,22 @@ export async function exchangeBridgeToken(req: Request, res: Response): Promise<
   const ts = typeof body.ts === 'number' ? body.ts : 0;
   const sig = typeof body.sig === 'string' ? body.sig.trim() : '';
 
+  // v2 fields. Presence of programSlug is what selects the v2
+  // canonical string, so an empty slug means "this is a v1 call".
+  const programSlug =
+    typeof body.programSlug === 'string' ? body.programSlug.trim().toLowerCase() : '';
+  const programRole = typeof body.programRole === 'string' ? body.programRole.trim() : '';
+  const isV2 = programSlug.length > 0;
+
+  // Validate the role before signature checking so a bad role gives a
+  // clear 400 rather than an opaque signature mismatch.
+  if (isV2 && !BRIDGE_ASSIGNABLE_ROLES.includes(programRole as ProgramRole)) {
+    res.status(400).json({
+      message: `programRole must be one of: ${BRIDGE_ASSIGNABLE_ROLES.join(', ')}`,
+    });
+    return;
+  }
+
   // Header says which secret to use. We try the requested index first,
   // then fall back to primary (index 0) for resilience.
   const headerIdxHeader = req.headers['x-bridge-secret-index'];
@@ -116,7 +187,7 @@ export async function exchangeBridgeToken(req: Request, res: Response): Promise<
     if (i < 0 || i >= secrets.length) return false;
     if (tried.has(i)) return false;
     tried.add(i);
-    return verifyBridgeSignature(ts, email, displayName, sig, i);
+    return verifyBridgeSignature(ts, email, displayName, sig, i, programSlug, programRole);
   };
 
   let valid = false;
@@ -149,6 +220,21 @@ export async function exchangeBridgeToken(req: Request, res: Response): Promise<
   }
 
   try {
+    // Resolve the cohort BEFORE touching the user record. If the slug
+    // is wrong we want to fail without having created an account that
+    // then sits there with no enrollment.
+    let batch: Awaited<ReturnType<typeof resolveActiveBatchBySlug>> = null;
+    if (isV2) {
+      batch = await resolveActiveBatchBySlug(programSlug);
+      if (!batch) {
+        logger.warn(`[auth-bridge] unknown or inactive programSlug="${programSlug}"`);
+        res.status(404).json({
+          message: `No active program matches slug "${programSlug}"`,
+        });
+        return;
+      }
+    }
+
     // Find-or-create user by email (case-insensitive).
     const lowerEmail = email.toLowerCase();
     let user: IUser | null = await User.findOne({ email: lowerEmail });
@@ -168,6 +254,17 @@ export async function exchangeBridgeToken(req: Request, res: Response): Promise<
       // role — that's managed by admins on our side.
       user.name = displayName;
       await user.save();
+    }
+
+    // Enrol into the cohort samagama.in asserted. Idempotent, and it
+    // will not downgrade a role we granted locally.
+    let enrollment: BridgeEnrollmentResult | null = null;
+    if (batch) {
+      enrollment = await syncBridgeEnrollment(
+        user._id as typeof user._id,
+        batch,
+        programRole as ProgramRole,
+      );
     }
 
     // Issue JWT pair (matches the auth.controller.ts signing pattern).
@@ -193,6 +290,18 @@ export async function exchangeBridgeToken(req: Request, res: Response): Promise<
     res.json({
       token,
       refreshToken,
+      // v2 only. samagama.in uses batchId to deep-link the user
+      // straight into their cohort: /csfaq/?batch=<batchId>. The
+      // frontend's ProgramContext treats a ?batch= param as the
+      // highest-priority choice, above any stored preference.
+      program: enrollment
+        ? {
+            batchId: enrollment.batchId.toString(),
+            slug: enrollment.batchSlug,
+            name: enrollment.batchName,
+            programRole: enrollment.programRole,
+          }
+        : null,
       user: {
         id: user._id.toString(),
         name: user.name,

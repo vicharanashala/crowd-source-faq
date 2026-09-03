@@ -9,21 +9,29 @@
  * Called once on app boot (in main.tsx before AuthProvider mounts).
  * If no cookie, this is a no-op and the user stays unauthenticated.
  *
- * The cookie is JS-readable (HttpOnly=false on samagama.in's side) so
- * we can grab it from document.cookie. We then POST to our own
- * /api/auth/bridge/exchange endpoint? No — the cookie ALREADY
- * contains our JWT, signed by samagama.in's bridge after they hit
- * /api/auth/bridge/exchange. We just need to extract + store.
+ * The full flow, in order:
  *
- * Wait — that's wrong. Re-reading the design:
- *   samagama.in calls /api/auth/bridge/exchange → we return JWT
- *   samagama.in stores JWT in yaksha_session cookie
- *   Browser sends cookie to /csfaq → backend middleware verifies
- *   → populates req.user → request authenticated
+ *   1. A user signs in on samagama.in.
+ *   2. samagama.in's backend calls our
+ *      POST /api/auth/bridge/exchange (HMAC-signed) and gets back a
+ *      csfaq JWT.
+ *   3. samagama.in stores that JWT in the `yaksha_session` cookie,
+ *      scoped to Domain=.samagama.in so it is sent to /csfaq too.
+ *   4. The user opens /csfaq. This module runs on boot, reads the
+ *      cookie, and copies the JWT into localStorage.
+ *   5. Every later request uses the ordinary
+ *      `Authorization: Bearer <jwt>` path via the existing axios
+ *      interceptor and authShared.ts.
  *
- * So on the frontend, the cookie DOES contain a valid JWT. The
- * frontend just needs to read it and store in localStorage so the
- * existing AuthContext reads it. No round-trip needed.
+ * There is deliberately NO backend middleware that reads this cookie.
+ * The frontend mirror in step 4 is sufficient, which keeps the added
+ * surface area to one endpoint plus this file. See the note in
+ * apps/backend/src/bootstrap/app.ts if you are tempted to add one.
+ *
+ * The cookie must be JS-readable (HttpOnly=false on samagama.in's
+ * side) for step 4 to work. That is a known trade-off: any XSS under
+ * samagama.in can read the token. It is recorded in the integration
+ * spec rather than left as an accident.
  */
 
 const BRIDGE_COOKIE_NAME = 'yaksha_session';
