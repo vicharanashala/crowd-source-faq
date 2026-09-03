@@ -48,6 +48,7 @@
 
 import type { Request, Response } from 'express';
 import * as crypto from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import User, { type IUser } from '../auth/user.model.js';
 import { logger } from '../../utils/http/logger.js';
@@ -267,9 +268,20 @@ export async function exchangeBridgeToken(req: Request, res: Response): Promise<
       );
     }
 
-    // Issue JWT pair (matches the auth.controller.ts signing pattern).
+    // Issue the JWT pair.
+    //
+    // The claim MUST be `id`, not `userId`. `authShared.ts` reads
+    // `decoded.id` (see VerifiedToken), and auth.controller.ts signs
+    // `{ id, jti }`. Signing `userId` here meant every bridge token
+    // resolved to `User.findById(undefined)` and every authenticated
+    // request came back "Not authorized. User not found." — the bridge
+    // issued tokens that could not actually be used.
+    //
+    // `jti` is included so that logout and the revocation list work
+    // for bridged sessions the same way they do for password logins.
+    const userIdStr = user._id.toString();
     const token = jwt.sign(
-      { userId: user._id.toString(), role: user.role },
+      { id: userIdStr, jti: randomUUID() },
       process.env.JWT_SECRET!,
       {
         expiresIn: '7d',
@@ -278,8 +290,8 @@ export async function exchangeBridgeToken(req: Request, res: Response): Promise<
       },
     );
     const refreshToken = jwt.sign(
-      { userId: user._id.toString(), type: 'refresh' },
-      process.env.JWT_SECRET!,
+      { id: userIdStr, jti: randomUUID(), type: 'refresh' },
+      process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET!,
       {
         expiresIn: '7d',
         issuer: process.env.JWT_ISSUER || 'csfaq',

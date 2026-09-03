@@ -358,6 +358,34 @@ describe('POST /api/auth/bridge/exchange', () => {
     expect(await User.countDocuments({ email })).toBe(0);
   });
 
+  it('signs the JWT with an "id" claim so authShared can load the user', async () => {
+    // Regression test. The bridge previously signed `{ userId, role }`,
+    // but authShared.ts reads `decoded.id` and auth.controller.ts signs
+    // `{ id, jti }`. Every bridge token therefore resolved to
+    // User.findById(undefined) and every authenticated request came
+    // back "Not authorized. User not found." — the bridge issued
+    // tokens that could not be used for anything.
+    const ts = Math.floor(Date.now() / 1000);
+    const { req, res } = mockReqRes({
+      email,
+      displayName,
+      ts,
+      sig: sign(PRIMARY, ts, email, displayName),
+    });
+    await exchangeBridgeToken(req, res as never);
+
+    const { token } = res.payload as { token: string };
+    const claims = JSON.parse(
+      Buffer.from(token.split('.')[1]!, 'base64url').toString('utf8'),
+    ) as Record<string, unknown>;
+
+    const created = await User.findOne({ email });
+    expect(claims.id).toBe(String(created?._id));
+    expect(claims.userId).toBeUndefined();
+    // jti is required for logout / revocation to work on bridged sessions
+    expect(typeof claims.jti).toBe('string');
+  });
+
   it('never changes an existing global User.role', async () => {
     await User.create({
       name: 'Existing Admin',
