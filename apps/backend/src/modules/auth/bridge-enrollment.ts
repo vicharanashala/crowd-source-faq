@@ -90,7 +90,7 @@ export async function resolveActiveBatchBySlug(slug: string): Promise<Pick<IBatc
   // Note the same caveat getBatchBySlug carries: the regex will not
   // catch every theoretically-possible name whose slug matches (e.g.
   // "x-y" vs "X Y"). It holds for the names we actually use
-  // ("Summership", "Monsoonship", "Guru Vaani"), and the exact
+  // ("Summership", "Monsoonship", "GuruVaani"), and the exact
   // slugify comparison below is what decides.
   const candidates = await Batch.find({
     status: 'active',

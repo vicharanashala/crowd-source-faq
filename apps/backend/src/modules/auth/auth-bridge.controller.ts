@@ -65,7 +65,7 @@ const BRIDGE_TOKEN_TTL_SECONDS = 60;
 interface BridgeRequest {
   email: string;
   displayName: string;
-  /** v2 only. Derived slug of the Batch, e.g. "guru-vaani". */
+  /** v2 only. Derived slug of the Batch, e.g. "guruvaani". */
   programSlug: string;
   /** v2 only. One of BRIDGE_ASSIGNABLE_ROLES. */
   programRole: ProgramRole;

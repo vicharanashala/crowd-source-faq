@@ -70,7 +70,7 @@ No authentication header. The HMAC signature *is* the authentication.
 |---|---|---|---|
 | `email` | string | yes | The user's samagama.in email. Matched case-insensitively. |
 | `displayName` | string | yes | 1–100 characters. Kept in sync on every login. |
-| `programSlug` | string | v2 only | Derived slug of the cohort, e.g. `guru-vaani`. |
+| `programSlug` | string | v2 only | Derived slug of the cohort, e.g. `guruvaani`. |
 | `programRole` | string | v2 only | One of `student`, `ta`, `mentor`. |
 | `ts` | number | yes | **Unix seconds**, not milliseconds. |
 | `sig` | string | yes | Lowercase hex HMAC-SHA256. |
@@ -134,8 +134,8 @@ async function bridgeToCsfaq({ email, displayName, programSlug, programRole }) {
   "refreshToken": "<jwt, 7 days>",
   "program": {
     "batchId": "665f1c2a9b1e4a0012a3b4c5",
-    "slug": "guru-vaani",
-    "name": "Guru Vaani",
+    "slug": "guruvaani",
+    "name": "GuruVaani",
     "programRole": "student"
   },
   "redirectUrl": "https://samagama.in/csfaq/?batch=665f1c2a9b1e4a0012a3b4c5",
@@ -234,14 +234,14 @@ Samagama decides both. csfaq trusts them because they are signed.
 | Who they are | `programSlug` | `programRole` |
 |---|---|---|
 | Internship participant | `summership` or `monsoonship` | `student` |
-| Faculty on the FDP | `guru-vaani` | `student` |
+| Faculty on the FDP | `guruvaani` | `student` |
 | Someone teaching on a programme | that programme's slug | `mentor` |
 
-Note that a faculty member on Guru Vaani is a **`student`** of that programme: `programRole` describes what they do *inside the cohort*, not their job title. `mentor` is for people who are there to teach.
+Note that a faculty member on GuruVaani is a **`student`** of that programme: `programRole` describes what they do *inside the cohort*, not their job title. `mentor` is for people who are there to teach.
 
 `moderator` and `program_admin` **cannot** be assigned over the bridge. They are granted inside csfaq by an admin, and a login must never confer them.
 
-Slugs are derived from the cohort's name in csfaq by lowercasing and replacing runs of non-alphanumerics with dashes. `Guru Vaani` → `guru-vaani`. **Confirm the exact list with a csfaq admin before going live** — a mismatch produces a 404, not a silent fallback, which is intentional.
+Slugs are derived from the cohort's name in csfaq by lowercasing and replacing runs of non-alphanumerics with dashes. `GuruVaani` → `guruvaani`. **Confirm the exact list with a csfaq admin before going live** — a mismatch produces a 404, not a silent fallback, which is intentional.
 
 ### 4.5 ⚠️ The cookie cannot be HttpOnly
 
@@ -254,11 +254,67 @@ This is a deliberate trade-off, recorded here so it is not inherited by accident
 
 If the current design stands, shorten `Max-Age` as far as the user experience tolerates.
 
-### 4.6 Operational requirements
+### 4.6 What the csfaq admin must configure
 
-- **Clocks must be NTP-synced on both hosts.** A skew above 60 seconds silently fails every login with a 401 and no other symptom.
-- The shared secret must be at least 32 random bytes, shared out of band. Never in a repository, chat message, or ticket.
+Two environment variables on the csfaq backend, then a restart.
+
+| Variable | Value |
+|---|---|
+| `BRIDGE_ENABLED` | `true` |
+| `BRIDGE_SHARED_SECRET` | 32+ random bytes, shared with samagama.in out of band |
+| `PUBLIC_URL` | `https://samagama.in` — used to build `redirectUrl` |
+
+Generate the secret with:
+
+```bash
+openssl rand -hex 32
+```
+
+Share it with the samagama.in team through a password manager or a secrets store. **Never** in a chat message, a ticket, a commit, or this document. samagama.in stores the same value as `CSFAQ_BRIDGE_SECRET`.
+
+To confirm the bridge is live once configured:
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" \
+  -X POST https://samagama.in/csfaq/api/auth/bridge/exchange \
+  -H 'Content-Type: application/json' -d '{}'
+```
+
+- `401` — the bridge is enabled and configured. This is what you want. (The empty body fails signature verification, which is correct.)
+- `503` — either `BRIDGE_ENABLED` is not `true`, or `BRIDGE_SHARED_SECRET` is unset.
+
+### 4.7 Operational requirements
+
+- **Clocks must be NTP-synced on both hosts.** A skew above 60 seconds silently fails every request with a 401 and no other symptom. This is the single most common cause of a bridge that "just stopped working".
 - Do not log `sig` or `token` values.
+- Both applications must be served from `samagama.in`. The shared cookie depends on it.
+
+### 4.8 The live cohorts
+
+Read from production on 2026-09-03 via `GET https://samagama.in/csfaq/api/batches`. **These are the real values — use them, do not guess.**
+
+| Cohort name | `programSlug` | `batchId` | Default? |
+|---|---|---|---|
+| `GuruVaani` | **`guruvaani`** | `6a8d0f6468e06917a2efe1b9` | no |
+| `Monsoonship` | **`monsoonship`** | `6a442882bec7d41fab5da7f2` | no |
+| `summership` | **`summership`** | `6a2da1bd887f1e7ceb58dcbb` | **yes** |
+
+> ⚠️ **The Guru Vaani slug is `guruvaani`, with no dash.** The cohort's stored name is `GuruVaani` as one word, and the slug is derived from that name. `guru-vaani` returns **404**. Verified against production:
+>
+> ```
+> GET /csfaq/api/batches/by-slug/guruvaani    -> 200
+> GET /csfaq/api/batches/by-slug/guru-vaani   -> 404
+> ```
+
+You can re-read this list at any time; it needs no authentication:
+
+```bash
+curl https://samagama.in/csfaq/api/batches
+```
+
+That is also the endpoint to use if you would rather **look the slug up at runtime** than hardcode the mapping. Renaming a cohort in the csfaq admin changes its derived slug, which would silently break a hardcoded value.
+
+Note that `summership` is the current default cohort. That only affects users who arrive with no `?batch=` parameter; a v2 call always lands the user in the cohort you named.
 
 ---
 
@@ -345,7 +401,7 @@ These are the rules a future change is most likely to violate by accident. Each 
 
 ## 10. Open questions
 
-1. **What are the exact cohort names in production?** `summership`, `monsoonship` and `guru-vaani` are used throughout this document as expected values, but they must be confirmed against the real `Batch` records.
+1. **What are the exact cohort names in production?** `summership`, `monsoonship` and `guruvaani` are used throughout this document as expected values, but they must be confirmed against the real `Batch` records.
 2. **What happens when a programme ends?** Should the enrollment be deactivated, or kept for history? Currently nothing changes it.
 3. **Should Anveshan use this same bridge?** Its card on samagama.in says *"Separate login — not yet part of Samagama SSO"* — the identical problem. If so, this stops being a one-off and becomes the standard way products join Samagama.
 4. **Should `HttpOnly: false` stand?** See §4.5.

@@ -104,8 +104,8 @@ async function makeBatch(name: string, status = 'active') {
 
 describe('resolveActiveBatchBySlug', () => {
   it('resolves a derived slug to its batch', async () => {
-    const created = await makeBatch('Guru Vaani');
-    const found = await resolveActiveBatchBySlug('guru-vaani');
+    const created = await makeBatch('GuruVaani');
+    const found = await resolveActiveBatchBySlug('guruvaani');
     expect(found).not.toBeNull();
     expect(String(found?._id)).toBe(String(created._id));
   });
@@ -150,7 +150,7 @@ describe('syncBridgeEnrollment', () => {
   });
 
   it('never downgrades a role granted inside csfaq', async () => {
-    const batch = await makeBatch('Guru Vaani');
+    const batch = await makeBatch('GuruVaani');
     const userId = new Types.ObjectId();
     await syncBridgeEnrollment(userId, batch, 'student');
 
@@ -167,7 +167,7 @@ describe('syncBridgeEnrollment', () => {
   });
 
   it('does upgrade when the bridge asserts a higher role', async () => {
-    const batch = await makeBatch('Guru Vaani');
+    const batch = await makeBatch('GuruVaani');
     const userId = new Types.ObjectId();
     await syncBridgeEnrollment(userId, batch, 'student');
 
@@ -191,7 +191,7 @@ describe('syncBridgeEnrollment', () => {
 
   it('supports a user being in more than one program', async () => {
     const a = await makeBatch('Summership');
-    const b = await makeBatch('Guru Vaani');
+    const b = await makeBatch('GuruVaani');
     const userId = new Types.ObjectId();
 
     await syncBridgeEnrollment(userId, a, 'student');
@@ -274,15 +274,15 @@ describe('POST /api/auth/bridge/exchange', () => {
   });
 
   it('v2: enrols the user and returns the program for deep-linking', async () => {
-    const batch = await makeBatch('Guru Vaani');
+    const batch = await makeBatch('GuruVaani');
     const ts = Math.floor(Date.now() / 1000);
     const { req, res } = mockReqRes({
       email,
       displayName,
-      programSlug: 'guru-vaani',
+      programSlug: 'guruvaani',
       programRole: 'student',
       ts,
-      sig: sign(PRIMARY, ts, email, displayName, 'guru-vaani', 'student'),
+      sig: sign(PRIMARY, ts, email, displayName, 'guruvaani', 'student'),
     });
     await exchangeBridgeToken(req, res as never);
 
@@ -291,17 +291,17 @@ describe('POST /api/auth/bridge/exchange', () => {
       program: { batchId: string; slug: string; programRole: string };
     };
     expect(payload.program.batchId).toBe(String(batch._id));
-    expect(payload.program.slug).toBe('guru-vaani');
+    expect(payload.program.slug).toBe('guruvaani');
     expect(payload.program.programRole).toBe('student');
   });
 
   it('v2: a signature that omits the program fields is rejected', async () => {
-    await makeBatch('Guru Vaani');
+    await makeBatch('GuruVaani');
     const ts = Math.floor(Date.now() / 1000);
     const { req, res } = mockReqRes({
       email,
       displayName,
-      programSlug: 'guru-vaani',
+      programSlug: 'guruvaani',
       programRole: 'student',
       ts,
       // signed as v1 — must not be accepted for a v2 body, otherwise
@@ -313,30 +313,30 @@ describe('POST /api/auth/bridge/exchange', () => {
   });
 
   it('v2: tampering with programRole invalidates the signature', async () => {
-    await makeBatch('Guru Vaani');
+    await makeBatch('GuruVaani');
     const ts = Math.floor(Date.now() / 1000);
     const { req, res } = mockReqRes({
       email,
       displayName,
-      programSlug: 'guru-vaani',
+      programSlug: 'guruvaani',
       programRole: 'mentor', // claimed
       ts,
-      sig: sign(PRIMARY, ts, email, displayName, 'guru-vaani', 'student'), // signed
+      sig: sign(PRIMARY, ts, email, displayName, 'guruvaani', 'student'), // signed
     });
     await exchangeBridgeToken(req, res as never);
     expect(res.statusCode).toBe(401);
   });
 
   it('v2: rejects a role the bridge is not allowed to assign', async () => {
-    await makeBatch('Guru Vaani');
+    await makeBatch('GuruVaani');
     const ts = Math.floor(Date.now() / 1000);
     const { req, res } = mockReqRes({
       email,
       displayName,
-      programSlug: 'guru-vaani',
+      programSlug: 'guruvaani',
       programRole: 'program_admin',
       ts,
-      sig: sign(PRIMARY, ts, email, displayName, 'guru-vaani', 'program_admin'),
+      sig: sign(PRIMARY, ts, email, displayName, 'guruvaani', 'program_admin'),
     });
     await exchangeBridgeToken(req, res as never);
     expect(res.statusCode).toBe(400);
@@ -359,15 +359,15 @@ describe('POST /api/auth/bridge/exchange', () => {
   });
 
   it('returns a redirectUrl pointing at the cohort, with no token in it', async () => {
-    const batch = await makeBatch('Guru Vaani');
+    const batch = await makeBatch('GuruVaani');
     const ts = Math.floor(Date.now() / 1000);
     const { req, res } = mockReqRes({
       email,
       displayName,
-      programSlug: 'guru-vaani',
+      programSlug: 'guruvaani',
       programRole: 'student',
       ts,
-      sig: sign(PRIMARY, ts, email, displayName, 'guru-vaani', 'student'),
+      sig: sign(PRIMARY, ts, email, displayName, 'guruvaani', 'student'),
     });
     await exchangeBridgeToken(req, res as never);
 
