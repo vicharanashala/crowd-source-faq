@@ -73,6 +73,20 @@ interface BridgeRequest {
   sig: string;
 }
 
+/**
+ * Where the portal lives, for building the redirect we hand back to
+ * samagama.in. Matches the existing convention in discordBot.ts:
+ * PUBLIC_URL, then CLIENT_URL, then a dev fallback.
+ *
+ * Returned as an absolute URL so samagama.in can redirect to it
+ * without knowing that the portal is mounted under /csfaq.
+ */
+function getPortalBaseUrl(): string {
+  const raw = (process.env.PUBLIC_URL ?? process.env.CLIENT_URL ?? '').trim();
+  const base = raw && raw !== '#' ? raw : 'http://localhost:5173';
+  return base.replace(/\/+$/, '');
+}
+
 function getBridgeSecrets(): string[] {
   const raw = (process.env.BRIDGE_SHARED_SECRET ?? '').trim();
   if (!raw) return [];
@@ -314,6 +328,14 @@ export async function exchangeBridgeToken(req: Request, res: Response): Promise<
             programRole: enrollment.programRole,
           }
         : null,
+      // Where to send the user. samagama.in's "Need support?" button
+      // can 302 straight to this without knowing that the portal is
+      // mounted under /csfaq or how cohort selection is expressed.
+      // The token is NOT in this URL on purpose: query strings end up
+      // in server logs, browser history and Referer headers.
+      redirectUrl: enrollment
+        ? `${getPortalBaseUrl()}/csfaq/?batch=${enrollment.batchId.toString()}`
+        : `${getPortalBaseUrl()}/csfaq/`,
       user: {
         id: user._id.toString(),
         name: user.name,

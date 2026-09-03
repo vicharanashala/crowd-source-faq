@@ -8,42 +8,46 @@
 
 ## 1. What we are building, in one paragraph
 
-A user signs in on samagama.in. They open `samagama.in/csfaq`. They are already logged in, already a member of the right cohort, and land directly in it. They never see a second login screen, and nobody has to enrol them by hand.
+The samagama.in dashboard gets a **"Need support?"** button. When a signed-in user clicks it, samagama.in identifies who they are, looks up which programme they belong to, and hands them to the csfaq portal already logged in and already inside that programme's cohort. They never see a second login screen, and nobody has to enrol them by hand.
 
-Both applications sit on the same domain, which is what makes a shared cookie possible at all.
+Both applications sit on the same domain, which is what makes the shared session cookie possible at all.
 
 ---
 
 ## 2. The shape of the integration
 
+The exchange happens **when the button is clicked**, not at login. That keeps the token fresh at the moment it is used, and means a user who never clicks the button never gets a csfaq account.
+
 ```
-  ┌──────────────┐   1. user signs in
+  ┌──────────────┐   user clicks "Need support?" on the dashboard
   │ samagama.in  │◀──────────────────────────── user
   │   backend    │
+  │              │  1. identify the signed-in user (id → email, name)
+  │              │  2. look up their programme tag
   └──────┬───────┘
-         │ 2. POST /csfaq/api/auth/bridge/exchange
+         │ 3. POST /csfaq/api/auth/bridge/exchange
          │    { email, displayName, programSlug, programRole, ts, sig }
          │    X-Bridge-Secret-Index: 0
          ▼
   ┌──────────────┐
-  │    csfaq     │  3. verify HMAC + 60s window
+  │    csfaq     │  4. verify HMAC + 60s window
   │   backend    │     resolve cohort, find-or-create user,
   │              │     create/refresh ProgramEnrollment
   └──────┬───────┘
-         │ 4. { token, refreshToken, user, program:{ batchId, … } }
+         │ 5. { token, refreshToken, user, program, redirectUrl }
          ▼
-  ┌──────────────┐  5. set cookie yaksha_session = token
+  ┌──────────────┐  6. set cookie yaksha_session = token
   │ samagama.in  │     Domain=.samagama.in
-  │   backend    │  6. redirect to /csfaq/?batch=<batchId>
+  │   backend    │  7. 302 to the returned redirectUrl
   └──────┬───────┘
          ▼
-  ┌──────────────┐  7. cookieBridge.ts copies cookie → localStorage
-  │ csfaq (SPA)  │  8. ?batch=<id> selects the cohort
-  │              │  9. all later calls use Authorization: Bearer
+  ┌──────────────┐  8. cookieBridge.ts copies cookie → localStorage
+  │ csfaq (SPA)  │  9. ?batch=<id> selects the cohort
+  │              │ 10. all later calls use Authorization: Bearer
   └──────────────┘
 ```
 
-Steps 3, 7, 8 and 9 already work. Steps 2, 5 and 6 are what samagama.in must build.
+Steps 4, 8, 9 and 10 already work. **Steps 1, 2, 3, 6 and 7 are what samagama.in must build** — and they are all one request handler behind the button.
 
 ---
 
@@ -134,11 +138,14 @@ async function bridgeToCsfaq({ email, displayName, programSlug, programRole }) {
     "name": "Guru Vaani",
     "programRole": "student"
   },
+  "redirectUrl": "https://samagama.in/csfaq/?batch=665f1c2a9b1e4a0012a3b4c5",
   "user": { "id": "…", "name": "…", "email": "…", "role": "user" }
 }
 ```
 
-`program` is `null` for a v1 call.
+`program` is `null` for a v1 call, and `redirectUrl` then points at the portal root.
+
+**Redirect to `redirectUrl` rather than constructing it.** The token is deliberately not in it: query strings end up in access logs, browser history and `Referer` headers.
 
 ### 3.4 Status codes
 
@@ -154,11 +161,56 @@ async function bridgeToCsfaq({ email, displayName, programSlug, programRole }) {
 
 ## 4. What samagama.in must do
 
-### 4.1 At login, server side
+### 4.1 The "Need support?" button
 
-1. Build the canonical string and HMAC it (§3.1).
-2. `POST` to the endpoint.
-3. Take `token` from the response and set it as a cookie:
+The whole samagama.in side is one authenticated route behind the button. Sketch:
+
+```js
+// GET /need-support   (must require a signed-in samagama.in session)
+app.get('/need-support', requireSamagamaLogin, async (req, res) => {
+  const user = req.user;                     // 1. who they are
+
+  const { programSlug, programRole } = resolveProgramTag(user);
+  if (!programSlug) {                        // 2. no tag — see §4.2
+    return res.redirect('/support/general');
+  }
+
+  const bridged = await bridgeToCsfaq({      // 3. exchange
+    email: user.email,
+    displayName: user.name,
+    programSlug,
+    programRole,
+  });
+
+  res.cookie('yaksha_session', bridged.token, {   // 4. hand over the session
+    domain: '.samagama.in',
+    path: '/',
+    secure: true,
+    sameSite: 'lax',
+    httpOnly: false,                              // required, see §4.5
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
+
+  return res.redirect(bridged.redirectUrl);       // 5. straight into the cohort
+});
+```
+
+The button itself is then just a link to `/need-support`.
+
+Two things to get right:
+
+- **The route must require a signed-in session.** It mints a csfaq account from whatever email it is given, so an unauthenticated route here would let anyone create one.
+- **Redirect to `bridged.redirectUrl`**, rather than building the URL yourself. csfaq returns it precisely so samagama.in does not need to know that the portal is mounted at `/csfaq` or that cohort selection is expressed as `?batch=`. If either changes, the button keeps working.
+
+### 4.2 When the user has no programme tag
+
+Not every signed-in user belongs to a cohort. Decide deliberately what the button does for them; do not send a made-up slug, because csfaq will answer 404 by design.
+
+Reasonable options: hide the button entirely, send them to a general support page, or call the bridge **without** `programSlug` (a v1 call). A v1 call still signs them in and returns a `redirectUrl` pointing at the portal root, so they land in csfaq logged in but not scoped to a cohort.
+
+### 4.3 Setting the session cookie
+
+Take `token` from the response and set it as a cookie:
 
 ```
 Name:     yaksha_session
@@ -167,15 +219,15 @@ Domain:   .samagama.in
 Path:     /
 Secure:   true
 SameSite: Lax
-HttpOnly: false        ← required, see §4.3
+HttpOnly: false        ← required, see §4.5
 Max-Age:  604800       (7 days, matching the JWT)
 ```
 
-4. Redirect the user to `/csfaq/?batch=<program.batchId>`.
+That is all samagama.in stores. When the user arrives at the portal, the frontend reads the cookie and every later request uses the ordinary `Authorization: Bearer` path.
 
-Step 4 is what makes the cohort routing work. csfaq's `ProgramContext` treats `?batch=` as the **highest-priority** signal, above any stored preference, so the user lands in the right cohort even if they last used a different one.
+The `?batch=` in `redirectUrl` is what makes the cohort routing work. csfaq's `ProgramContext` treats it as the **highest-priority** signal, above any stored preference, so the user lands in the right cohort even if they last used a different one.
 
-### 4.2 Choosing the slug and role
+### 4.4 Choosing the slug and role
 
 Samagama decides both. csfaq trusts them because they are signed.
 
@@ -191,7 +243,7 @@ Note that a faculty member on Guru Vaani is a **`student`** of that programme: `
 
 Slugs are derived from the cohort's name in csfaq by lowercasing and replacing runs of non-alphanumerics with dashes. `Guru Vaani` → `guru-vaani`. **Confirm the exact list with a csfaq admin before going live** — a mismatch produces a 404, not a silent fallback, which is intentional.
 
-### 4.3 ⚠️ The cookie cannot be HttpOnly
+### 4.5 ⚠️ The cookie cannot be HttpOnly
 
 `cookieBridge.ts` reads the cookie from `document.cookie`, which requires `HttpOnly: false`. **Any XSS anywhere under `samagama.in` can therefore steal a 7-day JWT.**
 
@@ -202,7 +254,7 @@ This is a deliberate trade-off, recorded here so it is not inherited by accident
 
 If the current design stands, shorten `Max-Age` as far as the user experience tolerates.
 
-### 4.4 Operational requirements
+### 4.6 Operational requirements
 
 - **Clocks must be NTP-synced on both hosts.** A skew above 60 seconds silently fails every login with a 401 and no other symptom.
 - The shared secret must be at least 32 random bytes, shared out of band. Never in a repository, chat message, or ticket.
@@ -296,4 +348,4 @@ These are the rules a future change is most likely to violate by accident. Each 
 1. **What are the exact cohort names in production?** `summership`, `monsoonship` and `guru-vaani` are used throughout this document as expected values, but they must be confirmed against the real `Batch` records.
 2. **What happens when a programme ends?** Should the enrollment be deactivated, or kept for history? Currently nothing changes it.
 3. **Should Anveshan use this same bridge?** Its card on samagama.in says *"Separate login — not yet part of Samagama SSO"* — the identical problem. If so, this stops being a one-off and becomes the standard way products join Samagama.
-4. **Should `HttpOnly: false` stand?** See §4.3.
+4. **Should `HttpOnly: false` stand?** See §4.5.

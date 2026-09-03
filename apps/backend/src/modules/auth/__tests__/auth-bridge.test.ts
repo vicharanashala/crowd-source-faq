@@ -358,6 +358,42 @@ describe('POST /api/auth/bridge/exchange', () => {
     expect(await User.countDocuments({ email })).toBe(0);
   });
 
+  it('returns a redirectUrl pointing at the cohort, with no token in it', async () => {
+    const batch = await makeBatch('Guru Vaani');
+    const ts = Math.floor(Date.now() / 1000);
+    const { req, res } = mockReqRes({
+      email,
+      displayName,
+      programSlug: 'guru-vaani',
+      programRole: 'student',
+      ts,
+      sig: sign(PRIMARY, ts, email, displayName, 'guru-vaani', 'student'),
+    });
+    await exchangeBridgeToken(req, res as never);
+
+    const { redirectUrl, token } = res.payload as { redirectUrl: string; token: string };
+    expect(redirectUrl).toContain('/csfaq/?batch=');
+    expect(redirectUrl).toContain(String(batch._id));
+    // The token must never travel in a query string: those end up in
+    // access logs, browser history and Referer headers.
+    expect(redirectUrl).not.toContain(token);
+    expect(redirectUrl.toLowerCase()).not.toContain('token');
+  });
+
+  it('v1 redirectUrl points at the portal root', async () => {
+    const ts = Math.floor(Date.now() / 1000);
+    const { req, res } = mockReqRes({
+      email,
+      displayName,
+      ts,
+      sig: sign(PRIMARY, ts, email, displayName),
+    });
+    await exchangeBridgeToken(req, res as never);
+
+    const { redirectUrl } = res.payload as { redirectUrl: string };
+    expect(redirectUrl).toMatch(/\/csfaq\/$/);
+  });
+
   it('signs the JWT with an "id" claim so authShared can load the user', async () => {
     // Regression test. The bridge previously signed `{ userId, role }`,
     // but authShared.ts reads `decoded.id` and auth.controller.ts signs
