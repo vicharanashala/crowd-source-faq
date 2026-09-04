@@ -307,10 +307,10 @@ export default function FAQPage() {
         {/* ─── TITLE BANNER ───────────────────────────────────────────── */}
         <section className="text-center pt-3 pb-2 relative">
           <h1 className="font-serif text-3xl sm:text-4xl leading-tight text-ink mt-3">
-            Intern FAQs — <span className="text-accent font-serif" style={{ fontWeight: 700 }}>solved</span>
+            FAQs <span className="text-accent font-serif" style={{ fontWeight: 700 }}>resolved</span>
           </h1>
           <p className="text-sm text-ink-soft mt-3 max-w-xl mx-auto">
-            Find immediate answers to your program, certificate, and internship doubts.
+            Find immediate answers to your program and certificate doubts.
           </p>
           {!loading && !error && total > 0 && (
             <p className="text-[11px] uppercase tracking-[0.18em] font-semibold text-ink-faint mt-2.5">
@@ -329,7 +329,7 @@ export default function FAQPage() {
               onResults={(res) => setSearchResults(res as unknown as FAQItem[])}
               onLoading={setSearchLoading}
               onError={(err) => setError(err || '')}
-              placeholder="Ask anything about your internship..."
+              placeholder="Ask anything about the programme..."
               disableSuggestions={true}
             />
 
@@ -398,7 +398,7 @@ export default function FAQPage() {
         {noProgramSelected && !loading && (
           <div className="mt-8 rounded-2xl bg-mist border border-border/50 p-8 text-center space-y-3">
             <p className="text-sm font-medium text-ink">No program selected.</p>
-            <p className="text-xs text-ink-soft">Select a program above to browse FAQs relevant to your internship.</p>
+            <p className="text-xs text-ink-soft">Select a program above to browse FAQs relevant to your programme.</p>
           </div>
         )}
 
