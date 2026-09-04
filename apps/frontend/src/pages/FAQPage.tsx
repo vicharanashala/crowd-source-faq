@@ -307,7 +307,7 @@ export default function FAQPage() {
         {/* ─── TITLE BANNER ───────────────────────────────────────────── */}
         <section className="text-center pt-3 pb-2 relative">
           <h1 className="font-serif text-3xl sm:text-4xl leading-tight text-ink mt-3">
-            FAQs <span className="text-accent font-serif" style={{ fontWeight: 700 }}>resolved</span>
+            FAQs <span className="text-accent font-serif" style={{ fontWeight: 700 }}>solved</span>
           </h1>
           <p className="text-sm text-ink-soft mt-3 max-w-xl mx-auto">
             Find immediate answers to your program and certificate doubts.
