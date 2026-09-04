@@ -632,11 +632,20 @@ export async function getPromotionQueue(req: Request, res: Response): Promise<vo
     const page = Math.max(1, parseInt(String(req.query.page ?? '1')));
     const limit = Math.min(50, Math.max(1, parseInt(String(req.query.limit ?? '20'))));
 
+    // The review actions on this queue (verify / promote / merge) all gate on
+    // assertSameProgram, so listing cross-program items just yields a 404 on
+    // click. Scope the queue to the active program only.
+    const batchId = req.programContext?.batchId;
+    const scopedByBatch = (filter: Record<string, unknown>): Record<string, unknown> =>
+      batchId ? { ...filter, batchId } : filter;
+
     // 1. Fetch eligible community posts
-    const posts = await CommunityPost.find({
-      'lifecycle.status': { $in: ['ai_validated', 'community_accepted'] },
-      'lifecycle.communityAcceptedAt': { $ne: null },
-    })
+    const posts = await CommunityPost.find(
+      scopedByBatch({
+        'lifecycle.status': { $in: ['ai_validated', 'community_accepted'] },
+        'lifecycle.communityAcceptedAt': { $ne: null },
+      }),
+    )
       .populate('author', 'name')
       .select('-embedding');
 
@@ -664,9 +673,11 @@ export async function getPromotionQueue(req: Request, res: Response): Promise<vo
     });
 
     // 2. Fetch reported/flagged FAQs that need review
-    const reportedFaqs = await FAQ.find({
-      reviewStatus: { $in: ['pending_review', 'update_requested'] },
-    })
+    const reportedFaqs = await FAQ.find(
+      scopedByBatch({
+        reviewStatus: { $in: ['pending_review', 'update_requested'] },
+      }),
+    )
       .populate('createdBy', 'name')
       .select('-embedding')
       .lean();
