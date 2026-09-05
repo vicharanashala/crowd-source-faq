@@ -314,6 +314,36 @@ describe('applySearchThreshold', () => {
     const filtered = applySearchThreshold(results);
     expect(filtered.map((r: any) => r._id.toString())).toEqual(['c', 'a', 'b']);
   });
+
+  it('should allow configurable vector threshold: vectorScore 0.5 excluded by default, included when threshold=0.4', () => {
+    const results = [
+      { _id: { toString: () => 'x' } as any, source: 'faq' as const, score: 1, textScore: 0, vectorScore: 0.5 } as any,
+    ];
+    const defaultFiltered = applySearchThreshold(results);
+    expect(defaultFiltered).toHaveLength(0); // default 0.8 excludes 0.5
+    const customFiltered = applySearchThreshold(results, 0.4);
+    expect(customFiltered).toHaveLength(1); // custom threshold includes 0.5
+  });
+
+  it('should allow configurable vector threshold: vectorScore 0.9 included by default, excluded when threshold=0.95', () => {
+    const results = [
+      { _id: { toString: () => 'y' } as any, source: 'faq' as const, score: 1, textScore: 0, vectorScore: 0.9 } as any,
+    ];
+    const defaultFiltered = applySearchThreshold(results);
+    expect(defaultFiltered).toHaveLength(1); // default includes 0.9
+    const customFiltered = applySearchThreshold(results, 0.95);
+    expect(customFiltered).toHaveLength(0); // custom threshold excludes 0.9
+  });
+
+  it('regression: calling applySearchThreshold(results) without second arg behaves as before (default 0.8)', () => {
+    const results = [
+      { _id: { toString: () => 'z' } as any, source: 'faq' as const, score: 1, textScore: 0, vectorScore: 0.85 } as any,
+    ];
+    const noArg = applySearchThreshold(results);
+    const explicitArg = applySearchThreshold(results, 0.8);
+    expect(noArg).toHaveLength(1);
+    expect(explicitArg).toHaveLength(1);
+  });
 });
 
 // ==========================================
