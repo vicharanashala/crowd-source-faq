@@ -243,11 +243,16 @@ describe('computeRRF', () => {
 // 4. Search: applySearchThreshold Tests
 // ==========================================
 describe('applySearchThreshold', () => {
+  // Boundary-value tests below pass an explicit `minVectorScore` so they
+  // exercise the filtering logic itself rather than whatever value happens
+  // to be set in config.default.yaml (`search.hybrid.minScore`).
+  const t = { minVectorScore: 0.80 };
+
   it('should return all results when no scores are set (both scores falsy)', () => {
     const results = [
       { _id: { toString: () => 'a' } as any, source: 'faq' as const, score: 1 },
     ] as any[];
-    const filtered = applySearchThreshold(results);
+    const filtered = applySearchThreshold(results, t);
     expect(filtered).toHaveLength(0);
   });
 
@@ -255,7 +260,7 @@ describe('applySearchThreshold', () => {
     const results = [
       { _id: { toString: () => 'a' } as any, source: 'faq' as const, score: 1, textScore: 0.5 } as any,
     ];
-    const filtered = applySearchThreshold(results);
+    const filtered = applySearchThreshold(results, t);
     expect(filtered).toHaveLength(1);
   });
 
@@ -263,7 +268,7 @@ describe('applySearchThreshold', () => {
     const results = [
       { _id: { toString: () => 'a' } as any, source: 'faq' as const, score: 1, textScore: 0, vectorScore: 0.85 } as any,
     ];
-    const filtered = applySearchThreshold(results);
+    const filtered = applySearchThreshold(results, t);
     expect(filtered).toHaveLength(1);
   });
 
@@ -271,7 +276,7 @@ describe('applySearchThreshold', () => {
     const results = [
       { _id: { toString: () => 'a' } as any, source: 'faq' as const, score: 1, textScore: 0.4, vectorScore: 0.9 } as any,
     ];
-    const filtered = applySearchThreshold(results);
+    const filtered = applySearchThreshold(results, t);
     expect(filtered).toHaveLength(1);
   });
 
@@ -279,7 +284,7 @@ describe('applySearchThreshold', () => {
     const results = [
       { _id: { toString: () => 'a' } as any, source: 'faq' as const, score: 1, textScore: 0, vectorScore: 0.75 } as any,
     ];
-    const filtered = applySearchThreshold(results);
+    const filtered = applySearchThreshold(results, t);
     expect(filtered).toHaveLength(0);
   });
 
@@ -287,7 +292,7 @@ describe('applySearchThreshold', () => {
     const results = [
       { _id: { toString: () => 'a' } as any, source: 'faq' as const, score: 1, textScore: 0.001, vectorScore: 0 } as any,
     ];
-    const filtered = applySearchThreshold(results);
+    const filtered = applySearchThreshold(results, t);
     expect(filtered).toHaveLength(1);
   });
 
@@ -296,12 +301,12 @@ describe('applySearchThreshold', () => {
       { _id: { toString: () => 'a' } as any, source: 'faq' as const, score: 1, textScore: 0.3, vectorScore: 0.5 } as any,
       { _id: { toString: () => 'b' } as any, source: 'faq' as const, score: 1, textScore: 0, vectorScore: 0.6 } as any,
     ];
-    const filtered = applySearchThreshold(results);
+    const filtered = applySearchThreshold(results, t);
     expect(filtered).toHaveLength(1);
   });
 
   it('should handle empty results array', () => {
-    const filtered = applySearchThreshold([]);
+    const filtered = applySearchThreshold([], t);
     expect(filtered).toHaveLength(0);
   });
 
@@ -311,8 +316,32 @@ describe('applySearchThreshold', () => {
       { _id: { toString: () => 'a' } as any, source: 'faq' as const, score: 1, textScore: 0.8 } as any,
       { _id: { toString: () => 'b' } as any, source: 'faq' as const, score: 1, textScore: 0.5 } as any,
     ];
-    const filtered = applySearchThreshold(results);
+    const filtered = applySearchThreshold(results, t);
     expect(filtered.map((r: any) => r._id.toString())).toEqual(['c', 'a', 'b']);
+  });
+
+    // ── Configurable threshold (issue #168) ──────────────────────────────────
+
+  it('should respect a custom minVectorScore override instead of the hardcoded 0.80', () => {
+    const results = [
+      { _id: { toString: () => 'a' } as any, source: 'faq' as const, score: 1, textScore: 0, vectorScore: 0.5 } as any,
+    ];
+
+    expect(applySearchThreshold(results, { minVectorScore: 0.4 })).toHaveLength(1);
+    expect(applySearchThreshold(results, { minVectorScore: 0.6 })).toHaveLength(0);
+  });
+
+  it('should fall back to search.hybrid.minScore from config when no override is passed', () => {
+    const passing = [
+      { _id: { toString: () => 'a' } as any, source: 'faq' as const, score: 1, textScore: 0, vectorScore: 0.85 } as any,
+    ];
+
+    const failing = [
+      { _id: { toString: () => 'b' } as any, source: 'faq' as const, score: 1, textScore: 0, vectorScore: 0.75 } as any,
+    ];
+
+    expect(applySearchThreshold(passing)).toHaveLength(1);
+    expect(applySearchThreshold(failing)).toHaveLength(0);
   });
 });
 
