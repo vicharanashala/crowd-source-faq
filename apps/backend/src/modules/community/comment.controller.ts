@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { Types } from 'mongoose';
+import mongoose, { Types } from 'mongoose';
 import CommunityPost from './community-post.model.js';
 import User, { IUser, calculateTier } from '../auth/user.model.js';
 // v1.69 — Phase 7: per-program reputation writes. The User
@@ -15,6 +15,12 @@ import { communityLog } from '../../utils/http/logger.js';
 import { assertCanCreateContent } from '../../utils/banUtils.js';
 // v1.69 — Phase 3e: program-scope guard for all comment writes.
 import { assertSameProgram, withProgramScope } from '../../utils/db/scopedQuery.js';
+
+import FAQ from '../faq/faq.model.js';
+import { generateEmbedding } from '../../utils/ai/embeddings.js';
+import { invalidateCache } from '../../utils/http/cache.js';
+import { invalidatePublicCaches } from '../faq/public-faq.controller.js';
+import { autoPromotePostToFAQ } from './post-lifecycle.controller.js';
 
 // Extend Express Request to include user (same pattern as auth middleware)
 /* eslint-disable @typescript-eslint/no-namespace */
@@ -83,6 +89,10 @@ export const addComment = async (req: Request, res: Response): Promise<void> => 
       return;
     }
     if (assertSameProgram(post, req.programContext, res)) return;
+    if (post.status === 'answered') {
+      res.status(403).json({ message: 'This post is resolved. Comments are closed.' });
+      return;
+    }
     if (post.isLocked) {
       res.status(403).json({ message: 'This post is locked. New comments are disabled.' });
       return;

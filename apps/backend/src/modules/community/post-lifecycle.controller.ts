@@ -11,7 +11,7 @@
  */
 
 import { Request, Response } from 'express';
-import { Types } from 'mongoose';
+import mongoose, { Types } from 'mongoose';
 import CommunityPost from './community-post.model.js';
 import FAQ from '../faq/faq.model.js';
 import User from '../auth/user.model.js';
@@ -91,17 +91,8 @@ export const resolvePost = async (req: Request, res: Response): Promise<void> =>
       communityLog.warn(`[post] Failed to invalidate cache on post resolve: ${(err as Error).message}`);
     });
 
-    // ── Check if post is now eligible for FAQ promotion ───────────────────────
-    const { checkPromotionEligibility, startPromotionReview } = await import('../program/promotion.service.js');
-    try {
-      const eligible = await checkPromotionEligibility(post);
-      if (eligible) {
-        await startPromotionReview(post, req.user!._id.toString());
-        communityLog.info(`Resolved post ${post._id} entered promotion review`, { postId: post._id.toString() });
-      }
-    } catch (e) {
-      communityLog.warn(`Promotion eligibility check failed for post ${post._id}: ${(e as Error).message}`);
-    }
+    // FAQ promotion is now handled manually by admins/moderators via the promote route
+    await post.save();
 
     // ── Notify post author ────────────────────────────────────────────────────
     dispatchNotification({
@@ -192,7 +183,14 @@ export const convertCommunityPostToFAQ = async (req: Request, res: Response): Pr
     }
     if (assertSameProgram(post, req.programContext, res)) return;
 
-    if (!post.answer || !post.answer.trim()) {
+    // Use custom question, answer, and category if provided in the body; otherwise fall back to post details.
+    const { question, answer, category } = req.body as { question?: string; answer?: string; category?: string };
+
+    const finalQuestion = question?.trim() || post.title;
+    const finalAnswer = answer?.trim() || post.answer || '';
+    const finalCategory = category?.trim() || (post.tags && post.tags[0]) || 'Community';
+
+    if (!finalAnswer.trim()) {
       res.status(400).json({ message: 'Post has no answer yet. Resolve it before converting to FAQ.' });
       return;
     }
@@ -200,35 +198,49 @@ export const convertCommunityPostToFAQ = async (req: Request, res: Response): Pr
     // Generate embedding for the new FAQ
     let embedding: number[] | undefined;
     try {
-      embedding = await generateEmbedding(`Question: ${post.title}. Answer: ${post.answer}`);
+      embedding = await generateEmbedding(`Question: ${finalQuestion}. Answer: ${finalAnswer}`);
     } catch (err) {
       communityLog.warn(`Failed to generate embedding for FAQ: ${(err as Error).message}`);
     }
 
-    // Create the FAQ from the post's title (question) and answer
+    // Create the FAQ from the customized fields
     const faq = await FAQ.create({
-      question: post.title,
-      answer: post.answer,
+      question: finalQuestion,
+      answer: finalAnswer,
       batchId: post.batchId,
-      category: 'Community',
+      category: finalCategory,
       status: 'approved',
+      reviewStatus: 'verified',
       embedding,
-      createdBy: post.author,
+      createdBy: req.user._id,
     });
 
-    // v1.68 — H3 fix: atomic $set.
+    // Update community post lifecycle and status
+    const updateFields: Record<string, any> = {
+      status: 'answered',
+      escalationStatus: 'none',
+      escalatedAt: null,
+      escalationReason: null,
+      escalatedBy: null,
+      answerIsExpert: true,
+    };
+
+    const currentStatus = post.lifecycle?.status || 'open';
+    const currentHistory = post.lifecycle?.statusHistory || [];
+    const history = [...currentHistory];
+    history.push({
+      from: currentStatus as any,
+      to: 'converted_to_faq',
+      changedBy: req.user._id,
+      changedAt: new Date(),
+      note: `Manually promoted to FAQ by admin/moderator. FAQ ID: ${faq._id}`,
+    });
+    updateFields['lifecycle.status'] = 'converted_to_faq';
+    updateFields['lifecycle.statusHistory'] = history;
+
     await CommunityPost.findOneAndUpdate(
       { _id: post._id },
-      {
-        $set: {
-          status: 'answered',
-          escalationStatus: 'none',
-          escalatedAt: null,
-          escalationReason: null,
-          escalatedBy: null,
-          answerIsExpert: true,
-        },
-      },
+      { $set: updateFields }
     );
 
     // Invalidate search cache so the new FAQ appears immediately
@@ -320,5 +332,77 @@ export const setPostTags = async (req: Request, res: Response): Promise<void> =>
   } catch (error) {
     communityLog.error(`[post] setPostTags failed: ${(error as Error).message}`);
     res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Auto-promotes a community post to FAQ after validating similarity/duplicates
+export const autoPromotePostToFAQ = async (
+  post: any,
+  answerText: string,
+  authorId: any
+): Promise<void> => {
+  try {
+    let embedding: number[] | undefined;
+    try {
+      embedding = await generateEmbedding(`Question: ${post.title}. Answer: ${answerText}`);
+    } catch (err) {
+      communityLog.warn(`Failed to generate embedding for FAQ check: ${(err as Error).message}`);
+    }
+
+    let isDuplicate = false;
+    if (embedding) {
+      const db = mongoose.connection.db;
+      if (db) {
+        const collection = db.collection('yaksha_faq_faqs');
+        const pipeline: mongoose.PipelineStage[] = post.batchId
+          ? [{ $match: { batchId: post.batchId } }]
+          : [];
+        pipeline.push(
+          {
+            $vectorSearch: {
+              index: 'vector_index',
+              path: 'embedding',
+              queryVector: embedding,
+              numCandidates: 50,
+              limit: 1,
+            },
+          },
+          {
+            $project: {
+              score: { $meta: 'vectorSearchScore' },
+            },
+          }
+        );
+        const results = await collection.aggregate(pipeline).toArray();
+        const topMatch = results[0];
+        const matchThreshold = 0.82; // standard duplicate threshold
+        if (topMatch && topMatch.score >= matchThreshold) {
+          isDuplicate = true;
+          communityLog.info(`Skip auto-promoting post ${post._id} to FAQ: duplicate found (score: ${topMatch.score})`);
+        }
+      }
+    }
+
+    if (!isDuplicate) {
+      const faqCategory = post.tags && post.tags[0] ? post.tags[0] : 'Community';
+      await FAQ.create({
+        question: post.title,
+        answer: answerText,
+        batchId: post.batchId,
+        category: faqCategory,
+        status: 'approved',
+        embedding,
+        createdBy: authorId,
+      });
+      communityLog.info(`Automatically promoted post ${post._id} to FAQ under category '${faqCategory}'`);
+      
+      // Invalidate cache
+      await invalidateCache().catch((err) => {
+        communityLog.warn(`[post] Failed to invalidate cache on auto FAQ promotion: ${(err as Error).message}`);
+      });
+      invalidatePublicCaches();
+    }
+  } catch (promotionErr) {
+    communityLog.error(`Failed to auto-promote post to FAQ: ${(promotionErr as Error).message}`);
   }
 };

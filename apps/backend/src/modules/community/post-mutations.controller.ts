@@ -85,7 +85,7 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
     // (detectDuplicatesWithAI returns [] on throw) keeps the server usable
     // when the AI provider is down.
     const matches = await evaluateDuplicates(
-      title,
+      `${title} ${body}`,
       req.programContext?.batchId ?? null,
     );
     if (matches.some(isBlockingMatch)) {
@@ -100,24 +100,24 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
     // ── Same-author duplicate guard ──────────────────────────────────────────
     // The AI / FAQ blocker catches "this has been asked before, see answer"
     // but doesn't catch "you just posted this ten minutes ago, stop spamming".
-    // Compare on normalised title (case-folded, whitespace collapsed) so
-    // trivial re-submissions ("Hi" vs "hi.") still match. Block creation
+    // Compare on normalised body (case-folded, whitespace collapsed) so
+    // trivial re-submissions still match. Block creation
     // with the SAME 409 shape the UI already knows how to surface.
     if (req.user?._id) {
-      const normalisedTitle = title.toLowerCase().replace(/\s+/g, ' ').trim();
+      const normalisedBody = body.toLowerCase().replace(/\s+/g, ' ').trim();
       const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
       const recent = await CommunityPost.findOne({
         author: req.user._id,
         status: { $ne: 'spam_confirmed' },
         createdAt: { $gte: since },
       })
-        .select('_id title createdAt status')
+        .select('_id title body createdAt status')
         .lean();
       if (recent) {
-        const recentNorm = (recent.title ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
-        if (recentNorm === normalisedTitle) {
+        const recentNorm = (recent.body ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
+        if (recentNorm === normalisedBody) {
           res.status(409).json({
-            message: 'You posted the same question in the last 24 hours. Check your earlier post and add a comment instead of creating a duplicate.',
+            message: 'You posted the same question description in the last 24 hours. Check your earlier post and add a comment instead of creating a duplicate.',
             isDuplicate: true,
             matches: [{
               _id: recent._id.toString(),
@@ -125,7 +125,7 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
               score: 1.0,
               source: 'community' as const,
               matchType: 'text' as const,
-              reason: 'Same author posted this title within 24 hours.',
+              reason: 'Same author posted this question description within 24 hours.',
             }],
           });
           return;
@@ -316,13 +316,15 @@ export const toggleUpvote = async (req: Request, res: Response): Promise<void> =
     // snapshot. `$addToSet` is idempotent so the membership is
     // always correct after the atomic write.
     const wasUpvotedBefore = post.upvotes.map((u: Types.ObjectId) => u.toString()).includes(userId);
+    if (wasUpvotedBefore) {
+      res.status(400).json({ message: 'You can only upvote a question once.' });
+      return;
+    }
 
-    // Use atomic $pull/$addToSet to avoid race-condition duplicates
+    // Use atomic $addToSet to avoid race-condition duplicates
     const updated = await CommunityPost.findOneAndUpdate(
       { _id: post._id },
-      wasUpvotedBefore
-        ? { $pull: { upvotes: new Types.ObjectId(userId) } }
-        : { $addToSet: { upvotes: new Types.ObjectId(userId) } },
+      { $addToSet: { upvotes: new Types.ObjectId(userId) } },
       { returnDocument: 'after' }
     );
 

@@ -291,6 +291,14 @@ api.interceptors.response.use(
       }
     }
 
+    if (error.response && (error.response.status === 404 || error.response.status === 410)) {
+      const msg = (error.response.data as { message?: string })?.message;
+      if (msg === 'Program not found.' || msg === 'Program is archived or completed.') {
+        localStorage.removeItem('yaksha_active_program_id');
+        localStorage.removeItem('yaksha_active_batch_id');
+      }
+    }
+
     if (error.response && error.response.status === 401) {
       // If the failed request was a refresh token request itself, abort immediately.
       if (config && config.url && (config.url.endsWith('/auth/refresh') || config.url.includes('/auth/refresh'))) {

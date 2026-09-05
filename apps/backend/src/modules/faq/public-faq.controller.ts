@@ -299,7 +299,7 @@ export async function getCategories(req: Request, res: Response): Promise<void> 
     const grouped = await FAQ.aggregate<{ _id: string; count: number }>([
       { $match: matchStage },
       { $group: { _id: '$category', count: { $sum: 1 } } },
-      { $sort: { count: -1, _id: 1 } },
+      { $sort: { _id: 1 } },
     ]);
 
     const categories: Array<{

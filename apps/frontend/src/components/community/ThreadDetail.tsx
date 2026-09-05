@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api, { friendlyError } from '../../utils/api';
 import Avatar from '../ui/Avatar';
@@ -8,6 +8,7 @@ import CommentNode from './CommentNode';
 import ThreadActivityTimeline, { type LifecycleStatusHistoryEntry } from './ThreadActivityTimeline';
 import ThreadBookmarkButton from './ThreadBookmarkButton';
 import ThreadShareButton from './ThreadShareButton';
+import PromoteToFaqDialog from './PromoteToFaqDialog';
 import type { Post } from '../../types/ui';
 import type { GcsAsset } from '../../hooks/useGcsUpload';
 import { buildGcsTransformedUrl } from '../../utils/gcsTransform';
@@ -52,6 +53,7 @@ export interface ThreadPost {
   status?: 'answered' | 'unanswered' | string;
   author?: { name?: string; _id?: string };
   createdAt?: string;
+  tags?: string[];
   upvotes?: (string | { _id?: string })[];
   downvotes?: (string | { _id?: string })[];
   comments?: Comment[];
@@ -90,6 +92,18 @@ interface ThreadDetailProps {
 
 
 
+const updateCommentInTree = (comments: Comment[], targetId: string, upvotes: any[], downvotes: any[]): Comment[] => {
+  return comments.map((c) => {
+    if (c._id === targetId) {
+      return { ...c, upvotes, downvotes };
+    }
+    if (c.replies && c.replies.length > 0) {
+      return { ...c, replies: updateCommentInTree(c.replies, targetId, upvotes, downvotes) };
+    }
+    return c;
+  });
+};
+
 // ─── ThreadDetail Modal ───────────────────────────────────────────────────────
 
 export default function ThreadDetail({ postId, onClose }: ThreadDetailProps) {
@@ -109,6 +123,7 @@ export default function ThreadDetail({ postId, onClose }: ThreadDetailProps) {
   const [resolveText, setResolveText] = useState('');
   const [resolveLoading, setResolveLoading] = useState(false);
   const [showReportForm, setShowReportForm] = useState(false);
+  const [showPromoteDialog, setShowPromoteDialog] = useState(false);
   const [reportReason, setReportReason] = useState('');
   const [reportLoading, setReportLoading] = useState(false);
   const [reportDone, setReportDone] = useState(false);
@@ -129,7 +144,32 @@ export default function ThreadDetail({ postId, onClose }: ThreadDetailProps) {
   );
   const canResolve = userRole === 'admin' || userRole === 'moderator' || userRole === 'expert';
   const isPrivileged = userRole === 'admin' || userRole === 'moderator';
-  const topLevelComments = post?.comments ?? [];
+  const canPromote = userRole === 'admin' || userRole === 'moderator' || userRole === 'expert';
+  const handleCommentVote = useCallback((commentId: string, upvotes: any[], downvotes: any[]) => {
+    setPost((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        comments: updateCommentInTree(prev.comments ?? [], commentId, upvotes, downvotes),
+      };
+    });
+  }, []);
+
+  const topLevelComments = useMemo(() => {
+    const comments = post?.comments ?? [];
+    return [...comments].sort((a, b) => {
+      const aUpvotes = a.upvotes?.length ?? 0;
+      const aDownvotes = a.downvotes?.length ?? 0;
+      const bUpvotes = b.upvotes?.length ?? 0;
+      const bDownvotes = b.downvotes?.length ?? 0;
+      const aScore = aUpvotes - aDownvotes;
+      const bScore = bUpvotes - bDownvotes;
+      if (aScore !== bScore) {
+        return bScore - aScore;
+      }
+      return new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime();
+    });
+  }, [post?.comments]);
 
   /** Safe navigation: external URLs open in new tab, internal ones use SPA routing. */
   const navigateTo = (url: string) => {
@@ -195,7 +235,7 @@ export default function ThreadDetail({ postId, onClose }: ThreadDetailProps) {
             : previousUpvotes.filter((u) => (typeof u === 'object' ? (u as { _id?: string })._id || u : u)?.toString() !== currentUserId),
         } : prev
       );
-    } catch (e) {
+    } catch (e: any) {
       // Rollback
       setPost((prev) =>
         prev ? {
@@ -203,6 +243,8 @@ export default function ThreadDetail({ postId, onClose }: ThreadDetailProps) {
           upvotes: previousUpvotes,
         } : prev
       );
+      const msg = e.response?.data?.message || 'Failed to upvote.';
+      alert(msg);
       // friendlyError ensures no raw backend strings reach the user.
       setActionError(friendlyError(e, 'Upvote failed. Please try again.'));
       setTimeout(() => setActionError(null), 3000);
@@ -647,6 +689,26 @@ export default function ThreadDetail({ postId, onClose }: ThreadDetailProps) {
               </div>
               <p className="text-sm text-ink/80 leading-relaxed">{post.answer}</p>
 
+              {/* Promote to FAQ actions */}
+              {canPromote && post.lifecycle?.status !== 'converted_to_faq' && (
+                <div className="mt-4 pt-3 border-t border-success/15 flex justify-end">
+                  <button
+                    onClick={() => setShowPromoteDialog(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-success text-success-text hover:bg-success/90 text-xs font-semibold shadow-sm transition-all"
+                  >
+                    <span>🎓</span>
+                    Promote to FAQ
+                  </button>
+                </div>
+              )}
+              {post.lifecycle?.status === 'converted_to_faq' && (
+                <div className="mt-4 pt-3 border-t border-success/15 flex justify-end">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-mist text-ink-soft border border-border text-xs font-semibold select-none">
+                    <span>✓</span> Promoted to FAQ
+                  </span>
+                </div>
+              )}
+
               {/* DNA Strip */}
               {post.dna && (
                 <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -770,78 +832,98 @@ export default function ThreadDetail({ postId, onClose }: ThreadDetailProps) {
           )}
 
           {/* Comments — Reddit-style threaded */}
-          <div className="px-6 sm:px-8 py-6 border-t border-border/40">
-            <h3 className="text-sm font-semibold text-ink uppercase tracking-wide mb-4 flex items-center gap-2">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-ink-faint">
-                <path d="M1 3C1 2.17 1.67 1.5 2.5 1.5h9C12.33 1.5 13 2.17 13 3v6C13 9.83 12.33 10.5 11.5 10.5H8.5L5.5 13V10.5H2.5C1.67 10.5 1 9.83 1 9V3z" strokeLinejoin="round"/>
-              </svg>
-              Discussion ({topLevelComments.length})
-            </h3>
-            {topLevelComments.length === 0 ? (
-              <div className="text-center py-10">
-                <div className="w-12 h-12 rounded-2xl bg-mist flex items-center justify-center mx-auto mb-3">
-                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-ink-faint">
-                    <path d="M2 4c0-1.1.9-2 2-2h12a2 2 0 012 2v8a2 2 0 01-2 2h-4l-4 4v-4H4a2 2 0 01-2-2V4z" strokeLinejoin="round"/>
-                    <path d="M7 8h6M7 11h4" strokeLinecap="round"/>
-                  </svg>
+          {!isAnswered ? (
+            <div className="px-6 sm:px-8 py-6 border-t border-border/40">
+              <h3 className="text-sm font-semibold text-ink uppercase tracking-wide mb-4 flex items-center gap-2">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-ink-faint">
+                  <path d="M1 3C1 2.17 1.67 1.5 2.5 1.5h9C12.33 1.5 13 2.17 13 3v6C13 9.83 12.33 10.5 11.5 10.5H8.5L5.5 13V10.5H2.5C1.67 10.5 1 9.83 1 9V3z" strokeLinejoin="round"/>
+                </svg>
+                Discussion ({topLevelComments.length})
+              </h3>
+              {topLevelComments.length === 0 ? (
+                <div className="text-center py-10">
+                  <div className="w-12 h-12 rounded-2xl bg-mist flex items-center justify-center mx-auto mb-3">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-ink-faint">
+                      <path d="M2 4c0-1.1.9-2 2-2h12a2 2 0 012 2v8a2 2 0 01-2 2h-4l-4 4v-4H4a2 2 0 01-2-2V4z" strokeLinejoin="round"/>
+                      <path d="M7 8h6M7 11h4" strokeLinecap="round"/>
+                    </svg>
+                  </div>
+                  <p className="text-sm text-ink-faint">No comments yet. Be the first to comment!</p>
                 </div>
-                <p className="text-sm text-ink-faint">No comments yet. Be the first to comment!</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {topLevelComments.map((comment: Comment) => (
-                  <CommentNode
-                    key={comment._id}
-                    comment={comment}
-                    postId={post?._id ?? ''}
-                    currentUserId={user?._id ?? ''}
-                    userRole={userRole}
-                    postAuthorId={post?.author?._id}
-                    onReplyAdded={handleReplyAdded}
-                    onCommentDeleted={handleCommentDeleted}
-                    onPostUpdated={(updatedPost) => setPost(updatedPost)}
-                    threadColor={DEPTH_COLORS[0]}
-                    barColor={DEPTH_BARS[0]}
-                  />
-                ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
+              ) : (
+                <div className="space-y-2">
+                  {topLevelComments.map((comment: Comment) => (
+                    <CommentNode
+                      key={comment._id}
+                      comment={comment}
+                      postId={post?._id ?? ''}
+                      currentUserId={user?._id ?? ''}
+                      userRole={userRole}
+                      postAuthorId={post?.author?._id}
+                      onReplyAdded={handleReplyAdded}
+                      onCommentDeleted={handleCommentDeleted}
+                      onPostUpdated={(updatedPost) => setPost(updatedPost)}
+                      onCommentVote={handleCommentVote}
+                      threadColor={DEPTH_COLORS[0]}
+                      barColor={DEPTH_BARS[0]}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="px-6 sm:px-8 py-8 border-t border-border/40 text-center bg-mist/20 select-none">
+              <span className="text-xl">🔒</span>
+              <p className="text-sm font-semibold text-ink-soft mt-2">Discussion Closed</p>
+              <p className="text-xs text-ink-faint mt-1">This question has been officially resolved, and comments are disabled.</p>
+            </div>
+          )}
+        </div>
 
                         {/* Sticky footer — new comment */}
-                        <form onSubmit={handleCommentSubmit} className="px-6 sm:px-8 pt-4 pb-6 border-t border-border bg-card flex-shrink-0">
-                          <div className="flex gap-3 items-start">
-                            <Avatar name={user?.name} size="sm" className="mt-1" />
-                            <div className="flex-1 min-w-0">
-                              <textarea
-                                value={commentText}
-                                onChange={(e) => setCommentText(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter' && !e.shiftKey) {
-                                    e.preventDefault();
-                                    if (commentText.trim() && !commentLoading) {
-                                      handleCommentSubmit(e as unknown as React.FormEvent);
+                        {!isAnswered && (
+                          <form onSubmit={handleCommentSubmit} className="px-6 sm:px-8 pt-4 pb-6 border-t border-border bg-card flex-shrink-0">
+                            <div className="flex gap-3 items-start">
+                              <Avatar name={user?.name} size="sm" className="mt-1" />
+                              <div className="flex-1 min-w-0">
+                                <textarea
+                                  value={commentText}
+                                  onChange={(e) => setCommentText(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                      e.preventDefault();
+                                      if (commentText.trim() && !commentLoading) {
+                                        handleCommentSubmit(e as unknown as React.FormEvent);
+                                      }
                                     }
-                                  }
-                                }}
-                                rows={2}
-                                placeholder="Add a comment…"
-                                className="w-full rounded-xl border border-border bg-mist px-4 py-3 text-sm text-ink placeholder-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/25 focus:bg-card resize-none transition-all"
-                              />
-                              <div className="flex items-center justify-end mt-2">
-                                <Button type="submit" size="md" disabled={!commentText.trim() || commentLoading} loading={commentLoading}>
-                                  Post
-                                </Button>
+                                  }}
+                                  rows={2}
+                                  placeholder="Add a comment…"
+                                  className="w-full rounded-xl border border-border bg-mist px-4 py-3 text-sm text-ink placeholder-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/25 focus:bg-card resize-none transition-all"
+                                />
+                                <div className="flex items-center justify-end mt-2">
+                                  <Button type="submit" size="md" disabled={!commentText.trim() || commentLoading} loading={commentLoading}>
+                                    Post
+                                  </Button>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                          {actionError && (
-                            <p className="text-danger text-xs mt-2 pl-10">{actionError}</p>
-                          )}
-                        </form>
+                            {actionError && (
+                              <p className="text-danger text-xs mt-2 pl-10">{actionError}</p>
+                            )}
+                          </form>
+                        )}
       </div>
     </div>
+    {showPromoteDialog && post && (
+      <PromoteToFaqDialog
+        post={post}
+        onClose={() => setShowPromoteDialog(false)}
+        onPromoted={(updatedPost) => {
+          setPost(updatedPost);
+        }}
+      />
+    )}
     </>
   );
 }

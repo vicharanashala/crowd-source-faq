@@ -109,11 +109,7 @@ export default function FAQPage() {
 
   // ── Derived data ─────────────────────────────────────────────────────────
   const categories = useMemo(() => Object.keys(grouped).sort((a, b) => {
-    // Order by the dynamic categoryNumber assigned in applyQuestionNumbers
-    // so the 1, 2, 3… labels stay in sync with display order.
-    const an = grouped[a]?.[0]?.categoryNumber ?? 0;
-    const bn = grouped[b]?.[0]?.categoryNumber ?? 0;
-    return an - bn;
+    return a.localeCompare(b);
   }), [grouped]);
 
   const flatQuestions = useMemo(() => (

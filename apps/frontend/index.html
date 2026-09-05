@@ -15,6 +15,45 @@
     <!-- No-flash theme bootstrap. Runs synchronously before any styles paint
          to apply the persisted theme to <html> and avoid a light/dark flash. -->
     <script src="/theme.js"></script>
+    <script>
+      // Intercept authentication and session state keys from localStorage to sessionStorage.
+      // This allows different tabs in the same window to have completely isolated sessions,
+      // enabling you to run the Student Portal and Admin Dashboard side-by-side in the same window.
+      (function() {
+        const SESSION_KEYS = new Set([
+          'yaksha_token',
+          'yaksha_refresh_token',
+          'yaksha_user',
+          'yaksha_active_program_id',
+          'yaksha_active_batch_id'
+        ]);
+
+        const originalGetItem = Storage.prototype.getItem;
+        const originalSetItem = Storage.prototype.setItem;
+        const originalRemoveItem = Storage.prototype.removeItem;
+
+        Storage.prototype.getItem = function(key) {
+          if (this === window.localStorage && SESSION_KEYS.has(key)) {
+            return window.sessionStorage.getItem(key);
+          }
+          return originalGetItem.call(this, key);
+        };
+
+        Storage.prototype.setItem = function(key, value) {
+          if (this === window.localStorage && SESSION_KEYS.has(key)) {
+            return window.sessionStorage.setItem(key, value);
+          }
+          return originalSetItem.call(this, key, value);
+        };
+
+        Storage.prototype.removeItem = function(key) {
+          if (this === window.localStorage && SESSION_KEYS.has(key)) {
+            return window.sessionStorage.removeItem(key);
+          }
+          return originalRemoveItem.call(this, key);
+        };
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

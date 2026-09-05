@@ -39,34 +39,21 @@ export const toggleCommentUpvote = async (req: Request, res: Response): Promise<
     const commentId: string = req.params.commentId as string;
     const userId = req.user!._id.toString();
     const alreadyUpvoted = comment.upvotes.map((u: Types.ObjectId) => u.toString()).includes(userId);
+    const alreadyDownvoted = comment.downvotes.map((u: Types.ObjectId) => u.toString()).includes(userId);
+
+    if (alreadyUpvoted || alreadyDownvoted) {
+      res.status(400).json({ message: 'You can only vote on a comment once.' });
+      return;
+    }
 
     const commentAuthorId = comment.author;
     const isSelfVote = commentAuthorId.toString() === userId;
     const wasNewUpvote = !alreadyUpvoted;
 
-    // Reverse reputation when removing upvote
-    if (!isSelfVote && alreadyUpvoted) {
-      await User.findByIdAndUpdate(commentAuthorId, { $inc: { points: -5, reputation: -5 } });
-      // v1.69 — Phase 7: per-program reversal.
-      await awardToUser(commentAuthorId.toString(), post.batchId as Types.ObjectId, { points: -5 })
-        .catch((err) => communityLog.warn(`[commentVote] ProgramReputation reverse failed: ${(err as Error).message}`));
-      await ReputationLog.deleteMany({
-        userId: commentAuthorId,
-        targetId: post._id as Types.ObjectId,
-        targetType: 'comment',
-        action: 'upvote_received',
-      });
-    }
-
-    // Atomic $pull/$addToSet — avoids race-condition duplicates
+    // Atomic $addToSet — avoids race-condition duplicates
     await CommunityPost.findOneAndUpdate(
       { _id: post._id, 'comments._id': new Types.ObjectId(commentId) },
-      alreadyUpvoted
-        ? { $pull: { 'comments.$.upvotes': new Types.ObjectId(userId) } }
-        : {
-            $addToSet: { 'comments.$.upvotes': new Types.ObjectId(userId) },
-            $pull: { 'comments.$.downvotes': new Types.ObjectId(userId) },
-          },
+      { $addToSet: { 'comments.$.upvotes': new Types.ObjectId(userId) } },
       { returnDocument: 'after' }
     );
 
@@ -149,24 +136,18 @@ export const toggleCommentDownvote = async (req: Request, res: Response): Promis
 
     const userId = req.user!._id.toString();
     const userObjectId = req.user!._id;
+    const alreadyUpvoted = comment.upvotes.map((u: Types.ObjectId) => u.toString()).includes(userId);
     const alreadyDownvoted = comment.downvotes.map((u: Types.ObjectId) => u.toString()).includes(userId);
 
-    // v1.68 — H3 fix: was read-modify-write on
-    //   comment.downvotes.push(req.user!._id)
-    //   comment.upvotes = comment.upvotes.filter(...)
-    //   await post.save()
-    // Two concurrent downvotes on the same comment could both
-    // read the same state, both push, and both save() — losing
-    // the other's toggle. Same fix shape as toggleCommentUpvote:
-    // atomic $pull + $addToSet on the matched comment subdoc.
+    if (alreadyUpvoted || alreadyDownvoted) {
+      res.status(400).json({ message: 'You can only vote on a comment once.' });
+      return;
+    }
+
+    // Atomic $addToSet — avoids race-condition duplicates
     await CommunityPost.findOneAndUpdate(
       { _id: post._id, 'comments._id': new Types.ObjectId(req.params.commentId as string) },
-      alreadyDownvoted
-        ? { $pull: { 'comments.$.downvotes': userObjectId } }
-        : {
-            $addToSet: { 'comments.$.downvotes': userObjectId },
-            $pull: { 'comments.$.upvotes': userObjectId },
-          },
+      { $addToSet: { 'comments.$.downvotes': userObjectId } },
       { returnDocument: 'after' }
     );
 

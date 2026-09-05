@@ -84,12 +84,28 @@ export function programScope(opts: { required?: boolean } = {}) {
     try {
       const batch = await Batch.findById(batchId).select('_id name isActive').lean();
       if (!batch) {
-        res.status(404).json({ message: 'Program not found.' });
-        return;
+        if (required) {
+          res.status(404).json({ message: 'Program not found.' });
+          return;
+        }
+        // When not strictly required, fall back to default batch if available
+        const defaultBatch = await Batch.findOne({ isDefault: true, isActive: true }).select('_id name isActive').lean();
+        if (defaultBatch) {
+          req.programContext = {
+            batchId: String(defaultBatch._id),
+            batchName: defaultBatch.name,
+            isActive: defaultBatch.isActive,
+          };
+          setContextBatchId(String(defaultBatch._id));
+        }
+        return next();
       }
       if (!batch.isActive) {
-        res.status(410).json({ message: 'Program is archived or completed.' });
-        return;
+        if (required) {
+          res.status(410).json({ message: 'Program is archived or completed.' });
+          return;
+        }
+        return next();
       }
       req.programContext = {
         batchId: String(batch._id),

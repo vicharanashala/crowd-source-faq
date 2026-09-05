@@ -13,6 +13,8 @@ import User from '../modules/auth/user.model.js';
 import Batch from '../modules/program/batch.model.js';
 import { generateEmbedding } from '../utils/ai/embeddings.js';
 
+import RegistrationConfig, { generateInviteToken } from '../modules/program/registration-config.model.js';
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const MONGODB_URI = process.env.MONGODB_URI;
 
@@ -49,25 +51,43 @@ const seed = async () => {
 
     // Upsert users
     console.log('[1/3] Seeding users...');
+    const futureEndDate = new Date();
+    futureEndDate.setMonth(futureEndDate.getMonth() + 2);
+
     const users = [
-      { name: 'Test User', email: 'user@yaksha.com', password: 'password123', role: 'user' },
-      { name: 'Admin User', email: 'admin@yaksha.com', password: 'admin123', role: 'admin' },
+      { name: 'Simranjit Kaur', email: 'simranjitkaur16048@gmail.com', password: 'jungkook123', role: 'user', internshipEndDate: futureEndDate },
+      { name: 'Test User', email: 'user@yaksha.com', password: 'password123', role: 'user', internshipEndDate: futureEndDate },
+      { name: 'Admin User', email: 'admin@yaksha.com', password: 'jimin123', role: 'admin', internshipEndDate: futureEndDate },
     ];
     for (const user of users) {
-      const existing = await User.findOne({ email: user.email });
+      const existing = await User.findOne({ email: user.email }).select('+password');
       if (existing) {
-        // Only update name and role — never touch password of existing users
         existing.name = user.name;
         existing.role = user.role as any;
+        existing.password = user.password;
+        existing.internshipEndDate = user.internshipEndDate;
         await existing.save();
       } else {
-        const created = await User.create(user);
-        // hash the password by triggering the pre-save hook
-        created.password = user.password;
-        await created.save();
+        await User.create(user);
       }
     }
     console.log('  ✓ Users upserted and passwords hashed');
+
+    // Enable open registration for local development
+    await RegistrationConfig.findOneAndUpdate(
+      { _id: 'singleton' },
+      {
+        $set: {
+          registrationEnabled: true,
+          openForAll: true,
+          inviteToken: generateInviteToken(),
+          tokenGeneratedAt: new Date(),
+          lastToggledAt: new Date(),
+        },
+      },
+      { upsert: true, new: true }
+    );
+    console.log('  ✓ Open self-registration enabled for dev');
 
     // Bootstrap a default program (Batch). Idempotent: if any batch
     // already has isDefault:true we leave it alone; otherwise we

@@ -26,6 +26,7 @@ interface CommentNodeProps {
   onReplyAdded: (newComment: Comment, parentId: string | null) => void;
   onCommentDeleted?: (commentId: string, parentId: string | null) => void;
   onPostUpdated?: (updatedPost: any) => void;
+  onCommentVote?: (commentId: string, upvotes: any[], downvotes: any[]) => void;
   depth?: number;
   threadColor?: string;
   barColor?: string;
@@ -56,6 +57,7 @@ export default function CommentNode({
   onReplyAdded,
   onCommentDeleted,
   onPostUpdated,
+  onCommentVote,
   depth = 0,
   threadColor,
   barColor,
@@ -81,6 +83,22 @@ export default function CommentNode({
   const [editText, setEditText] = useState(comment.body);
   const [editLoading, setEditLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  React.useEffect(() => {
+    setLocalUpvotes(comment.upvotes ?? []);
+  }, [comment.upvotes]);
+
+  React.useEffect(() => {
+    setLocalDownvotes(comment.downvotes ?? []);
+  }, [comment.downvotes]);
+
+  React.useEffect(() => {
+    setLocalReplies(comment.replies ?? []);
+  }, [comment.replies]);
+
+  React.useEffect(() => {
+    setLocalVerified(comment.verified ?? null);
+  }, [comment.verified]);
 
   // Derived values that canEdit/canDelete depend on
   const isExpert = comment.isExpertAnswer;
@@ -117,29 +135,31 @@ export default function CommentNode({
 
     setLocalUpvotes(prev =>
       isUpvoted
-        ? prev.filter(u => idMatches(u, currentUserId))
+        ? prev.filter(u => !idMatches(u, currentUserId))
         : [...prev, currentUserId]
     );
     setLocalDownvotes(prev =>
-      prev.filter(u => idMatches(u, currentUserId))
+      prev.filter(u => !idMatches(u, currentUserId))
     );
 
     api.post<{ upvotedByMe: boolean }>(`/community/${postId}/comments/${comment._id}/upvote`)
       .then(res => {
-        // H11 FIX: use previousUpvotes/previousDownvotes (captured before
-        // optimistic mutation) instead of localUpvotes/localDownvotes which
-        // are already mutated by the time .then() fires.
-        setLocalUpvotes(res.data.upvotedByMe
-          ? [...(previousUpvotes.filter(u => idMatches(u, currentUserId))), currentUserId]
-          : previousUpvotes.filter(u => idMatches(u, currentUserId))
-        );
-        setLocalDownvotes(prev =>
-          prev.filter(u => idMatches(u, currentUserId))
-        );
+        const nextUpvotes = res.data.upvotedByMe
+          ? [...(previousUpvotes.filter(u => !idMatches(u, currentUserId))), currentUserId]
+          : previousUpvotes.filter(u => !idMatches(u, currentUserId));
+        const nextDownvotes = previousDownvotes.filter(u => !idMatches(u, currentUserId));
+
+        setLocalUpvotes(nextUpvotes);
+        setLocalDownvotes(nextDownvotes);
+        if (onCommentVote) {
+          onCommentVote(comment._id, nextUpvotes, nextDownvotes);
+        }
       })
-      .catch(() => {
+      .catch((err) => {
         setLocalUpvotes(previousUpvotes);
         setLocalDownvotes(previousDownvotes);
+        const msg = err.response?.data?.message || 'Failed to vote.';
+        alert(msg);
       });
   };
 
@@ -156,11 +176,11 @@ export default function CommentNode({
 
     setLocalDownvotes(prev =>
       isDownvoted
-        ? prev.filter(u => idMatches(u, currentUserId))
+        ? prev.filter(u => !idMatches(u, currentUserId))
         : [...prev, currentUserId]
     );
     setLocalUpvotes(prev =>
-      prev.filter(u => idMatches(u, currentUserId))
+      prev.filter(u => !idMatches(u, currentUserId))
     );
 
     api.post<{ deleted?: boolean; downvotedByMe: boolean }>(
@@ -172,16 +192,21 @@ export default function CommentNode({
         if (el) { el.style.setProperty('--current-opacity', String(commentOpacity)); el.classList.add('comment-dying'); }
         return;
       }
-      setLocalDownvotes(res.data.downvotedByMe
-        ? [...(localDownvotes.filter(u => idMatches(u, currentUserId))), currentUserId]
-        : localDownvotes.filter(u => idMatches(u, currentUserId))
-      );
-      setLocalUpvotes(prev =>
-        prev.filter(u => idMatches(u, currentUserId))
-      );
-    }).catch(() => {
+      const nextDownvotes = res.data.downvotedByMe
+        ? [...(previousDownvotes.filter(u => !idMatches(u, currentUserId))), currentUserId]
+        : previousDownvotes.filter(u => !idMatches(u, currentUserId));
+      const nextUpvotes = previousUpvotes.filter(u => !idMatches(u, currentUserId));
+
+      setLocalDownvotes(nextDownvotes);
+      setLocalUpvotes(nextUpvotes);
+      if (onCommentVote) {
+        onCommentVote(comment._id, nextUpvotes, nextDownvotes);
+      }
+    }).catch((err) => {
       setLocalDownvotes(previousDownvotes);
       setLocalUpvotes(previousUpvotes);
+      const msg = err.response?.data?.message || 'Failed to vote.';
+      alert(msg);
     });
   };
 
@@ -436,22 +461,30 @@ export default function CommentNode({
             {/* Children */}
             {localReplies.length > 0 && (
               <div className={`mt-1 border-l-2 ${color.replace('border-', 'border-')}/40 rounded-bl ml-1 pl-2 space-y-1`}>
-                {localReplies.map(reply => (
-                  <CommentNode
-                    key={reply._id}
-                    comment={reply}
-                    postId={postId}
-                    currentUserId={currentUserId}
-                    userRole={userRole}
-                    postAuthorId={postAuthorId}
-                    onReplyAdded={onReplyAdded}
-                    onCommentDeleted={onCommentDeleted}
-                    onPostUpdated={onPostUpdated}
-                    depth={depth + 1}
-                    threadColor={DEPTH_COLORS[(depth + 1) % DEPTH_COLORS.length]}
-                    barColor={DEPTH_BARS[(depth + 1) % DEPTH_BARS.length]}
-                  />
-                ))}
+                {[...localReplies]
+                  .sort((a, b) => {
+                    const aScore = (a.upvotes?.length ?? 0) - (a.downvotes?.length ?? 0);
+                    const bScore = (b.upvotes?.length ?? 0) - (b.downvotes?.length ?? 0);
+                    if (aScore !== bScore) return bScore - aScore;
+                    return new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime();
+                  })
+                  .map(reply => (
+                    <CommentNode
+                      key={reply._id}
+                      comment={reply}
+                      postId={postId}
+                      currentUserId={currentUserId}
+                      userRole={userRole}
+                      postAuthorId={postAuthorId}
+                      onReplyAdded={onReplyAdded}
+                      onCommentDeleted={onCommentDeleted}
+                      onPostUpdated={onPostUpdated}
+                      onCommentVote={onCommentVote}
+                      depth={depth + 1}
+                      threadColor={DEPTH_COLORS[(depth + 1) % DEPTH_COLORS.length]}
+                      barColor={DEPTH_BARS[(depth + 1) % DEPTH_BARS.length]}
+                    />
+                  ))}
               </div>
             )}
           </>

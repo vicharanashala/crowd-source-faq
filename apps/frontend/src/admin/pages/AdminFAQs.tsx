@@ -158,10 +158,10 @@ export default function AdminFAQs() {
   const debouncedSearch = useDebounce(search, 350);
 
   const { data: addCategoriesData } = useCategories(newFaq.batchId || null, null);
-  const addCategories = addCategoriesData?.categories.map(c => c.name) ?? [];
+  const addCategories = [...(addCategoriesData?.categories.map(c => c.name) ?? [])].sort((a, b) => a.localeCompare(b));
 
   const { data: editCategoriesData } = useCategories(editFaq?.batchId || null, null);
-  const editCategories = editCategoriesData?.categories.map(c => c.name) ?? [];
+  const editCategories = [...(editCategoriesData?.categories.map(c => c.name) ?? [])].sort((a, b) => a.localeCompare(b));
 
   // Batches for the selectors and list filter
   const [batches, setBatches] = useState<AdminBatch[]>([]);
