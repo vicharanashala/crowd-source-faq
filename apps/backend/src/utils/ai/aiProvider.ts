@@ -27,6 +27,58 @@ import AiConfig from '../../modules/ai/ai-config.model.js';
 import { logAiApiSuccess, logAiApiFailure } from './apiUsageLog.js';
 import { logger } from '../http/logger.js';
 
+// ─── Per-request timeout ────────────────────────────────────────────────────
+// Bug: chatWithConfig's fetch() calls had no timeout. A provider that
+// hangs (accepts the connection, never sends a response) instead of
+// erroring would leave the request pending indefinitely — not just for
+// this attempt, but for the whole runWithFallback() chain in
+// fallbackChain.ts, since that chain only advances to the next provider
+// when the current attempt *throws*. A stuck fetch never throws, so a
+// single unresponsive provider could stall a cron pipeline (autoAnswer,
+// faqAudit) or a user-facing /ask-ai request forever.
+//
+// AI_PROVIDER_TIMEOUT_MS (env, ms) overrides the default; falls back to
+// 30s, which is generous for a single chat completion but still bounded.
+// On timeout we abort the fetch via AbortController, which rejects with
+// an AbortError whose message contains "aborted" — isRetriableError()
+// in fallbackChain.ts already matches on that substring, so a timeout
+// on the primary provider correctly triggers failover to the next one
+// with no changes needed there.
+const DEFAULT_PROVIDER_TIMEOUT_MS = 30_000;
+
+function getProviderTimeoutMs(): number {
+  const raw = Number(process.env.AI_PROVIDER_TIMEOUT_MS);
+  return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_PROVIDER_TIMEOUT_MS;
+}
+
+/** fetch() with an enforced wall-clock timeout. Aborts and rejects with
+ *  an Error whose message includes "timed out" if the provider hasn't
+ *  responded within `timeoutMs`. Always clears the timer so the abort
+ *  handle doesn't leak past a normal (fast) response. */
+async function fetchWithTimeout(
+  url: string,
+  init: Parameters<typeof fetch>[1],
+  timeoutMs: number = getProviderTimeoutMs(),
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (err) {
+    if ((err as { name?: string })?.name === 'AbortError') {
+      // NOTE: keep the literal substring "timeout" in this message —
+      // isRetriableError() in services/ai/fallbackChain.ts matches on
+      // it (msg.includes('timeout')) to decide whether to advance the
+      // fallback chain to the next provider. Don't reword this without
+      // updating that check too.
+      throw new Error(`provider request timeout after ${timeoutMs}ms`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // Names of supported AI vendors/providers (used throughout the backend).
 export type AIProvider = 'anthropic' | 'openai' | 'xai' | 'minimax' | 'gemini' | 'custom';
 
@@ -868,7 +920,7 @@ export async function chatWithConfig(
   if (provider === 'anthropic') {
     let res: Response;
     try {
-      res = await fetch(`${baseURL}/messages`, {
+      res = await fetchWithTimeout(`${baseURL}/messages`, {
         method: 'POST',
         headers: {
           'x-api-key': apiKey,
@@ -921,7 +973,7 @@ export async function chatWithConfig(
   };
   let res: Response;
   try {
-    res = await fetch(`${baseURL}/chat/completions`, {
+    res = await fetchWithTimeout(`${baseURL}/chat/completions`, {
       method: 'POST',
       headers: {
         [authHeader]: `Bearer ${apiKey}`,
