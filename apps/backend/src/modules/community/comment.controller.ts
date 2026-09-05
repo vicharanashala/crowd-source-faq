@@ -390,6 +390,16 @@ export const acceptCommentAnswer = async (req: Request, res: Response): Promise<
       return;
     }
 
+    // ── Prevent self-acceptance (non-privileged users only) ──────────────────
+    // A regular user who is both the post author AND the comment author
+    // cannot accept their own answer — that would be gaming the reputation
+    // system. Admins / moderators are exempt so they can resolve stale posts.
+    const commentAuthorId = (comment.author as Types.ObjectId).toString();
+    if (!isPrivileged && commentAuthorId === req.user!._id.toString()) {
+      res.status(403).json({ message: 'You cannot accept your own answer.' });
+      return;
+    }
+
     // Set the comment body as the official answer
     post.answer = comment.body;
     post.answerIsExpert = false;
@@ -421,6 +431,11 @@ export const acceptCommentAnswer = async (req: Request, res: Response): Promise<
 
     await post.save();
 
+    // ── Award +5 SP to the user who accepts the answer (the question author)
+    if (!isPrivileged) {
+      await User.findByIdAndUpdate(req.user!._id, { $inc: { sp: 5, points: 5, reputation: 5 } });
+    }
+
     // ── Award +20 to answer author for accepted answer ───────────────────────
     const answerAuthorId = (comment.author as Types.ObjectId).toString();
     if (answerAuthorId !== req.user!._id.toString()) {
@@ -431,7 +446,7 @@ export const acceptCommentAnswer = async (req: Request, res: Response): Promise<
       // truth and drives the per-program leaderboard.
       const answerAuthor = await User.findByIdAndUpdate(
         answerAuthorId,
-        { $inc: { points: 20, reputation: 20, acceptedAnswers: 1 } },
+        { $inc: { points: 20, reputation: 20, acceptedAnswers: 1, sp: 20 } },
         { new: true }
       );
       if (answerAuthor) {
@@ -583,3 +598,132 @@ export const deleteComment = async (req: Request, res: Response): Promise<void> 
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+// ─── POST /api/community/:id/comments/:commentId/solved-reaction ─────────────
+// Only the post author can toggle a ✓ "This solved it" reaction on a comment.
+// - Unlike acceptCommentAnswer, this does NOT lock the post.
+// - Toggled: calling again removes the reaction (idempotent).
+// - Awards +15 SP to the comment author on first reaction; reverses on toggle-off.
+export const toggleSolvedReaction = async (req: Request, res: Response): Promise<void> => {
+  if (!req.user) { res.status(401).json({ message: 'Not authorized' }); return; }
+  try {
+    const post = await CommunityPost.findById(req.params.id);
+    if (!post) { res.status(404).json({ message: 'Post not found.' }); return; }
+    if (assertSameProgram(post, req.programContext, res)) return;
+
+    // Only the post author can mark a comment as solved
+    const isPostAuthor = post.author.toString() === req.user!._id.toString();
+    if (!isPostAuthor) {
+      res.status(403).json({ message: 'Only the question author can mark a comment as "This solved it".' });
+      return;
+    }
+
+    const comment = (post.comments as any).id(req.params.commentId) as any;
+    if (!comment) { res.status(404).json({ message: 'Comment not found.' }); return; }
+
+    const userId = req.user!._id.toString();
+    const existing = (comment.solvedReactions ?? []).find(
+      (r: { userId: { toString: () => string } }) => r.userId.toString() === userId
+    );
+
+    if (existing) {
+      // ── Toggle OFF: remove the reaction ──────────────────────────────────
+      comment.solvedReactions = (comment.solvedReactions ?? []).filter(
+        (r: { userId: { toString: () => string } }) => r.userId.toString() !== userId
+      );
+      await post.save();
+
+      // Reverse the +15 SP from the comment author
+      const commentAuthorId = comment.author?.toString();
+      if (commentAuthorId) {
+        const authorObjId = new Types.ObjectId(commentAuthorId);
+        const batchObjId = post.batchId ? new Types.ObjectId(post.batchId.toString()) : null;
+
+        // 1. Reverse SP on ProgramReputation (correct 3-arg signature)
+        await awardToUser(authorObjId, batchObjId, { sp: -15 });
+
+        // 2. Reverse on User global aggregate
+        await User.findByIdAndUpdate(authorObjId, { $inc: { sp: -15 } });
+
+        // 3. Audit log
+        await ReputationLog.create({
+          userId: authorObjId,
+          batchId: batchObjId,
+          delta: -15,
+          action: 'solved_reaction_received',
+          reason: 'Solved reaction removed',
+          targetId: comment._id,
+          targetType: 'comment',
+          awardedBy: req.user!._id,
+        });
+      }
+
+      res.json({ reacted: false, solvedReactions: comment.solvedReactions, message: 'Solved reaction removed.' });
+    } else {
+      // ── Toggle ON: add the reaction ───────────────────────────────────────
+      comment.solvedReactions = comment.solvedReactions ?? [];
+      comment.solvedReactions.push({ userId: req.user!._id, at: new Date() });
+      await post.save();
+
+      // Award +15 SP to the comment author
+      const commentAuthorId = comment.author?.toString();
+      if (commentAuthorId && commentAuthorId !== userId) {
+        const authorObjId = new Types.ObjectId(commentAuthorId);
+        const batchObjId = post.batchId ? new Types.ObjectId(post.batchId.toString()) : null;
+
+        // 1. Award SP on ProgramReputation (correct 3-arg signature)
+        await awardToUser(authorObjId, batchObjId, { sp: 15 });
+
+        // 2. Update User global aggregate + auto-award badges
+        const updatedUser = await User.findByIdAndUpdate(
+          authorObjId,
+          { $inc: { sp: 15, reputation: 15 } },
+          { new: true }
+        );
+        if (updatedUser) await autoAwardBadges(updatedUser);
+
+        // 3. Audit log
+        await ReputationLog.create({
+          userId: authorObjId,
+          batchId: batchObjId,
+          delta: 15,
+          action: 'solved_reaction_received',
+          reason: `Your answer solved "${post.title.slice(0, 60)}"`,
+          targetId: comment._id,
+          targetType: 'comment',
+          awardedBy: req.user!._id,
+        });
+
+        // Notify the comment author via SpillTheTea
+        createTeaDrop({
+          userId: authorObjId,
+          eventType: 'post_answered',
+          postId: post._id as Types.ObjectId,
+          postTitle: post.title,
+          triggeredBy: req.user!._id,
+          triggeredByName: req.user!.name,
+          content: `Your reply was marked "This solved it" on: "${post.title.slice(0, 80)}"`,
+        }).catch((err) => {
+          communityLog.warn(`[comment] Failed to create tea drop for solved reaction: ${(err as Error).message}`);
+        });
+
+        // Also dispatch a standard notification
+        dispatchNotification({
+          recipientId: commentAuthorId,
+          type: 'answer_accepted',
+          message: `${req.user!.name} marked your reply as "This solved it" — you earned +15 SP!`,
+          link: `/community?post=${post._id}`,
+          title: 'Your reply solved it! 🎯',
+        }).catch((err) => {
+          communityLog.warn(`[comment] Failed to dispatch solved-reaction notification: ${(err as Error).message}`);
+        });
+      }
+
+      res.json({ reacted: true, solvedReactions: comment.solvedReactions, message: 'Marked as "This solved it".' });
+    }
+  } catch (error) {
+    communityLog.error(`[comment] toggleSolvedReaction error: ${(error as Error).message}`);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+

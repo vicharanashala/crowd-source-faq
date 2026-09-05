@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { adminBtnGhost, adminLabel, adminSearchInput, adminSelect } from '../../styles/style_config';
+import { adminBtnGhost, adminBtnPrimary, adminInput, adminLabel, adminSearchInput, adminSelect, adminTextarea } from '../../styles/style_config';
 import { AnimatePresence, motion } from 'framer-motion';
 import adminApi from '../utils/adminApi';
 import Badge from '../components/common/Badge';
@@ -40,6 +40,8 @@ interface StatsResponse {
 
 interface Toast { msg: string; type: 'success' | 'warn' | 'error'; }
 
+interface AdminBatch { _id: string; name: string; isActive: boolean; }
+
 function Toast({ toast }: { toast: Toast }) {
   const c = toast.type === 'error' ? 'admin-toast-error' : toast.type === 'warn' ? 'admin-toast-warn' : 'admin-toast-success';
   return (
@@ -66,6 +68,16 @@ export default function AdminUnresolvedSearch() {
   const [resolving, setResolving] = useState(false);
   const [selectedForResolve, setSelectedForResolve] = useState<UnresolvedItem | null>(null);
   const debouncedSearch = useDebounce(search, 350);
+
+  // "Create FAQ from this" form state
+  const [showCreateFaq, setShowCreateFaq] = useState(false);
+  const [faqAnswer, setFaqAnswer] = useState('');
+  const [faqCategory, setFaqCategory] = useState('');
+  const [faqBatchId, setFaqBatchId] = useState('');
+  const [categories, setCategories] = useState<string[]>([]);
+  const [batches, setBatches] = useState<AdminBatch[]>([]);
+  const [creatingFaq, setCreatingFaq] = useState(false);
+
   const showToast = (msg: string, type: Toast['type'] = 'success') => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
@@ -76,35 +88,92 @@ export default function AdminUnresolvedSearch() {
     const params = new URLSearchParams({ page: String(page), limit: '15' });
     if (debouncedSearch) params.set('search', debouncedSearch);
     if (statusFilter) params.set('status', statusFilter);
-    adminApi.get<UnresolvedResponse>(`/admin/search/unresolved-list?${params}`)
+    adminApi.get<UnresolvedResponse>(`/search/unresolved-list?${params}`)
       .then(r => { setItems(r.data.items); setTotal(r.data.total); setPages(r.data.pages); })
       .catch(() => showToast('Failed to load', 'error'))
       .finally(() => setLoading(false));
   }, [page, debouncedSearch, statusFilter]);
 
   const fetchStats = useCallback(() => {
-    adminApi.get<StatsResponse>('/admin/search/unresolved-stats')
+    adminApi.get<StatsResponse>('/search/unresolved-stats')
       .then(r => setStats(r.data))
       .catch(() => {});
   }, []);
+
+  const loadCategories = useCallback(() => {
+    adminApi.get<string[]>('/faq/categories')
+      .then(r => setCategories(r.data))
+      .catch(() => {});
+  }, []);
+
+  const loadBatches = useCallback(() => {
+    adminApi.get<{ batches: AdminBatch[] }>('/batches/admin/all')
+      .then(r => {
+        const active = (r.data.batches ?? []).filter(b => b.isActive);
+        setBatches(active);
+        if (active.length === 1 && !faqBatchId) {
+          setFaqBatchId(active[0]._id);
+        }
+      })
+      .catch(() => {});
+  }, [faqBatchId]);
 
   useEffect(() => { fetchStats(); }, [fetchStats]);
   useEffect(() => { fetchItems(); }, [fetchItems]);
   useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter]);
 
-  const handleResolve = async (resolution: UnresolvedItem['resolution']) => {
+  const handleResolve = async (resolution: UnresolvedItem['resolution'], faqId?: string) => {
     if (!selectedForResolve) return;
     setResolving(true);
     try {
-      await adminApi.patch(`/admin/search/unresolved/${selectedForResolve._id}/resolve`, { resolution });
+      const body: Record<string, unknown> = { resolution };
+      if (faqId) body.faqId = faqId;
+      await adminApi.patch(`/search/unresolved/${selectedForResolve._id}/resolve`, body);
       showToast('Marked as ' + (resolution === 'faq_updated' ? 'FAQ updated' : resolution === 'community_post_created' ? 'Community post created' : 'Dismissed'), 'success');
       setSelectedForResolve(null);
+      resetCreateFaqForm();
       fetchItems();
       fetchStats();
     } catch {
       showToast('Failed to resolve', 'error');
     } finally {
       setResolving(false);
+    }
+  };
+
+  const resetCreateFaqForm = () => {
+    setShowCreateFaq(false);
+    setFaqAnswer('');
+    setFaqCategory('');
+    setCreatingFaq(false);
+  };
+
+  const handleOpenCreateFaq = () => {
+    setShowCreateFaq(true);
+    loadCategories();
+    loadBatches();
+  };
+
+  const handleCreateFaqAndResolve = async () => {
+    if (!selectedForResolve || !faqAnswer.trim() || !faqCategory.trim() || !faqBatchId) return;
+    setCreatingFaq(true);
+    try {
+      // Step 1: Create the FAQ
+      const res = await adminApi.post<{ faq: { _id: string } }>('/admin/faq', {
+        question: selectedForResolve.query,
+        answer: faqAnswer.trim(),
+        category: faqCategory.trim(),
+        batchId: faqBatchId,
+      });
+      const newFaqId = res.data.faq._id;
+
+      // Step 2: Resolve the unresolved entry with linked FAQ
+      await handleResolve('faq_updated', newFaqId);
+      showToast('FAQ created and feedback resolved');
+    } catch {
+      showToast('Failed to create FAQ', 'error');
+    } finally {
+      setCreatingFaq(false);
     }
   };
 
@@ -306,7 +375,7 @@ export default function AdminUnresolvedSearch() {
       </Modal>
 
       {/* Resolve modal */}
-      <Modal open={!!selectedForResolve} onClose={() => setSelectedForResolve(null)} title="Resolve Feedback">
+      <Modal open={!!selectedForResolve} onClose={() => { setSelectedForResolve(null); resetCreateFaqForm(); }} title="Resolve Feedback">
         {selectedForResolve && (
           <div className="space-y-3">
             <div>
@@ -328,6 +397,13 @@ export default function AdminUnresolvedSearch() {
                   <span className="text-xs text-ink-faint block mt-0.5">I updated the existing FAQ to address this query</span>
                 </button>
                 <button
+                  onClick={handleOpenCreateFaq}
+                  disabled={resolving || showCreateFaq}
+                  className="w-full text-left px-3 py-2.5 rounded-lg border border-accent/30 bg-accent/5 hover:bg-accent/10 hover:border-accent/50 transition-colors disabled:opacity-50">
+                  <span className="text-sm font-medium text-accent">Create FAQ from this</span>
+                  <span className="text-xs text-ink-faint block mt-0.5">Create a new FAQ using this query as the question</span>
+                </button>
+                <button
                   onClick={() => handleResolve('community_post_created')}
                   disabled={resolving}
                   className="w-full text-left px-3 py-2.5 rounded-lg border border-border hover:bg-mist hover:border-border-medium transition-colors disabled:opacity-50">
@@ -343,8 +419,76 @@ export default function AdminUnresolvedSearch() {
                 </button>
               </div>
             </div>
+
+            {/* Inline "Create FAQ from this" form */}
+            {showCreateFaq && (
+              <div className="border-t border-border pt-3 space-y-3">
+                <p className="text-xs font-semibold text-ink-faint uppercase tracking-wide">New FAQ</p>
+                <div>
+                  <label className={`${adminLabel}`}>Question</label>
+                  <input
+                    type="text"
+                    value={selectedForResolve.query}
+                    readOnly
+                    className={`${adminInput} w-full bg-mist cursor-not-allowed`}
+                  />
+                </div>
+                <div>
+                  <label className={`${adminLabel}`}>Answer <span className="text-danger">*</span></label>
+                  <textarea
+                    value={faqAnswer}
+                    onChange={e => setFaqAnswer(e.target.value)}
+                    rows={4}
+                    placeholder="Write the answer to this question…"
+                    className={`${adminTextarea} w-full`}
+                  />
+                </div>
+                <div>
+                  <label className={`${adminLabel}`}>Category <span className="text-danger">*</span></label>
+                  <select
+                    value={faqCategory}
+                    onChange={e => setFaqCategory(e.target.value)}
+                    className={`${adminSelect} w-full`}
+                  >
+                    <option value="">Select category…</option>
+                    {categories.map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={`${adminLabel}`}>Program <span className="text-danger">*</span></label>
+                  <select
+                    value={faqBatchId}
+                    onChange={e => setFaqBatchId(e.target.value)}
+                    className={`${adminSelect} w-full`}
+                  >
+                    <option value="">Select program…</option>
+                    {batches.map(b => (
+                      <option key={b._id} value={b._id}>{b.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    onClick={handleCreateFaqAndResolve}
+                    disabled={creatingFaq || !faqAnswer.trim() || !faqCategory || !faqBatchId}
+                    className={`${adminBtnPrimary} text-xs px-4 py-2`}
+                  >
+                    {creatingFaq ? 'Creating…' : 'Create FAQ & Resolve'}
+                  </button>
+                  <button
+                    onClick={resetCreateFaqForm}
+                    className={`${adminBtnGhost} text-xs px-3 py-1.5`}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="flex justify-end pt-2">
-              <button onClick={() => setSelectedForResolve(null)} className={`${adminBtnGhost} text-xs px-3 py-1.5`}>Cancel</button>
+              <button onClick={() => { setSelectedForResolve(null); resetCreateFaqForm(); }} className={`${adminBtnGhost} text-xs px-3 py-1.5`}>Cancel</button>
             </div>
           </div>
         )}
