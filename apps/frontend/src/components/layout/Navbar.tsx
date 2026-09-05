@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useAuthModal } from '../../context/AuthModalContext';
 
@@ -40,7 +40,6 @@ function getAvatarColor(name?: string): string {
   }
   return avatarColorPalette[Math.abs(hash) % avatarColorPalette.length];
 }
-
 
 type Theme = 'light' | 'dark' | 'system';
 function getSystemTheme() {
@@ -196,6 +195,17 @@ export default function Navbar({ showProgramSwitcher: _showProgramSwitcher = fal
                   {isAuthenticated && (
                     <BatchSwitcher showCreateLink={user?.role === 'admin'} className="hidden md:inline-flex" />
                   )}
+                                    {/* Project Match Button */}
+                  <Link 
+                    to="/find-match" 
+                    className="inline-flex items-center gap-2 h-8 px-3 rounded-full border border-border/70 text-xs text-ink font-medium hover:border-accent/60 transition-colors shadow-sm"
+                  >
+                    <svg className="text-accent" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon>
+                    </svg>
+                    <span>Project Match</span>
+                  </Link>
 
                   {/* v1.87 — Sign My Tee pill. Shown ONLY when the
                       BE says the user is inside the rolling 3-day
@@ -376,12 +386,25 @@ export default function Navbar({ showProgramSwitcher: _showProgramSwitcher = fal
       >
         <div className="px-6 py-4 flex flex-col gap-1">
           {isAuthenticated && (
-            <div className="px-4 py-2 border-b border-border/40 mb-2">
-              <p className="text-[10px] uppercase tracking-wider font-semibold text-ink-faint mb-1.5">
-                Current Program
-              </p>
-              <BatchSwitcher showCreateLink={user?.role === 'admin'} compact className="w-full" />
-            </div>
+            <>
+              <div className="px-4 py-2 border-b border-border/40 mb-2">
+                <p className="text-[10px] uppercase tracking-wider font-semibold text-ink-faint mb-1.5">
+                  Current Program
+                </p>
+                <BatchSwitcher showCreateLink={user?.role === 'admin'} compact className="w-full" />
+              </div>
+            <Link
+              to="/find-match"
+              onClick={() => setMobileOpen(false)}
+              className="inline-flex items-center gap-2 h-9 px-3 rounded-full bg-card border border-border/70 text-xs text-ink font-medium hover:border-accent/60 transition-colors shadow-sm"
+            >
+              <svg className="text-accent" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="10" />
+                <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
+              </svg>
+              <span>Project Match</span>
+            </Link>
+            </>
           )}
           {allNavItems.map(({ label, to }) => (
             <NavLink

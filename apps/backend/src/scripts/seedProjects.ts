@@ -1,41 +1,38 @@
-import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import Project from '../modules/admin/project.model.js';
+import mongoose from 'mongoose';
+import MatchProject from '../modules/project/project.model.js';
+import { projectSeedData } from '../data/projects.seed.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-dotenv.config({ path: path.join(__dirname, '../.env') });
+// src/scripts → apps/backend
+const backendRoot = path.resolve(__dirname, '../..');
 
-const PROJECTS = [
-  { projectName: 'AjraSakha', mentorName: 'Dr. Aaloo', description: 'AjraSakha project' },
-  { projectName: 'PyBe', mentorName: 'Dr. Chicken', description: 'PyBe project' },
-  { projectName: 'ViBe', mentorName: 'Dr. Pyaaz', description: 'ViBe project' },
-  { projectName: 'Tenali', mentorName: 'Dr. Biryani', description: 'Tenali project' },
-  { projectName: 'Spandan', mentorName: 'Dr. Elaichi', description: 'Spandan project' },
-  { projectName: 'Spurthi', mentorName: 'Dr. Pepper', description: 'Spurthi project' },
-];
+dotenv.config({ path: path.join(backendRoot, '.env') });
+dotenv.config({ path: path.join(backendRoot, '.env.local') });
 
 async function seed() {
+  const uri = process.env.MONGODB_URI;
+  if (!uri || typeof uri !== 'string') {
+    console.error(
+      `MONGODB_URI is missing. Looked in:\n  ${path.join(backendRoot, '.env')}\n  ${path.join(backendRoot, '.env.local')}`,
+    );
+    process.exit(1);
+  }
+
   try {
-    await mongoose.connect(process.env.MONGODB_URI as string);
+    await mongoose.connect(uri);
     console.log('Connected to DB');
 
-    // Wipe existing
-    await Project.deleteMany({});
-    console.log('Cleared existing projects');
+    await MatchProject.deleteMany({});
+    console.log('Cleared intern_match_projects');
 
-    // Insert new
-    for (const p of PROJECTS) {
-      await Project.create({
-        ...p,
-        status: 'active',
-        resources: []
-      });
-    }
+    await MatchProject.insertMany(projectSeedData);
+    console.log(`Seeded ${projectSeedData.length} match projects`);
 
-    console.log('Projects seeded successfully');
+    await mongoose.disconnect();
     process.exit(0);
   } catch (error) {
     console.error('Error seeding projects', error);
