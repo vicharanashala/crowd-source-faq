@@ -12,10 +12,11 @@ import AdminResourcesTab from '../components/welcome/AdminResourcesTab';
 // v1.76 — Welcome Package: Journey Tracks. Generic, admin-driven
 // track editor + assignment + progress monitor.
 import AdminJourneyTracksTab from '../components/welcome/AdminJourneyTracksTab';
+import AdminInternshipPhaseTab from '../components/welcome/AdminInternshipPhaseTab';
 
 export default function AdminWelcomePage() {
   const [activeTab, setActiveTab] = useState<
-    'orientation' | 'onboarding' | 'projects' | 'timeline' | 'mentors' | 'audit' | 'resources' | 'journeys'
+    'orientation' | 'onboarding' | 'projects' | 'timeline' | 'mentors' | 'audit' | 'resources' | 'journeys' | 'internship'
   >('orientation');
 
   return (
@@ -112,6 +113,17 @@ export default function AdminWelcomePage() {
           >
             Journey Tracks
           </button>
+          {/* Internship phase control — drives phase-aware FAQ visibility. */}
+          <button
+            onClick={() => setActiveTab('internship')}
+            className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'internship'
+                ? 'border-accent text-accent'
+                : 'border-transparent text-ink-soft hover:text-ink hover:border-border'
+            }`}
+          >
+            Internship Phase
+          </button>
       </div>
 
       <div className="pt-4">
@@ -122,6 +134,7 @@ export default function AdminWelcomePage() {
         {activeTab === 'audit' && <AdminAuditLogTab />}
         {activeTab === 'resources' && <AdminResourcesTab />}
         {activeTab === 'journeys' && <AdminJourneyTracksTab />}
+        {activeTab === 'internship' && <AdminInternshipPhaseTab />}
         {activeTab === 'projects' && (
           <div className="-mt-8">
             <AdminProjectsPage />

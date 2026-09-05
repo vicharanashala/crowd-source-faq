@@ -9,7 +9,8 @@ export type AdminAction =
   | 'create_faq'
   | 'login'
   | 'settings_update'
-  | 'onboarding_override';
+  | 'onboarding_override'
+  | 'internship_phase_override';
 
 // Target type enum
 export type TargetType = 'faq' | 'user' | 'system' | null;
@@ -34,7 +35,7 @@ const adminLogSchema = new MongooseSchema(
     action: {
       type: String,
       required: true,
-      enum: ['approve_faq', 'reject_faq', 'edit_faq', 'delete_faq', 'create_faq', 'login', 'settings_update', 'onboarding_override'] as AdminAction[],
+      enum: ['approve_faq', 'reject_faq', 'edit_faq', 'delete_faq', 'create_faq', 'login', 'settings_update', 'onboarding_override', 'internship_phase_override'] as AdminAction[],
     },
     targetId: {
       type: MongooseSchema.Types.ObjectId,
