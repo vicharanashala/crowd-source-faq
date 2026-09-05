@@ -33,8 +33,8 @@ import { clearExpiredGoldenBans } from '../support/golden-ticket-admin.controlle
 // restarting the process.
 function readConfig(): { days: number; trialHours: number } {
   return {
-    days: parseInt(process.env['readConfig().days'] || '7', 10),
-    trialHours: parseInt(process.env['readConfig().trialHours'] || '16', 10),
+    days: parseInt(process.env['UNANSWERED_ESCALATION_DAYS'] || '7', 10),
+    trialHours: parseInt(process.env['UNANSWERED_ESCALATION_TRIAL_HOURS'] || '16', 10),
   };
 }
 

@@ -22,6 +22,7 @@ import type { Types } from 'mongoose';
 import AdminConfig from '../models/AdminConfig.js';
 import { categorize, keyToEnvVar, parseEnvValue } from './adminCategorize.js';
 import { loadConfig } from './loader.js';
+import { encrypt, decrypt } from '../utils/auth/crypto.js';
 
 export type ConfigSource = 'mongo' | 'env' | 'default';
 
@@ -302,29 +303,12 @@ function formatMongoRow(row: MongoRow): MongoLookupResult {
   };
 }
 
-// Lazy-imported crypto to avoid hard-coupling the resolver to the
-// encryption module at module-load time.
-let _encrypt: ((s: string) => string) | null = null;
-let _decrypt: ((s: string) => string) | null = null;
-
-function getCrypto() {
-  if (!_encrypt || !_decrypt) {
-    // Synchronous require — the crypto module has no async setup.
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { encrypt, decrypt } = require('../utils/auth/crypto.js');
-    _encrypt = encrypt;
-    _decrypt = decrypt;
-  }
-  return { encrypt: _encrypt!, decrypt: _decrypt! };
-}
-
 function encryptStored(plaintext: string): string {
-  return getCrypto().encrypt(plaintext);
+  return encrypt(plaintext);
 }
 
 function decryptStored(ciphertext: string): string {
-  return getCrypto().decrypt(ciphertext);
+  return decrypt(ciphertext);
 }
 
 /**

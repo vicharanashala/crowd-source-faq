@@ -4,8 +4,50 @@
       "id": "1",
       "section": "General",
       "question": "What is the Yaksha research internship?",
-      "answer": "Yaksha is a two-month research internship program.",
+      "answer": "Yaksha is a two-month, full-time research internship program at the Vicharanashala Lab, IIT Ropar. Interns work on real-world open-source repositories under a dedicated mentor.",
       "category": "General Info"
+    },
+    {
+      "id": "2",
+      "section": "General",
+      "question": "How are the internship phases structured?",
+      "answer": "The Yaksha internship is divided into phases (e.g., Phase 01). Each phase has specific criteria such as codebase audits, minor bug-fixes, or feature additions. Completing a phase requires a validated Pull Request merged by maintainers.",
+      "category": "General Info"
+    },
+    {
+      "id": "3",
+      "section": "Development",
+      "question": "How do I run the full-stack portal locally?",
+      "answer": "You can launch the entire stack using the root runner: `./run.sh`. This script handles local environment checks, setup, ngrok tunneling, and launches both frontend and backend watch servers.",
+      "category": "Local Setup"
+    },
+    {
+      "id": "4",
+      "section": "Development",
+      "question": "Why does my local search fail with 'Embedding server connection error'?",
+      "answer": "Local embedding generation falls back to an in-process ONNX pipeline using @xenova/transformers. If you don't have internet access to fetch the model initially, or if local loading fails, search will degrade to text-only matching.",
+      "category": "Troubleshooting"
+    },
+    {
+      "id": "5",
+      "section": "Development",
+      "question": "Which package manager must be used in the monorepo?",
+      "answer": "The project uses pnpm (configured in package.json packageManager). Do not use npm or yarn as they will conflict with pnpm-lock.yaml and Turborepo workspace configurations.",
+      "category": "Local Setup"
+    },
+    {
+      "id": "6",
+      "section": "Config",
+      "question": "How do I toggle experimental feature flags like Golden Ticket?",
+      "answer": "Admins can manage feature flags in the admin panel under `/admin/features`. Changes save to the FeatureFlag model and take effect instantly across frontend and backend without redeploying.",
+      "category": "Configuration"
+    },
+    {
+      "id": "7",
+      "section": "Troubleshooting",
+      "question": "Why am I seeing 'Redis connection refused' warnings on boot?",
+      "answer": "If Upstash Redis credentials (REDIS_URL / REDIS_TOKEN) are not set, the search cache and rate limiters fall back to standard in-memory caches. You can safely ignore this in development.",
+      "category": "Troubleshooting"
     }
   ]
 }

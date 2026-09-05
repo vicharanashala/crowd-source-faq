@@ -2,6 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import { protect } from '../../middleware/auth.js';
 import { authorize } from '../../middleware/auth.js';
+import { validateObjectId } from '../../middleware/validateObjectId.js';
 import {
   connectZoom,
   callbackZoom,
@@ -41,31 +42,31 @@ router.get('/public-stats', getZoomPublicStats);
 // GET /api/zoom/auth/callback — Zoom OAuth redirect URI
 // DELETE /api/zoom/auth/disconnect — unlink Zoom account
 // GET    /api/zoom/auth/status   — check connection status
-router.get('/auth/connect',    protect, authorize('admin'), connectZoom);
-router.get('/auth/callback',   callbackZoom);
+router.get('/auth/connect', protect, authorize('admin'), connectZoom);
+router.get('/auth/callback', callbackZoom);
 router.delete('/auth/disconnect', protect, authorize('admin'), disconnectZoom);
-router.get('/auth/status',     protect, authorize('admin'), zoomStatus);
+router.get('/auth/status', protect, authorize('admin'), zoomStatus);
 // v1.85 — admin diagnostics. Reports every Zoom env var's
 // presence + the per-program override rows + a resolution probe
 // so the admin UI can show "which env var is missing on prod"
 // without grepping server logs.
 router.get('/auth/diagnostics', protect, authorize('admin'), getZoomDiagnostics);
-router.post('/auth/backfill',  protect, authorize('admin'), adminBackfill);
+router.post('/auth/backfill', protect, authorize('admin'), adminBackfill);
 
 // ── Webhook (no auth — Zoom calls this) ───────────────────────────────────────
-router.get('/webhook',  handleZoomChallenge);
+router.get('/webhook', handleZoomChallenge);
 router.post('/webhook', handleZoomWebhook);
 
 // ── Admin-only CRUD ────────────────────────────────────────────────────────────
 router.use(protect, authorize('admin'));
 
 router.get('/meetings', listMeetings);
-router.get('/meetings/:id', getMeeting);
-router.get('/meetings/:id/progress', getMeetingProgress);
-router.post('/meetings/:id/retry', retryMeeting);
-router.get('/insights', listInsights);
-router.put('/insights/:id', updateInsight);
-router.post('/insights/:id/convert-to-faq', convertInsightToFAQ);
+router.get('/meetings/:id', validateObjectId('id'), getMeeting);
+router.get('/meetings/:id/progress', validateObjectId('id'), getMeetingProgress);
+router.post('/meetings/:id/retry', validateObjectId('id'), retryMeeting);
+router.get('/insights', validateObjectId('meetingId'), listInsights);
+router.put('/insights/:id', validateObjectId('id'), updateInsight);
+router.post('/insights/:id/convert-to-faq', validateObjectId('id'), convertInsightToFAQ);
 router.post('/upload-transcript', upload.single('file'), uploadTranscript);
 router.get('/health', getZoomHealthStatus);
 router.get('/dead-letter', listDeadLetterMeetings);
