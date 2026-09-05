@@ -111,6 +111,33 @@ describe('queue.service — stale lease recovery', () => {
     expect(String(nowClaimable!._id)).toBe(String(claimed!._id));
     expect(nowClaimable!.attempts).toBe(2);
   });
+
+  it('terminates a stale job instead of requeueing once maxAttempts is exhausted (poison-pill regression)', async () => {
+    // maxAttempts: 1 — the very first claim already uses the last attempt.
+    await enqueue('document-processing', { crashesWorker: true }, { maxAttempts: 1 });
+
+    // Simulate a worker that crashed hard (no caught error, so fail()
+    // never ran) by claiming the job then pushing its lease into the past.
+    const claimed = await claimNextJob('document-processing', 'crash-prone-worker');
+    expect(claimed).toBeTruthy();
+    expect(claimed!.attempts).toBe(1); // == maxAttempts already
+    await mongoose.connection.db!.collection('yaksha_faq_jobs').updateOne(
+      { _id: claimed!._id },
+      { $set: { lockedUntil: new Date(Date.now() - 60_000) } },
+    );
+
+    const touched = await recoverStaleLeases();
+    expect(touched).toBe(1);
+
+    // Before the fix, this job would have been silently reset to
+    // 'queued' and could be claimed — and crash a worker — forever.
+    const final = await mongoose.connection.db!.collection('yaksha_faq_jobs').findOne({ _id: claimed!._id });
+    expect(final?.status).toBe('failed');
+    expect(final?.error).toMatch(/max attempts/i);
+
+    const claimAfterRecovery = await claimNextJob('document-processing', 'another-worker');
+    expect(claimAfterRecovery).toBeNull();
+  });
 });
 
 describe('queue.service — concurrency safety', () => {

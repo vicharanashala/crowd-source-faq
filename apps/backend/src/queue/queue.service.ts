@@ -285,13 +285,48 @@ export async function getStats(type?: JobType): Promise<{
 
 /**
  * Recover jobs whose lease expired while a worker was alive but wedged.
- * Returns the number of jobs that were reset to queued. Safe to call
- * periodically (e.g. every minute from a setInterval).
+ * Returns the number of jobs that were touched (requeued + terminated).
+ * Safe to call periodically (e.g. every minute from a setInterval).
+ *
+ * Bug fix: this previously reset EVERY stale `processing` job straight
+ * back to `queued`, with no check against `maxAttempts`. `fail()` is the
+ * only other place that enforces the attempts cap, but `fail()` only
+ * runs when the worker *catches* an error. A payload that crashes the
+ * worker outright (uncaught exception, OOM, `kill -9`) never reaches
+ * `fail()` — the stale lease is the only signal left, and this sweeper
+ * was putting such jobs back in the queue unconditionally. That let a
+ * single "poison pill" job crash a worker, get reclaimed, crash another
+ * worker, and repeat indefinitely — silently bypassing `maxAttempts`.
+ * Jobs that already used their last attempt are now terminated here
+ * instead, matching the same cap `fail()` enforces on the normal path.
  */
 export async function recoverStaleLeases(): Promise<number> {
   const now = new Date();
-  const res = await Job.updateMany(
-    { status: 'processing', lockedUntil: { $lte: now } },
+
+  const exhausted = await Job.updateMany(
+    {
+      status: 'processing',
+      lockedUntil: { $lte: now },
+      $expr: { $gte: ['$attempts', '$maxAttempts'] },
+    },
+    {
+      $set: {
+        status: 'failed',
+        completedAt: now,
+        lockedUntil: null,
+        workerId: null,
+        error: 'lease expired after max attempts — worker likely crashed without a graceful failure',
+        updatedAt: now,
+      },
+    },
+  );
+
+  const requeued = await Job.updateMany(
+    {
+      status: 'processing',
+      lockedUntil: { $lte: now },
+      $expr: { $lt: ['$attempts', '$maxAttempts'] },
+    },
     {
       $set: {
         status: 'queued',
@@ -301,10 +336,14 @@ export async function recoverStaleLeases(): Promise<number> {
       },
     },
   );
-  if (res.modifiedCount > 0) {
-    logger.warn(`[queue] recovered ${res.modifiedCount} stale-lease job(s)`);
+
+  if (exhausted.modifiedCount > 0) {
+    logger.error(`[queue] ${exhausted.modifiedCount} stale-lease job(s) exhausted max attempts — marked failed instead of requeued`);
   }
-  return res.modifiedCount;
+  if (requeued.modifiedCount > 0) {
+    logger.warn(`[queue] recovered ${requeued.modifiedCount} stale-lease job(s)`);
+  }
+  return exhausted.modifiedCount + requeued.modifiedCount;
 }
 
 /**

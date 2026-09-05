@@ -8,9 +8,17 @@
  * State machine:
  *   queued ──claimNextJob──> processing ──complete──> completed
  *      │                          │
- *      │                          └─fail──> queued (if attempts < max)
- *      │                                  └─fail──> failed
+ *      │                          ├─fail──> queued (if attempts < max)
+ *      │                          │      └─> failed
+ *      │                          └─lease expiry (recoverStaleLeases)──> queued (if attempts < max)
+ *      │                                                              └─> failed (if attempts >= max)
  *      └─cancel──> cancelled
+ *
+ * A stale lease means the worker holding the job stopped renewing it —
+ * usually a hard crash rather than a caught error, so `fail()` (which
+ * enforces `maxAttempts`) never ran. `recoverStaleLeases()` enforces the
+ * same cap on that path so a payload that repeatedly crashes a worker
+ * can't loop forever.
  *
  * Lease / heartbeat:
  *   - `lockedUntil` is set on claim; another worker can claim after
