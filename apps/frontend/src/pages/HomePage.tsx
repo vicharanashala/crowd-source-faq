@@ -262,6 +262,89 @@ function AllCategoryCard({
 // ═══════════════════════════════════════════════════════════════════════════
 //  Numbered FAQ row — used by Most Popular + Recent FAQs lists
 // ═══════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════
+// Internship Guide Card
+// Small entry point for new interns without overwhelming the Home page.
+// ═══════════════════════════════════════════════════════════════════════════
+
+function InternshipGuideCard({
+  onOpen,
+}: {
+  onOpen: () => void;
+}): React.ReactElement {
+  return (
+    <section
+      className="mt-8 bg-card rounded-2xl border border-border overflow-hidden"
+      aria-labelledby="internship-guide-heading"
+    >
+      <button
+        type="button"
+        onClick={onOpen}
+        className="group w-full text-left p-5 sm:p-6 flex items-center gap-4 hover:bg-cream/40 transition-colors duration-200"
+      >
+        {/* Icon */}
+        <span className="shrink-0 w-11 h-11 rounded-xl bg-accent/10 text-accent flex items-center justify-center">
+          <svg
+            width="21"
+            height="21"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.7"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z" />
+            <path d="M8 6h8" />
+            <path d="M8 10h8" />
+            <path d="M8 14h5" />
+          </svg>
+        </span>
+
+        {/* Text */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h2
+              id="internship-guide-heading"
+              className="font-serif text-lg text-ink"
+            >
+              Internship Guide
+            </h2>
+
+            <span className="text-[9px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full bg-accent/10 text-accent">
+              Start here
+            </span>
+          </div>
+
+          <p className="text-xs sm:text-sm text-ink-soft mt-1 leading-relaxed">
+            New here? Get familiar with the internship, important resources,
+            and what you need to know to get started.
+          </p>
+        </div>
+
+        {/* Arrow */}
+        <span className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-ink-faint group-hover:text-accent group-hover:translate-x-0.5 transition-all">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="m9 18 6-6-6-6" />
+          </svg>
+        </span>
+      </button>
+    </section>
+  );
+}
+
 function NumberedFaqRow({
   rank,
   item,
@@ -589,7 +672,7 @@ export default function HomePage() {
   };
 
   // True when the user is browsing the discovery landing (nothing selected)
-  const showDiscovery = !loading && !error && !activeQuestion && !activeCategory;
+  const showDiscovery = true;
 
   // ── Render ──────────────────────────────────────────────────────────────
   return (
@@ -763,9 +846,75 @@ export default function HomePage() {
           </section>
         )}
 
-        {/* ─── DISCOVERY LANDING ─────────────────────────────────────── */}
+                {/* ─── DISCOVERY LANDING ─────────────────────────────────────── */}
         {showDiscovery && (
           <>
+            {/* ─── INTERNSHIP GUIDE ─── */}
+<section className="mt-8">
+  <button
+    type="button"
+    onClick={() => navigate('/internship-guide')}
+    className="group w-full bg-card rounded-2xl border border-border p-5 sm:p-6 text-left hover:border-accent/40 hover:shadow-sm transition-all duration-200"
+  >
+    <div className="flex items-center gap-4">
+
+      {/* Guide icon */}
+      <div className="shrink-0 w-11 h-11 rounded-xl bg-accent/10 text-accent flex items-center justify-center">
+        <svg
+          width="21"
+          height="21"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.7"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v17H6.5A2.5 2.5 0 0 0 4 22V5.5Z" />
+          <path d="M4 5.5V22" />
+          <path d="M8 7h8" />
+          <path d="M8 11h7" />
+        </svg>
+      </div>
+
+      {/* Guide text */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <h2 className="font-serif text-lg text-ink">
+            Internship Guide
+          </h2>
+
+          <span className="text-[9px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full bg-accent/10 text-accent">
+            Start here
+          </span>
+        </div>
+
+        <p className="text-xs sm:text-sm text-ink-soft mt-1">
+          New to the internship? Find everything you need to know before you begin.
+        </p>
+      </div>
+
+      {/* Arrow */}
+      <div className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-ink-faint group-hover:text-accent group-hover:bg-accent/10 transition-all">
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="m9 18 6-6-6-6" />
+        </svg>
+      </div>
+
+    </div>
+  </button>
+</section>
             {/* ─── 3-COLUMN: Most Popular · Recent FAQs · Browse Categories ─── */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4">
               {/* ───── MOST POPULAR ───── */}
