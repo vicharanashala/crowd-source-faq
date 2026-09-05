@@ -31,8 +31,10 @@ function bumpAnonCount(): number {
 }
 
 interface Source { kind: 'knowledge'|'faq'|'community'; title: string; snippet: string; score: number; href: string; id: string; aboveThreshold?: boolean; }
-interface AskResponse { question: string; answer: string; sources: Source[]; relevantCount: number; sourceCount: number; model: string; aiFailed: boolean; }
-interface ChatMessage { id: string; role: 'user'|'assistant'; content: string; sources?: Source[]; loading?: boolean; error?: string; }
+interface AskResponse { question: string; answer: string; sources: Source[]; relevantCount: number; sourceCount: number; modelName?: string; aiFailed?: boolean; aiQuestionId?: string; }
+type FeedbackRating = 'helpful' | 'not_helpful';
+interface MessageFeedback { state: 'idle'|'selected'|'submitting'|'submitted'|'error'; value?: FeedbackRating; comment?: string; message?: string; }
+interface ChatMessage { id: string; role: 'user'|'assistant'; content: string; sources?: Source[]; loading?: boolean; error?: string; aiQuestionId?: string; canGiveFeedback?: boolean; feedback?: MessageFeedback; }
 
 /** File/image attachment queued in the chat composer. */
 interface PendingAttachment {
@@ -82,7 +84,19 @@ function SourceRow({ s, i, onNav }: { s: Source; i: number; onNav: (href: string
   );
 }
 
-function MessageBubble({ m, onNav }: { m: ChatMessage; onNav: (href: string) => void }) {
+function MessageBubble({
+  m,
+  onNav,
+  onFeedbackSelect,
+  onFeedbackCommentChange,
+  onFeedbackSubmit,
+}: {
+  m: ChatMessage;
+  onNav: (href: string) => void;
+  onFeedbackSelect: (aiQuestionId: string, rating: FeedbackRating) => void;
+  onFeedbackCommentChange: (aiQuestionId: string, comment: string) => void;
+  onFeedbackSubmit: (aiQuestionId: string) => void;
+}) {
   if (m.role === 'user') {
     return (<div className="flex justify-end"><div className="max-w-[80%] px-3.5 py-2 rounded-2xl rounded-br-md bg-accent text-accent-text text-sm shadow-sm shadow-accent/20">{m.content}</div></div>);
   }
@@ -111,6 +125,37 @@ function MessageBubble({ m, onNav }: { m: ChatMessage; onNav: (href: string) => 
           <div className="space-y-1 pl-1">
             <p className="text-[10px] uppercase tracking-wider text-ink-faint font-semibold pl-1">Sources ({m.sources.length})</p>
             {m.sources.map((s, i) => <SourceRow key={`${s.id}-${i}`} s={s} i={i} onNav={onNav} />)}
+          </div>
+        )}
+        {m.aiQuestionId && m.canGiveFeedback && !m.loading && !m.error && (
+          <div className="space-y-2 pl-1 pt-1">
+            <p className="text-[10px] uppercase tracking-wider text-ink-faint font-semibold">Was this answer helpful?</p>
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <button type="button" onClick={() => onFeedbackSelect(m.aiQuestionId!, 'helpful')} disabled={m.feedback?.state === 'submitting'} className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition-all disabled:opacity-50 ${m.feedback?.value === 'helpful' ? 'border-accent bg-accent/10 text-accent' : 'border-border text-ink-soft hover:border-accent/40 hover:bg-accent/5'}`}>👍 Yes</button>
+                <button type="button" onClick={() => onFeedbackSelect(m.aiQuestionId!, 'not_helpful')} disabled={m.feedback?.state === 'submitting'} className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition-all disabled:opacity-50 ${m.feedback?.value === 'not_helpful' ? 'border-danger/40 bg-danger/10 text-danger' : 'border-border text-ink-soft hover:border-danger/30 hover:bg-danger/10'}`}>👎 No</button>
+                {m.feedback?.state === 'submitting' && <span className="text-[10px] text-ink-faint">Saving...</span>}
+                {m.feedback?.state === 'submitted' && <span className="text-[10px] text-accent">Thanks for the feedback.</span>}
+              </div>
+              {m.feedback?.value && m.feedback.state !== 'submitted' && (
+                <div className="space-y-1.5">
+                  <textarea
+                    value={m.feedback.comment ?? ''}
+                    onChange={(e) => onFeedbackCommentChange(m.aiQuestionId!, e.target.value)}
+                    maxLength={1000}
+                    rows={2}
+                    placeholder="Add a short comment (optional)"
+                    disabled={m.feedback.state === 'submitting'}
+                    className="w-full rounded-xl border border-border bg-bg px-3 py-2 text-xs text-ink placeholder:text-ink-faint focus:outline-none focus:border-accent/50 focus:ring-2 focus:ring-accent/15 resize-none disabled:opacity-50"
+                  />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button type="button" onClick={() => onFeedbackSubmit(m.aiQuestionId!)} disabled={m.feedback.state === 'submitting'} className="rounded-full bg-accent px-3 py-1 text-[11px] font-semibold text-accent-text hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed">Submit Feedback</button>
+                    <span className="text-[10px] text-ink-faint">{(m.feedback.comment ?? '').length}/1000</span>
+                  </div>
+                </div>
+              )}
+              {m.feedback?.state === 'error' && <p className="text-[10px] text-danger">{m.feedback.message}</p>}
+            </div>
           </div>
         )}
       </div>
@@ -243,6 +288,36 @@ export default function AskAIButton() {
   // behind the panel.
   useBodyScrollLock(panel === 'expanded');
 
+  const handleFeedbackSelect = useCallback((aiQuestionId: string, rating: FeedbackRating) => {
+    setMessages((curr) => curr.map((msg) => (
+      msg.aiQuestionId === aiQuestionId
+        ? { ...msg, feedback: { ...msg.feedback, state: 'selected', value: rating, message: undefined } }
+        : msg
+    )));
+  }, []);
+
+  const handleFeedbackCommentChange = useCallback((aiQuestionId: string, comment: string) => {
+    setMessages((curr) => curr.map((msg) => (
+      msg.aiQuestionId === aiQuestionId
+        ? { ...msg, feedback: { ...msg.feedback, state: msg.feedback?.state === 'error' ? 'selected' : (msg.feedback?.state ?? 'selected'), comment: comment.slice(0, 1000), message: undefined } }
+        : msg
+    )));
+  }, []);
+
+  const handleFeedbackSubmit = useCallback(async (aiQuestionId: string) => {
+    const target = messages.find((msg) => msg.aiQuestionId === aiQuestionId);
+    const rating = target?.feedback?.value;
+    if (!rating) return;
+    const comment = target.feedback?.comment?.trim();
+    setMessages((curr) => curr.map((msg) => msg.aiQuestionId === aiQuestionId ? { ...msg, feedback: { ...msg.feedback, state: 'submitting', value: rating } } : msg));
+    try {
+      await api.post('/ask-ai/feedback', { aiQuestionId, rating, ...(comment ? { comment } : {}) });
+      setMessages((curr) => curr.map((msg) => msg.aiQuestionId === aiQuestionId ? { ...msg, feedback: { state: 'submitted', value: rating, comment } } : msg));
+    } catch (err: unknown) {
+      setMessages((curr) => curr.map((msg) => msg.aiQuestionId === aiQuestionId ? { ...msg, feedback: { ...msg.feedback, state: 'error', value: rating, message: friendlyError(err, 'Unable to save feedback.') } } : msg));
+    }
+  }, [messages]);
+
   const send = useCallback(async () => {
     const q = query.trim();
     // Need at least a question OR an attachment to send.
@@ -279,7 +354,7 @@ export default function AskAIButton() {
       } else {
         res = await api.post<AskResponse>('/ask-ai', { question: q });
       }
-      setMessages(m => m.map(msg => msg.id === aiMsg.id ? { ...msg, content: res.data.answer, sources: res.data.sources, loading: false } : msg));
+      setMessages(m => m.map(msg => msg.id === aiMsg.id ? { ...msg, content: res.data.answer, sources: res.data.sources, loading: false, aiQuestionId: res.data.aiQuestionId, canGiveFeedback: isAuthenticated } : msg));
       if (!isAuthenticated) { const next = bumpAnonCount(); setAnonCount(next); if (next === ANON_AI_LIMIT) setTimeout(() => openModal('signin'), 1500); }
       // Release any preview URLs we held.
       sending.forEach((a) => { if (a.previewUrl) URL.revokeObjectURL(a.previewUrl); });
@@ -363,7 +438,16 @@ export default function AskAIButton() {
               </div>
             </div>
           )}
-          {messages.map(m => <MessageBubble key={m.id} m={m} onNav={handleSourceNav} />)}
+          {messages.map(m => (
+            <MessageBubble
+              key={m.id}
+              m={m}
+              onNav={handleSourceNav}
+              onFeedbackSelect={handleFeedbackSelect}
+              onFeedbackCommentChange={handleFeedbackCommentChange}
+              onFeedbackSubmit={handleFeedbackSubmit}
+            />
+          ))}
         </div>
         {/* Hidden file input — triggered by the + button below. */}
         <input

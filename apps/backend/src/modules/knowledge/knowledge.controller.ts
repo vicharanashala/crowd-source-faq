@@ -8,8 +8,11 @@ import {
   searchKnowledge,
 } from './knowledge-base.service.js';
 import { runRag } from '../ai/rag.service.js';
+import AiQuestion from '../ai/ai-question.model.js';
+import AiFeedback from '../ai/ai-feedback.model.js';
 import { TranscriptKnowledge } from './transcript-knowledge.model.js';
 import { adminLog } from '../../utils/http/logger.js';
+import { aiFeedbackSchema, validate } from '../../utils/auth/validation.js';
 
 // ─── List all knowledge entries ──────────────────────────────────────────────
 
@@ -126,6 +129,41 @@ export const answerFromKnowledgeController = async (req: Request, res: Response)
     if (!result.answered) { res.status(404).json({ message: 'No matching knowledge found' }); return; }
     res.json(result);
   } catch (err) {
+    res.status(500).json({ message: (err as Error).message });
+  }
+};
+
+export const submitAiFeedback = async (req: Request, res: Response): Promise<void> => {
+  if (!req.user?._id) {
+    res.status(401).json({ message: 'Not authorized' });
+    return;
+  }
+
+  const body = await validate(req.body, aiFeedbackSchema, res);
+  if (!body) return;
+
+  try {
+    const aiQuestion = await AiQuestion.findById(body.aiQuestionId).lean();
+    if (!aiQuestion) {
+      res.status(404).json({ message: 'AI answer not found' });
+      return;
+    }
+
+    const currentUserId = new mongoose.Types.ObjectId(req.user._id.toString());
+    if (!aiQuestion.userId || aiQuestion.userId.toString() !== currentUserId.toString()) {
+      res.status(403).json({ message: 'You can only rate your own AI answers' });
+      return;
+    }
+
+    const feedback = await AiFeedback.findOneAndUpdate(
+      { userId: currentUserId, aiQuestionId: aiQuestion._id },
+      { rating: body.rating, comment: body.comment ?? '' },
+      { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true }
+    );
+
+    res.json({ message: 'Feedback saved', feedback });
+  } catch (err) {
+    adminLog.error('[askAI] feedback failed', { error: (err as Error).message });
     res.status(500).json({ message: (err as Error).message });
   }
 };
@@ -261,6 +299,20 @@ export const askAIController = async (req: Request, res: Response): Promise<void
         : `\n\n(AI synthesis is temporarily unavailable; click the source below to read the full answer.)`);
     }
 
+    let aiQuestionId: string | undefined;
+    try {
+      const aiQuestion = await AiQuestion.create({
+        userId: req.user?._id ?? null,
+        orientationId: null,
+        batchId: null,
+        question,
+        answer,
+      });
+      aiQuestionId = aiQuestion._id.toString();
+    } catch (persistErr) {
+      adminLog.warn('[askAI] failed to persist ai question', { error: (persistErr as Error).message });
+    }
+
     // Mark each source as relevant (above per-type threshold) so the
     // frontend can dim/grey-out the noise.
     res.json({
@@ -274,6 +326,7 @@ export const askAIController = async (req: Request, res: Response): Promise<void
       sourceCount: sources.length,
       modelName: result.modelName,
       aiFailed,
+      aiQuestionId,
     });
   } catch (err) {
     adminLog.error('[askAI] failed', { error: (err as Error).message });
