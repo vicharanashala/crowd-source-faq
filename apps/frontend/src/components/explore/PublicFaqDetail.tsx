@@ -2,6 +2,7 @@
 // Fires the view + reading tracker on mount; closes on Esc, backdrop
 // click, or the close button.
 
+import SatisfactionSlider from '../faq/SatisfactionSlider';
 import React, { useEffect, useRef, useState } from 'react';
 import { usePublicFaqById } from './usePublicFaqApi';
 import { useExploreSession, useReadingTracker, useViewTracker } from './useReadingTracker';
@@ -136,7 +137,7 @@ export function PublicFaqDetail({
               </>
             )}
           </div>
-
+          <SatisfactionSlider faqId={current._id} />
           {/* Tiny reading progress — non-intrusive, just confirms the tracker is running. */}
           <div className="flex items-center gap-2 text-[11px] text-ink-faint">
             <div className="w-20 h-1.5 rounded-full bg-mist overflow-hidden">

@@ -108,6 +108,12 @@ export const voteReviewSchema = z.object({
   suggestion:  z.string().max(300, 'Suggestion must be 300 characters or less').optional(),
 });
 
+// One discrete satisfaction signal per FAQ. Do not coerce strings here:
+// the API contract accepts JSON numbers only, preventing ambiguous inputs.
+export const submitSatisfactionSchema = z.object({
+  rating: z.number().int().min(1).max(5),
+});
+
 // ─── Community ──────────────────────────────────────────────────────────────────
 export const createPostSchema = z.object({
   title: z.string().min(10, 'Title must be at least 10 characters').max(300),

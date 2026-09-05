@@ -19,6 +19,7 @@ interface FAQ {
   status: 'approved' | 'pending' | 'rejected';
   views: number;
   helpfulVotes: number;
+  satisfactionAvg?: number;
   createdAt: string;
   freshnessTier?: 'evergreen' | 'seasonal' | 'volatile';
   reviewIntervalDays?: number;
@@ -139,6 +140,7 @@ export default function AdminFAQs() {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [batchFilter, setBatchFilter] = useState('');
   const [sort] = useState('-createdAt');
+  const [satSortDir, setSatSortDir] = useState<'asc' | 'desc' | null>(null);
   const [editModal, setEditModal] = useState(false);
   const [editFaq, setEditFaq] = useState<FAQ | null>(null);
   const [addModal, setAddModal] = useState(false);
@@ -260,6 +262,14 @@ export default function AdminFAQs() {
     finally { setSaving(false); }
   };
 
+  const displayedFaqs = satSortDir
+    ? [...faqs].sort((a, b) => {
+        const avgA = a.satisfactionAvg ?? 0;
+        const avgB = b.satisfactionAvg ?? 0;
+        return satSortDir === 'asc' ? avgA - avgB : avgB - avgA;
+      })
+    : faqs;
+
   return (
     <div className="space-y-4 max-w-6xl">
       <AnimatePresence>{toast && <Toast toast={toast} />}</AnimatePresence>
@@ -316,13 +326,20 @@ export default function AdminFAQs() {
               <th className="admin-th">Status</th>
               <th className="admin-th text-right">Views</th>
               <th className="admin-th text-right">Votes</th>
+              <th
+                className="admin-th text-right cursor-pointer select-none"
+                onClick={() => setSatSortDir(d => d === 'desc' ? 'asc' : d === 'asc' ? null : 'desc')}
+                title="Click to sort by satisfaction"
+              >
+                Satisfaction{satSortDir === 'desc' ? ' ▼' : satSortDir === 'asc' ? ' ▲' : ''}
+              </th>
               <th className="admin-th">Date</th>
               <th className="admin-th text-right">Actions</th>
             </tr></thead>
             <tbody>
-              {loading ? <tr><td colSpan={8} className="px-3 py-6"><TableSkeleton rows={8} /></td></tr> :
-               faqs.length === 0 ? <tr><td colSpan={8} className="admin-empty">No FAQs found</td></tr> :
-               faqs.map(faq => (
+              {loading ? <tr><td colSpan={9} className="px-3 py-6"><TableSkeleton rows={8} /></td></tr> :
+               faqs.length === 0 ? <tr><td colSpan={9} className="admin-empty">No FAQs found</td></tr> :
+               displayedFaqs.map(faq => (
                 <tr key={faq._id} className="admin-tr">
                   <td className="admin-td max-w-[220px] truncate" title={faq.question}>{faq.question}</td>
                   <td className="admin-td">
@@ -338,6 +355,9 @@ export default function AdminFAQs() {
                   <td className="admin-td"><Badge status={faq.status as 'approved'|'pending'|'rejected'} /></td>
                   <td className="admin-td text-right tabular-nums text-ink-faint">{faq.views ?? 0}</td>
                   <td className="admin-td text-right tabular-nums text-ink-faint">{faq.helpfulVotes ?? 0}</td>
+                  <td className="admin-td text-right tabular-nums text-ink-faint">
+                    {faq.satisfactionAvg != null ? faq.satisfactionAvg.toFixed(1) : '—'}
+                  </td>
                   <td className="admin-td text-ink-faint">{new Date(faq.createdAt).toLocaleDateString('en-IN')}</td>
                   <td className="admin-td text-right">
                     <div className="flex items-center justify-end gap-1">

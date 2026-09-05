@@ -2,6 +2,7 @@ import React from 'react';
 import { FAQItem, getQuestionTitle, getAnswerText, formatDate, getCategoryIcon, formatCategoryName, TrustBadge } from './faqUtils';
 import ReportFAQButton from './ReportFAQButton';
 import FreshnessBadge from '../faq/FreshnessBadge';
+import SatisfactionSlider from './SatisfactionSlider';
 import {
   avatarPlaceholder,
   flexCol,
@@ -142,7 +143,12 @@ export default function QuestionDetail({ item, relatedItems, onBack, onSelectRel
         )}
 
         {/* Report FAQ */}
-        <ReportFAQButton item={item} />
+<ReportFAQButton item={item} />
+
+{/* Satisfaction Rating */}
+{item?.source === 'faq' && (
+  <SatisfactionSlider faqId={item._id} />
+)}
       </div>
     </div>
   );

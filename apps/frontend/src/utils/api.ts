@@ -33,6 +33,12 @@ const getRequestTTL = (url: string | undefined, method: string | undefined): num
     }
     return 0;
   }
+
+  // Satisfaction responses include identity-specific `yourRating` data.
+  // Never cache them under the shared FAQ cache window.
+  if (url.includes('/satisfaction')) {
+    return 0;
+  }
   
   // Match URL against config
   for (const [key, ttl] of Object.entries(CACHE_CONFIGS)) {

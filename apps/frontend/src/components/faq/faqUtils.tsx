@@ -24,6 +24,9 @@ export interface FAQItem {
   lastVerifiedDate?: string;
   reviewIntervalDays?: number;
   freshnessTier?: 'evergreen' | 'seasonal' | 'volatile';
+  // Satisfaction system — required for the emoji feedback widget
+  satisfactionAvg?: number | null;
+  satisfactionCount?: number;
   [key: string]: unknown;
 }
 
