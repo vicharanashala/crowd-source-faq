@@ -44,7 +44,7 @@ import registrationControlRoutes from '../modules/program/registration-control.r
 import adminCategoryClusterRoutes from '../modules/program/admin-category-cluster.routes.js';
 import publicCategoryClusterRoutes from '../modules/program/public-category-cluster.routes.js';
 import healthRoutes from '../modules/health/health.routes.js';
-
+import embedRoutes from '../modules/embed/embed.routes.js';
 export function registerRoutes(app: Express): void {
   const router = express.Router();
 
@@ -95,6 +95,6 @@ export function registerRoutes(app: Express): void {
   router.use('/admin/settings',  appSettingsAdminRouter);
   router.use('/public/settings', appSettingsPublicRouter);
   router.use('/admin/registration-config', registrationControlRoutes);
-
+  router.use('/embed', embedRoutes);
   app.use('/csfaq/api', router);
 }

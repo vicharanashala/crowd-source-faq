@@ -5,6 +5,7 @@ import { useFeatureFlag } from '../context/FeatureFlagContext';
 import Spinner from '../components/ui/Spinner';
 import ErrorBoundary from '../components/ui/ErrorBoundary';
 import { FeatureGate } from '../components/support/FeatureGate';
+import EmbedPage from "../pages/EmbedPage";
 
 /**
  * Per-route error boundary. Without this, a single page crash unmounts
@@ -22,6 +23,7 @@ const RouteElement = ({
     {children}
   </ErrorBoundary>
 );
+
 import MainLayout from '../components/layout/MainLayout';
 import AskAIButton from '../components/askai/AskAIButton';
 import AccountRoute from './guards/AccountRoute';
@@ -204,6 +206,11 @@ export default function AppRoutes() {
             <Route
               path="/tee/sign/:shareId"
               element={<RouteElement name="tee-sign-:shareId"><TeeSignPage /></RouteElement>}
+            />
+            {/* 🧩 FAQ Embed Widget - Public page for embed code */}
+            <Route
+              path="/embed"
+              element={<RouteElement name="embed"><EmbedPage /></RouteElement>}
             />
             </Route>
 

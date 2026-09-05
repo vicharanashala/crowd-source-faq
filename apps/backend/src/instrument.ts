@@ -79,30 +79,53 @@ function sentryBeforeSendTransaction(event: any, _hint: Sentry.EventHint): any {
   return event;
 }
 
-if (sentryEnabled && sentryDsn) {
-  Sentry.init({
-    dsn: sentryDsn,
-    environment: sentryEnv,
-    release: sentryRelease,
-    debug: sentryDebug,
-    sendDefaultPii: false,
-    tracesSampleRate,
-    integrations: [
-      expressIntegration(),
-      mongooseIntegration(),
-    ],
-    beforeSend: sentryBeforeSend,
-    beforeSendTransaction: sentryBeforeSendTransaction,
-  });
+/**
+ * Check if Sentry DSN is valid and not a placeholder
+ */
+function isValidSentryDsn(dsn: string): boolean {
+  if (!dsn || dsn === '#' || dsn.trim() === '') {
+    return false;
+  }
+  try {
+    new URL(dsn);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
-  // v1.82 — single boot-time "Sentry init OK" message so admins
-  // can confirm the pipeline is alive without waiting for a real
-  // error. Tagged with `boot` so the dashboard can filter to it.
-  // Rendered as a Sentry INFO-level message (low noise); safe to
-  // ship in every release.
-  Sentry.captureMessage('Sentry init OK', {
-    level: 'info',
-    tags: { boot: 'true', release: sentryRelease ?? 'unspecified' },
-    extra: { dsn_host: new URL(sentryDsn).host, env: sentryEnv },
-  });
+if (sentryEnabled && sentryDsn && isValidSentryDsn(sentryDsn)) {
+  try {
+    Sentry.init({
+      dsn: sentryDsn,
+      environment: sentryEnv,
+      release: sentryRelease,
+      debug: sentryDebug,
+      sendDefaultPii: false,
+      tracesSampleRate,
+      integrations: [
+        expressIntegration(),
+        mongooseIntegration(),
+      ],
+      beforeSend: sentryBeforeSend,
+      beforeSendTransaction: sentryBeforeSendTransaction,
+    });
+
+    // v1.82 — single boot-time "Sentry init OK" message so admins
+    // can confirm the pipeline is alive without waiting for a real
+    // error. Tagged with `boot` so the dashboard can filter to it.
+    // Rendered as a Sentry INFO-level message (low noise); safe to
+    // ship in every release.
+    Sentry.captureMessage('Sentry init OK', {
+      level: 'info',
+      tags: { boot: 'true', release: sentryRelease ?? 'unspecified' },
+      extra: { dsn_host: new URL(sentryDsn).host, env: sentryEnv },
+    });
+
+    console.log('[Sentry] Initialized successfully');
+  } catch (error) {
+    console.warn('[Sentry] Failed to initialize:', error);
+  }
+} else {
+  console.log('[Sentry] Disabled — DSN not configured or invalid');
 }
