@@ -18,3 +18,4 @@ export * from './api/faq.js';
 export * from './api/community.js';
 export * from './api/search.js';
 export * from './api/support.js';
+export * from './pinboard.js';
