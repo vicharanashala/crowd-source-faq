@@ -19,6 +19,7 @@ import moderationRoutes from '../modules/moderation/moderation.routes.js';
 import zoomRoutes from '../modules/zoom/zoom.routes.js';
 import knowledgeRoutes from '../modules/knowledge/knowledge.routes.js';
 import askAiRoutes from '../modules/ai/ask-ai.routes.js';
+import knowledgeGapRoutes from '../modules/ai/knowledge-gap.routes.js';
 import uploadRoutes from '../modules/upload/upload.routes.js';
 import publicFaqRoutes from '../modules/faq/public-faq.routes.js';
 import batchRoutes from '../modules/program/batch.routes.js';
@@ -60,6 +61,7 @@ export function registerRoutes(app: Express): void {
   router.use('/admin', adminWebPagesRoutes);
   router.use('/admin', adminDocumentsRoutes);
   router.use('/admin', adminAuditRoutes);
+  router.use('/admin/knowledge-gaps', knowledgeGapRoutes);
   router.use('/reputation', reputationRoutes);
   router.use('/moderation', moderationRoutes);
   router.use('/analytics', analyticsRoutes);

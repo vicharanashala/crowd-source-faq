@@ -30,6 +30,7 @@ const NAV: NavGroup[] = [
       { to: '/admin/auto-answer',    label: 'AI Answers',    icon: SparkleIcon, featureFlag: 'aiAutoAnswer' },
       { to: '/admin/faq-audit',     label: 'FAQ Audit',     icon: StethoscopeIcon, featureFlag: 'faqFreshness' },
       { to: '/admin/unresolved-search', label: 'FAQ Gaps',    icon: SearchMissIcon },
+      { to: '/admin/knowledge-gaps', label: 'AI Knowledge Gaps', icon: BrainIcon },
     ],
   },
   {

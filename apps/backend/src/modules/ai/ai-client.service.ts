@@ -170,7 +170,13 @@ export type AIFeature =
   | 'duplicateDetection'
   | 'knowledgeExtraction'
   | 'searchSummarization'
+<<<<<<< Updated upstream
   | 'faqGeneration';
+=======
+  | 'faqGeneration'
+  | 'pathwayGeneration'
+  | 'gapAnalysis';
+>>>>>>> Stashed changes
 
 export interface AIResult {
   content: string;
@@ -343,6 +349,37 @@ export class AiClient {
           estimatedCost: 0,
         };
       }
+<<<<<<< Updated upstream
+=======
+      if (feature === 'pathwayGeneration') {
+        return {
+          content: JSON.stringify(["mock-id-1", "mock-id-2"]),
+          provider: 'openai',
+          modelName: 'gpt-4o',
+          tokensUsed: 150,
+          estimatedCost: 0,
+        };
+      }
+      if (feature === 'gapAnalysis') {
+        return {
+          content: JSON.stringify({
+            gaps: [
+              {
+                topic: "Mock Gap Topic",
+                summary: "Users are asking about mock gaps.",
+                frequency: 5,
+                suggestedActions: ["Create mock FAQ"]
+              }
+            ],
+            trendingTopics: ["Mocking", "Testing"]
+          }),
+          provider: 'openai',
+          modelName: 'gpt-4o',
+          tokensUsed: 250,
+          estimatedCost: 0,
+        };
+      }
+>>>>>>> Stashed changes
       return {
         content: 'This is a mock AI response for testing.',
         provider: 'openai',
@@ -922,6 +959,101 @@ The answer should be direct and actionable. Do not add disclaimers.`;
     return parseFAQResponse(result.content);
   }
 
+<<<<<<< Updated upstream
+=======
+  // ─── Feature: Pathway generation ─────────────────────────────────────────
+
+  /**
+   * Generates a learning pathway (ordered sequence of follow-up FAQs) for a given FAQ.
+   * Takes the current FAQ question and a list of candidates.
+   * Returns an array of candidate IDs in the suggested logical order.
+   */
+  async generatePathway(
+    currentFaq: { _id: string; question: string; answer?: string },
+    candidates: Array<{ _id: string; question: string; answer?: string }>
+  ): Promise<string[]> {
+    const systemPrompt = `You are an expert curriculum designer for an onboarding and FAQ portal.
+Given a current FAQ that a user is reading, and a list of candidate related FAQs, create a logical "Learning Pathway" (a sequence of 2 to 4 follow-up FAQs that the user should read next to deepen their understanding).
+The pathway should flow logically (e.g., from basic concepts to advanced configuration to troubleshooting).
+Return ONLY a valid JSON array of the recommended FAQ IDs in the correct order.
+Output format: ["id1", "id2", "id3"]`;
+
+    const candidateList = candidates
+      .filter(c => String(c._id) !== String(currentFaq._id))
+      .map((c) => `  - id="${c._id}", question="${c.question.replace(/"/g, "'")}"`)
+      .join('\n');
+
+    if (!candidateList) return [];
+
+    const userContent =
+      `Current FAQ:\nQuestion: "${currentFaq.question.replace(/"/g, "'")}"\n` +
+      (currentFaq.answer ? `Answer snippet: "${currentFaq.answer.slice(0, 200).replace(/"/g, "'")}"\n\n` : '\n') +
+      `Candidate FAQs:\n${candidateList}\n\n` +
+      `Respond with a JSON array of up to 4 FAQ IDs that form the best logical follow-up sequence.`;
+
+    const result = await this.chat(
+      [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userContent },
+      ],
+      'pathwayGeneration',
+      { temperature: 0.2, maxTokens: 256 }
+    );
+
+    return parsePathwayResponse(result.content, candidates.map(c => String(c._id)));
+  }
+
+  // ─── Feature: Knowledge Gap Analysis ─────────────────────────────────────
+
+  /**
+   * Generates a knowledge gap report from a list of unresolved posts and questions.
+   */
+  async generateKnowledgeGapReport(
+    escalatedPosts: Array<{ title: string; body?: string }>,
+    aiQuestions: Array<{ question: string }>
+  ): Promise<{
+    gaps: Array<{ topic: string; summary: string; frequency: number; suggestedActions: string[] }>;
+    trendingTopics: string[];
+  }> {
+    const systemPrompt = `You are a knowledge base analytics engine.
+Given a list of community posts that the AI could not confidently answer, and a list of questions recently asked to the AI, identify recurring "knowledge gaps" and "trending topics".
+A knowledge gap is a specific topic where users are confused and lack documentation.
+Output MUST be a valid JSON object with this exact structure:
+{
+  "gaps": [
+    {
+      "topic": "string",
+      "summary": "string",
+      "frequency": number,
+      "suggestedActions": ["string"]
+    }
+  ],
+  "trendingTopics": ["string"]
+}`;
+
+    const postsContext = escalatedPosts
+      .map((p, i) => `[Escalated Post ${i + 1}] Title: ${p.title}\nBody: ${p.body?.slice(0, 200) || ''}`)
+      .join('\n\n');
+      
+    const qsContext = aiQuestions
+      .map((q, i) => `[AI Question ${i + 1}] ${q.question}`)
+      .join('\n');
+
+    const userContent = `Analyze the following data from the past week.\n\nEscalated Posts:\n${postsContext || 'None'}\n\nAI Questions:\n${qsContext || 'None'}\n\nIdentify the top knowledge gaps. Return only JSON.`;
+
+    const result = await this.chat(
+      [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userContent },
+      ],
+      'gapAnalysis',
+      { temperature: 0.2, maxTokens: 1000 }
+    );
+
+    return parseGapAnalysisResponse(result.content);
+  }
+
+>>>>>>> Stashed changes
   // ─── Vector pre-filter ─────────────────────────────────────────────────────
 
   /**
@@ -1049,6 +1181,51 @@ function parseFAQResponse(
   }
 }
 
+<<<<<<< Updated upstream
+=======
+function parsePathwayResponse(raw: string, validIds: string[]): string[] {
+  const clean = raw.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+  const match = clean.match(/\[[\s\S]*?\]/);
+  if (!match) return [];
+  try {
+    const parsed = JSON.parse(match[0]) as unknown[];
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map(id => String(id))
+      .filter(id => validIds.includes(id))
+      .slice(0, 4);
+  } catch (err) {
+    logger.warn(`[aiClient] Failed to parse pathway JSON: ${(err as Error).message}`);
+    return [];
+  }
+}
+
+function parseGapAnalysisResponse(raw: string): {
+  gaps: Array<{ topic: string; summary: string; frequency: number; suggestedActions: string[] }>;
+  trendingTopics: string[];
+} {
+  const clean = raw.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+  const match = clean.match(/\{[\s\S]*\}/);
+  const defaultResult = { gaps: [], trendingTopics: [] };
+  if (!match) return defaultResult;
+  try {
+    const parsed = JSON.parse(match[0]) as any;
+    return {
+      gaps: Array.isArray(parsed.gaps) ? parsed.gaps.map((g: any) => ({
+        topic: String(g.topic || 'Unknown'),
+        summary: String(g.summary || ''),
+        frequency: Number(g.frequency || 1),
+        suggestedActions: Array.isArray(g.suggestedActions) ? g.suggestedActions.map(String) : [],
+      })) : [],
+      trendingTopics: Array.isArray(parsed.trendingTopics) ? parsed.trendingTopics.map(String) : [],
+    };
+  } catch (err) {
+    logger.warn(`[aiClient] Failed to parse gap analysis JSON: ${(err as Error).message}`);
+    return defaultResult;
+  }
+}
+
+>>>>>>> Stashed changes
 // ─── Default export ─────────────────────────────────────────────────────────
 
 export default AiClient;

@@ -18,6 +18,7 @@ import { jobQueue } from '../utils/http/jobQueue.js';
 // Cron job handlers
 import { runPromotionCycle } from '../modules/program/promotion.service.js';
 import { runFreshnessCheck } from '../modules/faq/freshness.controller.js';
+import { runKnowledgeGapAnalysis } from '../modules/ai/knowledge-gap.service.js';
 // Note: `clusterAllActiveBatches` (utils/ai/categoryClusterer.ts) is the v1.70
 // embedding-based clusterer. It called a local ONNX embedder that this
 // deployment doesn't have, which surfaced as a burst of
@@ -110,6 +111,13 @@ export async function startup(config: any): Promise<void> {
     handler: runFreshnessCheck,
     intervalMs: config.cron.freshnessCheckIntervalMs,
     runOnStartup: true,
+  });
+
+  cronManager.register({
+    name: 'knowledge-gap-analysis',
+    handler: runKnowledgeGapAnalysis,
+    intervalMs: 7 * 24 * 60 * 60 * 1000, // 7 days
+    runOnStartup: false,
   });
 
   // Phase 1 R3 — drain the notification outbox every 60s. Retries

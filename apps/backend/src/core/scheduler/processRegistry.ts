@@ -200,6 +200,14 @@ export const PROCESS_METADATA: ProcessMetadata[] = [
     canTriggerManually: true,
   },
   {
+    id: 'knowledge-gap-analysis',
+    label: 'Knowledge Gap Analysis',
+    description: 'Weekly AI-driven analysis of escalated posts and questions to identify documentation gaps.',
+    kind: 'cron',
+    owner: 'modules/ai/knowledge-gap.service.ts',
+    canTriggerManually: true,
+  },
+  {
     id: 'notification-outbox-drain',
     label: 'Notification Outbox Drain',
     description: 'Flushes pending notifications every 60s. Retries failed sends.',
