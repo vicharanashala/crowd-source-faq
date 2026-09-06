@@ -1,6 +1,35 @@
 import { logger } from '../utils/http/logger.js';
 import { getGcsConfig } from '../integrations/gcs/gcs.js';
 
+// ─────────────────────────────────────────────────────────────────────────
+// Fix for #232 — by Aswini Kumar Dhar
+//
+// WHAT CHANGED: validateEnv() used to call process.exit(1) directly when
+// a required env var was missing/invalid. Now it throws this typed error
+// instead, and lets the caller decide what to do with it.
+//
+// WHY: process.exit(1) kills the entire process the instant it's called —
+// including the Vitest test runner, if a test tries to call validateEnv()
+// with a deliberately broken environment to check that it would fail.
+// There was no way to write a unit test for "does validateEnv() correctly
+// detect a missing MONGODB_URI" without the whole test suite dying along
+// with it. Throwing an error instead makes the failure catchable — tests
+// can assert on it normally with expect(...).toThrow(), and the real
+// server (server.ts) can still catch it and exit exactly as before.
+//
+// `errors` carries every individual problem found (e.g. both a missing
+// MONGODB_URI AND a too-short JWT_SECRET at once), so whoever catches this
+// can log each line separately, matching the old multi-line log output.
+// ─────────────────────────────────────────────────────────────────────────
+export class EnvValidationError extends Error {
+  public readonly errors: string[];
+  constructor(errors: string[]) {
+    super(`Environment validation failed:\n${errors.map((e) => `  - ${e}`).join('\n')}`);
+    this.name = 'EnvValidationError';
+    this.errors = errors;
+  }
+}
+
 export function validateEnv(): void {
   const errors: string[] = [];
 
@@ -109,10 +138,16 @@ export function validateEnv(): void {
     }
   }
 
+  // #232 — was: log every error here, then process.exit(1) right on the
+  // spot. 
+  // Now: just throw, and let server.ts (the actual process boot boundary)
+  // decide to log + exit. Same information either way — just
+  // handed off instead of acted on immediately.
   if (errors.length > 0) {
-    logger.error('Environment validation failed:');
-    errors.forEach(e => logger.error(`  - ${e}`));
-    process.exit(1);
+    // logger.error('Environment validation failed:');
+    // errors.forEach(e => logger.error(`  - ${e}`));
+    // process.exit(1);
+    throw new EnvValidationError(errors);
   }
 
   // v1.71 — Soft warning when no Redis TCP URL is configured in prod.
