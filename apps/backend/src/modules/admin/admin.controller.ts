@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+﻿import { Request, Response } from 'express';
 import { Types } from 'mongoose';
 import FAQ, { IFAQ } from '../faq/faq.model.js';
 import User, { IUser } from '../auth/user.model.js';
@@ -11,7 +11,8 @@ import { sanitizeHtml } from '../../utils/http/sanitize.js';
 import { adminLog } from '../../utils/http/logger.js';
 import FreshReviewVote from '../faq/fresh-review-vote.model.js';
 import { generateEmbedding } from '../../utils/ai/embeddings.js';
-// v1.69 — Phase 3i: admin dashboard reads accept an optional
+import { PipelineResult } from '../ai/pipeline-result.model.js';
+// v1.69 â€” Phase 3i: admin dashboard reads accept an optional
 // ?batchId=... filter so an admin can scope a stats query to a
 // single program. Global view is still the default.
 import { withProgramScope, assertSameProgram } from '../../utils/db/scopedQuery.js';
@@ -148,6 +149,125 @@ export const getFaqGrowth = async (req: Request, res: Response): Promise<void> =
   }
 };
 
+// GET /api/admin/ai-decision-health
+//
+// Returns a 14-day (default) time series of auto-answer pipeline
+// decisions, bucketed by day in UTC. Each day carries counts of
+// `approved`, `suggested`, and `escalated` verdicts, plus the day's
+// average AI confidence. Missing days are filled with zeros so the
+// chart never has a misleading gap.
+//
+// Why UTC: matches $dateToString default and the existing
+// `AiApiCall.buildCleanupQuery` convention. Admins viewing the chart
+// in a different timezone will see day boundaries shifted; document
+// this once in the chart's tooltip rather than per-request.
+//
+// Why scope to `pipeline: 'auto_answer'` only: the FAQ audit pipeline
+// produces different verdicts (`correct | drift_detected | contradiction
+// | stale`) with different meaning, and would need its own chart to be
+// readable. Keeping this single-purpose matches the "one focused chart
+// per PR" pattern.
+//
+// Note: PipelineResult has a 30-day TTL by default
+// (`PIPELINE_RESULT_TTL_DAYS` env). A 14-day window always fits;
+// longer windows would need that env bumped.
+export const getAiDecisionHealth = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const days = parseInt(req.query.days as string) || 14;
+    const batchId = (req.query.batchId as string | undefined) ?? null;
+
+    const from = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    // Match via withProgramScope so the chart follows the same
+    // batchId-handling convention as getFaqGrowth / getStats. An invalid
+    // batchId is silently ignored (consistent with other admin chart
+    // endpoints â€” never 500s on bad ids).
+    const match = withProgramScope<unknown>(
+      { pipeline: 'auto_answer', checkedAt: { $gte: from } },
+      batchId && Types.ObjectId.isValid(batchId) ? batchId : null,
+    );
+
+    // Single aggregation: group by day, get per-day verdict counts as
+    // sub-buckets AND the per-day average confidence. Grouping at day
+    // (not (day, verdict)) lets Mongo compute the day's avg confidence
+    // in one pass over the day's docs.
+    const raw = await PipelineResult.aggregate<{
+      _id: string;
+      counts: string[];
+      avgConfidence: number;
+    }>([
+      { $match: match },
+      {
+        $group: {
+          _id: {
+            $dateToString: {
+              format: '%Y-%m-%d',
+              date: '$checkedAt',
+              timezone: 'UTC',
+            },
+          },
+          counts: { $push: '$verdict' },
+          avgConfidence: { $avg: '$confidence' },
+        },
+      },
+    ]);
+
+    // Bucket raw rows into per-day shape with the three verdicts we chart.
+    // Unknown verdicts (forward compat) are ignored here so a future enum
+    // addition doesn't break rendering.
+    type DayRow = {
+      date: string;
+      approved: number;
+      suggested: number;
+      escalated: number;
+      total: number;
+      avgConfidence: number;
+    };
+    const byDay = new Map<string, DayRow>();
+
+    for (const row of raw) {
+      const day = row._id;
+      let approved = 0;
+      let suggested = 0;
+      let escalated = 0;
+      for (const v of row.counts) {
+        if (v === 'approved') approved++;
+        else if (v === 'suggested') suggested++;
+        else if (v === 'escalated') escalated++;
+        // unknown verdicts are intentionally dropped (forward compat).
+      }
+      const total = approved + suggested + escalated;
+      byDay.set(day, {
+        date: day,
+        approved,
+        suggested,
+        escalated,
+        total,
+        avgConfidence:
+          total > 0 ? Math.round(row.avgConfidence * 100) / 100 : 0,
+      });
+    }
+
+    // Fill missing days with zeros so the chart never has a misleading gap.
+    const result: DayRow[] = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+      const dateStr = d.toISOString().split('T')[0]; // YYYY-MM-DD in UTC
+      const existing = byDay.get(dateStr);
+      result.push(
+        existing
+          ? existing
+          : { date: dateStr, approved: 0, suggested: 0, escalated: 0, total: 0, avgConfidence: 0 },
+      );
+    }
+
+    res.json(result);
+  } catch (error) {
+    adminLog.warn(`[admin] getAiDecisionHealth failed: ${(error as Error).message}`);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 // GET /api/admin/top-categories
 export const getTopCategories = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -161,7 +281,7 @@ export const getTopCategories = async (req: Request, res: Response): Promise<voi
       { $limit: 10 },
     );
 
-    // v1.69 — PipelineStage cast — the pipeline is built
+    // v1.69 â€” PipelineStage cast â€” the pipeline is built
     // dynamically (a \$match pre-stage when batchId is set)
     // and TypeScript can't narrow the array element type
     // through the spread. The runtime shape is correct.
@@ -218,7 +338,7 @@ function escapeRegex(str: string): string {
 export const getUsers = async (req: Request, res: Response): Promise<void> => {
   try {
     const page = parseInt(req.query.page as string) || 1;
-    // S5-H10 (HIGH) fix: cap the limit to 50 (was uncapped — `?limit=9999999`
+    // S5-H10 (HIGH) fix: cap the limit to 50 (was uncapped â€” `?limit=9999999`
     // would dump the entire users collection in one response). Matches
     // the cap used in getModerationLogs.
     const limit = Math.min(50, parseInt(req.query.limit as string) || 20);
@@ -297,7 +417,7 @@ export const approveFAQ = async (req: Request, res: Response): Promise<void> => 
     faq.status = 'approved';
     // S5-M6 (MEDIUM) fix: previously the three side effects
     // (faq.save, invalidateCache, invalidatePublicCaches, logAction)
-    // were sequential non-atomic — if invalidateCache throws, the
+    // were sequential non-atomic â€” if invalidateCache throws, the
     // FAQ is saved with status='approved' but the public cache is
     // stale. Now: run the two cache invalidations in parallel via
     // Promise.all (both are best-effort). logAction runs in the
@@ -369,7 +489,7 @@ export const updateFAQ = async (req: Request, res: Response): Promise<void> => {
     // Recalculate embedding if key fields updated
     if (question || answer || category) {
       // S5-M7 (MEDIUM) fix: previously this awaited `generateEmbedding`
-      // inline with no timeout — a cold provider could stall the
+      // inline with no timeout â€” a cold provider could stall the
       // admin response indefinitely. Now: race the embedding against
       // a 5-second timeout. On timeout, log + continue without
       // updating the embedding (the next cron will regenerate).
@@ -495,7 +615,7 @@ export const getReports = async (req: Request, res: Response): Promise<void> => 
     if (to) dateFilter.$lte = new Date(to);
 
     // S5-L6 (LOW) fix: previously the page/limit query params were
-    // ignored — every call did an uncapped `.limit(500)` and returned
+    // ignored â€” every call did an uncapped `.limit(500)` and returned
     // the latest 500 rows regardless of what the admin asked for.
     // Admins requesting a wide date range silently got only the most
     // recent 500, with no `total` / `hasMore` so they couldn't tell
@@ -573,7 +693,7 @@ export const getUserActivityChart = async (req: Request, res: Response): Promise
     const from = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
     // Aggregate actual search activity per day: count searches + unique users.
-    // v1.68 — M1: SearchLog now has a userId field. The aggregation
+    // v1.68 â€” M1: SearchLog now has a userId field. The aggregation
     // uses $addToSet to count distinct userIds per day, then $size
     // to count the set. Anonymous searches (userId=null) are
     // excluded from the unique count.
@@ -638,7 +758,7 @@ export const getCommunityPosts = async (req: Request, res: Response): Promise<vo
       // S5-H11 (HIGH) fix: previously this built `{ $regex: search }` raw,
       // letting admin-controlled regex special characters trigger ReDoS.
       // The `escapeRegex` helper exists at the top of this file and is
-      // used by getUsers / getAdminFAQs — apply it here too.
+      // used by getUsers / getAdminFAQs â€” apply it here too.
       base.$or = [
         { title: { $regex: escapeRegex(search), $options: 'i' } },
         { body: { $regex: escapeRegex(search), $options: 'i' } },
