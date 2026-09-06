@@ -15,6 +15,7 @@ import {
   getReports,
   getActivityFeed,
   getUserActivityChart,
+  getModeratorWorkload,
   getCommunityPosts,
   deleteCommunityPost,
 } from './admin.controller.js';
@@ -98,6 +99,7 @@ router.get('/faqs', getAdminFAQs);
 router.get('/reports', getReports);
 router.get('/activity-feed', getActivityFeed);
 router.get('/user-activity-chart', getUserActivityChart);
+router.get('/moderator-workload', getModeratorWorkload);
 router.get('/community/posts', getCommunityPosts);
 
 // 2FA / TOTP management

@@ -3,6 +3,9 @@ import { adminBtnDanger, adminBtnOutline, adminBtnPrimary, adminBtnWarn, adminLa
 import adminApi from '../utils/adminApi';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { timeAgo } from '../../utils/time';
+import ModeratorWorkloadChart, {
+  type ModeratorWorkloadData,
+} from '../components/charts/ModeratorWorkloadChart';
 
 
 interface BannedUser { _id: string; name: string; email: string; banReason?: string; bannedAt?: string; tier: string; points: number; }
@@ -56,6 +59,34 @@ export default function AdminModeration() {
   // H22: state for the inline "Resolve" modal — replaces window.prompt().
   const [resolveModal, setResolveModal] = useState<EscalatedPost | null>(null);
   const [resolveReason, setResolveReason] = useState('');
+
+  // Moderator Workload — last 14 days of moderation actions, stacked
+  // by bucket (warnings / account / content). Fetched independently
+  // from the rest of the page so a chart-fetch failure never blocks
+  // the queue.
+  const [workload, setWorkload] = useState<ModeratorWorkloadData[] | null>(null);
+  const [workloadError, setWorkloadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await adminApi.get<ModeratorWorkloadData[]>(
+          '/admin/moderator-workload',
+          { params: { days: 14 } },
+        );
+        if (!cancelled) setWorkload(r.data);
+      } catch (e) {
+        if (!cancelled) {
+          // Avoid pulling in friendlyError if the rest of the page
+          // doesn't already — keep deps minimal.
+          const msg = e instanceof Error ? e.message : 'failed to load moderator workload';
+          setWorkloadError(msg);
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []); // fetch once on mount — chart is time-windowed, not pagination-bound
 
   useBodyScrollLock(Boolean(dismissModal || resolveModal || warnModal || suspendModal || banModal));
 
@@ -120,6 +151,44 @@ export default function AdminModeration() {
 
   return (
     <div className="space-y-5 max-w-4xl">
+      {/* Moderator Workload — last 14 days. Visible on both Users and
+          Escalated tabs (workload is program-wide, not tab-scoped).
+          Fails independently of the queue below: never blocks the
+          page if the chart's own fetch errors. */}
+      <section
+        aria-label="Moderator Workload — last 14 days"
+        className="bg-card border border-border rounded-2xl p-4"
+      >
+        <div className="flex items-baseline justify-between mb-2">
+          <h2 className="text-xs font-semibold text-ink uppercase tracking-widest">
+            Moderator Workload
+          </h2>
+          <span className="text-[10px] text-ink-faint">last 14 days · UTC</span>
+        </div>
+
+        {!workload && !workloadError && (
+          <div className="h-[220px] flex items-center justify-center text-xs text-ink-faint animate-pulse">
+            Loading workload…
+          </div>
+        )}
+
+        {workloadError && (
+          <div className="h-[220px] flex items-center justify-center text-xs text-danger">
+            {workloadError}
+          </div>
+        )}
+
+        {workload && workload.length > 0 && (
+          <ModeratorWorkloadChart data={workload} />
+        )}
+
+        {workload && workload.length === 0 && (
+          <div className="h-[220px] flex items-center justify-center text-xs text-ink-faint">
+            No moderation actions recorded in the last 14 days.
+          </div>
+        )}
+      </section>
+
       <div className="flex items-center justify-between">
         <p className="text-sm text-ink-faint">Manage bans, suspensions, warnings, and escalated questions</p>
         {/* Tab switcher */}
