@@ -382,7 +382,7 @@ export default function AdminTrain() {
           {/* Link out to existing per-resource admin surfaces */}
           <AdminCard
             title="Add knowledge"
-            subtitle="Route to the existing admin surfaces for content edits. Bulk ingestion is wired on the backend — see docs/auth_samagama.md for the contract."
+            subtitle="Route to the existing admin surfaces for content edits. Bulk ingestion is wired on the backend — see docs/samagama-csfaq-integration.md for the contract."
           >
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <SurfaceLink

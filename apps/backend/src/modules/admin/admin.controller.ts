@@ -388,24 +388,31 @@ export const updateFAQ = async (req: Request, res: Response): Promise<void> => {
       }
     }
 
+    // Build the $set payload with the content fields that were modified above
+    const setPayload: Record<string, unknown> = {
+      reports: [],
+    };
+    if (question) setPayload.question = faq.question;
+    if (answer) setPayload.answer = faq.answer;
+    if (category) setPayload.category = faq.category;
+    if (status) setPayload.status = faq.status;
+    if (tags) setPayload.tags = faq.tags;
+    if (faq.embedding) setPayload.embedding = faq.embedding;
+
     // Admin edit while under review = re-verification
     if (faq.reviewStatus === 'pending_review' || faq.reviewStatus === 'update_requested') {
-      // v1.68 — H3 fix: in-memory mutate + save() is racy.
-      // Wrap as a single atomic $set on the fields the
-      // pending-review branch touches. (reports=[] is set
-      // whether verify is true or not — the original "else"
-      // branch handled the !verify case by just clearing reports.)
       const newCycle = faq.reviewCycle + 1;
-      await FAQ.findOneAndUpdate(
-        { _id: faq._id },
-        { $set: { reports: [], lastVerifiedDate: new Date(), flaggedAt: null, flagType: null, flagReason: null, flaggedBy: null, reviewCycle: newCycle } },
-      );
+      setPayload.lastVerifiedDate = new Date();
+      setPayload.flaggedAt = null;
+      setPayload.flagType = null;
+      setPayload.flagReason = null;
+      setPayload.flaggedBy = null;
+      setPayload.reviewCycle = newCycle;
+      setPayload.reviewStatus = 'verified';
+      await FAQ.findOneAndUpdate({ _id: faq._id }, { $set: setPayload });
       await FreshReviewVote.deleteMany({ faqId: faq._id });
     } else {
-      await FAQ.findOneAndUpdate(
-        { _id: faq._id },
-        { $set: { reports: [] } },
-      );
+      await FAQ.findOneAndUpdate({ _id: faq._id }, { $set: setPayload });
     }
     await logAction(req.user!._id.toString(), 'edit_faq', faq._id.toString(), 'faq', faq.question);
 
