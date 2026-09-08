@@ -1,13 +1,17 @@
 import json
+import os
 
-log_path = '/Users/animeshpathak/.gemini/antigravity-ide/brain/e5e9b9e8-9110-4121-a037-578eafcb259e/.system_generated/logs/transcript_full.jsonl'
+log_path = r'C:\Users\sanuk\crowd-source-faq\apps\backend\transcript_full.jsonl'
 
 model_content = None
 controller_content = None
 
-with open(log_path, 'r') as f:
+with open(log_path, 'r', encoding='utf-8') as f:
     for line in f:
-        data = json.loads(line)
+        try:
+            data = json.loads(line)
+        except json.JSONDecodeError:
+            continue
         idx = data.get('step_index')
         # Check step 230 or any step where MOCKUP settings were written for model
         if idx == 230:
@@ -19,7 +23,6 @@ with open(log_path, 'r') as f:
         # Check step 281 or any step where settings were written for controller
         if idx == 281:
             content_str = data.get('content', '')
-            # If it's a RUN_COMMAND response or system message, it has file changes
             if 'app-settings.controller.ts' in content_str:
                 print(f"Controller system log found in step {idx}")
             tool_calls = data.get('tool_calls', [])
@@ -36,3 +39,11 @@ with open(log_path, 'r') as f:
 # Let's see what was written.
 print("model_content:", model_content is not None)
 print("controller_content:", controller_content is not None)
+
+if model_content:
+    with open("model_output.ts", "w", encoding="utf-8") as f:
+        f.write(model_content)
+
+if controller_content:
+    with open("controller_output.ts", "wgit", encoding="utf-8") as f:
+        f.write(controller_content)
