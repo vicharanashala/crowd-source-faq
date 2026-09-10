@@ -188,6 +188,8 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
   const [checkingDuplicates, setCheckingDuplicates] = useState(false);
   const [floatAway] = useState(false);
   const duplicateCheckTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const duplicateCheckAbortRef = useRef<AbortController | null>(null);
+  const duplicateCheckRequestIdRef = useRef(0);
 
   // Toast state
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'warn' | 'info' } | null>(null);
@@ -235,24 +237,52 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
 
   useEffect(() => {
     if (duplicateCheckTimerRef.current) clearTimeout(duplicateCheckTimerRef.current);
+
+    // Cancel the previous in-flight request and advance the request id so an
+    // older response can never overwrite the result for the current title.
+    duplicateCheckAbortRef.current?.abort();
+    duplicateCheckAbortRef.current = null;
+    const requestId = ++duplicateCheckRequestIdRef.current;
+
     const q = title.trim();
     if (q.length < 10) {
       setDuplicateMatch(null);
       setCheckingDuplicates(false);
       return;
     }
+
     setCheckingDuplicates(true);
     duplicateCheckTimerRef.current = setTimeout(async () => {
+      const controller = new AbortController();
+      duplicateCheckAbortRef.current = controller;
+
       try {
-        const res = await api.post<{ isDuplicate: boolean; matches: DuplicateMatch[] }>('/community/check-duplicate', { query: q });
-        setDuplicateMatch(res.data);
+        const res = await api.post<{ isDuplicate: boolean; matches: DuplicateMatch[] }>(
+          '/community/check-duplicate',
+          { query: q },
+          { signal: controller.signal },
+        );
+
+        // Axios cancellation protects the network request, while the request
+        // id also protects us if an adapter/mock resolves an aborted request.
+        if (requestId === duplicateCheckRequestIdRef.current) {
+          setDuplicateMatch(res.data);
+        }
       } catch {
-        setDuplicateMatch(null);
+        if (requestId === duplicateCheckRequestIdRef.current) {
+          setDuplicateMatch(null);
+        }
       } finally {
-        setCheckingDuplicates(false);
+        if (requestId === duplicateCheckRequestIdRef.current) {
+          setCheckingDuplicates(false);
+        }
       }
     }, 600);
-    return () => { if (duplicateCheckTimerRef.current) clearTimeout(duplicateCheckTimerRef.current); };
+
+    return () => {
+      if (duplicateCheckTimerRef.current) clearTimeout(duplicateCheckTimerRef.current);
+      duplicateCheckAbortRef.current?.abort();
+    };
   }, [title]);
 
   const handleSubmit = async (e: React.FormEvent) => {
