@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+﻿import { Request, Response } from 'express';
 import { Types } from 'mongoose';
 import FAQ, { IFAQ } from '../faq/faq.model.js';
 import User, { IUser } from '../auth/user.model.js';
@@ -15,6 +15,7 @@ import { generateEmbedding } from '../../utils/ai/embeddings.js';
 // ?batchId=... filter so an admin can scope a stats query to a
 // single program. Global view is still the default.
 import { withProgramScope, assertSameProgram } from '../../utils/db/scopedQuery.js';
+import ModerationLog from '../moderation/moderation-log.model.js';
 import ProgramEnrollment from '../program/program-enrollment.model.js';
 import { setContextBatchId } from '../../utils/http/requestContext.js';
 
@@ -145,6 +146,123 @@ export const getFaqGrowth = async (req: Request, res: Response): Promise<void> =
     res.json(result);
   } catch (error) {
     res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
+  }
+};
+
+// GET /api/admin/moderator-workload
+//
+// Returns a 14-day (default) time series of moderator activity, bucketed
+// by day in UTC. Each day carries three counts covering all 11
+// `ModerationAction` enum values — nothing falls into an "other" bucket:
+//
+//   - warnings      â†’ warn, lift_warning, point_deduct, badge_issue_negative
+//   - account       â†’ ban, unban, suspend, unsuspend
+//   - content       â†’ soft_delete, restore, delete_content
+//
+// Missing days are filled with zeros so the chart never has a misleading
+// gap. Unknown actions (forward-compat) are silently dropped at the
+// aggregation layer so a future enum addition does not silently inflate
+// any bucket.
+//
+// Why time-series and not per-moderator: a per-moderator leaderboard
+// would name-and-shame individual admins, which is a different
+// conversation than workload trend. Keep this single-purpose; build a
+// separate leaderboard later if there's demand.
+//
+// Why UTC: matches $dateToString default and the rest of the admin
+// chart endpoints. Admins in different timezones will see day
+// boundaries shifted; document once in the tooltip rather than per-
+// request.
+export const getModeratorWorkload = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const days = parseInt(req.query.days as string) || 14;
+    const batchId = (req.query.batchId as string | undefined) ?? null;
+
+    const from = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    // Bucket map: which moderation action belongs to which chart bucket.
+    // All 11 enum values are accounted for explicitly so reviewers can
+    // audit this list without grepping the model file.
+    const WARNING_ACTIONS = ['warn', 'lift_warning', 'point_deduct', 'badge_issue_negative'];
+    const ACCOUNT_ACTIONS = ['ban', 'unban', 'suspend', 'unsuspend'];
+    const CONTENT_ACTIONS = ['soft_delete', 'restore', 'delete_content'];
+
+    // Match via withProgramScope — invalid batchId is silently ignored,
+    // matching the project's established admin-chart convention.
+    const match = withProgramScope<unknown>(
+      { createdAt: { $gte: from } },
+      batchId && Types.ObjectId.isValid(batchId) ? batchId : null,
+    );
+
+    const raw = await ModerationLog.aggregate<{
+      _id: { day: string; action: string };
+      count: number;
+    }>([
+      { $match: match },
+      {
+        $group: {
+          _id: {
+            day: {
+              $dateToString: {
+                format: '%Y-%m-%d',
+                date: '$createdAt',
+                timezone: 'UTC',
+              },
+            },
+            action: '$action',
+          },
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    type DayRow = {
+      date: string;
+      warnings: number;
+      account: number;
+      content: number;
+      total: number;
+    };
+    const byDay = new Map<string, DayRow>();
+
+    for (const row of raw) {
+      const day = row._id.day;
+      const action = row._id.action;
+      let bucket = byDay.get(day);
+      if (!bucket) {
+        bucket = { date: day, warnings: 0, account: 0, content: 0, total: 0 };
+        byDay.set(day, bucket);
+      }
+      if (WARNING_ACTIONS.includes(action)) {
+        bucket.warnings += row.count;
+      } else if (ACCOUNT_ACTIONS.includes(action)) {
+        bucket.account += row.count;
+      } else if (CONTENT_ACTIONS.includes(action)) {
+        bucket.content += row.count;
+      }
+      // Unknown actions are intentionally not counted anywhere — they
+      // would belong in an "other" bucket that we don't want to chart.
+      // Total is summed only from the three buckets we display.
+      bucket.total = bucket.warnings + bucket.account + bucket.content;
+    }
+
+    // Fill missing days with zeros — oldest â†’ newest.
+    const result: DayRow[] = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+      const dateStr = d.toISOString().split('T')[0];
+      const existing = byDay.get(dateStr);
+      result.push(
+        existing
+          ? existing
+          : { date: dateStr, warnings: 0, account: 0, content: 0, total: 0 },
+      );
+    }
+
+    res.json(result);
+  } catch (error) {
+    adminLog.warn(`[admin] getModeratorWorkload failed: ${(error as Error).message}`);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 

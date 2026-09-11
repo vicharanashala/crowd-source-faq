@@ -157,6 +157,7 @@ crowd-source-faq/
 - `GET /api/admin/top-categories` — FAQ count + views per category
 - `GET /api/admin/search-insights` — top 15 queries, fail rate, daily activity
 - `GET /api/admin/user-activity-chart` — daily search volume over N days
+- `GET /api/admin/moderator-workload` — moderation action daily counts grouped by warnings / account / content (`?days=`, `?batchId=`)
 - `GET /api/community/solved` — posts resolved in last 24h (for "Top Solved Today" on home page)
 
 ---
@@ -283,6 +284,7 @@ crowd-source-faq/
 | GET | `/api/admin/reports` | Date-range report export |
 | GET | `/api/admin/activity-feed` | Recent admin actions |
 | GET | `/api/admin/user-activity-chart` | Daily activity chart |
+| GET | `/api/admin/moderator-workload` | Moderation action daily counts grouped by warnings / account / content (query: `days`, `batchId`) |
 | POST | `/api/admin/faq` | Create FAQ |
 | POST | `/api/admin/faq/approve` | Approve FAQ |
 | POST | `/api/admin/faq/reject` | Reject FAQ |

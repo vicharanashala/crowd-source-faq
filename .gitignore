@@ -198,3 +198,41 @@ apps/backend/tessdata/
 apps/backend/uploads/*
 !apps/backend/uploads/onboarding-resources/
 apps/backend/faqs.json
+
+# ==============================================================================
+# Local dev artifacts (backend logs + ad-hoc probes + debug screenshots)
+# ==============================================================================
+apps/backend/backend.out
+apps/backend/backend.err
+apps/backend/backend2.out
+apps/backend/backend2.err
+apps/backend/seed.out
+apps/backend/seed.err
+apps/backend/probe-charts.cjs
+apps/backend/probe-mod.cjs
+diff-bytes.cjs
+dump-page.ps1
+dump-dom.ps1
+dump-dom-authed.ps1
+screenshot-authed.ps1
+screenshot-chart.ps1
+check-flag-usage.ps1
+find-feature-gate.ps1
+probe.ps1
+check-mod-logs.ps1
+check-pipeline-results.js
+check-pipeline-results.ps1
+crop.py
+inspect-pixels.py
+csfaq-bootstrap.html
+dom-*.html
+verify-*.html
+verify-*.png
+chart1-*.png
+chart-slice.png
+csfaq-admin-chart*.png
+csfaq-chart1-current.png
+csfaq-login.png
+page-chart1.png
+*.html.timestamp-*
+
