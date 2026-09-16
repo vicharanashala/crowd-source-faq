@@ -27,6 +27,18 @@ export interface IBatch extends Document {
    */
   isDefault: boolean;
   /**
+   * v1.87 — what kind of programme this is. Defaults to
+   * `internship` so every pre-existing batch (Summership,
+   * Monsoonship) keeps behaving exactly as before with no
+   * migration needed for them. Set explicitly to `fdp` for
+   * faculty development programmes (e.g. Vriddhi) which have no
+   * `internshipEndDate` concept at all — the Sign My Tee
+   * eligibility gate in `tee.controller.ts` reads this to decide
+   * whether to ask a user for one. `other` is the escape hatch for
+   * anything that is neither.
+   */
+  programType: 'internship' | 'fdp' | 'other';
+  /**
    * v1.69 — Phase 1: lifecycle status. Replaces the boolean
    * `isActive` for finer-grained control. New programs default to
    * `draft`. The public portal only shows `active`; the admin
@@ -77,6 +89,16 @@ const batchSchema = new MongooseSchema<IBatch>(
     // v1.68 — schema fix: ensure endDate > startDate. Catches
     // admin fat-finger (e.g. swapping the two dates).
     isActive:  { type: Boolean, default: true, index: true },
+    // v1.87 — programme type. Defaults to 'internship' so every
+    // pre-existing batch keeps its current Sign My Tee gating
+    // behaviour untouched; set explicitly to 'fdp' for non-internship
+    // programmes such as Vriddhi.
+    programType: {
+      type: String,
+      enum: ['internship', 'fdp', 'other'] as Array<'internship' | 'fdp' | 'other'>,
+      default: 'internship',
+      index: true,
+    },
     // v1.69 — Phase 1: lifecycle status. Defaults to 'active' so
     // the existing seed-created programs don't break. New programs
     // created via admin will default to 'draft' and the admin UI

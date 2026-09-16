@@ -70,6 +70,28 @@ export function isEligibleForTee(today: Date, endDate: Date | null | undefined):
  */
 export type WindowPhase = 'before' | 'open' | 'after';
 
+/**
+ * Sign My Tee is an internship-only feature. Given the `programType`
+ * of every batch a user has an *active* enrollment in, should we ask
+ * them for an `internshipEndDate` at all?
+ *
+ * - Any active `internship` enrollment -> yes, ask (even if they
+ *   also happen to be in a non-internship programme).
+ * - Active enrollments exist, none of them `internship` -> no, this
+ *   user (e.g. a Vriddhi FDP participant) has no internship to date.
+ * - No active enrollments at all -> yes, ask. This preserves the
+ *   pre-v1.87 behaviour for the edge case of a user with no
+ *   ProgramEnrollment row (shouldn't happen after the v1.69
+ *   backfill, but silently hiding a real gate is the worse failure
+ *   mode).
+ */
+export function requiresInternshipTracking(
+  enrolledProgramTypes: Array<'internship' | 'fdp' | 'other'>,
+): boolean {
+  if (enrolledProgramTypes.length === 0) return true;
+  return enrolledProgramTypes.includes('internship');
+}
+
 export function windowPhase(today: Date, endDate: Date | null | undefined): {
   phase: WindowPhase;
   daysOffset: number;

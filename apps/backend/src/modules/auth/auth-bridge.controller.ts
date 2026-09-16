@@ -82,8 +82,15 @@ interface BridgeRequest {
  * without knowing that the portal is mounted under /csfaq.
  */
 function getPortalBaseUrl(): string {
-  const raw = (process.env.PUBLIC_URL ?? process.env.CLIENT_URL ?? '').trim();
-  const base = raw && raw !== '#' ? raw : 'http://localhost:5173';
+  // `??` alone is not enough here. Our .env ships these keys with a
+  // literal "#" placeholder, which is a non-null string, so
+  // `PUBLIC_URL ?? CLIENT_URL` would return "#" and never consult
+  // CLIENT_URL. Treat placeholder and empty as unset.
+  const clean = (v: string | undefined): string => {
+    const t = (v ?? '').trim();
+    return t === '' || t === '#' ? '' : t;
+  };
+  const base = clean(process.env.PUBLIC_URL) || clean(process.env.CLIENT_URL) || 'http://localhost:5173';
   return base.replace(/\/+$/, '');
 }
 

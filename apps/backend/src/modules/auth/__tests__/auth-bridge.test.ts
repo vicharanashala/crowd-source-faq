@@ -380,6 +380,33 @@ describe('POST /api/auth/bridge/exchange', () => {
     expect(redirectUrl.toLowerCase()).not.toContain('token');
   });
 
+  it('falls through a "#" placeholder in PUBLIC_URL to CLIENT_URL', async () => {
+    // Our .env ships these keys as a literal "#". A plain `??` would
+    // treat that as a real value and never reach CLIENT_URL, so a
+    // correctly configured CLIENT_URL would still produce a localhost
+    // redirect in production.
+    const prevPublic = process.env.PUBLIC_URL;
+    const prevClient = process.env.CLIENT_URL;
+    process.env.PUBLIC_URL = '#';
+    process.env.CLIENT_URL = 'https://samagama.in';
+    try {
+      const ts = Math.floor(Date.now() / 1000);
+      const { req, res } = mockReqRes({
+        email,
+        displayName,
+        ts,
+        sig: sign(PRIMARY, ts, email, displayName),
+      });
+      await exchangeBridgeToken(req, res as never);
+
+      const { redirectUrl } = res.payload as { redirectUrl: string };
+      expect(redirectUrl).toBe('https://samagama.in/csfaq/');
+    } finally {
+      process.env.PUBLIC_URL = prevPublic;
+      process.env.CLIENT_URL = prevClient;
+    }
+  });
+
   it('v1 redirectUrl points at the portal root', async () => {
     const ts = Math.floor(Date.now() / 1000);
     const { req, res } = mockReqRes({

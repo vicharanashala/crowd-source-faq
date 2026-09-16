@@ -30,6 +30,7 @@ import {
   daysBetween,
   startOfLocalDay,
   windowPhase,
+  requiresInternshipTracking,
 } from '../modules/tee/eligibility.js';
 import {
   teeConfigSchema,
@@ -49,6 +50,28 @@ describe('eligibility: startOfLocalDay', () => {
     expect(m.getMinutes()).toBe(0);
     expect(m.getSeconds()).toBe(0);
     expect(m.getMilliseconds()).toBe(0);
+  });
+});
+
+describe('eligibility: requiresInternshipTracking', () => {
+  it('requires it when the user has an active internship enrollment', () => {
+    expect(requiresInternshipTracking(['internship'])).toBe(true);
+  });
+
+  it('requires it when the user has both internship and fdp enrollments', () => {
+    expect(requiresInternshipTracking(['fdp', 'internship'])).toBe(true);
+  });
+
+  it('does not require it for an fdp-only user (e.g. Vriddhi)', () => {
+    expect(requiresInternshipTracking(['fdp'])).toBe(false);
+  });
+
+  it('does not require it for an other-only user', () => {
+    expect(requiresInternshipTracking(['other'])).toBe(false);
+  });
+
+  it('falls back to requiring it when there are no active enrollments at all', () => {
+    expect(requiresInternshipTracking([])).toBe(true);
   });
 });
 

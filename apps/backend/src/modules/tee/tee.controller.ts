@@ -26,7 +26,9 @@ import {
   teeSignatureSchema,
   teeSignaturePositionSchema,
 } from './tee.validation.js';
-import { isEligibleForTee } from './eligibility.js';
+import { isEligibleForTee, requiresInternshipTracking } from './eligibility.js';
+import ProgramEnrollment from '../program/program-enrollment.model.js';
+import Batch from '../program/batch.model.js';
 import { publicBasePath, publicAssetUrl } from '../../utils/publicBasePath.js';
 import { uploadSignatureToCloudinary } from '../../integrations/cloudinary/cloudinary.js';
 
@@ -147,11 +149,34 @@ export const getMyEligibility = async (req: Request, res: Response): Promise<voi
     const endDate: Date | null = hasEndDate ? new Date((user as any).internshipEndDate) : null;
     const eligible = hasEndDate ? isEligibleForTee(new Date(), endDate) : false;
     const configuredTee = await Tee.findOne({ ownerId: req.user._id }).select('shareId').lean();
+
+    // Sign My Tee is an internship-only feature. Only ask for an
+    // internshipEndDate if the user has at least one active
+    // enrollment in an `internship`-type batch (e.g. Summership,
+    // Monsoonship). A user whose only active enrollments are
+    // non-internship (e.g. Vriddhi, an FDP) should never see this
+    // gate. Users with no enrollment rows at all (shouldn't happen
+    // post-migration, but just in case) fall back to the old
+    // behaviour so we never silently hide a real gate.
+    let requiresInternshipEndDate = !hasEndDate;
+    if (requiresInternshipEndDate) {
+      const activeEnrollments = await ProgramEnrollment.find({
+        userId: req.user._id,
+        isActive: true,
+      }).select('batchId').lean();
+      const batchIds = activeEnrollments.map((e) => (e as any).batchId);
+      const batches = batchIds.length > 0
+        ? await Batch.find({ _id: { $in: batchIds } }).select('programType').lean()
+        : [];
+      const enrolledProgramTypes = batches.map((b) => (b as any).programType as 'internship' | 'fdp' | 'other');
+      requiresInternshipEndDate = requiresInternshipTracking(enrolledProgramTypes);
+    }
+
     res.status(200).json({
       eligible,
       endDate: endDate ? endDate.toISOString() : null,
       hasConfiguredTee: !!configuredTee,
-      requiresInternshipEndDate: !hasEndDate,
+      requiresInternshipEndDate,
       shareId: configuredTee?.shareId ?? null,
     });
   } catch (err) {

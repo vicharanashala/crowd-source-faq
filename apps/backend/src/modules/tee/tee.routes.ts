@@ -15,6 +15,7 @@ import express from 'express';
 import multer from 'multer';
 import { protect } from '../../middleware/auth.js';
 import { protectOptional } from '../../middleware/protectOptional.js';
+import { userBurstLimiter } from '../../utils/auth/rateLimit.js';
 import {
   getMyTee,
   upsertMyTee,
@@ -32,7 +33,10 @@ const uploadMemory = multer({ storage: multer.memoryStorage(), limits: { fileSiz
 // ── My tee (authenticated) ───────────────────────────────────────────────────
 router.get('/me', protect, getMyTee);
 router.post('/me', protect, upsertMyTee);
-router.get('/me/eligibility', protect, getMyEligibility);
+// v1.87 — this handler now also queries ProgramEnrollment + Batch on every
+// call (see getMyEligibility), so it gets the same per-user burst limiter
+// already used elsewhere for authenticated-abuse protection.
+router.get('/me/eligibility', protect, userBurstLimiter, getMyEligibility);
 router.get('/me/signed-by-me', protect, getSignedByMe);
 
 // ── Public share ─────────────────────────────────────────────────────────────

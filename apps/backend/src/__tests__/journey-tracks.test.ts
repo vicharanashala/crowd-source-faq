@@ -146,6 +146,16 @@ vi.mock('../modules/auth/user.model.js', () => ({
     find: vi.fn(() => ({
       select: () => ({ lean: async () => mocks.state.users }),
     })),
+    // assignedTrackIdsForUser() calls .findById(userId).select('batchId').lean()
+    // to read the legacy batchId field off the user doc directly. Falls back to
+    // null (no legacy batchId) unless a test seeds mocks.state.users with a
+    // matching row.
+    findById: vi.fn((id: unknown) => ({
+      select: () => ({
+        lean: async () =>
+          mocks.state.users.find((u) => String(u._id) === String(id)) ?? null,
+      }),
+    })),
   },
 }));
 
