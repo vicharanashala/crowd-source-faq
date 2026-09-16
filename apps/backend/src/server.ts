@@ -1,5 +1,5 @@
 import './env.js';
-import { validateEnv } from './config/envValidator.js';
+import { validateEnv, EnvValidationError } from './config/envValidator.js';
 import { loadConfig } from './config/loader.js';
 import { createApp } from './bootstrap/app.js';
 import { startup, stopAllSchedulers } from './bootstrap/startup.js';
@@ -7,8 +7,21 @@ import { startupLog, shutdownLog, logger } from './utils/http/logger.js';
 import * as Sentry from '@sentry/node';
 import type { Server } from 'http';
 
-// Validate environment variables first
-validateEnv();
+// Validate environment variables first. validateEnv() throws a typed
+// EnvValidationError on failure (M7) — the decision to terminate the
+// process belongs here at the boot boundary, not inside the validator.
+try {
+  validateEnv();
+} catch (err) {
+  // The name check guards against dual module instances (ESM/CJS interop
+  // or bundler duplication), where `instanceof` can fail across copies.
+  if (err instanceof EnvValidationError || (err as Error)?.name === 'EnvValidationError') {
+    logger.error('Environment validation failed:');
+    ((err as EnvValidationError).errors ?? []).forEach((e) => logger.error(`  - ${e}`));
+    process.exit(1);
+  }
+  throw err;
+}
 
 const config = loadConfig();
 const app = createApp(config);

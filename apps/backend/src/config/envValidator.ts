@@ -1,6 +1,27 @@
 import { logger } from '../utils/http/logger.js';
 import { getGcsConfig } from '../integrations/gcs/gcs.js';
 
+/**
+ * EnvValidationError — thrown by validateEnv() when the environment is
+ * invalid (missing/malformed required variables).
+ *
+ * M7 fix: validateEnv() used to call process.exit(1) directly, which made
+ * it impossible to unit-test (a failing validation killed the test runner)
+ * and unsafe to call from any context other than process boot. The
+ * validator now reports failures through this typed error and the boot
+ * boundary (server.ts) decides whether to terminate the process.
+ */
+export class EnvValidationError extends Error {
+  /** Individual validation failure messages, one per problem found. */
+  public readonly errors: string[];
+
+  constructor(errors: string[]) {
+    super(`Environment validation failed: ${errors.join('; ')}`);
+    this.name = 'EnvValidationError';
+    this.errors = errors;
+  }
+}
+
 export function validateEnv(): void {
   const errors: string[] = [];
 
@@ -110,9 +131,10 @@ export function validateEnv(): void {
   }
 
   if (errors.length > 0) {
-    logger.error('Environment validation failed:');
-    errors.forEach(e => logger.error(`  - ${e}`));
-    process.exit(1);
+    // M7 fix: throw instead of process.exit(1). The caller at the boot
+    // boundary (server.ts) logs the errors and exits; everywhere else
+    // (tests, tooling) gets a catchable, inspectable error.
+    throw new EnvValidationError(errors);
   }
 
   // v1.71 — Soft warning when no Redis TCP URL is configured in prod.
