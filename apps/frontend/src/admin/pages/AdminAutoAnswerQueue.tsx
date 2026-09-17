@@ -3,6 +3,9 @@ import adminApi from '../utils/adminApi';
 import { friendlyError } from '../../utils/api';
 import Badge from '../components/common/Badge';
 import InlinePrompt from '../components/common/InlinePrompt';
+import AIDecisionHealthChart, {
+  type AiDecisionHealthData,
+} from '../components/charts/AIDecisionHealthChart';
 
 type AiAnswerStatus =
   | 'pending'
@@ -820,6 +823,30 @@ export default function AdminAutoAnswerQueue() {
   const closeContextModal = (postId: string) =>
     setContextOpenByPost((prev) => ({ ...prev, [postId]: false }));
 
+  // AI Decision Health — last 14 days of auto-answer verdicts.
+  // Fetched independently from the queue data so a chart-fetch failure
+  // never blocks the page.
+  const [health, setHealth] = useState<AiDecisionHealthData[] | null>(null);
+  const [healthError, setHealthError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await adminApi.get<AiDecisionHealthData[]>(
+          '/admin/ai-decision-health',
+          { params: { days: 14 } },
+        );
+        if (!cancelled) setHealth(r.data);
+      } catch (e) {
+        if (!cancelled) {
+          setHealthError(friendlyError(e, 'failed to load AI decision health'));
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []); // fetch once on mount — chart is time-windowed, not pagination-bound
+
   return (
     <div className="space-y-5 max-w-5xl">
       {/* Header */}
@@ -874,6 +901,42 @@ export default function AdminAutoAnswerQueue() {
           {lastActionResult}
         </div>
       )}
+
+      {/* AI Decision Health — last 14 days. Fails independently of the
+          queue below: never blocks the page if the chart's own fetch errors. */}
+      <section
+        aria-label="AI Decision Health — last 14 days"
+        className="bg-card border border-border rounded-2xl p-4"
+      >
+        <div className="flex items-baseline justify-between mb-2">
+          <h2 className="text-xs font-semibold text-ink uppercase tracking-widest">
+            AI Decision Health
+          </h2>
+          <span className="text-[10px] text-ink-faint">last 14 days · UTC</span>
+        </div>
+
+        {!health && !healthError && (
+          <div className="h-[220px] flex items-center justify-center text-xs text-ink-faint animate-pulse">
+            Loading decision trend…
+          </div>
+        )}
+
+        {healthError && (
+          <div className="h-[220px] flex items-center justify-center text-xs text-danger">
+            {healthError}
+          </div>
+        )}
+
+        {health && health.length > 0 && (
+          <AIDecisionHealthChart data={health} />
+        )}
+
+        {health && health.length === 0 && (
+          <div className="h-[220px] flex items-center justify-center text-xs text-ink-faint">
+            No auto-answer decisions recorded in the last 14 days.
+          </div>
+        )}
+      </section>
 
       {/* Tabs */}
       <div
