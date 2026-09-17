@@ -68,10 +68,13 @@ export function computeRRF(
   return Array.from(scores.values())
     .sort((a, b) => b.rrfScore - a.rrfScore)
     .map((entry) => {
-      entry.doc.rrfScore = entry.rrfScore;
-      entry.doc.vectorScore = entry.vectorScore;
-      entry.doc.textScore = entry.textScore;
-      return entry.doc;
+      // ✅ Clones the object to prevent reference mutation side-effects
+      return {
+        ...entry.doc,
+        rrfScore: entry.rrfScore,
+        vectorScore: entry.vectorScore,
+        textScore: entry.textScore,
+      };
     });
 }
 
