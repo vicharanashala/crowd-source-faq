@@ -21,6 +21,7 @@ import { invalidatePublicCaches } from '../faq/public-faq.controller.js';
 import { dispatchNotification } from '../../utils/http/notificationDispatcher.js';
 import { createTeaDrop } from '../notification/tea-notification.controller.js';
 import { sanitizeHtml } from '../../utils/http/sanitize.js';
+import { touchUserStreak } from '../../utils/streak.js';
 // v1.69 — Phase 3e: program-scope guard for all lifecycle writes.
 import { assertSameProgram } from '../../utils/db/scopedQuery.js';
 import { communityLog } from '../../utils/http/logger.js';
@@ -111,6 +112,9 @@ export const resolvePost = async (req: Request, res: Response): Promise<void> =>
       title: 'Your question was resolved!',
     }).catch((err) => {
       communityLog.warn(`[post] Failed to dispatch post resolved notification: ${(err as Error).message}`);
+    });
+    touchUserStreak(post.author.toString()).catch((err) => {
+      communityLog.warn(`[post] Failed to update streak for ${post.author}: ${(err as Error).message}`);
     });
 
     // ── Tea drop: "your post was answered" ───────────────────────────────────

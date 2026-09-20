@@ -33,6 +33,14 @@ const MIN_QUALITY_SCORE = parseInt(process.env['FAQ_PROMOTION_MIN_QUALITY'] ?? '
 // Engagement score 0+, must clear this for promotion to be eligible
 const MIN_ENGAGEMENT_SCORE = parseInt(process.env['FAQ_PROMOTION_MIN_ENGAGEMENT'] ?? '10');
 
+// FAQ escalation ("spend SP to jump the Admin Queue") — cost per escalation
+// and the cooldown between escalations. Reuses the same SP wallet and
+// Golden Ticket cooldown timestamp (User.lastGoldenTicketAt) as the
+// Support-request Golden Ticket flow above — it's the same currency, just
+// spent against a different target (an FAQ instead of a support ticket).
+export const FAQ_ESCALATION_SP_COST = parseInt(process.env['FAQ_ESCALATION_SP_COST'] ?? '25');
+export const FAQ_ESCALATION_COOLDOWN_HOURS = parseInt(process.env['FAQ_ESCALATION_COOLDOWN_HOURS'] ?? '48');
+
 // ─── Config ──────────────────────────────────────────────────────────────────
 
 /** Push a lifecycle statusHistory entry */
@@ -518,6 +526,56 @@ export async function refundSpurtiPoints(
   return awardSpurtiPoints(userId, amount, 'sp_refunded', reason, targetId);
 }
 
+// ─── FAQ Escalation ("Golden Ticket" for questions) ──────────────────────────
+
+/**
+ * POST-handler-facing helper: spend SP to flag an FAQ/question as
+ * escalationPriority: 'high', bumping it to the top of the admin queue
+ * (see getPromotionQueue's sort above).
+ *
+ * Enforces the 48h cooldown against `User.lastGoldenTicketAt` — the same
+ * field the Golden Ticket support flow stamps, so a user can't escalate a
+ * new question every few minutes. Deducts SP first (spendSpurtiPoints
+ * throws on insufficient balance / bad input, which the caller should map
+ * to a 400), then stamps the cooldown and flips the FAQ's priority.
+ */
+export async function escalateFAQ(
+  faqId: string,
+  userId: string
+): Promise<{ faq: any; newBalance: number }> {
+  const user = await User.findById(userId).select('sp lastGoldenTicketAt');
+  if (!user) throw new Error('User not found');
+
+  const last = user.lastGoldenTicketAt;
+  if (last) {
+    const cooldownEndsAt = new Date(last).getTime() + FAQ_ESCALATION_COOLDOWN_HOURS * 3600 * 1000;
+    if (cooldownEndsAt > Date.now()) {
+      const hoursLeft = Math.ceil((cooldownEndsAt - Date.now()) / 3600000);
+      throw new Error(`You can escalate again in ${hoursLeft}h (${FAQ_ESCALATION_COOLDOWN_HOURS}h cooldown between escalations).`);
+    }
+  }
+
+  const faq = await FAQ.findById(faqId);
+  if (!faq) throw new Error('FAQ not found');
+
+  const { newBalance } = await spendSpurtiPoints(
+    userId,
+    FAQ_ESCALATION_SP_COST,
+    `Escalated FAQ "${faq.question.slice(0, 60)}" to Admin Queue`,
+    faq._id as Types.ObjectId
+  );
+
+  user.lastGoldenTicketAt = new Date();
+  await user.save();
+
+  faq.escalationPriority = 'high';
+  await faq.save();
+
+  logger.info(`FAQ ${faqId} escalated by user ${userId} (-${FAQ_ESCALATION_SP_COST} SP)`);
+
+  return { faq, newBalance };
+}
+
 // ─── Admin Controllers ─────────────────────────────────────────────────────────
 
 /** GET /api/admin/community-promotions — paginated queue of promoted posts */
@@ -694,11 +752,16 @@ export async function getPromotionQueue(req: Request, res: Response): Promise<vo
       isReportedFAQ: true,
       reports: f.reports || [],
       promotedAt: f.promotedAt,
+      escalationPriority: f.escalationPriority || 'normal',
     }));
 
-    // 3. Combine and sort
+    // 3. Combine and sort — Golden Ticket escalations (escalationPriority: 'high')
+    // always float above everything else, newest-first within each tier.
     const combinedQueue = [...mappedPosts, ...mappedFaqs];
-    combinedQueue.sort((a, b) => {
+    combinedQueue.sort((a: any, b: any) => {
+      const escA = a.escalationPriority === 'high' ? 1 : 0;
+      const escB = b.escalationPriority === 'high' ? 1 : 0;
+      if (escA !== escB) return escB - escA;
       const dateA = new Date(a.communityAcceptedAt || 0).getTime();
       const dateB = new Date(b.communityAcceptedAt || 0).getTime();
       return dateB - dateA;

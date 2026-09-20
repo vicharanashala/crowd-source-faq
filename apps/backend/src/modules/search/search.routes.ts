@@ -6,6 +6,7 @@ import {
   semanticSearch,
   getTrending,
   getSuggest,
+  rewriteQuery,
 } from './search.controller.js';
 import { programScope } from '../../middleware/programScope.js';
 import {
@@ -61,6 +62,15 @@ router.post(
   validateBody(searchSchema),
   semanticSearch
 );
+
+const rewriteLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 200,
+  message: 'Too many rewrite requests, please try again after a minute',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+router.post('/rewrite-query', rewriteLimiter, rewriteQuery);
 
 // ── Unresolved feedback ─────────────────────────────────────────────────────
 // POST: capture "not resolved" search feedback (auth optional — uses token if present)

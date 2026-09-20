@@ -15,6 +15,7 @@ import { cronManager } from '../core/scheduler/cronManager.js';
 import mongoose from 'mongoose';
 import { jobQueue } from '../utils/http/jobQueue.js';
 
+
 // Cron job handlers
 import { runPromotionCycle } from '../modules/program/promotion.service.js';
 import { runFreshnessCheck } from '../modules/faq/freshness.controller.js';
@@ -29,6 +30,7 @@ import { recomputePopularity } from '../modules/faq/public-faq.controller.js';
 import { retryFailedMeetings } from '../modules/zoom/retry.service.js';
 import { runPromotePopularDocumentInsights } from '../modules/knowledge/document-promotion.controller.js';
 import { flushSearchLogs } from '../modules/search/search.controller.js';
+import { resetInactiveStreaks } from '../utils/streak.js';
 
 const runRetention = async () => {
   try {
@@ -149,12 +151,19 @@ export async function startup(config: any): Promise<void> {
     intervalMs: 60 * 60 * 1000, // 1h, matches escalation cadence
     runOnStartup: true,
   });
+  
 
   cronManager.register({
     name: 'zoom-retry',
     handler: retryFailedMeetings,
     intervalMs: config.cron.zoomRetryIntervalMs,
     runOnStartup: false,
+  });
+  cronManager.register({
+    name: 'streak-reset',
+    handler: resetInactiveStreaks,
+    intervalMs: 24 * 60 * 60 * 1000,
+    runOnStartup: true,
   });
 
   const { featureFlags, syncFeatureFlagRegistry } = await import('../services/featureFlags.js');

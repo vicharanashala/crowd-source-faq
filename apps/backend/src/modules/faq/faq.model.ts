@@ -6,6 +6,10 @@ export type ReviewStatus = 'verified' | 'pending_review' | 'update_requested';
 export type TrustLevel = 'low' | 'medium' | 'high' | 'expert';
 export type SourceType = 'manual' | 'community_promotion' | 'expert_verified' | 'zoom_transcript';
 export type ObjectionStatus = 'none' | 'objected' | 'resolved';
+export type EscalationPriority = 'normal' | 'high';
+
+// 6 months, in ms — used by the `isOutdated` virtual below.
+const OUTDATED_AGE_MS = 1000 * 60 * 60 * 24 * 30 * 6;
 
 export interface IPromotionMetadata {
   upvotesAtPromotion?: number;
@@ -28,6 +32,10 @@ export interface IFAQ extends Document {
   views: number;
   helpfulVotes: number;
   unhelpfulVotes: number;
+  /** Users who clicked "This helped me". Deduped via $addToSet — one entry per user. */
+  helpedUsers: Types.ObjectId[];
+  /** Set by the Golden Ticket escalation flow (see promotion.service.ts). Bumps the FAQ to the top of the Admin Queue. */
+  escalationPriority: EscalationPriority;
   createdBy: Types.ObjectId | null;
   reports: Array<{
     reportedBy: Types.ObjectId;
@@ -95,6 +103,8 @@ export interface IFAQ extends Document {
   popularityUpdatedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
+  /** Virtual — true once this FAQ is older than 6 months (from createdAt). Not persisted. */
+  isOutdated: boolean;
 }
 
 const faqSchema = new MongooseSchema(
@@ -141,6 +151,16 @@ const faqSchema = new MongooseSchema(
     unhelpfulVotes: {
       type: Number,
       default: 0,
+    },
+    helpedUsers: {
+      type: [{ type: MongooseSchema.Types.ObjectId, ref: 'User' }],
+      default: [],
+    },
+    escalationPriority: {
+      type: String,
+      enum: ['normal', 'high'] as EscalationPriority[],
+      default: 'normal',
+      index: true,
     },
     createdBy: {
       type: MongooseSchema.Types.ObjectId,
@@ -301,8 +321,13 @@ const faqSchema = new MongooseSchema(
     expectedReadMs:     { type: Number, default: 0 },
     popularityUpdatedAt:{ type: Date, default: null },
   },
-  { timestamps: true }
+  { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } }
 );
+
+faqSchema.virtual('isOutdated').get(function (this: IFAQ) {
+  if (!this.createdAt) return false;
+  return Date.now() - new Date(this.createdAt).getTime() > OUTDATED_AGE_MS;
+});
 
 // Keyword search index — `tags` (carried forward from insight ingestion
 // metadata) are weighted alongside question/answer so tag terms boost both
@@ -317,6 +342,7 @@ faqSchema.index({ sourceType: 1, sourceCommunityPostId: 1 });
 faqSchema.index({ status: 1, category: 1 });
 faqSchema.index({ freshnessTier: 1, lastVerifiedDate: 1 });
 faqSchema.index({ createdAt: -1 });
+faqSchema.index({ escalationPriority: 1, createdAt: -1 });
 faqSchema.index({ helpfulVotes: -1, views: -1 });
 // Public page: ranked queries
 faqSchema.index({ status: 1, popularityScore: -1 });

@@ -24,6 +24,11 @@ export interface FAQItem {
   lastVerifiedDate?: string;
   reviewIntervalDays?: number;
   freshnessTier?: 'evergreen' | 'seasonal' | 'volatile';
+  tags?: string[];
+  // "This helped me" + Golden Ticket escalation (see KnowledgePostCard).
+  helpedUsers?: string[];
+  escalationPriority?: 'normal' | 'high';
+  isOutdated?: boolean;
   [key: string]: unknown;
 }
 

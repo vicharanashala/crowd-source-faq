@@ -38,6 +38,8 @@ interface StatsResponse {
   topQueries: TopQuery[];
 }
 
+interface AdminBatch { _id: string; name: string; isActive: boolean; }
+
 interface Toast { msg: string; type: 'success' | 'warn' | 'error'; }
 
 function Toast({ toast }: { toast: Toast }) {
@@ -65,6 +67,14 @@ export default function AdminUnresolvedSearch() {
   const [viewItem, setViewItem] = useState<UnresolvedItem | null>(null);
   const [resolving, setResolving] = useState(false);
   const [selectedForResolve, setSelectedForResolve] = useState<UnresolvedItem | null>(null);
+
+  // ── "Answer this now" modal state ──────────────────────────────────────────
+  const [selectedQuery, setSelectedQuery] = useState<TopQuery | null>(null);
+  const [answerNowForm, setAnswerNowForm] = useState({ answer: '', category: '', batchId: '', status: 'approved' as 'approved' | 'pending' });
+  const [batches, setBatches] = useState<AdminBatch[]>([]);
+  const [batchesLoading, setBatchesLoading] = useState(false);
+  const [savingFaq, setSavingFaq] = useState(false);
+
   const debouncedSearch = useDebounce(search, 350);
   const showToast = (msg: string, type: Toast['type'] = 'success') => {
     setToast({ msg, type });
@@ -86,6 +96,14 @@ export default function AdminUnresolvedSearch() {
     adminApi.get<StatsResponse>('/admin/search/unresolved-stats')
       .then(r => setStats(r.data))
       .catch(() => {});
+  }, []);
+
+  const fetchBatches = useCallback(() => {
+    setBatchesLoading(true);
+    adminApi.get<{ batches: AdminBatch[] }>('/batches/admin/all')
+      .then(r => setBatches(r.data.batches ?? []))
+      .catch(() => setBatches([]))
+      .finally(() => setBatchesLoading(false));
   }, []);
 
   useEffect(() => { fetchStats(); }, [fetchStats]);
@@ -123,6 +141,35 @@ export default function AdminUnresolvedSearch() {
       fetchStats();
     } catch {
       showToast('Bulk delete failed', 'error');
+    }
+  };
+
+  // ── "Answer this now" handler ───────────────────────────────────────────────
+  const openAnswerNow = (q: TopQuery) => {
+    setSelectedQuery(q);
+    setAnswerNowForm({ answer: '', category: '', batchId: '', status: 'approved' });
+    if (batches.length === 0) fetchBatches();
+  };
+
+  const handleAnswerNowSubmit = async () => {
+    if (!selectedQuery) return;
+    if (!answerNowForm.batchId) { showToast('Please select a program.', 'error'); return; }
+    setSavingFaq(true);
+    try {
+      await adminApi.post('/admin/faq', {
+        question: selectedQuery._id,
+        answer: answerNowForm.answer,
+        category: answerNowForm.category,
+        batchId: answerNowForm.batchId,
+        status: answerNowForm.status,
+      });
+      showToast('FAQ created successfully!', 'success');
+      setSelectedQuery(null);
+      fetchStats();
+    } catch {
+      showToast('Failed to create FAQ', 'error');
+    } finally {
+      setSavingFaq(false);
     }
   };
 
@@ -165,8 +212,15 @@ export default function AdminUnresolvedSearch() {
           <p className="text-xs font-semibold text-ink-faint uppercase tracking-wide mb-2">Most complained-about queries</p>
           <div className="flex flex-wrap gap-2">
             {stats.topQueries.map(q => (
-              <span key={q._id} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-danger/10 border border-danger/20 text-xs text-danger">
+              <span key={q._id} className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-danger/10 border border-danger/20 text-xs text-danger">
                 {q._id} <span className="font-semibold">({q.count})</span>
+                <button
+                  onClick={() => openAnswerNow(q)}
+                  className="ml-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-accent/10 border border-accent/20 text-accent hover:bg-accent/20 transition-colors whitespace-nowrap"
+                  title={`Create a FAQ answering: ${q._id}`}
+                >
+                  Answer this now
+                </button>
               </span>
             ))}
           </div>
@@ -345,6 +399,76 @@ export default function AdminUnresolvedSearch() {
             </div>
             <div className="flex justify-end pt-2">
               <button onClick={() => setSelectedForResolve(null)} className={`${adminBtnGhost} text-xs px-3 py-1.5`}>Cancel</button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* "Answer this now" modal */}
+      <Modal open={!!selectedQuery} onClose={() => setSelectedQuery(null)} title="Answer this now — Create FAQ">
+        {selectedQuery && (
+          <div className="space-y-3">
+            <div>
+              <label className="admin-label">Question <span className="text-ink-faint font-normal">(pre-filled from query)</span></label>
+              <input
+                value={selectedQuery._id}
+                readOnly
+                className="admin-input bg-mist cursor-default"
+              />
+            </div>
+            <div>
+              <label className="admin-label">Answer</label>
+              <textarea
+                rows={4}
+                value={answerNowForm.answer}
+                onChange={e => setAnswerNowForm(f => ({ ...f, answer: e.target.value }))}
+                placeholder="Write the answer…"
+                className="admin-input resize-y"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="admin-label">Program <span className="text-danger">*</span></label>
+                <select
+                  value={answerNowForm.batchId}
+                  onChange={e => setAnswerNowForm(f => ({ ...f, batchId: e.target.value }))}
+                  className="admin-select w-full"
+                  disabled={batchesLoading}
+                >
+                  <option value="">{batchesLoading ? 'Loading…' : '— Select a program —'}</option>
+                  {batches.map(b => <option key={b._id} value={b._id}>{b.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="admin-label">Category</label>
+                <input
+                  value={answerNowForm.category}
+                  onChange={e => setAnswerNowForm(f => ({ ...f, category: e.target.value }))}
+                  placeholder="e.g. Admissions"
+                  className="admin-input"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="admin-label">Status</label>
+              <select
+                value={answerNowForm.status}
+                onChange={e => setAnswerNowForm(f => ({ ...f, status: e.target.value as 'approved' | 'pending' }))}
+                className="admin-select w-full"
+              >
+                <option value="approved">Approved</option>
+                <option value="pending">Pending</option>
+              </select>
+            </div>
+            <div className="flex justify-end gap-2 pt-2 border-t border-border">
+              <button onClick={() => setSelectedQuery(null)} className="admin-btn-ghost text-xs px-3 py-1.5">Cancel</button>
+              <button
+                onClick={handleAnswerNowSubmit}
+                disabled={savingFaq || !answerNowForm.answer.trim() || !answerNowForm.batchId}
+                className="admin-btn-primary text-xs px-3 py-1.5"
+              >
+                {savingFaq ? 'Creating…' : 'Create FAQ'}
+              </button>
             </div>
           </div>
         )}

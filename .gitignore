@@ -198,3 +198,7 @@ apps/backend/tessdata/
 apps/backend/uploads/*
 !apps/backend/uploads/onboarding-resources/
 apps/backend/faqs.json
+
+# Temporary scripts
+apps/backend/src/scripts/create-ayush.ts
+apps/backend/src/scripts/seed-demo-faq.ts

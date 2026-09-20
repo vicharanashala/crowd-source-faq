@@ -139,6 +139,7 @@ export interface IAiConfig extends Document {
     knowledgeExtraction: { enabled: boolean; model: string; temperature: number; maxTokens: number };
     searchSummarization: { enabled: boolean; model: string; temperature: number; maxTokens: number };
     faqGeneration:       { enabled: boolean; model: string; temperature: number; maxTokens: number };
+    queryRewrite: { enabled: boolean; model: string; temperature: number; maxTokens: number };
   };
 
   // Dynamic Embedding Configuration (v1.72)
@@ -236,6 +237,7 @@ const aiConfigSchema = new Schema<IAiConfig>(
         knowledgeExtraction: { enabled: true, model: 'claude-sonnet-4-20250514', temperature: 0.2, maxTokens: 2048 },
         searchSummarization: { enabled: true, model: 'claude-sonnet-4-20250514', temperature: 0.3, maxTokens: 512 },
         faqGeneration:       { enabled: true, model: 'claude-sonnet-4-20250514', temperature: 0.4, maxTokens: 1024 },
+        queryRewrite: { enabled: true, model: 'claude-sonnet-4-20250514', temperature: 0.2, maxTokens: 150 },
       }),
     },
 

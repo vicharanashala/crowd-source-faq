@@ -70,7 +70,33 @@ Eight flagship capabilities define this platform:
 
 Other capabilities: semantic hybrid search, community Q&A board, reputation system + badges + leaderboard, SpillTheTea event-driven notifications, per-user Zoom OAuth, RAG-powered `/ask-ai` assistant with image + file attachments, soft user lifecycle, experimental feature flags, support tickets (troubleshoot → admin triage → resolution).
 
+
+### Leaderboard
+
+Tracks community engagement through a ranked leaderboard, viewable at `/leaderboard`.
+
+**All-Time view** — ranks users by their total accumulated points (`User.points`), 
+sourced from existing reputation-earning actions (upvotes received, accepted answers).
+
+**Weekly view** — ranks users by points earned in the last 7 days only, calculated by 
+aggregating `ReputationLog` entries within that window. Resets naturally every week 
+since it's always a rolling 7-day calculation, not a stored value.
+
+**API endpoints:**
+- `GET /api/leaderboard/all-time` — returns top 20 users by all-time points
+- `GET /api/leaderboard/weekly` — returns top 20 users by points earned in the last 7 days
+
+No new database collections were introduced — this feature reads existing 
+`User` and `ReputationLog` data in new ways.
+
 ---
+
+## daily streak
+- Users now build a daily streak by taking any point-earning action (posting, being upvoted, getting an answer accepted)
+- Streak increments once per calendar day, resets to 1 if a day is missed, tracks a personal longest-streak record
+- A daily scheduled job resets streaks for users who missed a day, since streak-breaking can't rely only on login-triggered writes
+- Streak is visible on the Account page (🔥 X day streak · best: Y)
+- New fields added to the User model: currentStreak, longestStreak, lastActiveDate
 
 ## Admin Dashboard
 

@@ -80,6 +80,9 @@ interface GroupedFAQs {
     lastVerifiedDate?: IFAQ['lastVerifiedDate'];
     reviewIntervalDays?: IFAQ['reviewIntervalDays'];
     freshnessTier?: IFAQ['freshnessTier'];
+    helpedUsers?: IFAQ['helpedUsers'];
+    escalationPriority?: IFAQ['escalationPriority'];
+    isOutdated?: IFAQ['isOutdated'];
   }>;
 }
 
@@ -142,6 +145,10 @@ export const getAllFAQs = async (req: Request<Record<string, never>, Record<stri
         lastVerifiedDate: faq.lastVerifiedDate,
         reviewIntervalDays: faq.reviewIntervalDays,
         freshnessTier: faq.freshnessTier,
+        // "This helped me" + Golden Ticket escalation — see KnowledgePostCard.
+        helpedUsers: faq.helpedUsers,
+        escalationPriority: faq.escalationPriority,
+        isOutdated: faq.isOutdated,
       }));
 
       // Encode the last _id as cursor for the next page
@@ -182,6 +189,10 @@ export const getAllFAQs = async (req: Request<Record<string, never>, Record<stri
         lastVerifiedDate: faq.lastVerifiedDate,
         reviewIntervalDays: faq.reviewIntervalDays,
         freshnessTier: faq.freshnessTier,
+        // "This helped me" + Golden Ticket escalation — see KnowledgePostCard.
+        helpedUsers: faq.helpedUsers,
+        escalationPriority: faq.escalationPriority,
+        isOutdated: faq.isOutdated,
       });
       return acc;
     }, {});
@@ -756,6 +767,99 @@ export const createFAQSuggestion = async (req: Request<{ id: string }, Record<st
     res.json({ message: 'Suggestion submitted successfully.' });
   } catch (error) {
     res.status(500).json({ message: 'Server error', /* error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined */ });
+  }
+};
+
+// PATCH /api/faq/:id/helped — Toggle "This helped me" for the current user.
+// Uses $addToSet / $pull (atomic on the array) so concurrent clicks from
+// the same user can't create duplicate entries or race each other.
+export const toggleHelpedByMe = async (req: Request<{ id: string }>, res: Response): Promise<void> => {
+  try {
+    const userId = req.user!._id as Types.ObjectId;
+
+    const faq = await FAQ.findById(req.params.id).select('helpedUsers programContext batchId');
+    if (!faq) {
+      res.status(404).json({ message: 'FAQ not found.' });
+      return;
+    }
+    if (assertSameProgram(faq, req.programContext, res)) return;
+
+    const alreadyHelped = faq.helpedUsers.some((id) => id.equals(userId));
+
+    const updated = await FAQ.findByIdAndUpdate(
+      req.params.id,
+      alreadyHelped ? { $pull: { helpedUsers: userId } } : { $addToSet: { helpedUsers: userId } },
+      { new: true }
+    ).select('helpedUsers');
+
+    if (!updated) {
+      res.status(404).json({ message: 'FAQ not found.' });
+      return;
+    }
+
+    res.json({
+      didHelp: !alreadyHelped,
+      helpedCount: updated.helpedUsers.length,
+    });
+  } catch (error) {
+    adminLog.error('toggleHelpedByMe error', { error: error instanceof Error ? error.message : String(error) });
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// GET /api/faq/escalation-status — Current user's SP balance + whether
+// they're on cooldown for the "escalate FAQ" action, so the frontend can
+// render the cooldown countdown / disable the button without guessing.
+export const getEscalationStatus = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { FAQ_ESCALATION_SP_COST, FAQ_ESCALATION_COOLDOWN_HOURS } = await import('../program/promotion.service.js');
+    const user = await User.findById(req.user!._id).select('sp lastGoldenTicketAt').lean();
+    if (!user) {
+      res.status(404).json({ message: 'User not found.' });
+      return;
+    }
+
+    const last = user.lastGoldenTicketAt as Date | string | null;
+    const cooldownEndsAt = last
+      ? new Date(new Date(last).getTime() + FAQ_ESCALATION_COOLDOWN_HOURS * 3600 * 1000).toISOString()
+      : null;
+    const canEscalate = !cooldownEndsAt || new Date(cooldownEndsAt).getTime() <= Date.now();
+
+    res.json({
+      sp: user.sp ?? 0,
+      spCost: FAQ_ESCALATION_SP_COST,
+      cooldownHours: FAQ_ESCALATION_COOLDOWN_HOURS,
+      cooldownEndsAt: canEscalate ? null : cooldownEndsAt,
+      canEscalate,
+    });
+  } catch (error) {
+    adminLog.error('getEscalationStatus error', { error: error instanceof Error ? error.message : String(error) });
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// POST /api/faq/:id/escalate — Spend Spurti Points to flag this FAQ as
+// escalationPriority: 'high', moving it to the top of the Admin Queue.
+// Gated by a 48h cooldown (per user) and the user's SP balance.
+export const escalateFAQPriority = async (req: Request<{ id: string }>, res: Response): Promise<void> => {
+  try {
+    const userId = (req.user!._id as Types.ObjectId).toString();
+
+    const faq = await FAQ.findById(req.params.id).select('programContext batchId question');
+    if (!faq) {
+      res.status(404).json({ message: 'FAQ not found.' });
+      return;
+    }
+    if (assertSameProgram(faq, req.programContext, res)) return;
+
+    const { escalateFAQ } = await import('../program/promotion.service.js');
+    const { newBalance } = await escalateFAQ(req.params.id, userId);
+
+    res.json({ message: 'FAQ escalated to the top of the Admin Queue.', newBalance });
+  } catch (error) {
+    // Cooldown / insufficient-balance / not-found errors from escalateFAQ()
+    // are all user-facing 400s — none of them indicate a server fault.
+    res.status(400).json({ message: error instanceof Error ? error.message : 'Failed to escalate FAQ.' });
   }
 };
 

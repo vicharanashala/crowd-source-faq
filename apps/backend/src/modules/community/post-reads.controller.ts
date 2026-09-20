@@ -5,6 +5,7 @@
  *   GET /api/community                            — list (cursor-paginated, filterable, sortable, searchable)
  *   GET /api/community/:id                        — single post + nested comment tree
  *   GET /api/community/solved                     — recently resolved posts
+ *   GET /api/community/my-posts                   — posts authored by the current user (auth required)
  */
 
 import { Request, Response } from 'express';
@@ -202,6 +203,91 @@ export const getSolvedPosts = async (req: Request, res: Response): Promise<void>
     res.json({ posts });
   } catch (error) {
     communityLog.error(`[post] getSolvedPosts failed: ${(error as Error).message}`);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// GET /api/community/my-posts — Posts authored by the currently logged-in user
+// Supports: ?status=answered|unanswered  ?cursor=<base64>  ?limit=<n>
+// Uses cursor-based pagination on _id desc, mirroring getAllPosts keyset approach.
+// The model has a compound index { author: 1, createdAt: -1 } — no new index needed.
+export const getMyPosts = async (req: Request, res: Response): Promise<void> => {
+  if (!req.user?._id) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
+  try {
+    const limit = Math.max(1, Math.min(50, parseInt(req.query.limit as string) || 20));
+    const cursor = (req.query.cursor as string) || '';
+    const statusParam = (req.query.status as string) || '';
+
+    // Build base query scoped to the current user's posts
+    const query: Record<string, unknown> = {
+      author: new mongoose.Types.ObjectId(req.user._id.toString()),
+    };
+
+    // Optional status filter — only apply for known status values
+    if (statusParam === 'answered' || statusParam === 'unanswered') {
+      query.status = statusParam;
+    }
+
+    // Decode base64 cursor to ObjectId for keyset pagination (_id desc)
+    if (cursor) {
+      try {
+        const decoded = Buffer.from(cursor, 'base64').toString('utf8');
+        const cursorId = new mongoose.Types.ObjectId(decoded);
+        query._id = { $lt: cursorId };
+      } catch {
+        res.status(400).json({ message: 'Invalid cursor.' });
+        return;
+      }
+    }
+
+    const populateFields = [
+      { path: 'author', select: 'name' },
+      { path: 'batchId', select: 'name' },
+      { path: 'comments.author', select: 'name' },
+      { path: 'comments.upvotes', select: 'name' },
+      { path: 'comments.downvotes', select: 'name' },
+      { path: 'comments.replies.upvotes', select: 'name' },
+      { path: 'comments.replies.downvotes', select: 'name' },
+    ];
+
+    // Total count for the current filter (before cursor slicing)
+    const countQuery: Record<string, unknown> = {
+      author: new mongoose.Types.ObjectId(req.user._id.toString()),
+    };
+    if (statusParam === 'answered' || statusParam === 'unanswered') {
+      countQuery.status = statusParam;
+    }
+    const total = await CommunityPost.countDocuments(countQuery);
+
+    const posts = await CommunityPost.find(query)
+      .select('-embedding')
+      .populate(populateFields)
+      .sort({ _id: -1 })
+      .limit(limit + 1);
+
+    const hasMore = posts.length > limit;
+    const results = hasMore ? posts.slice(0, limit) : posts;
+    const nextCursor = hasMore && results.length > 0
+      ? Buffer.from(results[results.length - 1]._id.toString()).toString('base64')
+      : null;
+
+    res.json({
+      posts: results.map((p) => {
+        const doc = p.toObject() as unknown as Record<string, unknown>;
+        doc.timeTrialHoursRemaining = timeTrialHoursRemaining(doc as never);
+        return doc;
+      }),
+      total,
+      limit,
+      hasMore,
+      nextCursor,
+    });
+  } catch (error) {
+    communityLog.error(`[post] getMyPosts failed: ${(error as Error).message}`);
     res.status(500).json({ message: 'Server error' });
   }
 };

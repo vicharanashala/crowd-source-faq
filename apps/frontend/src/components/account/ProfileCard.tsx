@@ -155,6 +155,14 @@ export default function ProfileCard() {
               <p className={`${textLabel} truncate`}>{user?.name ?? 'Unknown'}</p>
               <p className={`${textBodyFaint} truncate`}>{user?.email ?? ''}</p>
               <p className={`${textXsFaint} mt-0.5 capitalize`}>{user?.role ?? 'user'}</p>
+              {typeof user?.currentStreak === 'number' && (
+                <p className={`${textXsFaint} mt-1 flex items-center gap-1`}>
+                  🔥 {user.currentStreak} day{user.currentStreak === 1 ? '' : 's'} streak
+                  {typeof user?.longestStreak === 'number' && user.longestStreak > 0 && (
+                    <span className="opacity-70">· best: {user.longestStreak}</span>
+                  )}
+                </p>
+              )}
             </div>
             <div className="flex flex-col items-end gap-1.5">
               <input
