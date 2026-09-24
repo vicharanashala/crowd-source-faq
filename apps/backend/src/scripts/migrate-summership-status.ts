@@ -29,8 +29,8 @@ import Batch from '../modules/program/batch.model.js';
 const BATCH_NAME = 'summership';
 
 async function main() {
-  const mongoUri = process.env.MONGO_URI;
-  if (!mongoUri) throw new Error('MONGO_URI is not set');
+  const mongoUri = process.env.MONGODB_URI;
+  if (!mongoUri) throw new Error('MONGODB_URI is not set');
   await mongoose.connect(mongoUri);
 
   console.log(`Setting status: 'active' on batch "${BATCH_NAME}" where status is unset...`);

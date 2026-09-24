@@ -26,8 +26,8 @@ const FDP_BATCH_NAMES = ['Vriddhi'];
 const INTERNSHIP_BATCH_NAMES = ['summership', 'Monsoonship'];
 
 async function main() {
-  const mongoUri = process.env.MONGO_URI;
-  if (!mongoUri) throw new Error('MONGO_URI is not set');
+  const mongoUri = process.env.MONGODB_URI;
+  if (!mongoUri) throw new Error('MONGODB_URI is not set');
   await mongoose.connect(mongoUri);
 
   console.log(`Marking ${FDP_BATCH_NAMES.join(', ')} as programType: 'fdp'...`);
