@@ -103,10 +103,16 @@ describe('listPublicBatches — cross-cohort visibility fix', () => {
     expect(names(res.body)).toEqual(['summership']);
   });
 
-  it('shows nothing to a signed-in non-admin user with no enrollments', async () => {
+  it('incident fix: falls back to the full public list for an unmigrated user with zero enrollment rows, instead of showing nothing', async () => {
+    // Regression guard: a signed-in, already-enrolled real student with
+    // no ProgramEnrollment row at all (never went through the v2 SSO
+    // bridge / never backfilled) previously saw an empty batch list and
+    // a broken homepage. They must see the full public list, same as an
+    // anonymous visitor, until enrollment backfill is fixed.
     await Batch.create({ name: 'Vriddhi', description: '', startDate: new Date(), endDate: new Date(Date.now() + 1), isActive: true });
+    await Batch.create({ name: 'summership', description: '', startDate: new Date(), endDate: new Date(Date.now() + 1), isActive: true });
     const { req, res } = mockReqRes({ _id: new Types.ObjectId(), role: 'student' });
     await listPublicBatches(req, res);
-    expect(names(res.body)).toEqual([]);
+    expect(names(res.body)).toEqual(['Vriddhi', 'summership']);
   });
 });
