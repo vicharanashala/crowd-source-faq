@@ -1,0 +1,86 @@
+name: Diagnose User Enrollment (one-off, read-only)
+
+# Manual, one-off diagnostic for the 2026-09-25 incident follow-up.
+# Read-only — prints a user's ProgramEnrollment rows, makes no writes.
+# Reuses the same SSH + Infisical path as deploy-production.yml so no
+# production credential (MONGODB_URI included) ever needs to leave
+# GitHub Actions.
+
+on:
+  workflow_dispatch:
+    inputs:
+      email:
+        description: "Email of the user to diagnose"
+        required: true
+        type: string
+
+env:
+  INFISICAL_ENVIRONMENT: prod
+  INFISICAL_SECRET_PATH: /
+
+jobs:
+  diagnose:
+    name: SSH Run Diagnostic
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.CSFAQ_DEPLOY_SSH_KEY }}" | tr -d '\r' > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H ${{ secrets.CSFAQ_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Run diagnostic
+        env:
+          TARGET_EMAIL: ${{ inputs.email }}
+        run: |
+          # Base64-encode the email before it crosses two shell layers
+          # (this runner -> ssh -> remote bash). A raw workflow_dispatch
+          # string input embedded straight into a heredoc could contain
+          # `$(...)`/backticks that get re-parsed and executed on the
+          # remote host — encode/decode instead of trusting the quoting.
+          EMAIL_B64=$(printf '%s' "$TARGET_EMAIL" | base64)
+          ssh -i ~/.ssh/id_ed25519 csfaq-deploy@${{ secrets.CSFAQ_HOST }} "EMAIL_B64='${EMAIL_B64}' bash" << 'MIGRATE'
+            set -e
+
+            cd /home/csfaq-prod/crowd-source-faq
+
+            echo "==> Pulling latest code..."
+            git pull origin main
+
+            echo "==> Authenticating with Infisical..."
+            export INFISICAL_TOKEN=$(npx @infisical/cli@0.43.40 login \
+              --method=universal-auth \
+              --client-id="${{ secrets.INFISICAL_CLIENT_ID }}" \
+              --client-secret="${{ secrets.INFISICAL_CLIENT_SECRET }}" \
+              --silent \
+              --plain)
+
+            if [ -z "$INFISICAL_TOKEN" ]; then
+              echo "Infisical authentication failed"
+              exit 1
+            fi
+
+            echo "==> Writing backend .env from Infisical..."
+            npx @infisical/cli@0.43.40 export \
+              --token="$INFISICAL_TOKEN" \
+              --projectId="${{ secrets.INFISICAL_PROJECT_ID }}" \
+              --env="${{ env.INFISICAL_ENVIRONMENT }}" \
+              --path="${{ env.INFISICAL_SECRET_PATH }}" \
+              --format=dotenv > apps/backend/.env
+
+            echo "==> Cleaning quotes from env file..."
+            sed -i "s/='\(.*\)'/=\1/; s/=\"\(.*\)\"/=\1/" apps/backend/.env
+
+            echo "==> Installing backend dependencies..."
+            cd apps/backend
+            pnpm install --frozen-lockfile
+
+            TARGET_EMAIL=$(printf '%s' "$EMAIL_B64" | base64 -d)
+            echo "==> Running diagnostic for $TARGET_EMAIL..."
+            npx tsx src/scripts/diagnose-user-enrollment.ts "$TARGET_EMAIL"
+
+            echo "==> Diagnostic complete. Read-only, no writes made."
+          MIGRATE
