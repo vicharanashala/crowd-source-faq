@@ -1,25 +1,18 @@
-name: Read Debug Temp Collection (one-off, read-only)
+name: Drop Debug Temp Collection (one-off, cleanup)
 
-# Manual, one-off read for the 2026-09-25 live-bug investigation.
-# Dumps the throwaway debug_temp_2026_09_25 collection written by
-# temporary instrumentation in programScope.ts. Read-only, no writes.
+# One-time cleanup for the 2026-09-25 live-bug investigation. Drops
+# the throwaway debug_temp_2026_09_25 collection. Safe/idempotent.
 
 on:
   workflow_dispatch:
-    inputs:
-      userId:
-        description: "Optional userId to filter debug entries by"
-        required: false
-        default: ""
-        type: string
 
 env:
   INFISICAL_ENVIRONMENT: prod
   INFISICAL_SECRET_PATH: /
 
 jobs:
-  read:
-    name: SSH Read Debug Data
+  cleanup:
+    name: SSH Drop Collection
     runs-on: ubuntu-latest
     environment: production
 
@@ -31,12 +24,9 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H ${{ secrets.CSFAQ_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Read debug data
-        env:
-          FILTER_USER_ID: ${{ inputs.userId }}
+      - name: Drop collection
         run: |
-          FILTER_B64=$(printf '%s' "$FILTER_USER_ID" | base64)
-          ssh -i ~/.ssh/id_ed25519 csfaq-deploy@${{ secrets.CSFAQ_HOST }} "FILTER_B64='${FILTER_B64}' bash" << 'READ'
+          ssh -i ~/.ssh/id_ed25519 csfaq-deploy@${{ secrets.CSFAQ_HOST }} bash << 'CLEANUP'
             set -e
 
             cd /home/csfaq-prod/crowd-source-faq
@@ -72,9 +62,8 @@ jobs:
             cd apps/backend
             pnpm install --frozen-lockfile
 
-            FILTER_USER_ID=$(printf '%s' "$FILTER_B64" | base64 -d)
-            echo "==> Reading debug_temp_2026_09_25 (filter: ${FILTER_USER_ID:-none})..."
-            npx tsx src/scripts/read-debug-temp.ts "$FILTER_USER_ID"
+            echo "==> Dropping debug_temp_2026_09_25..."
+            npx tsx src/scripts/drop-debug-temp-collection.ts
 
-            echo "==> Done. Read-only, no writes made."
-          READ
+            echo "==> Done."
+          CLEANUP
