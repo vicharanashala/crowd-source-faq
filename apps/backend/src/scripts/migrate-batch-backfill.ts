@@ -210,6 +210,10 @@ async function main(): Promise<void> {
         programRole,
         enrolledBy: null,
         isActive: true,
+        // Incident fix (2026-09-25): this is a blind guess (everyone ->
+        // the default batch), not a real per-user cohort assertion —
+        // mark it so it's never mistaken for Samagama-confirmed data.
+        source: 'backfill',
       });
       enrCreated++;
     }

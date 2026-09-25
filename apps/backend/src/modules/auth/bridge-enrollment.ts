@@ -130,6 +130,10 @@ export async function syncBridgeEnrollment(
       // assertion from samagama.in.
       enrolledBy: null,
       isActive: true,
+      // Incident fix (2026-09-25): mark this as a real, Samagama-
+      // asserted enrollment so it's traceable/trustworthy going
+      // forward — distinct from a blind backfill guess.
+      source: 'samagama-bridge',
     });
     logger.info(
       `[auth-bridge] enrolled user ${String(userId)} into "${batch.name}" as ${requestedRole}`,
@@ -147,6 +151,12 @@ export async function syncBridgeEnrollment(
 
   const reactivated = !existing.isActive;
   if (reactivated) existing.isActive = true;
+
+  // Incident fix (2026-09-25): a real bridge login re-confirms this row
+  // against Samagama's own record, regardless of how it was originally
+  // created (a stale `null`/backfill-guessed row becomes trustworthy
+  // the moment Samagama itself asserts it again).
+  existing.source = 'samagama-bridge';
 
   // Never downgrade. If csfaq promoted this person to ta / mentor /
   // moderator / program_admin, a routine login must not undo it.

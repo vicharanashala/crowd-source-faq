@@ -18,6 +18,18 @@ import mongoose, { Document, Schema as MongooseSchema, Types } from 'mongoose';
 
 export type ProgramRole = 'student' | 'ta' | 'moderator' | 'mentor' | 'program_admin';
 
+/**
+ * Incident fix (2026-09-25): which code path created/last-touched this
+ * row. Before this field existed, a real Samagama-bridge-asserted
+ * enrollment and a blanket-guessed backfill row were byte-for-byte
+ * identical (`enrolledBy: null` either way) — there was no way to tell
+ * a trustworthy row from a guessed one after the fact. Existing rows
+ * predate this field and are `null`/absent (still ambiguous, and
+ * deliberately left that way rather than backfilled with a guess about
+ * a guess) — only rows written from here forward are traceable.
+ */
+export type ProgramEnrollmentSource = 'samagama-bridge' | 'self-enroll' | 'backfill' | 'admin';
+
 export interface IProgramEnrollment extends Document {
   userId: Types.ObjectId;
   batchId: Types.ObjectId;
@@ -27,6 +39,8 @@ export interface IProgramEnrollment extends Document {
   isActive: boolean;
   inviteCode?: string | null;
   inviteAcceptedAt?: Date | null;
+  /** Null/absent = predates this field, unknown provenance. */
+  source?: ProgramEnrollmentSource | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -62,6 +76,15 @@ const programEnrollmentSchema = new MongooseSchema<IProgramEnrollment>(
     // alongside the new invite routes.
     inviteCode: { type: String, default: null, sparse: true },
     inviteAcceptedAt: { type: Date, default: null },
+    // Incident fix (2026-09-25): provenance marker, see the type doc
+    // above. Optional/nullable so existing rows (all predate this
+    // field) don't need a migration — they just read as `null`,
+    // meaning "unknown, don't trust it as Samagama-confirmed."
+    source: {
+      type: String,
+      enum: ['samagama-bridge', 'self-enroll', 'backfill', 'admin'],
+      default: null,
+    },
   },
   { timestamps: true }
 );
