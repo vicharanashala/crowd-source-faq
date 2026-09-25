@@ -31,4 +31,4 @@ jobs:
         env:
           LOG_LINES: ${{ inputs.lines }}
         run: |
-          ssh -i ~/.ssh/id_ed25519 csfaq-deploy@${{ secrets.CSFAQ_HOST }} "journalctl -u csfaq.service -n ${LOG_LINES} --no-pager"
+          ssh -i ~/.ssh/id_ed25519 csfaq-deploy@${{ secrets.CSFAQ_HOST }} "sudo journalctl -u csfaq.service -n ${LOG_LINES} --no-pager"
