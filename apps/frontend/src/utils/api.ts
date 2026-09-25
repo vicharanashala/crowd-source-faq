@@ -299,7 +299,7 @@ api.interceptors.response.use(
         localStorage.removeItem('yaksha_user');
         window.dispatchEvent(new CustomEvent('auth:logout'));
         window.dispatchEvent(new CustomEvent('authmodal:open', {
-          detail: { tab: 'signin', prompt: 'Your session has expired. Please sign in again.' },
+          detail: { prompt: 'Your session has expired. Please sign in again.' },
         }));
         return Promise.reject(error);
       }
@@ -341,7 +341,7 @@ api.interceptors.response.use(
 
             window.dispatchEvent(new CustomEvent('auth:logout'));
             window.dispatchEvent(new CustomEvent('authmodal:open', {
-              detail: { tab: 'signin', prompt: 'Your session has expired. Please sign in again.' },
+              detail: { prompt: 'Your session has expired. Please sign in again.' },
             }));
 
             processQueue(refreshError, null);
@@ -365,7 +365,7 @@ api.interceptors.response.use(
         ? 'Your session has expired. Please sign in again.'
         : 'Please sign in to continue.';
       window.dispatchEvent(new CustomEvent('authmodal:open', {
-        detail: { tab: 'signin', prompt },
+        detail: { prompt },
       }));
 
       // H2: also dispatch `auth:logout` so the AuthContext clears its
