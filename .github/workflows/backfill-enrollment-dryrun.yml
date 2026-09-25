@@ -1,0 +1,72 @@
+name: Backfill Enrollment by Signup Date (DRY RUN, read-only)
+
+# Manual, one-off DRY RUN for the 2026-09-25 incident follow-up.
+# Read-only — prints what a date-based ProgramEnrollment backfill
+# WOULD change, makes no writes. Reuses the same SSH + Infisical path
+# as deploy-production.yml so no production credential (MONGODB_URI
+# included) ever needs to leave GitHub Actions.
+
+on:
+  workflow_dispatch:
+
+env:
+  INFISICAL_ENVIRONMENT: prod
+  INFISICAL_SECRET_PATH: /
+
+jobs:
+  dryrun:
+    name: SSH Run Dry Run
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.CSFAQ_DEPLOY_SSH_KEY }}" | tr -d '\r' > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H ${{ secrets.CSFAQ_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Run dry run
+        run: |
+          ssh -i ~/.ssh/id_ed25519 csfaq-deploy@${{ secrets.CSFAQ_HOST }} bash << 'DRYRUN'
+            set -e
+
+            cd /home/csfaq-prod/crowd-source-faq
+
+            echo "==> Pulling latest code..."
+            git pull origin main
+
+            echo "==> Authenticating with Infisical..."
+            export INFISICAL_TOKEN=$(npx @infisical/cli@0.43.40 login \
+              --method=universal-auth \
+              --client-id="${{ secrets.INFISICAL_CLIENT_ID }}" \
+              --client-secret="${{ secrets.INFISICAL_CLIENT_SECRET }}" \
+              --silent \
+              --plain)
+
+            if [ -z "$INFISICAL_TOKEN" ]; then
+              echo "Infisical authentication failed"
+              exit 1
+            fi
+
+            echo "==> Writing backend .env from Infisical..."
+            npx @infisical/cli@0.43.40 export \
+              --token="$INFISICAL_TOKEN" \
+              --projectId="${{ secrets.INFISICAL_PROJECT_ID }}" \
+              --env="${{ env.INFISICAL_ENVIRONMENT }}" \
+              --path="${{ env.INFISICAL_SECRET_PATH }}" \
+              --format=dotenv > apps/backend/.env
+
+            echo "==> Cleaning quotes from env file..."
+            sed -i "s/='\(.*\)'/=\1/; s/=\"\(.*\)\"/=\1/" apps/backend/.env
+
+            echo "==> Installing backend dependencies..."
+            cd apps/backend
+            pnpm install --frozen-lockfile
+
+            echo "==> Running backfill DRY RUN (no writes)..."
+            npx tsx src/scripts/backfill-enrollment-by-date-DRYRUN.ts
+
+            echo "==> Dry run complete. Read-only, no writes made."
+          DRYRUN
