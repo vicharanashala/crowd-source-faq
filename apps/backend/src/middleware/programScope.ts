@@ -109,14 +109,39 @@ export function programScope(opts: { required?: boolean } = {}) {
           // model isn't installed yet.
           const { default: ProgramEnrollment } = await import('../modules/program/program-enrollment.model.js');
           const enr = await ProgramEnrollment.findOne({ userId, batchId, isActive: true }).lean();
-          // Incident debug (2026-09-25): temporary visibility into a
-          // confirmed live case (Lakshya Aran, batch=summership) where
-          // this exact lookup fails to find a row that demonstrably
-          // exists and is active (confirmed via GET /me/programs on
-          // the same live server). Logging unconditionally, not just
-          // on miss, so we can also see the query actually ran and
-          // what it was searching for.
-          httpLog.warn(`[programScope] enrollment lookup userId=${String(userId)} batchId=${batchId} (typeof=${typeof batchId}) found=${!!enr}`);
+
+          // Incident debug (2026-09-25): journalctl isn't readable by
+          // the deploy SSH user (no sudo password configured for it),
+          // so console logging is invisible to us. Write the same
+          // diagnostic to a throwaway DB collection instead, which we
+          // can read via the existing one-off scripts. Also runs a raw
+          // native-driver query alongside the Mongoose one to rule out
+          // a schema-cast mismatch. Best-effort — never let this debug
+          // write itself break the real request.
+          try {
+            const mongoose = (await import('mongoose')).default;
+            const rawMatch = mongoose.connection.db
+              ? await mongoose.connection.db.collection('yaksha_program_enrollments').findOne({
+                  userId: new mongoose.Types.ObjectId(String(userId)),
+                  batchId: new mongoose.Types.ObjectId(String(batchId)),
+                  isActive: true,
+                })
+              : null;
+            await mongoose.connection.db?.collection('debug_temp_2026_09_25').insertOne({
+              at: new Date(),
+              userId: String(userId),
+              userIdCtor: (userId as unknown as { constructor?: { name?: string } })?.constructor?.name,
+              batchId,
+              batchIdType: typeof batchId,
+              mongooseFound: !!enr,
+              mongooseResult: enr,
+              nativeFound: !!rawMatch,
+              nativeResult: rawMatch,
+            });
+          } catch (debugErr) {
+            httpLog.warn(`[programScope] debug write failed: ${(debugErr as Error).message}`);
+          }
+
           if (enr) {
             req.programEnrollment = {
               userId: String(enr.userId),
