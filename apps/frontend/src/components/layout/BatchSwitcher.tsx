@@ -9,6 +9,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBatch } from '../../context/BatchContext';
+import { useAuth } from '../../hooks/useAuth';
 import {
   topbarCreateButton,
   topbarDropdown,
@@ -40,6 +41,8 @@ export function BatchSwitcher({
   className = '',
 }: BatchSwitcherProps): React.ReactElement | null {
   const { currentBatch, availableBatches, loading, setCurrentBatch } = useBatch();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -86,6 +89,24 @@ export function BatchSwitcher({
         <LayersIcon className="text-accent" />
         <span>Pick a program</span>
       </a>
+    );
+  }
+
+  // Security fix (2026-09-25): non-admins are only ever enrolled in (and
+  // the backend only ever returns) their own program, so there is
+  // nothing to switch to — render their program name as a plain,
+  // non-interactive label instead of a dropdown. Backend authorization
+  // (enforceProgramMembership) is the real boundary; this just keeps the
+  // UI from advertising a "switch program" affordance that would 403.
+  if (!isAdmin) {
+    return (
+      <div
+        className={`${compact ? topbarPillCompact : topbarPill} ${className}`}
+        aria-label={`Program: ${currentBatch.name}`}
+      >
+        <LayersIcon className="text-accent" />
+        <span className="truncate max-w-[140px] sm:max-w-[200px]">{currentBatch.name}</span>
+      </div>
     );
   }
 

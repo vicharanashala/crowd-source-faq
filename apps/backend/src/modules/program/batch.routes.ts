@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { protect, authorize } from '../../middleware/auth.js';
+import { protect, authorize, optionalAuth } from '../../middleware/auth.js';
 import {
   listPublicBatches,
   listAdminBatches,
@@ -27,7 +27,7 @@ const listLimiter = rateLimit({
 
 // ─── Public ────────────────────────────────────────────────────────────────
 
-router.get('/', listLimiter, listPublicBatches);
+router.get('/', listLimiter, optionalAuth, listPublicBatches);
 // v1.69 — slug-routed program page. Slug is auto-derived from
 // `name` (see Batch.slugifyProgramName). Mounted BEFORE the `/:id`
 // route so it isn't shadowed.
