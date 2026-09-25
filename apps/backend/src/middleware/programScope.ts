@@ -70,6 +70,27 @@ function extractBatchId(req: Request): string | null {
 export function programScope(opts: { required?: boolean } = {}) {
   const required = opts.required ?? false;
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    // Incident debug (2026-09-25): absolute-first-line capture. If
+    // `req.programContext` is already truthy here, this function
+    // returns on the very next line — before any of our other debug
+    // writes further down, which would explain why enforceProgramMembership
+    // sees a populated programContext but programScope's own
+    // instrumentation never fires.
+    try {
+      const mongoose = (await import('mongoose')).default;
+      const u = (req as Request & { user?: { _id?: string } }).user;
+      await mongoose.connection.db?.collection('debug_temp_2026_09_25').insertOne({
+        at: new Date(),
+        fn: 'programScope-veryfirst',
+        userId: u?._id ? String(u._id) : null,
+        alreadyHadProgramContext: !!req.programContext,
+        existingProgramContext: req.programContext ?? null,
+        hasReqUser: !!u,
+      });
+    } catch {
+      // best-effort
+    }
+
     if (req.programContext) return next(); // already attached
 
     const batchId = extractBatchId(req);
