@@ -16,6 +16,15 @@ const hashToken = (token: string): string => {
   return crypto.createHash('sha256').update(token).digest('hex');
 };
 
+// Incident fix (2026-09-25): the only accounts that should ever exist
+// going forward are (a) staff, created/promoted by an admin, and (b)
+// students, who must come exclusively through the Samagama SSO bridge
+// (auth-bridge.controller.ts) — never a locally-registered password
+// account. `STAFF_ROLES` is who is still allowed to use CSFAQ's own
+// `/login`; everyone else is turned away with a message pointing at
+// the bridge instead of a generic "invalid credentials".
+const STAFF_ROLES: UserRole[] = ['admin', 'moderator', 'ai_moderator'];
+
 // Helper: Generates a signed JWT using the user's ID, embedding a unique
 // `jti` so the token can be server-side revoked via RevokedToken.
 const generateToken = (id: string): { token: string; jti: string; expiresAt: Date } => {
@@ -156,6 +165,21 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     if (!isMatch) {
       authLog.warn('login failed (bad password)', { email, userId: user._id.toString(), ip });
       res.status(401).json({ message: 'Invalid email or password.' });
+      return;
+    }
+
+    // Incident fix (2026-09-25): CSFAQ's own /login is staff-only now.
+    // Students must come exclusively through the Samagama SSO bridge
+    // (auth-bridge.controller.ts) — a correct password on a non-staff
+    // account is no longer sufficient. Checked after the password
+    // match (not before) so a wrong-password attempt on a student
+    // account still gets the generic "Invalid email or password"
+    // above, not a role-revealing message.
+    if (!STAFF_ROLES.includes(user.role)) {
+      authLog.warn('login blocked (non-staff, must use Samagama)', { email, userId: user._id.toString(), ip, role: user.role });
+      res.status(403).json({
+        message: 'Direct login is disabled for students. Please sign in through Samagama.',
+      });
       return;
     }
 
