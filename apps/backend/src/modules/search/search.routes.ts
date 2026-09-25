@@ -45,7 +45,11 @@ const searchLimiter = rateLimit({
 });
 
 // ── Public search ──────────────────────────────────────────────────────────
-router.get('/trending', programScope({ required: false }), getTrending);
+// CodeQL fix (js/missing-rate-limiting): the limiter must run BEFORE
+// programScope, not after — programScope does its own DB lookup
+// (Batch.findById), so putting the limiter downstream of it let a
+// scripted flood hit the DB on every request regardless of the cap.
+router.get('/trending', searchLimiter, programScope({ required: false }), getTrending);
 router.get('/suggest',  suggestLimiter, getSuggest);
 
 // ── Semantic search (public — no auth required) ─────────────────────────────
@@ -56,8 +60,8 @@ router.get('/suggest',  suggestLimiter, getSuggest);
 // chars per the schema in validation.ts) and `limit` (1..50).
 router.post(
   '/',
-  programScope({ required: false }),
   searchLimiter,
+  programScope({ required: false }),
   validateBody(searchSchema),
   semanticSearch
 );
