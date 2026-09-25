@@ -103,6 +103,25 @@ export function programScope(opts: { required?: boolean } = {}) {
       // is loaded lazily so this middleware works even before the
       // ProgramEnrollment model migration is run.
       const userId = (req as Request & { user?: { _id?: string; role?: string } }).user?._id;
+
+      // Incident debug (2026-09-25): unconditional capture, including
+      // the case where userId is falsy (which would explain a 403
+      // with zero writes from the block below).
+      try {
+        const mongoose = (await import('mongoose')).default;
+        await mongoose.connection.db?.collection('debug_temp_2026_09_25').insertOne({
+          at: new Date(),
+          fn: 'programScope-top',
+          hasReqUser: !!(req as Request & { user?: unknown }).user,
+          userId: userId ? String(userId) : null,
+          userIdTruthy: !!userId,
+          userRole: (req as Request & { user?: { role?: string } }).user?.role ?? null,
+          batchId,
+        });
+      } catch {
+        // best-effort
+      }
+
       if (userId && (req as Request & { user?: { role?: string } }).user?.role !== 'admin') {
         try {
           // Dynamic import — keeps the middleware cheap when the
@@ -215,6 +234,26 @@ export function programScope(opts: { required?: boolean } = {}) {
 export function enforceProgramMembership() {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const user = (req as Request & { user?: { _id?: string; role?: string } }).user;
+
+    // Incident debug (2026-09-25): unconditional, best-effort capture
+    // of everything this function saw, written to the same throwaway
+    // collection programScope uses. See programScope.ts for context.
+    try {
+      const mongoose = (await import('mongoose')).default;
+      await mongoose.connection.db?.collection('debug_temp_2026_09_25').insertOne({
+        at: new Date(),
+        fn: 'enforceProgramMembership',
+        hasUser: !!user,
+        userId: user?._id ? String(user._id) : null,
+        userIdCtor: user?._id ? (user._id as unknown as { constructor?: { name?: string } })?.constructor?.name : null,
+        userRole: user?.role ?? null,
+        programContext: req.programContext ?? null,
+        programEnrollment: req.programEnrollment ?? null,
+      });
+    } catch {
+      // best-effort, never break the real request
+    }
+
     if (!user) return next();
     if (user.role === 'admin') return next();
     if (!req.programContext) return next();
