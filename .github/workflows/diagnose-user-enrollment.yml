@@ -13,6 +13,10 @@ on:
         description: "Email of the user to diagnose"
         required: true
         type: string
+      batchId:
+        description: "Batch/program ObjectId to simulate a request against (optional — also runs simulate-enforce-membership.ts if given)"
+        required: false
+        type: string
 
 env:
   INFISICAL_ENVIRONMENT: prod
@@ -35,14 +39,16 @@ jobs:
       - name: Run diagnostic
         env:
           TARGET_EMAIL: ${{ inputs.email }}
+          TARGET_BATCH_ID: ${{ inputs.batchId }}
         run: |
-          # Base64-encode the email before it crosses two shell layers
+          # Base64-encode both inputs before they cross two shell layers
           # (this runner -> ssh -> remote bash). A raw workflow_dispatch
           # string input embedded straight into a heredoc could contain
           # `$(...)`/backticks that get re-parsed and executed on the
           # remote host — encode/decode instead of trusting the quoting.
           EMAIL_B64=$(printf '%s' "$TARGET_EMAIL" | base64)
-          ssh -i ~/.ssh/id_ed25519 csfaq-deploy@${{ secrets.CSFAQ_HOST }} "EMAIL_B64='${EMAIL_B64}' bash" << 'MIGRATE'
+          BATCH_B64=$(printf '%s' "$TARGET_BATCH_ID" | base64)
+          ssh -i ~/.ssh/id_ed25519 csfaq-deploy@${{ secrets.CSFAQ_HOST }} "EMAIL_B64='${EMAIL_B64}' BATCH_B64='${BATCH_B64}' bash" << 'MIGRATE'
             set -e
 
             cd /home/csfaq-prod/crowd-source-faq
@@ -79,8 +85,16 @@ jobs:
             pnpm install --frozen-lockfile
 
             TARGET_EMAIL=$(printf '%s' "$EMAIL_B64" | base64 -d)
+            TARGET_BATCH_ID=$(printf '%s' "$BATCH_B64" | base64 -d)
+
             echo "==> Running diagnostic for $TARGET_EMAIL..."
             npx tsx src/scripts/diagnose-user-enrollment.ts "$TARGET_EMAIL"
+
+            if [ -n "$TARGET_BATCH_ID" ]; then
+              echo ""
+              echo "==> Simulating enforceProgramMembership() for $TARGET_EMAIL against batch $TARGET_BATCH_ID..."
+              npx tsx src/scripts/simulate-enforce-membership.ts "$TARGET_EMAIL" "$TARGET_BATCH_ID"
+            fi
 
             echo "==> Diagnostic complete. Read-only, no writes made."
           MIGRATE
