@@ -144,6 +144,39 @@ export function programScope(opts: { required?: boolean } = {}) {
  *     handler
  *   )
  */
+/**
+ * Blocks a signed-in, non-enrolled user from reading another program's
+ * data via a client-supplied `batchId` — the cross-cohort leak where a
+ * summership-only student could switch the program dropdown to Vriddhi/
+ * Monsoonship and have the backend trust the batchId at face value.
+ *
+ * Deliberately permissive for two cases so it's safe to drop onto
+ * routes that are intentionally public:
+ *   - No signed-in user (`req.user` unset) — anonymous browsing is
+ *     unaffected; there's no session to leak across.
+ *   - No `batchId` was requested (`req.programContext` unset) — an
+ *     unscoped/global read, not a per-program one.
+ * Global admins and moderators bypass (they're allowed to view any
+ * program). Everyone else needs a matching, active `ProgramEnrollment`
+ * for the requested batch, which `programScope()` (mounted before this)
+ * is responsible for attaching.
+ *
+ * Mount AFTER `optionalAuth` (or `protect`) and `programScope()`.
+ */
+export function enforceProgramMembership() {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const user = (req as Request & { user?: { role?: string } }).user;
+    if (!user) return next();
+    if (user.role === 'admin' || user.role === 'moderator') return next();
+    if (!req.programContext) return next();
+    if (!req.programEnrollment) {
+      res.status(403).json({ message: 'You are not enrolled in this program.' });
+      return;
+    }
+    next();
+  };
+}
+
 export function requireProgramRole(
   ...allowed: Array<ProgramEnrollmentContext['programRole']>
 ) {

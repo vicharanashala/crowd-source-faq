@@ -3,6 +3,15 @@ import { Types } from 'mongoose';
 import { verifyAndLoadUser, authorize, type AuthedRequest } from './authShared.js';
 import { checkInternalApiKey } from './internalApiKey.js';
 
+// Swallow-everything Response stand-in so verifyAndLoadUser's internal
+// res.status().json() calls on a bad/missing token don't touch the real
+// response object — optionalAuth treats "not authenticated" as "anonymous",
+// not as a reason to write a response itself.
+function silentResponse(): Response {
+  const noop = { status: () => noop, json: () => noop } as unknown as Response;
+  return noop;
+}
+
 // Re-export the legacy `authorize` factory so callers that import it from
 // './middleware/auth.js' keep working.
 export { authorize };
@@ -49,5 +58,25 @@ export const protect = async (req: Request, res: Response, next: NextFunction): 
   }
   const user = await verifyAndLoadUser(req as AuthedRequest, res);
   if (!user) return;
+  next();
+};
+
+// `optionalAuth` — attach `req.user` when a valid Bearer token is present,
+// but never blocks the request when it's missing/invalid/expired. Used on
+// routes that must stay reachable by anonymous visitors (public FAQ pages)
+// while still letting per-program authorization middleware downstream
+// (see programScope/enforceProgramMembership) recognize signed-in users
+// and check their enrollment before returning another cohort's data.
+export const optionalAuth = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  if (!req.headers.authorization?.startsWith('Bearer ')) {
+    next();
+    return;
+  }
+  if (checkInternalApiKey(req)) {
+    (req as AuthedRequest).user = INTERNAL_BOT_SENTINEL_USER as unknown as AuthedRequest['user'];
+    next();
+    return;
+  }
+  await verifyAndLoadUser(req as AuthedRequest, silentResponse());
   next();
 };
