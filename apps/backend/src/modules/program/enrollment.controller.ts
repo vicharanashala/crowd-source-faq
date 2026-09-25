@@ -105,6 +105,9 @@ export async function selfEnroll(req: Request, res: Response): Promise<void> {
       existing.isActive = true;
       existing.enrolledAt = new Date();
       existing.enrolledBy = null;
+      // Incident fix (2026-09-25): explicit user action, distinct from
+      // a real Samagama assertion or a backfill guess.
+      existing.source = 'self-enroll';
       await existing.save();
       res.json({ reactivated: true, enrollment: existing });
       return;
@@ -115,6 +118,7 @@ export async function selfEnroll(req: Request, res: Response): Promise<void> {
       programRole: 'student',
       enrolledBy: null,
       isActive: true,
+      source: 'self-enroll',
     });
     res.status(201).json({ enrollment: created });
   } catch (err) {
