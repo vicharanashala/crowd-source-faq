@@ -1,11 +1,8 @@
 import { Router } from 'express';
-import { login, register, getMe, getAllUsers, updateUserRole, deleteUser, updateProfile, changePassword, exportUserData, logout, refresh, adminResetUserPassword } from './auth.controller.js';
+import { login, getMe, getAllUsers, updateUserRole, deleteUser, updateProfile, changePassword, exportUserData, logout, refresh, adminResetUserPassword } from './auth.controller.js';
 import { protect, authorize } from '../../middleware/auth.js';
-import { loginLimiter, registerLimiter, passwordChangeLimiter, refreshLimiter } from '../../utils/auth/rateLimit.js';
-import { validateBody, refreshSchema, registerSchema, loginSchema, updateProfileSchema, changePasswordSchema, adminResetPasswordSchema } from '../../utils/auth/validation.js';
-// v1.70 — Controlled-registration gate. Mounted BEFORE validateBody so
-// closed/invalid-token requests 403 before the Zod schema runs.
-import { registrationGate } from '../../utils/auth/registrationGate.js';
+import { loginLimiter, passwordChangeLimiter, refreshLimiter } from '../../utils/auth/rateLimit.js';
+import { validateBody, refreshSchema, loginSchema, updateProfileSchema, changePasswordSchema, adminResetPasswordSchema } from '../../utils/auth/validation.js';
 // v1.7x — Public registration-status endpoint (no auth, no rate limit
 // because it's a single tiny read; the AuthModal calls it on mount of
 // the register tab to render the right copy).
@@ -13,8 +10,19 @@ import { publicGetRegistrationStatus } from '../program/registration-control.con
 
 const router = Router();
 
-// POST /api/auth/register (Public) — rate-limited, gated, validated
-router.post('/register', registerLimiter, registrationGate, validateBody(registerSchema), register);
+// POST /api/auth/register (CLOSED, 2026-09-25) — every locally-registered
+// account was a plain non-staff 'user' (schema default); students must
+// come exclusively through the Samagama SSO bridge
+// (auth-bridge.routes.ts) going forward, and staff accounts are
+// created/promoted by an admin, not self-registered. This is a hard
+// stop, not the pre-existing admin registrationEnabled/invite-token
+// toggle (registrationGate.ts) — that toggle no longer has a route to
+// govern.
+router.post('/register', (_req, res) => {
+  res.status(403).json({
+    message: 'Direct registration is closed. Students must sign in through Samagama; staff accounts are created by an admin.',
+  });
+});
 
 // GET /api/auth/registration-status (Public) — used by the AuthModal
 // to render "closed / invite required / open" copy without forcing the
