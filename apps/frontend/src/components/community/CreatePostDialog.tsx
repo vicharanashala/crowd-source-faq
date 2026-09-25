@@ -115,7 +115,7 @@ export default function CreatePostDialog({ onClose, onCreated, prefillTitle = ''
   useEffect(() => {
     if (!user) {
       onClose();
-      openModal('signin');
+      openModal();
     }
   }, [user]);
   if (!user) return null;

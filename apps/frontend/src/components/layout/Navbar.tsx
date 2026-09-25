@@ -169,20 +169,17 @@ export default function Navbar({ showProgramSwitcher: _showProgramSwitcher = fal
         <div className="flex items-center justify-self-end gap-2 sm:gap-3">
           {!isAdminView && (
             <>
-              {/* Unauthenticated — Sign in (text) + Get started (filled) */}
+              {/* Unauthenticated — Sign in only (staff). Incident fix
+                  2026-09-25: registration is closed and direct login is
+                  staff-only now — students use Samagama, so "Get started"
+                  is removed rather than pointing at a form that always 403s. */}
               {!isAuthenticated && (
                 <div className="hidden lg:flex items-center gap-2">
                   <button
-                    onClick={() => openModal('signin')}
+                    onClick={() => openModal()}
                     className="px-3 py-1.5 text-sm font-medium text-ink-soft hover:text-ink transition-colors"
                   >
                     Sign in
-                  </button>
-                  <button
-                    onClick={() => openModal('register')}
-                    className={`${btnBase} ${btnPrimary} text-sm`}
-                  >
-                    Get started
                   </button>
                 </div>
               )}
@@ -401,20 +398,14 @@ export default function Navbar({ showProgramSwitcher: _showProgramSwitcher = fal
             </NavLink>
           ))}
 
-          {/* Mobile: Sign-in / Get started */}
+          {/* Mobile: Sign in only (staff) — registration is closed. */}
           {!isAuthenticated && (
             <div className="flex gap-2 mt-2">
               <button
-                onClick={() => { openModal('signin'); setMobileOpen(false); }}
+                onClick={() => { openModal(); setMobileOpen(false); }}
                 className="flex-1 py-2.5 px-4 text-sm font-semibold text-ink-soft border border-border rounded-full hover:bg-mist transition-colors"
               >
                 Sign in
-              </button>
-              <button
-                onClick={() => { openModal('register'); setMobileOpen(false); }}
-                className={`${btnBase} ${btnPrimary} flex-1 text-sm`}
-              >
-                Get started
               </button>
             </div>
           )}

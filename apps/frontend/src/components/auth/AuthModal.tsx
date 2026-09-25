@@ -1,54 +1,36 @@
-import React, { useEffect, useState, useRef, type ChangeEvent, type FormEvent } from 'react';
+import React, { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth, type User } from '../../hooks/useAuth';
 import { useAuthModal } from '../../context/AuthModalContext';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
-import api from '../../utils/api';
 import Input from '../ui/Input';
 import Button from '../ui/Button';
 import {
   authCloseButton,
-  authHintFaint,
   authHintSoft,
   authInfoBox,
   authInputIcon,
   authModalPanel,
-  authTabBase,
-  authTabActive,
-  authTabIdle,
-  authTabRow,
   authTitle,
-  accentBorderMuted,
-  cardHeaderTitle,
-  dangerBorder,
-  emptyPaddedCenter,
   inlineDangerBanner,
   modalShell,
   modalTitleRow,
   stackMd,
-  textBody,
-  textHeaderSm,
-  textLabel,
-  textLabelBold,
-  textXsFaint,
-  warningBorder,
-  textXsLabel,
 } from '../../styles/style_config';
 
-type Tab = 'signin' | 'register';
-
 /**
- * Public registration-mode snapshot returned by
- *   GET /api/auth/registration-status
- * Drives the banner + submit-button gating in the register tab.
- */
-interface RegistrationStatus {
-  enabled: boolean;
-  openForAll: boolean;
-}
-
-/**
- * AuthModal — single tabbed modal that combines Sign in + Get started.
+ * AuthModal — staff-only sign-in.
+ *
+ * Incident fix (2026-09-25): direct registration is closed platform-wide
+ * (POST /api/auth/register always 403s) and direct login now rejects any
+ * non-staff account — students must come exclusively through the
+ * Samagama SSO bridge. This modal used to also offer a "Get started"
+ * registration tab; that's removed since it could never succeed. What
+ * remains is a single sign-in form for the staff (admin/moderator/
+ * ai_moderator) accounts that still use it directly, plus a pointer to
+ * Samagama for everyone else — a login attempt from a student account
+ * still works technically (form submits) but the backend's 403 message
+ * ("...sign in through Samagama") surfaces via the existing error banner.
  *
  * - Backdrop has a frosted blur over the page underneath.
  * - ESC key, click on backdrop, or successful submit all close it.
@@ -61,37 +43,16 @@ interface RegistrationStatus {
  * response don't render on top of the fading backdrop.
  */
 export default function AuthModal() {
-  const { isOpen, initialTab, closeModal, prompt, inviteToken } = useAuthModal();
-  const { login, register } = useAuth();
+  const { isOpen, closeModal, prompt } = useAuthModal();
+  const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [tab, setTab] = useState<Tab>(initialTab);
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
-  const [registerForm, setRegisterForm] = useState({
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-  });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  
-  const [showLoginPwd, setShowLoginPwd] = useState(false);
-  const [showRegPwd, setShowRegPwd] = useState(false);
-  const [showRegConfirmPwd, setShowRegConfirmPwd] = useState(false);
 
-  // v1.7x — Public registration-mode snapshot. Fetched when the modal
-  // opens on the register tab so we can render the right banner copy
-  // ("registration closed" / "invite required" / "open to everyone")
-  // instead of forcing the user to submit and discover via a 403.
-  // `null` until the first fetch resolves; `closed` (default) if the
-  // endpoint is unreachable so we never accidentally allow submit
-  // against a downed backend.
-  const [regStatus, setRegStatus] = useState<RegistrationStatus | null>(null);
-  // H9 — separate loading flag so we can show a spinner in the button
-  // during the initial regStatus fetch (distinct from per-submit loading).
-  const [regStatusLoading, setRegStatusLoading] = useState(true);
+  const [showLoginPwd, setShowLoginPwd] = useState(false);
 
   // "closing" keeps the DOM node alive through the fade-out animation so
   // sibling dialogs (e.g. CreatePostDialog) don't appear on top of the
@@ -99,14 +60,10 @@ export default function AuthModal() {
   // returns null and the provider's closeModal is considered complete.
   const [closing, setClosing] = useState(false);
   const closeTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  // H6 — guard against Enter-key race: a rapid second Enter press
-  // should be a no-op while the first submission is still in-flight.
-  const submittedRef = useRef(false);
 
-  // Sync the tab when the modal opens with a different starting tab.
+  // Reset transient state whenever the modal opens.
   useEffect(() => {
     if (isOpen) {
-      setTab(initialTab);
       setError('');
       setClosing(false);
       if (closeTimerRef.current) {
@@ -114,40 +71,7 @@ export default function AuthModal() {
         closeTimerRef.current = null;
       }
     }
-  }, [isOpen, initialTab]);
-
-  // v1.7x — Fetch public registration status whenever the register
-  // tab is the active tab and the modal is open. Re-fetch on tab flip
-  // (signin → register) so we always have fresh data when the user
-  // arrives at the form. Failure is treated as "closed" — better UX
-  // than showing an empty form that silently 403s on submit.
-  useEffect(() => {
-    if (!isOpen || tab !== 'register') return;
-    let cancelled = false;
-    // H9 — mark loading true when we kick off a fresh fetch.
-    // Default true so button is dead from the start; cleared on
-    // first resolve OR on error (defaulting to closed).
-    setRegStatusLoading(true);
-    api
-      .get<RegistrationStatus>('/auth/registration-status')
-      .then((res) => {
-        if (!cancelled) {
-          setRegStatus(res.data);
-          setRegStatusLoading(false);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          // Default to closed on fetch failure so the submit button
-          // stays disabled until the user retries or refreshes.
-          setRegStatus({ enabled: false, openForAll: false });
-          setRegStatusLoading(false);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [isOpen, tab]);
+  }, [isOpen]);
 
   // ESC closes the modal.
   useEffect(() => {
@@ -198,11 +122,6 @@ export default function AuthModal() {
     setError('');
   };
 
-  const handleRegisterChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setRegisterForm((f) => ({ ...f, [e.target.name]: e.target.value }));
-    setError('');
-  };
-
   const handleLoginSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!loginForm.email || !loginForm.password) {
@@ -241,54 +160,6 @@ export default function AuthModal() {
     }
   };
 
-  const handleRegisterSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    // H6 — guard against double-submit (Enter-key race).
-    if (submittedRef.current) return;
-    submittedRef.current = true;
-    if (!registerForm.name?.trim() || !registerForm.email || !registerForm.password) {
-      setError('Please fill out all fields.');
-      submittedRef.current = false;
-      return;
-    }
-    if (
-      registerForm.password.length < 8 ||
-      !/[A-Za-z]/.test(registerForm.password) ||
-      !/[0-9]/.test(registerForm.password)
-    ) {
-      setError('Password must be at least 8 characters and include a letter and a number.');
-      submittedRef.current = false;
-      return;
-    }
-    if (registerForm.password !== registerForm.confirmPassword) {
-      setError('Passwords do not match.');
-      submittedRef.current = false;
-      return;
-    }
-    setLoading(true);
-    try {
-      await register(
-        registerForm.name.trim(),
-        registerForm.email.trim(),
-        registerForm.password,
-        // v1.70 — pass the invite token if the user arrived via /?token=...
-        // Captured by AuthModalProvider on mount. Backend validates; if
-        // missing/invalid the gate returns 403 and the error message below.
-        inviteToken ?? undefined
-      );
-      // Same as handleLoginSubmit — set closing=true + closeModal()
-      // so the provider's effect sees the isOpen transition and fires the
-      // pending action, while the fade animation plays out.
-      setClosing(true);
-      closeModal();
-    } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      setError(axiosErr.response?.data?.message || 'Registration failed. Please try again.');
-    } finally {
-      setLoading(false);
-      submittedRef.current = false;
-    }
-  };
 
   return (
     <div
@@ -313,7 +184,7 @@ export default function AuthModal() {
         <div className={modalTitleRow}>
           <div>
             <h2 id="auth-modal-title" className={authTitle}>
-              {tab === 'signin' ? 'Sign in' : 'Get started'}
+              Staff sign in
             </h2>
             {prompt && (
               <p className={authHintSoft}>{prompt}</p>
@@ -331,212 +202,63 @@ export default function AuthModal() {
           </button>
         </div>
 
-        {/* Tabs */}
-        <div className={authTabRow}>
-          <button
-            onClick={() => { setTab('signin'); setError(''); }}
-            className={`${authTabBase} ${tab === 'signin' ? authTabActive : authTabIdle}`}
-          >
-            Sign in
-          </button>
-          <button
-            onClick={() => { setTab('register'); setError(''); }}
-            className={`${authTabBase} ${tab === 'register' ? authTabActive : authTabIdle}`}
-          >
-            Get started
-          </button>
+        {/* Incident fix (2026-09-25): registration is closed platform-wide
+            and direct login is staff-only now — students must use Samagama.
+            This note replaces the old "Get started" registration tab. */}
+        <div className={authInfoBox}>
+          Are you a student? Sign in through{' '}
+          <a href="https://samagama.in/" className="font-semibold underline">
+            Samagama
+          </a>{' '}
+          instead — direct sign-in here is for staff accounts only.
         </div>
 
-        {tab === 'signin' ? (
-          <form onSubmit={handleLoginSubmit} className={stackMd} noValidate>
-            <Input
-              id="modal-login-email"
-              name="email"
-              type="email"
-              label="Email"
-              autoComplete="email"
-              value={loginForm.email}
-              onChange={handleLoginChange}
-              placeholder="you@example.com"
-              disabled={loading}
-            />
-            <Input
-              id="modal-login-password"
-              name="password"
-              type={showLoginPwd ? 'text' : 'password'}
-              label="Password"
-              autoComplete="current-password"
-              value={loginForm.password}
-              onChange={handleLoginChange}
-              placeholder="••••••••"
-              disabled={loading}
-              iconRight={
-                <button
-                  type="button"
-                  onClick={() => setShowLoginPwd(!showLoginPwd)}
-                  className={authInputIcon}
-                  aria-label={showLoginPwd ? "Hide password" : "Show password"}
-                >
-                  {showLoginPwd ? (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
-                  ) : (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                  )}
-                </button>
-              }
-            />
-            {error && (
-              <p className={inlineDangerBanner}>
-                {error}
-              </p>
-            )}
-            <Button type="submit" loading={loading} className="w-full mt-1">
-              Sign in
-            </Button>
-          </form>
-        ) : (
-          <form onSubmit={handleRegisterSubmit} className={stackMd} noValidate>
-            {/* v1.7x — Registration-mode banner. Drives both the copy
-                and whether the submit button is enabled. The banner is
-                intentionally rendered above the inputs so a closed-mode
-                visitor sees "registration closed" before they fill out
-                a form that would 403. */}
-            {regStatus && (
-              <div
-                className={
-                  !regStatus.enabled
-                    ? dangerBorder
-                    : regStatus.openForAll
-                      ? accentBorderMuted
-                      : inviteToken
-                        ? accentBorderMuted
-                        : warningBorder
-                }
-                aria-live="polite"
+        <form onSubmit={handleLoginSubmit} className={stackMd} noValidate>
+          <Input
+            id="modal-login-email"
+            name="email"
+            type="email"
+            label="Email"
+            autoComplete="email"
+            value={loginForm.email}
+            onChange={handleLoginChange}
+            placeholder="you@example.com"
+            disabled={loading}
+          />
+          <Input
+            id="modal-login-password"
+            name="password"
+            type={showLoginPwd ? 'text' : 'password'}
+            label="Password"
+            autoComplete="current-password"
+            value={loginForm.password}
+            onChange={handleLoginChange}
+            placeholder="••••••••"
+            disabled={loading}
+            iconRight={
+              <button
+                type="button"
+                onClick={() => setShowLoginPwd(!showLoginPwd)}
+                className={authInputIcon}
+                aria-label={showLoginPwd ? "Hide password" : "Show password"}
               >
-                {!regStatus.enabled ? (
-                  <>
-                    <span className="font-semibold">Registration is closed.</span>{' '}
-                    New accounts are not being accepted right now.
-                  </>
-                ) : regStatus.openForAll ? (
-                  <>
-                    <span className="font-semibold">Open registration.</span>{' '}
-                    Anyone can create an account — no invite link required.
-                  </>
-                ) : inviteToken ? (
-                  <>
-                    <span className="font-semibold">Invite link accepted.</span>{' '}
-                    You arrived via an invite link, so registration is unlocked for you.
-                  </>
+                {showLoginPwd ? (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
                 ) : (
-                  <>
-                    <span className="font-semibold">Invite required.</span>{' '}
-                    Registration is invite-only — please use the link shared with you,
-                    or ask an admin for one.
-                  </>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                 )}
-              </div>
-            )}
-            <Input
-              id="modal-register-name"
-              name="name"
-              type="text"
-              label="Full Name"
-              autoComplete="name"
-              value={registerForm.name}
-              onChange={handleRegisterChange}
-              placeholder="John Doe"
-              disabled={loading}
-            />
-            <Input
-              id="modal-register-email"
-              name="email"
-              type="email"
-              label="Email"
-              autoComplete="email"
-              value={registerForm.email}
-              onChange={handleRegisterChange}
-              placeholder="you@example.com"
-              disabled={loading}
-            />
-            <Input
-              id="modal-register-password"
-              name="password"
-              type={showRegPwd ? 'text' : 'password'}
-              label="Password"
-              autoComplete="new-password"
-              value={registerForm.password}
-              onChange={handleRegisterChange}
-              placeholder="••••••••"
-              disabled={loading}
-              iconRight={
-                <button
-                  type="button"
-                  onClick={() => setShowRegPwd(!showRegPwd)}
-                  className={authInputIcon}
-                  aria-label={showRegPwd ? "Hide password" : "Show password"}
-                >
-                  {showRegPwd ? (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
-                  ) : (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                  )}
-                </button>
-              }
-            />
-            <p className={authHintFaint}>At least 8 characters, including a letter and a number</p>
-            <Input
-              id="modal-register-confirm"
-              name="confirmPassword"
-              type={showRegConfirmPwd ? 'text' : 'password'}
-              label="Confirm Password"
-              autoComplete="new-password"
-              value={registerForm.confirmPassword}
-              onChange={handleRegisterChange}
-              placeholder="••••••••"
-              disabled={loading}
-              iconRight={
-                <button
-                  type="button"
-                  onClick={() => setShowRegConfirmPwd(!showRegConfirmPwd)}
-                  className={authInputIcon}
-                  aria-label={showRegConfirmPwd ? "Hide password" : "Show password"}
-                >
-                  {showRegConfirmPwd ? (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
-                  ) : (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                  )}
-                </button>
-              }
-            />
-            {error && (
-              <p className={inlineDangerBanner}>
-                {error}
-              </p>
-            )}
-            <Button
-              type="submit"
-              // H9 — include regStatusLoading so the spinner appears while
-              // the initial regStatus fetch is in flight (distinct from
-              // per-submit loading).
-              loading={loading || regStatusLoading}
-              // Block submit while we don't yet know the registration
-              // status (status fetch in flight) or when the gate is
-              // closed. We still allow submit when invite-only + no
-              // token — the backend returns a clear 403 with copy
-              // matching the banner.
-              disabled={loading || regStatus === null || !regStatus.enabled}
-              className="w-full mt-1"
-            >
-              {regStatusLoading ? 'Loading…' : 'Create account'}
-            </Button>
-            <div className={authInfoBox}>
-              If you are Unable to Register, please ensure that you have joined the whatsapp group sent to you via mail
-            </div>
-          </form>
-        )}
+              </button>
+            }
+          />
+          {error && (
+            <p className={inlineDangerBanner}>
+              {error}
+            </p>
+          )}
+          <Button type="submit" loading={loading} className="w-full mt-1">
+            Sign in
+          </Button>
+        </form>
       </div>
     </div>
   );

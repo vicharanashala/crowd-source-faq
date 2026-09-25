@@ -1,55 +1,20 @@
-import React, { useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import React from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { AuthModalProvider, useAuthModal } from '../../context/AuthModalContext';
+import { AuthModalProvider } from '../../context/AuthModalContext';
 import AuthModal from './AuthModal';
 
-const FIRST_VISIT_PROMPT_KEY = 'yaksha_first_visit_prompt_seen';
-
-function FirstVisitAuthPrompt() {
-  const { isOpen } = useAuthModal();
-  const { isAuthenticated, loading } = useAuth();
-  const { pathname } = useLocation();
-
-  useEffect(() => {
-    if (
-      pathname === '/' ||
-      pathname.startsWith('/explore') ||
-      pathname.startsWith('/home')
-    ) {
-      return;
-    }
-    if (loading) return;
-    if (isAuthenticated) return;
-    if (typeof window === 'undefined') return;
-
-    let alreadySeen = false;
-    try {
-      alreadySeen = localStorage.getItem(FIRST_VISIT_PROMPT_KEY) === '1';
-    } catch { /* ignored */ }
-    if (alreadySeen) return;
-
-    const timer = window.setTimeout(() => {
-      try {
-        localStorage.setItem(FIRST_VISIT_PROMPT_KEY, '1');
-      } catch { /* ignored */ }
-      window.dispatchEvent(new CustomEvent('authmodal:open', {
-        detail: { tab: 'signin' },
-      }));
-    }, 1200);
-
-    return () => window.clearTimeout(timer);
-  }, [loading, isAuthenticated, pathname]);
-
-  void isOpen;
-  return null;
-}
+// Incident fix (2026-09-25): removed the old FirstVisitAuthPrompt, which
+// auto-popped this modal for every anonymous first-time visitor after
+// 1.2s. Now that the modal is staff-only sign-in (registration closed,
+// students use Samagama), auto-prompting the vast majority of visitors
+// — who are students, not staff — with a "Staff sign in" popup they
+// can't use is actively confusing. Staff open it deliberately via the
+// navbar "Sign in" button instead.
 
 export default function AuthModalHost({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth();
   return (
     <AuthModalProvider isAuthenticated={isAuthenticated}>
-      <FirstVisitAuthPrompt />
       {children}
       <AuthModal />
     </AuthModalProvider>

@@ -250,7 +250,7 @@ export default function AskAIButton() {
     // H37 — guard with ref in addition to state. State guards race
     // because the second invocation reads `isLoading` BEFORE the first
     // call's `setIsLoading(true)` commits. Refs don't re-render.
-    if (!isAuthenticated && readAnonCount() >= ANON_AI_LIMIT) { openModal('signin'); return; }
+    if (!isAuthenticated && readAnonCount() >= ANON_AI_LIMIT) { openModal(); return; }
     if (sendInFlightRef.current) return;
     sendInFlightRef.current = true;
     const hasAttachments = attachments.length > 0;
@@ -280,7 +280,7 @@ export default function AskAIButton() {
         res = await api.post<AskResponse>('/ask-ai', { question: q });
       }
       setMessages(m => m.map(msg => msg.id === aiMsg.id ? { ...msg, content: res.data.answer, sources: res.data.sources, loading: false } : msg));
-      if (!isAuthenticated) { const next = bumpAnonCount(); setAnonCount(next); if (next === ANON_AI_LIMIT) setTimeout(() => openModal('signin'), 1500); }
+      if (!isAuthenticated) { const next = bumpAnonCount(); setAnonCount(next); if (next === ANON_AI_LIMIT) setTimeout(() => openModal(), 1500); }
       // Release any preview URLs we held.
       sending.forEach((a) => { if (a.previewUrl) URL.revokeObjectURL(a.previewUrl); });
     } catch (err: unknown) {
@@ -350,7 +350,7 @@ export default function AskAIButton() {
               <div className="w-12 h-12 mx-auto rounded-2xl bg-accent/10 border border-accent/20 flex items-center justify-center"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-accent"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
               <p className="text-sm font-semibold text-ink">Sign in to continue</p>
               <p className="text-[11px] text-ink-soft max-w-xs mx-auto">You have used your {ANON_AI_LIMIT} free AI searches. Sign in for unlimited access.</p>
-              <button onClick={() => openModal('signin')} className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-accent text-accent-text text-xs font-semibold hover:bg-accent-hover transition-colors">Sign in</button>
+              <button onClick={() => openModal()} className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-accent text-accent-text text-xs font-semibold hover:bg-accent-hover transition-colors">Sign in</button>
             </div>
           )}
           {messages.length === 0 && !quotaExhausted && (
