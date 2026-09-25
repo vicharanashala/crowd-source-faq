@@ -19,7 +19,9 @@ async function main() {
   const db = mongoose.connection.db;
   if (!db) throw new Error('no db connection');
 
-  const docs = await db.collection('debug_temp_2026_09_25').find({}).sort({ at: -1 }).limit(20).toArray();
+  const filterUserId = process.argv[2] || null;
+  const query = filterUserId ? { userId: filterUserId } : {};
+  const docs = await db.collection('debug_temp_2026_09_25').find(query).sort({ at: -1 }).limit(20).toArray();
   console.log(`Found ${docs.length} debug entries (most recent first):\n`);
   for (const d of docs) {
     console.log(JSON.stringify(d, null, 2));

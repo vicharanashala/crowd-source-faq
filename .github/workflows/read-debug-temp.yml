@@ -6,6 +6,12 @@ name: Read Debug Temp Collection (one-off, read-only)
 
 on:
   workflow_dispatch:
+    inputs:
+      userId:
+        description: "Optional userId to filter debug entries by"
+        required: false
+        default: ""
+        type: string
 
 env:
   INFISICAL_ENVIRONMENT: prod
@@ -26,8 +32,11 @@ jobs:
           ssh-keyscan -H ${{ secrets.CSFAQ_HOST }} >> ~/.ssh/known_hosts
 
       - name: Read debug data
+        env:
+          FILTER_USER_ID: ${{ inputs.userId }}
         run: |
-          ssh -i ~/.ssh/id_ed25519 csfaq-deploy@${{ secrets.CSFAQ_HOST }} bash << 'READ'
+          FILTER_B64=$(printf '%s' "$FILTER_USER_ID" | base64)
+          ssh -i ~/.ssh/id_ed25519 csfaq-deploy@${{ secrets.CSFAQ_HOST }} "FILTER_B64='${FILTER_B64}' bash" << 'READ'
             set -e
 
             cd /home/csfaq-prod/crowd-source-faq
@@ -63,8 +72,9 @@ jobs:
             cd apps/backend
             pnpm install --frozen-lockfile
 
-            echo "==> Reading debug_temp_2026_09_25..."
-            npx tsx src/scripts/read-debug-temp.ts
+            FILTER_USER_ID=$(printf '%s' "$FILTER_B64" | base64 -d)
+            echo "==> Reading debug_temp_2026_09_25 (filter: ${FILTER_USER_ID:-none})..."
+            npx tsx src/scripts/read-debug-temp.ts "$FILTER_USER_ID"
 
             echo "==> Done. Read-only, no writes made."
           READ
