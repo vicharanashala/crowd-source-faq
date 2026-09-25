@@ -39,7 +39,7 @@ describe('enforceProgramMembership', () => {
     expect(next).toHaveBeenCalledOnce();
   });
 
-  it('lets moderators read any program', () => {
+  it('blocks a global moderator without admin access from another program (must be enrolled)', () => {
     const req = {
       user: { role: 'moderator' },
       programContext: { batchId: 'vriddhi', batchName: 'Vriddhi', isActive: true },
@@ -47,7 +47,8 @@ describe('enforceProgramMembership', () => {
     const res = mockRes();
     const next = vi.fn();
     enforceProgramMembership()(req, res, next);
-    expect(next).toHaveBeenCalledOnce();
+    expect(next).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(403);
   });
 
   it('blocks a signed-in student requesting a program they are not enrolled in (the reported bug)', () => {

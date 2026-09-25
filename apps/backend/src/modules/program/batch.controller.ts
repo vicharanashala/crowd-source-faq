@@ -7,6 +7,7 @@ import { invalidatePublicCaches } from '../faq/public-faq.controller.js';
 import { bootstrapProgram } from './provisioning.service.js';
 import { cascadeDeleteProgram } from './cascade-delete.service.js';
 import { createBatchSchema, updateBatchSchema } from './batch.schema.js';
+import ProgramEnrollment from './program-enrollment.model.js';
 
 // ─── Validation ──────────────────────────────────────────────────────────────
 // Schemas live in ./batch.schema.ts so the date-handling logic and the
@@ -14,8 +15,28 @@ import { createBatchSchema, updateBatchSchema } from './batch.schema.js';
 
 // ─── Public list (active only) ──────────────────────────────────────────────
 
-export async function listPublicBatches(_req: Request, res: Response): Promise<void> {
+// Security fix (2026-09-25): a signed-in, non-admin user (e.g. a
+// summership-only student) was shown every active program in the
+// "switch program" dropdown, not just the ones they're enrolled in —
+// letting them discover and then (before the FAQ/analytics fix) read
+// other cohorts' content. Anonymous visitors still see the full public
+// directory (this is also the portal's un-authed landing listing);
+// global admins still see everything. A signed-in non-admin is now
+// filtered down to their own active `ProgramEnrollment`s.
+export async function listPublicBatches(req: Request, res: Response): Promise<void> {
   try {
+    const user = (req as Request & { user?: { _id?: Types.ObjectId; role?: string } }).user;
+    let enrolledBatchIds: Types.ObjectId[] | null = null;
+    if (user && user.role !== 'admin') {
+      const enrollments = await ProgramEnrollment.find({ userId: user._id, isActive: true })
+        .select('batchId')
+        .lean();
+      enrolledBatchIds = enrollments.map((e) => e.batchId);
+    }
+
+    const match: Record<string, unknown> = { isActive: true };
+    if (enrolledBatchIds) match._id = { $in: enrolledBatchIds };
+
     const batches = await Batch.aggregate<{
       _id: Types.ObjectId;
       name: string;
@@ -26,7 +47,7 @@ export async function listPublicBatches(_req: Request, res: Response): Promise<v
       isDefault: boolean;
       faqCount: number;
     }>([
-      { $match: { isActive: true } },
+      { $match: match },
       { $sort: { startDate: -1 } },
       {
         $lookup: {

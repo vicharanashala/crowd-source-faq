@@ -156,10 +156,11 @@ export function programScope(opts: { required?: boolean } = {}) {
  *     unaffected; there's no session to leak across.
  *   - No `batchId` was requested (`req.programContext` unset) — an
  *     unscoped/global read, not a per-program one.
- * Global admins and moderators bypass (they're allowed to view any
- * program). Everyone else needs a matching, active `ProgramEnrollment`
- * for the requested batch, which `programScope()` (mounted before this)
- * is responsible for attaching.
+ * Only global admins (`User.role === 'admin'`, the platform-wide admin
+ * account, not a per-program role) bypass — they're allowed to view any
+ * program. Everyone else, including global moderators, needs a matching,
+ * active `ProgramEnrollment` for the requested batch, which
+ * `programScope()` (mounted before this) is responsible for attaching.
  *
  * Mount AFTER `optionalAuth` (or `protect`) and `programScope()`.
  */
@@ -167,7 +168,7 @@ export function enforceProgramMembership() {
   return (req: Request, res: Response, next: NextFunction): void => {
     const user = (req as Request & { user?: { role?: string } }).user;
     if (!user) return next();
-    if (user.role === 'admin' || user.role === 'moderator') return next();
+    if (user.role === 'admin') return next();
     if (!req.programContext) return next();
     if (!req.programEnrollment) {
       res.status(403).json({ message: 'You are not enrolled in this program.' });
