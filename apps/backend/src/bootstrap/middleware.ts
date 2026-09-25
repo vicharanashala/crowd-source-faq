@@ -4,12 +4,27 @@ import helmet from 'helmet';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { v4 as uuidv4 } from 'uuid';
+import rateLimit from 'express-rate-limit';
 import connectDB from '../config/db.js';
 import { runWithContext } from '../utils/http/requestContext.js';
 import { requestLogger } from '../utils/http/requestLogger.js';
 import { ingestFrontendLog } from '../utils/http/fileLogger.js';
 import { publicBasePath } from '../utils/publicBasePath.js';
 import { programScope } from '../middleware/programScope.js';
+
+// CodeQL fix (js/missing-rate-limiting): this middleware runs a DB
+// lookup (Batch.findById) for every request carrying a batchId, on
+// EVERY route in the app — with no rate limit at all before this fix.
+// Generous cap (this is a global, cross-route gate, not a single
+// endpoint's own limiter) so normal multi-tab/shared-IP browsing never
+// trips it, while still bounding a scripted flood.
+const globalProgramScopeLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 600,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many requests. Please slow down.' },
+});
 
 // Absolute path to the `uploads/` directory.
 // Resolved from the source file location so it works regardless of
@@ -152,7 +167,7 @@ export function registerMiddleware(app: Express, config: any): void {
   app.use(express.json());
 
   // 7.5. Global Program Scoping (soft)
-  app.use(programScope({ required: false }));
+  app.use(globalProgramScopeLimiter, programScope({ required: false }));
 
   // 8. Minimal Cookie parser
   app.use((req: Request, _res: Response, next: (e?: unknown) => void) => {

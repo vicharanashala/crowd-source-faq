@@ -70,118 +70,65 @@ function extractBatchId(req: Request): string | null {
 export function programScope(opts: { required?: boolean } = {}) {
   const required = opts.required ?? false;
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    // Incident debug (2026-09-25): absolute-first-line capture. If
-    // `req.programContext` is already truthy here, this function
-    // returns on the very next line — before any of our other debug
-    // writes further down, which would explain why enforceProgramMembership
-    // sees a populated programContext but programScope's own
-    // instrumentation never fires.
     try {
-      const mongoose = (await import('mongoose')).default;
-      const u = (req as Request & { user?: { _id?: string } }).user;
-      await mongoose.connection.db?.collection('debug_temp_2026_09_25').insertOne({
-        at: new Date(),
-        fn: 'programScope-veryfirst',
-        userId: u?._id ? String(u._id) : null,
-        alreadyHadProgramContext: !!req.programContext,
-        existingProgramContext: req.programContext ?? null,
-        hasReqUser: !!u,
-      });
-    } catch {
-      // best-effort
-    }
+      // Root-cause fix (2026-09-25): this middleware is mounted BOTH
+      // globally (bootstrap/middleware.ts, before any route-specific
+      // auth middleware runs) AND again per-route after `optionalAuth`/
+      // `protect`. The global pass runs with `req.user` not yet set, so
+      // it could resolve `req.programContext` but never had a user to
+      // attach `req.programEnrollment` for. The old "already attached,
+      // skip" early return then made the per-route pass — the only one
+      // that ever has a real user — skip re-running entirely, so
+      // req.programEnrollment silently never got attached for anyone
+      // whose request happened to reach a global-then-per-route double
+      // invocation (which is every request that reaches a route using
+      // this middleware). That looked exactly like "not enrolled" for
+      // users who very much were.
+      //
+      // Fix: resolving `req.programContext` is still skipped once it
+      // exists (that part of the cache is fine — the batch itself
+      // doesn't change mid-request), but the enrollment attachment is
+      // now independent of that cache and always attempted whenever a
+      // signed-in, non-admin user doesn't have it yet.
+      if (!req.programContext) {
+        const batchId = extractBatchId(req);
+        if (!batchId) {
+          if (required) {
+            res.status(400).json({ message: 'batchId is required for this route.' });
+            return;
+          }
+          return next();
+        }
 
-    if (req.programContext) return next(); // already attached
-
-    const batchId = extractBatchId(req);
-    if (!batchId) {
-      if (required) {
-        res.status(400).json({ message: 'batchId is required for this route.' });
-        return;
+        const batch = await Batch.findById(batchId).select('_id name isActive').lean();
+        if (!batch) {
+          res.status(404).json({ message: 'Program not found.' });
+          return;
+        }
+        if (!batch.isActive) {
+          res.status(410).json({ message: 'Program is archived or completed.' });
+          return;
+        }
+        req.programContext = {
+          batchId: String(batch._id),
+          batchName: batch.name,
+          isActive: batch.isActive,
+        };
+        setContextBatchId(String(batch._id));
       }
-      return next();
-    }
 
-    try {
-      const batch = await Batch.findById(batchId).select('_id name isActive').lean();
-      if (!batch) {
-        res.status(404).json({ message: 'Program not found.' });
-        return;
-      }
-      if (!batch.isActive) {
-        res.status(410).json({ message: 'Program is archived or completed.' });
-        return;
-      }
-      req.programContext = {
-        batchId: String(batch._id),
-        batchName: batch.name,
-        isActive: batch.isActive,
-      };
-
-      setContextBatchId(String(batch._id));
-
-      // Look up enrollment if the user is signed in. The model
-      // is loaded lazily so this middleware works even before the
-      // ProgramEnrollment model migration is run.
+      // Look up enrollment if the user is signed in and it isn't
+      // already attached. The model is loaded lazily so this
+      // middleware works even before the ProgramEnrollment model
+      // migration is run.
       const userId = (req as Request & { user?: { _id?: string; role?: string } }).user?._id;
-
-      // Incident debug (2026-09-25): unconditional capture, including
-      // the case where userId is falsy (which would explain a 403
-      // with zero writes from the block below).
-      try {
-        const mongoose = (await import('mongoose')).default;
-        await mongoose.connection.db?.collection('debug_temp_2026_09_25').insertOne({
-          at: new Date(),
-          fn: 'programScope-top',
-          hasReqUser: !!(req as Request & { user?: unknown }).user,
-          userId: userId ? String(userId) : null,
-          userIdTruthy: !!userId,
-          userRole: (req as Request & { user?: { role?: string } }).user?.role ?? null,
-          batchId,
-        });
-      } catch {
-        // best-effort
-      }
-
-      if (userId && (req as Request & { user?: { role?: string } }).user?.role !== 'admin') {
+      const role = (req as Request & { user?: { role?: string } }).user?.role;
+      if (userId && role !== 'admin' && !req.programEnrollment) {
         try {
           // Dynamic import — keeps the middleware cheap when the
           // model isn't installed yet.
           const { default: ProgramEnrollment } = await import('../modules/program/program-enrollment.model.js');
-          const enr = await ProgramEnrollment.findOne({ userId, batchId, isActive: true }).lean();
-
-          // Incident debug (2026-09-25): journalctl isn't readable by
-          // the deploy SSH user (no sudo password configured for it),
-          // so console logging is invisible to us. Write the same
-          // diagnostic to a throwaway DB collection instead, which we
-          // can read via the existing one-off scripts. Also runs a raw
-          // native-driver query alongside the Mongoose one to rule out
-          // a schema-cast mismatch. Best-effort — never let this debug
-          // write itself break the real request.
-          try {
-            const mongoose = (await import('mongoose')).default;
-            const rawMatch = mongoose.connection.db
-              ? await mongoose.connection.db.collection('yaksha_program_enrollments').findOne({
-                  userId: new mongoose.Types.ObjectId(String(userId)),
-                  batchId: new mongoose.Types.ObjectId(String(batchId)),
-                  isActive: true,
-                })
-              : null;
-            await mongoose.connection.db?.collection('debug_temp_2026_09_25').insertOne({
-              at: new Date(),
-              userId: String(userId),
-              userIdCtor: (userId as unknown as { constructor?: { name?: string } })?.constructor?.name,
-              batchId,
-              batchIdType: typeof batchId,
-              mongooseFound: !!enr,
-              mongooseResult: enr,
-              nativeFound: !!rawMatch,
-              nativeResult: rawMatch,
-            });
-          } catch (debugErr) {
-            httpLog.warn(`[programScope] debug write failed: ${(debugErr as Error).message}`);
-          }
-
+          const enr = await ProgramEnrollment.findOne({ userId, batchId: req.programContext.batchId, isActive: true }).lean();
           if (enr) {
             req.programEnrollment = {
               userId: String(enr.userId),
@@ -190,12 +137,11 @@ export function programScope(opts: { required?: boolean } = {}) {
               enrolledAt: enr.enrolledAt,
             };
           }
-        } catch (enrErr) {
+        } catch {
           // ProgramEnrollment model doesn't exist yet (Phase 1 not
           // fully landed). Skip silently — global admins still
           // pass through, and per-program authz is enforced later
           // once the model + middleware chain is in place.
-          httpLog.warn(`[programScope] enrollment lookup threw: ${(enrErr as Error).message}`);
         }
       }
 
@@ -255,26 +201,6 @@ export function programScope(opts: { required?: boolean } = {}) {
 export function enforceProgramMembership() {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const user = (req as Request & { user?: { _id?: string; role?: string } }).user;
-
-    // Incident debug (2026-09-25): unconditional, best-effort capture
-    // of everything this function saw, written to the same throwaway
-    // collection programScope uses. See programScope.ts for context.
-    try {
-      const mongoose = (await import('mongoose')).default;
-      await mongoose.connection.db?.collection('debug_temp_2026_09_25').insertOne({
-        at: new Date(),
-        fn: 'enforceProgramMembership',
-        hasUser: !!user,
-        userId: user?._id ? String(user._id) : null,
-        userIdCtor: user?._id ? (user._id as unknown as { constructor?: { name?: string } })?.constructor?.name : null,
-        userRole: user?.role ?? null,
-        programContext: req.programContext ?? null,
-        programEnrollment: req.programEnrollment ?? null,
-      });
-    } catch {
-      // best-effort, never break the real request
-    }
-
     if (!user) return next();
     if (user.role === 'admin') return next();
     if (!req.programContext) return next();
