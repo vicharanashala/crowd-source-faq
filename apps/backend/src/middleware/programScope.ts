@@ -109,6 +109,14 @@ export function programScope(opts: { required?: boolean } = {}) {
           // model isn't installed yet.
           const { default: ProgramEnrollment } = await import('../modules/program/program-enrollment.model.js');
           const enr = await ProgramEnrollment.findOne({ userId, batchId, isActive: true }).lean();
+          // Incident debug (2026-09-25): temporary visibility into a
+          // confirmed live case (Lakshya Aran, batch=summership) where
+          // this exact lookup fails to find a row that demonstrably
+          // exists and is active (confirmed via GET /me/programs on
+          // the same live server). Logging unconditionally, not just
+          // on miss, so we can also see the query actually ran and
+          // what it was searching for.
+          httpLog.warn(`[programScope] enrollment lookup userId=${String(userId)} batchId=${batchId} (typeof=${typeof batchId}) found=${!!enr}`);
           if (enr) {
             req.programEnrollment = {
               userId: String(enr.userId),
@@ -117,11 +125,12 @@ export function programScope(opts: { required?: boolean } = {}) {
               enrolledAt: enr.enrolledAt,
             };
           }
-        } catch {
+        } catch (enrErr) {
           // ProgramEnrollment model doesn't exist yet (Phase 1 not
           // fully landed). Skip silently — global admins still
           // pass through, and per-program authz is enforced later
           // once the model + middleware chain is in place.
+          httpLog.warn(`[programScope] enrollment lookup threw: ${(enrErr as Error).message}`);
         }
       }
 
