@@ -31,7 +31,15 @@ export async function listPublicBatches(req: Request, res: Response): Promise<vo
       const enrollments = await ProgramEnrollment.find({ userId: user._id, isActive: true })
         .select('batchId')
         .lean();
-      enrolledBatchIds = enrollments.map((e) => e.batchId);
+      // Incident fix (2026-09-25): ProgramEnrollment is only populated by
+      // a "v2" SSO bridge login or an explicit self-enroll — most
+      // existing students predate both and have ZERO rows here. Filtering
+      // them to an empty list broke their homepage entirely. A user with
+      // no enrollment rows at all is an unmigrated legacy account, not
+      // someone to lock out — fall back to the full public list for them
+      // (same as anonymous) instead of showing nothing. Anyone who DOES
+      // have at least one real enrollment still only sees their own.
+      enrolledBatchIds = enrollments.length > 0 ? enrollments.map((e) => e.batchId) : null;
     }
 
     const match: Record<string, unknown> = { isActive: true };

@@ -150,12 +150,26 @@ export function programScope(opts: { required?: boolean } = {}) {
  * summership-only student could switch the program dropdown to Vriddhi/
  * Monsoonship and have the backend trust the batchId at face value.
  *
- * Deliberately permissive for two cases so it's safe to drop onto
+ * Deliberately permissive for three cases so it's safe to drop onto
  * routes that are intentionally public:
  *   - No signed-in user (`req.user` unset) — anonymous browsing is
  *     unaffected; there's no session to leak across.
  *   - No `batchId` was requested (`req.programContext` unset) — an
  *     unscoped/global read, not a per-program one.
+ *   - Incident fix (2026-09-25): the user has NO `ProgramEnrollment`
+ *     row for ANY batch. `ProgramEnrollment` is only populated by a
+ *     "v2" SSO bridge login (carrying `programSlug`) or an explicit
+ *     self-enroll — most existing students predate both and were
+ *     never backfilled correctly, so requiring a matching row here
+ *     locked real, already-enrolled students out of their own home
+ *     page. A user with ZERO enrollment rows is almost certainly one
+ *     of these unmigrated legacy accounts, not someone actively
+ *     probing another cohort — so they fail OPEN (logged), while a
+ *     user who DOES have at least one active enrollment elsewhere and
+ *     requests a *different* batch still gets blocked below. This is
+ *     a stopgap until enrollment backfill is fixed; the frontend
+ *     (BatchSwitcher hidden for non-admins) and the batch-list filter
+ *     remain the primary barriers in the meantime.
  * Only global admins (`User.role === 'admin'`, the platform-wide admin
  * account, not a per-program role) bypass — they're allowed to view any
  * program. Everyone else, including global moderators, needs a matching,
@@ -165,12 +179,24 @@ export function programScope(opts: { required?: boolean } = {}) {
  * Mount AFTER `optionalAuth` (or `protect`) and `programScope()`.
  */
 export function enforceProgramMembership() {
-  return (req: Request, res: Response, next: NextFunction): void => {
-    const user = (req as Request & { user?: { role?: string } }).user;
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const user = (req as Request & { user?: { _id?: string; role?: string } }).user;
     if (!user) return next();
     if (user.role === 'admin') return next();
     if (!req.programContext) return next();
     if (!req.programEnrollment) {
+      try {
+        const { default: ProgramEnrollment } = await import('../modules/program/program-enrollment.model.js');
+        const hasAnyEnrollment = await ProgramEnrollment.exists({ userId: user._id, isActive: true });
+        if (!hasAnyEnrollment) {
+          httpLog.warn(`[enforceProgramMembership] allowing unmigrated user ${user._id} into ${req.programContext.batchId} — no ProgramEnrollment rows at all`);
+          return next();
+        }
+      } catch {
+        // ProgramEnrollment model unavailable — same posture as
+        // programScope's own lazy-import fallback: don't block.
+        return next();
+      }
       res.status(403).json({ message: 'You are not enrolled in this program.' });
       return;
     }
